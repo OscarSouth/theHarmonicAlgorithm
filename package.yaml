@@ -20,7 +20,7 @@ extra-source-files:
 description:         Please see the README on GitHub at <https://github.com/OscarSouth/theHarmonicAlgorithm#readme>
 
 dependencies:
-- base #>= 4.8 && < 5
+- base >= 4.8 && < 5
 
 library:
   exposed-modules:       Lib
@@ -46,6 +46,10 @@ executables:
     - theHarmonicAlgorithm
     - hasbolt
     - data-default
+    - inline-r
+    - text
+    - aeson
+    - containers
 
 tests:
   theHarmonicAlgorithm-test:

@@ -2,10 +2,14 @@ module Lib (
     someFunc
 ------------
 -- |Utility 
-  , otherFunc
+  , sort
+  , choose
 ------------
 -- |Generate
-  , anotherFunc
+  , overtoneSets 
+  , zeroForms
+  , zeroForm
+  , zeroTrans
   ) where
 
 import Utility
