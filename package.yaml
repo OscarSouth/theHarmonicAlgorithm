@@ -49,7 +49,9 @@ executables:
     - inline-r
     - text
     - aeson
+    - hmatrix
     - containers
+    - concurrent-extra
 
 tests:
   theHarmonicAlgorithm-test:
