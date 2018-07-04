@@ -29,11 +29,6 @@ library:
   - Utility
   - Generate
   # dependencies:
-  # - theHarmonicAlgorithm
-  # - hasbolt
-  # - text
-  # - aeson
-  # - containers
 
 executables:
   theHarmonicAlgorithm-exe:
@@ -46,9 +41,7 @@ executables:
     dependencies:
     - theHarmonicAlgorithm
     - inline-r
-    # - text
     - hmatrix
-    # - containers
     - concurrent-extra
 
 tests:

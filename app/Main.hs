@@ -15,52 +15,70 @@ main = do
   initScript
   return ()
 
+initScript = do  
+  putStrLn ">> Welcome to The Harmonic Algorithm, what's your name?"  
+  name <- getLine  
+  putStrLn (">> Hey " ++ name)
+  threadDelay 100000
+  putStrLn (">> Let's go")
+  threadDelay 500000
+  loadData
+  threadDelay 300000
+  putStrLn ">> Begin.."
+  char <- getLine
+  return ()
+  
+loadData = do
+  putStrLn ">> Load demo dataset?"
+  putStrLn ">> y/n"
+  load <- getLine
+  if load == "n"
+  then putStrLn ">> No Data Loaded"
+    else if load == "y" 
+    then do
+    uciRef
+    -- | data should be loaded here
+    threadDelay 1000000
+    putStrLn ">> Dataset loaded"
+      else do
+      putStrLn ">> Unknown Input"
+      threadDelay 500000
+      putStrLn ">> Load demo dataset?"
+      putStrLn ">> y/n"
+      loadData
 
+header :: IO ()
+header  = do  
+  putStrLn ""
+  putStrLn "  .___________________________________________."
+  putStrLn "  |__/___\\_.___The____________________________|"
+  putStrLn "  |__\\___|_.______Harmonic_____________/|_____|"
+  putStrLn "  |_____/______________Algorithm______/_|_____|"
+  putStrLn "  |____/_____________________________|__|_____|"
+  putStrLn "                                     |-()-"
+  putStrLn "                                 by  |"
+  putStrLn "                                   -()-scar South, 2018 "
+  putStrLn ""
+  return ()
 
-
-
-
-
-
-
-
-
-
-
-
-  -- testQuery -- P "this was made in haskell!"
-  -- executeR
-  -- appendLogR
-  -- return ()
-
--- neoDB :: BoltCfg
--- neoDB  = def {user = "neo4j", password = "0980"}
-
--- testQuery :: IO ()
--- testQuery  = do
---   pipe <- connect $ neoDB
---   run pipe $ query "CREATE (n:test{wow:'this was made in haskell!'})"
---   records <- run pipe $ query "MATCH (n) RETURN n"
---   run pipe $ query "MATCH (n) DETACH DELETE n"
---   close pipe
---   let a = head records
---   toNode a >>= print
-
--- testQueryP    :: [Char] -> IO ()
--- testQueryP val = do
---   pipe <- connect $ neoDB
---   run pipe $ query "CREATE (n:test{wow:"testing"})" 
---   records <- run pipe $ queryP "MATCH (n:{testing}) RETURN n" (fromList [("text", T val)])
---   run pipe $ query "MATCH (n) DETACH DELETE n"
---   close pipe
---   let a = head records
---   toNode a >>= print
-
--- toNode       :: Monad m => Record -> m Node
--- toNode record = record `at` "n" >>= exact
+uciRef :: IO ()
+uciRef  = do
+    putStrLn ">> Loading Bach Chorale Dataset from UCI Machine Learning Repository..."
+    putStrLn "+--------------------------------------------------------------------------+"
+    putStrLn "| Dua, D. and Karra Taniskidou, E. (2017). UCI Machine Learning Repository |"
+    putStrLn "| [http://archive.ics.uci.edu/ml]. Irvine, CA: University of California,   |"
+    putStrLn "| School of Information and Computer Science.                              |"
+    putStrLn "+--------------------------------------------------------------------------+"
+    threadDelay 100000
+    putStrLn "."
+    threadDelay 100000
+    putStrLn ".."
+    threadDelay 100000
+    putStrLn "..."
+    return ()
 
 -- plotR :: IO ()
--- plotR  = R.runRegion $ do
+-- plotR  = runRegion $ do
 --   [r| library(ggplot2)
 --       p <- ggplot(mtcars, aes(x=wt, y=mpg)) + geom_point()
 --       ggsave(filename="output/plots/plot.png", plot=p, 
@@ -69,7 +87,7 @@ main = do
 --   return ()
 
 -- initLogR :: IO ()
--- initLogR  = R.runRegion $ do
+-- initLogR  = runRegion $ do
 --   [r| data(iris)
 --       fit <- lm(Petal.Width ~ Petal.Length, data=iris)
 --       sink("output/output.txt")
@@ -82,14 +100,14 @@ main = do
 --   return ()
 
 -- appendLogR :: IO ()
--- appendLogR  = R.runRegion $ do
+-- appendLogR  = runRegion $ do
 --   [r| sink("output/output.txt", append=TRUE)
 --       cat("Some more stuff here...\n")
 --     |]
 --   return ()
 
 -- executeR :: IO ()
--- executeR  = R.withEmbeddedR defaultConfig $ do
+-- executeR  = withEmbeddedR defaultConfig $ do
 --   plotR
 --   initLogR
 --   appendLogR
@@ -99,7 +117,7 @@ main = do
 
 
 
--- loadBachData = R.runRegion $ do
+-- loadBachData = runRegion $ do
 --   [r| library("tidyverse")
 --       bach <- read_csv("data/jsbach_chorals_harmony.data", 
 --                       col_names = c(
@@ -140,50 +158,21 @@ main = do
 --     |]
 --   return ()
 
--- testR = R.runRegion $ do
+-- testR = runRegion $ do
 --   let f x = return (x + 1) :: R s Double
 --   [r| print(f_hs(1)) |]
 --   return ()
 
--- testR' = R.runRegion $ do
+-- testR' = runRegion $ do
 --   x <- [r| 1 + 1 |]
 --   [r| print(1 + x_hs) |]
 --   return ()
 
--- testR'' = R.runRegion $ do
+-- testR'' = runRegion $ do
 --   x <- [r| 123 |]
 --   return ()
 
-initScript = do  
-  putStrLn ">> Welcome to The Harmonic Algorithm, what's your name?"  
-  name <- getLine  
-  putStrLn (">> Hey " ++ name)
-  threadDelay 100000
-  putStrLn (">> Let's go")
-  threadDelay 500000
-  loadData
-  threadDelay 300000
-  putStrLn ">> Begin.."
-  char <- getLine
-  return ()
-  
-loadData = do
-  putStrLn ">> Load demo dataset?"
-  putStrLn ">> y/n"
-  load <- getLine
-  if load == "n"
-  then putStrLn ">> No Data Loaded"
-    else if load == "y" 
-    then do
-    uciRef
-    threadDelay 1000000
-    putStrLn ">> Dataset loaded"
-      else do
-      putStrLn ">> Unknown Input"
-      threadDelay 500000
-      putStrLn ">> Load demo dataset?"
-      putStrLn ">> y/n"
-      loadData
+
 
 -- |Pass data from Haskell to R then print
 -- hDataR = do 
@@ -215,32 +204,3 @@ rData n = do
 
 -- |Pass function from R to Haskell
 
-header :: IO ()
-header  = do  
-  putStrLn ""
-  putStrLn "  .___________________________________________."
-  putStrLn "  |__/___\\_.___The____________________________|"
-  putStrLn "  |__\\___|_.______Harmonic_____________/|_____|"
-  putStrLn "  |_____/______________Algorithm______/_|_____|"
-  putStrLn "  |____/_____________________________|__|_____|"
-  putStrLn "                                     |-()-"
-  putStrLn "                                 by  |"
-  putStrLn "                                   -()-scar South, 2018 "
-  putStrLn ""
-  return ()
-
-uciRef :: IO ()
-uciRef  = do
-    putStrLn ">> Loading Bach Chorale Dataset from UCI Machine Learning Repository..."
-    putStrLn "+--------------------------------------------------------------------------+"
-    putStrLn "| Dua, D. and Karra Taniskidou, E. (2017). UCI Machine Learning Repository |"
-    putStrLn "| [http://archive.ics.uci.edu/ml]. Irvine, CA: University of California,   |"
-    putStrLn "| School of Information and Computer Science.                              |"
-    putStrLn "+--------------------------------------------------------------------------+"
-    threadDelay 100000
-    putStrLn "."
-    threadDelay 100000
-    putStrLn ".."
-    threadDelay 100000
-    putStrLn "..."
-    return ()
