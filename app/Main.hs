@@ -11,9 +11,17 @@ import Language.R.QQ
 import Control.Concurrent (threadDelay)
 
 main = do
+  initR
   header
   initScript
   return ()
+
+-- |Initialise R + session log, load libraries & log session info
+initR = withEmbeddedR defaultConfig $ do
+  initLogR
+  return ()
+
+-- dirR = runRegion $ [r| getwd() |]
 
 initScript = do  
   putStrLn ">> Welcome to The Harmonic Algorithm, what's your name?"  
@@ -77,6 +85,26 @@ uciRef  = do
     putStrLn "..."
     return ()
 
+initLogR :: IO ()
+initLogR  = runRegion $ do
+  [r| data(iris)
+      fit <- lm(Petal.Width ~ Petal.Length, data=iris)
+      sink("output/output.txt")
+      cat("=============================\n")
+      cat("test\n")
+      cat("=============================\n")
+      print(head(iris))
+      print(summary(fit))
+    |]
+  return ()
+
+-- appendLogR :: IO ()
+-- appendLogR  = runRegion $ do
+--   [r| sink("output/output.txt", append=TRUE)
+--       cat("Some more stuff here...\n")
+--     |]
+--   return ()
+
 -- plotR :: IO ()
 -- plotR  = runRegion $ do
 --   [r| library(ggplot2)
@@ -86,40 +114,12 @@ uciRef  = do
 --     |]
 --   return ()
 
--- initLogR :: IO ()
--- initLogR  = runRegion $ do
---   [r| data(iris)
---       fit <- lm(Petal.Width ~ Petal.Length, data=iris)
---       sink("output/output.txt")
---       cat("=============================\n")
---       cat("test\n")
---       cat("=============================\n")
---       print(head(iris))
---       print(summary(fit))
---     |]
---   return ()
-
--- appendLogR :: IO ()
--- appendLogR  = runRegion $ do
---   [r| sink("output/output.txt", append=TRUE)
---       cat("Some more stuff here...\n")
---     |]
---   return ()
-
--- executeR :: IO ()
--- executeR  = withEmbeddedR defaultConfig $ do
---   plotR
---   initLogR
---   appendLogR
---   return ()
-
--- |Initialise R + session log, load libraries & log session info
 
 
+  -- [r| library("tidyverse") |]
 
 -- loadBachData = runRegion $ do
---   [r| library("tidyverse")
---       bach <- read_csv("data/jsbach_chorals_harmony.data", 
+--   [r| bach <- read_csv("data/jsbach_chorals_harmony.data", 
 --                       col_names = c(
 --                         "seq", "event",
 --                         "0", "1", "2", "3", "4", "5", 
@@ -174,33 +174,29 @@ uciRef  = do
 
 
 
--- |Pass data from Haskell to R then print
--- hDataR = do 
---   print [0,3,7]
---   return ()
 
--- |Pass data to R from Haskell then print
-rDataH = runRegion $ do
-  x <- [r| c(0,3,7) |]
-  return ()
-
--- getNormals :: Double -> R.R s [Double]
--- getNormals n = do
---   R.dynSEXP <$> [r| rnorm(n_hs) |]
--- rTest = R.runRegion $ do
---   get_normals 4
-
--- get_normals :: Double -> R s [Double]
--- get_normals n = do
---   R.dynSEXP <$> [r| rnorm(n_hs) |]
-
-rTest n = runRegion $ rData n
 
 rData  :: Double -> R s [Double]
 rData n = do
   R.fromSomeSEXP <$> [r| rnorm(n_hs) |]
 
--- |Pass function from Haskell to R
+rTest n = runRegion $ rData n
+
+
+-- |Pass data to R from Haskell
 
 -- |Pass function from R to Haskell
 
+-- |Pass data from Haskell to R
+
+-- |Pass function from Haskell to R
+
+
+
+
+
+rRetDir = runRegion $ rGetDir
+
+rGetDir :: R s String
+rGetDir  = do
+  R.fromSomeSEXP <$> [r| getwd() |]
