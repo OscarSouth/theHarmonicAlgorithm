@@ -28,11 +28,12 @@ library:
   other-modules:
   - Utility
   - Generate
-  dependencies:
-  - hasbolt
-  - text
-  - aeson
-  - containers
+  # dependencies:
+  # - theHarmonicAlgorithm
+  # - hasbolt
+  # - text
+  # - aeson
+  # - containers
 
 executables:
   theHarmonicAlgorithm-exe:
@@ -44,13 +45,10 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - theHarmonicAlgorithm
-    - hasbolt
-    - data-default
     - inline-r
-    - text
-    - aeson
+    # - text
     - hmatrix
-    - containers
+    # - containers
     - concurrent-extra
 
 tests:

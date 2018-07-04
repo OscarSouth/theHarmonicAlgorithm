@@ -1,26 +1,33 @@
-{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE QuasiQuotes #-}
-{-# LANGUAGE DeriveFunctor #-}
 
 module Main where
 
 import Lib
 
 import qualified Foreign.R as R
-import Foreign.R (SEXP, SEXPTYPE)
-import Language.R.Instance as R
+import qualified Language.R.Literal as R
+import Language.R.Instance
 import Language.R.QQ
-import qualified Data.Vector.SEXP as R
-import Data.Default (Default (..))
-import Data.List
-import Data.Char
-import Database.Bolt
-import Control.Concurrent ( threadDelay )
+import Control.Concurrent (threadDelay)
 
 main = do
   header
-  tester
+  initScript
   return ()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
   -- testQuery -- P "this was made in haskell!"
   -- executeR
   -- appendLogR
@@ -92,62 +99,62 @@ main = do
 
 
 
-loadBachData = R.runRegion $ do
-  [r| library("tidyverse")
-      bach <- read_csv("data/jsbach_chorals_harmony.data", 
-                      col_names = c(
-                        "seq", "event",
-                        "0", "1", "2", "3", "4", "5", 
-                        "6", "7", "8", "9", "10", "11",
-                        "fund", "acc", "label"
-                      ), cols(
-                        seq = col_character(),
-                        event = col_integer(),
-                        `0` = col_character(),
-                        `1` = col_character(),
-                        `2` = col_character(),
-                        `3` = col_character(),
-                        `4` = col_character(),
-                        `5` = col_character(),
-                        `6` = col_character(),
-                        `7` = col_character(),
-                        `8` = col_character(),
-                        `9` = col_character(),
-                        `10` = col_character(),
-                        `11` = col_character(),
-                        fund = col_character(),
-                        acc = col_integer(),
-                        label = col_character()
-                      )
-                    )
-      bach <-
-        bach %>% 
-          select(seq, event, fund, acc) %>%
-          add_column(pitch = bach %>% 
-                      select(`0`:`11`) %>% 
-                      t() %>% 
-                      as.data.frame() %>%
-                      unname() %>%
-                      map(function(x) str_which(x, "YES")-1)
-                    ) 
-    |]
-  return ()
+-- loadBachData = R.runRegion $ do
+--   [r| library("tidyverse")
+--       bach <- read_csv("data/jsbach_chorals_harmony.data", 
+--                       col_names = c(
+--                         "seq", "event",
+--                         "0", "1", "2", "3", "4", "5", 
+--                         "6", "7", "8", "9", "10", "11",
+--                         "fund", "acc", "label"
+--                       ), cols(
+--                         seq = col_character(),
+--                         event = col_integer(),
+--                         `0` = col_character(),
+--                         `1` = col_character(),
+--                         `2` = col_character(),
+--                         `3` = col_character(),
+--                         `4` = col_character(),
+--                         `5` = col_character(),
+--                         `6` = col_character(),
+--                         `7` = col_character(),
+--                         `8` = col_character(),
+--                         `9` = col_character(),
+--                         `10` = col_character(),
+--                         `11` = col_character(),
+--                         fund = col_character(),
+--                         acc = col_integer(),
+--                         label = col_character()
+--                       )
+--                     )
+--       bach <-
+--         bach %>% 
+--           select(seq, event, fund, acc) %>%
+--           add_column(pitch = bach %>% 
+--                       select(`0`:`11`) %>% 
+--                       t() %>% 
+--                       as.data.frame() %>%
+--                       unname() %>%
+--                       map(function(x) str_which(x, "YES")-1)
+--                     ) 
+--     |]
+--   return ()
 
-testR = R.runRegion $ do
-  let f x = return (x + 1) :: R s Double
-  [r| print(f_hs(1)) |]
-  return ()
+-- testR = R.runRegion $ do
+--   let f x = return (x + 1) :: R s Double
+--   [r| print(f_hs(1)) |]
+--   return ()
 
-testR' = R.runRegion $ do
-  x <- [r| 1 + 1 |]
-  [r| print(1 + x_hs) |]
-  return ()
+-- testR' = R.runRegion $ do
+--   x <- [r| 1 + 1 |]
+--   [r| print(1 + x_hs) |]
+--   return ()
 
-testR'' = R.runRegion $ do
-  x <- [r| 123 |]
-  return ()
+-- testR'' = R.runRegion $ do
+--   x <- [r| 123 |]
+--   return ()
 
-tester = do  
+initScript = do  
   putStrLn ">> Welcome to The Harmonic Algorithm, what's your name?"  
   name <- getLine  
   putStrLn (">> Hey " ++ name)
@@ -179,14 +186,30 @@ loadData = do
       loadData
 
 -- |Pass data from Haskell to R then print
-hDataR = do 
-  print [0,3,7]
-  return ()
+-- hDataR = do 
+--   print [0,3,7]
+--   return ()
 
 -- |Pass data to R from Haskell then print
-rDataH = R.runRegion $ do
-  [r| print(c(0,3,7)) |]
+rDataH = runRegion $ do
+  x <- [r| c(0,3,7) |]
   return ()
+
+-- getNormals :: Double -> R.R s [Double]
+-- getNormals n = do
+--   R.dynSEXP <$> [r| rnorm(n_hs) |]
+-- rTest = R.runRegion $ do
+--   get_normals 4
+
+-- get_normals :: Double -> R s [Double]
+-- get_normals n = do
+--   R.dynSEXP <$> [r| rnorm(n_hs) |]
+
+rTest n = runRegion $ rData n
+
+rData  :: Double -> R s [Double]
+rData n = do
+  R.fromSomeSEXP <$> [r| rnorm(n_hs) |]
 
 -- |Pass function from Haskell to R
 
