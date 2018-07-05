@@ -19,13 +19,19 @@ main = do
 -- |Initialise R + session log, load libraries & log session info
 initR = withEmbeddedR defaultConfig $ do
   initLogR
+  -- putStrLn $ runRegion $ rGetDir
   return ()
 
--- dirR = runRegion $ [r| getwd() |]
+-- |Retrieve R working directory
+rGetDir :: R s String
+rGetDir  = do
+  R.fromSomeSEXP <$> [r| getwd() |]
+
+-- rReturnDir = runRegion $ rGetDir
 
 initScript = do  
   putStrLn ">> Welcome to The Harmonic Algorithm, what's your name?"  
-  name <- getLine  
+  name <- getLine
   putStrLn (">> Hey " ++ name)
   threadDelay 100000
   putStrLn (">> Let's go")
@@ -45,7 +51,7 @@ loadData = do
     else if load == "y" 
     then do
     uciRef
-    -- | data should be loaded here
+    -- |data should be loaded here
     threadDelay 1000000
     putStrLn ">> Dataset loaded"
       else do
@@ -176,11 +182,17 @@ initLogR  = runRegion $ do
 
 
 
-rData  :: Double -> R s [Double]
-rData n = do
+rDef  :: Double -> R s [Double]
+rDef n = do
   R.fromSomeSEXP <$> [r| rnorm(n_hs) |]
 
-rTest n = runRegion $ rData n
+rRet  :: Double -> IO [Double]
+rRet n = runRegion $ rDef n
+
+-- rRet'  :: (Double -> R s [Double]) -> Double -> IO [Double]
+-- rRet' f n = runRegion $ f n
+
+
 
 
 -- |Pass data to R from Haskell
@@ -192,11 +204,21 @@ rTest n = runRegion $ rData n
 -- |Pass function from Haskell to R
 
 
+-- rData'  :: Double -> R s [Double]
+-- rData' n = let func = R.fromSomeSEXP <$> [r| rnorm(n_hs) |]
+--              in runRegion $ func n
 
 
+-- rTest' :: (a -> R s [Double]) -> a -> [b]
+-- rTest' n = runRegion $ rData' n
 
-rRetDir = runRegion $ rGetDir
+-- -- rTest'' :: (R s [Double]) -> a -> [b]
+-- rTest'' f n = runRegion <$> f <*> n
 
-rGetDir :: R s String
-rGetDir  = do
-  R.fromSomeSEXP <$> [r| getwd() |]
+-- |
+-- execR :: (a -> R s [Double]) -> a -> [b]
+-- execR f x =
+
+-- rData'  :: Double -> [Double]
+-- rData' n = do
+--   runRegion $ R.fromSomeSEXP <$> [r| rnorm(n_hs) |]
