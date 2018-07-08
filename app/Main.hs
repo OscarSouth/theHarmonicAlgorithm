@@ -1,108 +1,108 @@
-{-# LANGUAGE QuasiQuotes #-}
+-- {-# LANGUAGE QuasiQuotes #-}
 
 module Main where
 
 import Lib
 
-import qualified Foreign.R as R
-import qualified Language.R.Literal as R
-import Language.R.Instance
-import Language.R.QQ
-import Control.Concurrent (threadDelay)
+-- import qualified Foreign.R as R
+-- import qualified Language.R.Literal as R
+-- import Language.R.Instance
+-- import Language.R.QQ
+-- import Control.Concurrent (threadDelay)
 
-main = do
-  initR
-  header
-  initScript
-  return ()
+-- main = do
+--   initR
+--   header
+--   initScript
+--   return ()
 
--- |Initialise R + session log, load libraries & log session info
-initR = withEmbeddedR defaultConfig $ do
-  initLogR
-  -- putStrLn $ runRegion $ rGetDir
-  return ()
+-- -- |Initialise R + session log, load libraries & log session info
+-- initR = withEmbeddedR defaultConfig $ do
+--   initLogR
+--   -- putStrLn $ runRegion $ rGetDir
+--   return ()
 
--- |Retrieve R working directory
-rGetDir :: R s String
-rGetDir  = do
-  R.fromSomeSEXP <$> [r| getwd() |]
+-- -- |Retrieve R working directory
+-- rGetDir :: R s String
+-- rGetDir  = do
+--   R.fromSomeSEXP <$> [r| getwd() |]
 
--- rReturnDir = runRegion $ rGetDir
+-- -- rReturnDir = runRegion $ rGetDir
 
-initScript = do  
-  putStrLn ">> Welcome to The Harmonic Algorithm, what's your name?"  
-  name <- getLine
-  putStrLn (">> Hey " ++ name)
-  threadDelay 100000
-  putStrLn (">> Let's go")
-  threadDelay 500000
-  loadData
-  threadDelay 300000
-  putStrLn ">> Begin.."
-  char <- getLine
-  return ()
+-- initScript = do  
+--   putStrLn ">> Welcome to The Harmonic Algorithm, what's your name?"  
+--   name <- getLine
+--   putStrLn (">> Hey " ++ name)
+--   threadDelay 100000
+--   putStrLn (">> Let's go")
+--   threadDelay 500000
+--   loadData
+--   threadDelay 300000
+--   putStrLn ">> Begin.."
+--   char <- getLine
+--   return ()
   
-loadData = do
-  putStrLn ">> Load demo dataset?"
-  putStrLn ">> y/n"
-  load <- getLine
-  if load == "n"
-  then putStrLn ">> No Data Loaded"
-    else if load == "y" 
-    then do
-    uciRef
-    -- |data should be loaded here
-    threadDelay 1000000
-    putStrLn ">> Dataset loaded"
-      else do
-      putStrLn ">> Unknown Input"
-      threadDelay 500000
-      putStrLn ">> Load demo dataset?"
-      putStrLn ">> y/n"
-      loadData
+-- loadData = do
+--   putStrLn ">> Load demo dataset?"
+--   putStrLn ">> y/n"
+--   load <- getLine
+--   if load == "n"
+--   then putStrLn ">> No Data Loaded"
+--     else if load == "y" 
+--     then do
+--     uciRef
+--     -- |data should be loaded here
+--     threadDelay 1000000
+--     putStrLn ">> Dataset loaded"
+--       else do
+--       putStrLn ">> Unknown Input"
+--       threadDelay 500000
+--       putStrLn ">> Load demo dataset?"
+--       putStrLn ">> y/n"
+--       loadData
 
-header :: IO ()
-header  = do  
-  putStrLn ""
-  putStrLn "  .___________________________________________."
-  putStrLn "  |__/___\\_.___The____________________________|"
-  putStrLn "  |__\\___|_.______Harmonic_____________/|_____|"
-  putStrLn "  |_____/______________Algorithm______/_|_____|"
-  putStrLn "  |____/_____________________________|__|_____|"
-  putStrLn "                                     |-()-"
-  putStrLn "                                 by  |"
-  putStrLn "                                   -()-scar South, 2018 "
-  putStrLn ""
-  return ()
+-- header :: IO ()
+-- header  = do  
+--   putStrLn ""
+--   putStrLn "  .___________________________________________."
+--   putStrLn "  |__/___\\_.___The____________________________|"
+--   putStrLn "  |__\\___|_.______Harmonic_____________/|_____|"
+--   putStrLn "  |_____/______________Algorithm______/_|_____|"
+--   putStrLn "  |____/_____________________________|__|_____|"
+--   putStrLn "                                     |-()-"
+--   putStrLn "                                 by  |"
+--   putStrLn "                                   -()-scar South, 2018 "
+--   putStrLn ""
+--   return ()
 
-uciRef :: IO ()
-uciRef  = do
-    putStrLn ">> Loading Bach Chorale Dataset from UCI Machine Learning Repository..."
-    putStrLn "+--------------------------------------------------------------------------+"
-    putStrLn "| Dua, D. and Karra Taniskidou, E. (2017). UCI Machine Learning Repository |"
-    putStrLn "| [http://archive.ics.uci.edu/ml]. Irvine, CA: University of California,   |"
-    putStrLn "| School of Information and Computer Science.                              |"
-    putStrLn "+--------------------------------------------------------------------------+"
-    threadDelay 100000
-    putStrLn "."
-    threadDelay 100000
-    putStrLn ".."
-    threadDelay 100000
-    putStrLn "..."
-    return ()
+-- uciRef :: IO ()
+-- uciRef  = do
+--     putStrLn ">> Loading Bach Chorale Dataset from UCI Machine Learning Repository..."
+--     putStrLn "+--------------------------------------------------------------------------+"
+--     putStrLn "| Dua, D. and Karra Taniskidou, E. (2017). UCI Machine Learning Repository |"
+--     putStrLn "| [http://archive.ics.uci.edu/ml]. Irvine, CA: University of California,   |"
+--     putStrLn "| School of Information and Computer Science.                              |"
+--     putStrLn "+--------------------------------------------------------------------------+"
+--     threadDelay 100000
+--     putStrLn "."
+--     threadDelay 100000
+--     putStrLn ".."
+--     threadDelay 100000
+--     putStrLn "..."
+--     return ()
 
-initLogR :: IO ()
-initLogR  = runRegion $ do
-  [r| data(iris)
-      fit <- lm(Petal.Width ~ Petal.Length, data=iris)
-      sink("output/output.txt")
-      cat("=============================\n")
-      cat("test\n")
-      cat("=============================\n")
-      print(head(iris))
-      print(summary(fit))
-    |]
-  return ()
+-- initLogR :: IO ()
+-- initLogR  = runRegion $ do
+--   [r| data(iris)
+--       fit <- lm(Petal.Width ~ Petal.Length, data=iris)
+--       sink("output/output.txt")
+--       cat("=============================\n")
+--       cat("test\n")
+--       cat("=============================\n")
+--       print(head(iris))
+--       print(summary(fit))
+--     |]
+--   return ()
 
 -- appendLogR :: IO ()
 -- appendLogR  = runRegion $ do
@@ -182,12 +182,7 @@ initLogR  = runRegion $ do
 
 
 
-rDef  :: Double -> R s [Double]
-rDef n = do
-  R.fromSomeSEXP <$> [r| rnorm(n_hs) |]
 
-rRet  :: Double -> IO [Double]
-rRet n = runRegion $ rDef n
 
 -- rRet'  :: (Double -> R s [Double]) -> Double -> IO [Double]
 -- rRet' f n = runRegion $ f n
@@ -222,3 +217,101 @@ rRet n = runRegion $ rDef n
 -- rData'  :: Double -> [Double]
 -- rData' n = do
 --   runRegion $ R.fromSomeSEXP <$> [r| rnorm(n_hs) |]
+
+
+
+
+
+-- rDef  :: Double -> R s [Double]
+-- rDef n = do
+--   R.fromSomeSEXP <$> [r| rnorm(n_hs) |]
+
+-- rRet  :: Double -> IO [Double]
+-- rRet n = runRegion $ rDef n
+
+
+--------------------------------------------------------------------------------
+-- MARKOV CHAIN
+
+
+-- module Main where
+
+-- import qualified Control.Monad.Random as X
+-- import qualified Data.List as L
+-- import qualified Data.Map as M
+
+-- type TransitionMap = M.Map (String,String) Int
+-- type MarkovChain   = M.Map String [(String,Int)]
+
+-- addTransition    :: TransitionMap -> (String,String) -> TransitionMap
+-- addTransition m k = M.insertWith (+) k 1 m
+
+-- fromTransitionMap  :: TransitionMap -> MarkovChain
+-- fromTransitionMap m =
+--   M.fromList [(k, frequencies k) | k <- ks]
+--   where ks = L.nub $ map fst $ M.keys m
+--         frequencies a = map reduce $ filter (outboundFor a) $ M.toList m
+--         outboundFor a k = fst (fst k) == a
+--         reduce e = (snd (fst e), snd e)
+
+-- -- outboundFor a k = fst (fst k) == a
+
+-- -- reduce e = (snd (fst e), snd e)
+
+-- -- generateSequence :: (X.MonadRandom m) => MarkovChain -> String -> m String
+-- -- generateSequence m s
+-- --   | not (null s) && last s == '.' = return s
+-- --   | otherwise = do
+-- --                 s' <- X.fromList $ m M.! s
+-- --                 ss <- generateSequence m s'
+-- --                 return $ if null s then ss else s ++ " " ++ ss
+
+-- -- |tupled 
+-- fromSample   :: [String] -> MarkovChain
+-- fromSample ss = fromTransitionMap $ bigramMap ss
+
+-- -- |Map object of bigrams with counts of keys
+-- bigramMap   :: [String] -> TransitionMap
+-- bigramMap ss = foldl addTransition M.empty $ bigrams ss
+
+-- -- |tupled bigrams of sampleset
+-- bigrams   :: [String] -> [(String,String)]
+-- bigrams ss = concatMap pairs ss
+
+-- -- |tupled bigrams of a single sample
+-- pairs   :: String -> [(String,String)]
+-- pairs s  =
+--   let ws = words s 
+--     in zipWith (,) ("":ws) ws
+
+-- sample :: [String]
+-- sample  = [ "I am a monster."
+--           , "I am a rock star."]
+--          --  , "I want to go to Hawaii."
+--          --  , "I want to eat a hamburger."
+--          --  , "I have a really big headache."
+--          --  , "Haskell is a fun language."
+--          --  , "Go eat a big hamburger."
+--          --  , "Markov chains are fun to use."
+--          --  ]
+
+-- main = do
+--   s <- generateSequence (fromSample sample) ""
+--   print s
+
+main = do 
+  return ()
+
+--------------------------------------------------------------------------------
+
+
+  
+--------------------------------------------------------------------------------
+
+
+
+
+
+-- main = do
+--   x <- X.evalRandIO X.getRandom :: IO Float
+--   putStrLn $ "Your random number is " ++ show x

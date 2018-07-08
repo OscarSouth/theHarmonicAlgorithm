@@ -28,6 +28,7 @@ library:
   other-modules:
   - Utility
   - Generate
+  - Markov
   # dependencies:
 
 executables:
@@ -43,6 +44,8 @@ executables:
     - inline-r
     - hmatrix
     - concurrent-extra
+    - containers
+    - MonadRandom
 
 tests:
   theHarmonicAlgorithm-test:
