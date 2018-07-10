@@ -1,108 +1,108 @@
--- {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE QuasiQuotes #-}
 
 module Main where
 
 import Lib
 
--- import qualified Foreign.R as R
--- import qualified Language.R.Literal as R
--- import Language.R.Instance
--- import Language.R.QQ
--- import Control.Concurrent (threadDelay)
+import qualified Foreign.R as R
+import qualified Language.R.Literal as R
+import Language.R.Instance
+import Language.R.QQ
+import Control.Concurrent (threadDelay)
 
--- main = do
---   initR
---   header
---   initScript
---   return ()
+main = do
+  initR
+  header
+  initScript
+  return ()
 
--- -- |Initialise R + session log, load libraries & log session info
--- initR = withEmbeddedR defaultConfig $ do
---   initLogR
---   -- putStrLn $ runRegion $ rGetDir
---   return ()
+-- |Initialise R + session log, load libraries & log session info
+initR = withEmbeddedR defaultConfig $ do
+  initLogR
+  -- putStrLn $ runRegion $ rGetDir
+  return ()
 
--- -- |Retrieve R working directory
--- rGetDir :: R s String
--- rGetDir  = do
---   R.fromSomeSEXP <$> [r| getwd() |]
+-- |Retrieve R working directory
+rGetDir :: R s String
+rGetDir  = do
+  R.fromSomeSEXP <$> [r| getwd() |]
 
--- -- rReturnDir = runRegion $ rGetDir
+-- rReturnDir = runRegion $ rGetDir
 
--- initScript = do  
---   putStrLn ">> Welcome to The Harmonic Algorithm, what's your name?"  
---   name <- getLine
---   putStrLn (">> Hey " ++ name)
---   threadDelay 100000
---   putStrLn (">> Let's go")
---   threadDelay 500000
---   loadData
---   threadDelay 300000
---   putStrLn ">> Begin.."
---   char <- getLine
---   return ()
+initScript = do  
+  putStrLn ">> Welcome to The Harmonic Algorithm, what's your name?"  
+  name <- getLine
+  putStrLn (">> Hey " ++ name)
+  threadDelay 100000
+  putStrLn (">> Let's go")
+  threadDelay 500000
+  loadData
+  threadDelay 300000
+  putStrLn ">> Begin.."
+  char <- getLine
+  return ()
   
--- loadData = do
---   putStrLn ">> Load demo dataset?"
---   putStrLn ">> y/n"
---   load <- getLine
---   if load == "n"
---   then putStrLn ">> No Data Loaded"
---     else if load == "y" 
---     then do
---     uciRef
---     -- |data should be loaded here
---     threadDelay 1000000
---     putStrLn ">> Dataset loaded"
---       else do
---       putStrLn ">> Unknown Input"
---       threadDelay 500000
---       putStrLn ">> Load demo dataset?"
---       putStrLn ">> y/n"
---       loadData
+loadData = do
+  putStrLn ">> Load demo dataset?"
+  putStrLn ">> y/n"
+  load <- getLine
+  if load == "n"
+  then putStrLn ">> No Data Loaded"
+    else if load == "y" 
+    then do
+    uciRef
+    -- |data should be loaded here
+    threadDelay 1000000
+    putStrLn ">> Dataset loaded"
+      else do
+      putStrLn ">> Unknown Input"
+      threadDelay 500000
+      putStrLn ">> Load demo dataset?"
+      putStrLn ">> y/n"
+      loadData
 
--- header :: IO ()
--- header  = do  
---   putStrLn ""
---   putStrLn "  .___________________________________________."
---   putStrLn "  |__/___\\_.___The____________________________|"
---   putStrLn "  |__\\___|_.______Harmonic_____________/|_____|"
---   putStrLn "  |_____/______________Algorithm______/_|_____|"
---   putStrLn "  |____/_____________________________|__|_____|"
---   putStrLn "                                     |-()-"
---   putStrLn "                                 by  |"
---   putStrLn "                                   -()-scar South, 2018 "
---   putStrLn ""
---   return ()
+header :: IO ()
+header  = do  
+  putStrLn ""
+  putStrLn "  .___________________________________________."
+  putStrLn "  |__/___\\_.___The____________________________|"
+  putStrLn "  |__\\___|_.______Harmonic_____________/|_____|"
+  putStrLn "  |_____/______________Algorithm______/_|_____|"
+  putStrLn "  |____/_____________________________|__|_____|"
+  putStrLn "                                     |-()-"
+  putStrLn "                                 by  |"
+  putStrLn "                                   -()-scar South, 2018 "
+  putStrLn ""
+  return ()
 
--- uciRef :: IO ()
--- uciRef  = do
---     putStrLn ">> Loading Bach Chorale Dataset from UCI Machine Learning Repository..."
---     putStrLn "+--------------------------------------------------------------------------+"
---     putStrLn "| Dua, D. and Karra Taniskidou, E. (2017). UCI Machine Learning Repository |"
---     putStrLn "| [http://archive.ics.uci.edu/ml]. Irvine, CA: University of California,   |"
---     putStrLn "| School of Information and Computer Science.                              |"
---     putStrLn "+--------------------------------------------------------------------------+"
---     threadDelay 100000
---     putStrLn "."
---     threadDelay 100000
---     putStrLn ".."
---     threadDelay 100000
---     putStrLn "..."
---     return ()
+uciRef :: IO ()
+uciRef  = do
+    putStrLn ">> Loading Bach Chorale Dataset from UCI Machine Learning Repository..."
+    putStrLn "+--------------------------------------------------------------------------+"
+    putStrLn "| Dua, D. and Karra Taniskidou, E. (2017). UCI Machine Learning Repository |"
+    putStrLn "| [http://archive.ics.uci.edu/ml]. Irvine, CA: University of California,   |"
+    putStrLn "| School of Information and Computer Science.                              |"
+    putStrLn "+--------------------------------------------------------------------------+"
+    threadDelay 100000
+    putStrLn "."
+    threadDelay 100000
+    putStrLn ".."
+    threadDelay 100000
+    putStrLn "..."
+    return ()
 
--- initLogR :: IO ()
--- initLogR  = runRegion $ do
---   [r| data(iris)
---       fit <- lm(Petal.Width ~ Petal.Length, data=iris)
---       sink("output/output.txt")
---       cat("=============================\n")
---       cat("test\n")
---       cat("=============================\n")
---       print(head(iris))
---       print(summary(fit))
---     |]
---   return ()
+initLogR :: IO ()
+initLogR  = runRegion $ do
+  [r| data(iris)
+      fit <- lm(Petal.Width ~ Petal.Length, data=iris)
+      sink("output/output.txt")
+      cat("=============================\n")
+      cat("test\n")
+      cat("=============================\n")
+      print(head(iris))
+      print(summary(fit))
+    |]
+  return ()
 
 -- appendLogR :: IO ()
 -- appendLogR  = runRegion $ do
@@ -231,7 +231,7 @@ import Lib
 
 
 --------------------------------------------------------------------------------
--- MARKOV CHAIN
+-- MARKOV CHAIN EXAMPLE CODE -- TO DELETE
 
 
 -- module Main where
@@ -299,8 +299,8 @@ import Lib
 --   s <- generateSequence (fromSample sample) ""
 --   print s
 
-main = do 
-  return ()
+-- main = do 
+--   return ()
 
 --------------------------------------------------------------------------------
 

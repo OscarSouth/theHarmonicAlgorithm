@@ -29,7 +29,9 @@ library:
   - Utility
   - Generate
   - Markov
-  # dependencies:
+  dependencies:
+  - containers
+  - hmatrix
 
 executables:
   theHarmonicAlgorithm-exe:
@@ -42,7 +44,7 @@ executables:
     dependencies:
     - theHarmonicAlgorithm
     - inline-r
-    - hmatrix
+    # - hmatrix
     - concurrent-extra
     - containers
     - MonadRandom
