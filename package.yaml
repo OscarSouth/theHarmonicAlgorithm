@@ -26,9 +26,10 @@ library:
   exposed-modules:       Lib
   source-dirs:           src
   other-modules:
-  - Utility
-  - Generate
+  - Overtone
   - Markov
+  - Chorale
+  - MusicData
   dependencies:
   - containers
   - hmatrix

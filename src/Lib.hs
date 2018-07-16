@@ -1,23 +1,16 @@
 module Lib (
-    someFunc
 ------------
--- |Utility 
-  , sort
-  , choose
-------------
--- |Generate
-  , overtoneSets 
-  , zeroForms
-  , zeroForm
-  , zeroTrans
+-- |MusicData
 ------------
 -- |Markov
+------------
+-- |Overtone
+------------
+-- |Chorale
   ) where
 
-import Utility
-import Generate
+import MusicData
 import Markov
-
-someFunc :: String
-someFunc = "someFunc"
+import Overtone
+import Chorale
 
