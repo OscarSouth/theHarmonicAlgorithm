@@ -10,10 +10,14 @@ import Language.R.Instance
 import Language.R.QQ
 import Control.Concurrent (threadDelay)
 
+import qualified Data.Map as Map
+import Data.Map (Map)
+
 main = do
   initR
   header
-  initScript
+  -- initScript
+  markovState
   return ()
 
 -- |Initialise R + session log, load libraries & log session info
@@ -39,7 +43,6 @@ initScript = do
   loadData
   threadDelay 300000
   putStrLn ">> Begin.."
-  char <- getLine
   return ()
   
 loadData = do
@@ -103,6 +106,13 @@ initLogR  = runRegion $ do
       print(summary(fit))
     |]
   return ()
+
+markovState = do
+  putStrLn ">> Enter starting chord:"
+  -- state <- getLine
+  -- initState <- read state
+  -- putStrLn initState
+
 
 -- appendLogR :: IO ()
 -- appendLogR  = runRegion $ do
@@ -230,88 +240,3 @@ initLogR  = runRegion $ do
 -- rRet n = runRegion $ rDef n
 
 
---------------------------------------------------------------------------------
--- MARKOV CHAIN EXAMPLE CODE -- TO DELETE
-
-
--- module Main where
-
--- import qualified Control.Monad.Random as X
--- import qualified Data.List as L
--- import qualified Data.Map as M
-
--- type TransitionMap = M.Map (String,String) Int
--- type MarkovChain   = M.Map String [(String,Int)]
-
--- addTransition    :: TransitionMap -> (String,String) -> TransitionMap
--- addTransition m k = M.insertWith (+) k 1 m
-
--- fromTransitionMap  :: TransitionMap -> MarkovChain
--- fromTransitionMap m =
---   M.fromList [(k, frequencies k) | k <- ks]
---   where ks = L.nub $ map fst $ M.keys m
---         frequencies a = map reduce $ filter (outboundFor a) $ M.toList m
---         outboundFor a k = fst (fst k) == a
---         reduce e = (snd (fst e), snd e)
-
--- -- outboundFor a k = fst (fst k) == a
-
--- -- reduce e = (snd (fst e), snd e)
-
--- -- generateSequence :: (X.MonadRandom m) => MarkovChain -> String -> m String
--- -- generateSequence m s
--- --   | not (null s) && last s == '.' = return s
--- --   | otherwise = do
--- --                 s' <- X.fromList $ m M.! s
--- --                 ss <- generateSequence m s'
--- --                 return $ if null s then ss else s ++ " " ++ ss
-
--- -- |tupled 
--- fromSample   :: [String] -> MarkovChain
--- fromSample ss = fromTransitionMap $ bigramMap ss
-
--- -- |Map object of bigrams with counts of keys
--- bigramMap   :: [String] -> TransitionMap
--- bigramMap ss = foldl addTransition M.empty $ bigrams ss
-
--- -- |tupled bigrams of sampleset
--- bigrams   :: [String] -> [(String,String)]
--- bigrams ss = concatMap pairs ss
-
--- -- |tupled bigrams of a single sample
--- pairs   :: String -> [(String,String)]
--- pairs s  =
---   let ws = words s 
---     in zipWith (,) ("":ws) ws
-
--- sample :: [String]
--- sample  = [ "I am a monster."
---           , "I am a rock star."]
---          --  , "I want to go to Hawaii."
---          --  , "I want to eat a hamburger."
---          --  , "I have a really big headache."
---          --  , "Haskell is a fun language."
---          --  , "Go eat a big hamburger."
---          --  , "Markov chains are fun to use."
---          --  ]
-
--- main = do
---   s <- generateSequence (fromSample sample) ""
---   print s
-
--- main = do 
---   return ()
-
---------------------------------------------------------------------------------
-
-
-  
---------------------------------------------------------------------------------
-
-
-
-
-
--- main = do
---   x <- X.evalRandIO X.getRandom :: IO Float
---   putStrLn $ "Your random number is " ++ show x
