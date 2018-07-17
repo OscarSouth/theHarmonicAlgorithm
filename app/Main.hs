@@ -4,6 +4,7 @@ module Main where
 
 import Lib
 
+import System.IO
 import qualified Foreign.R as R
 import qualified Language.R.Literal as R
 import Language.R.Instance
@@ -118,10 +119,21 @@ markovState = do
   let ps = lines $ showCadences $ take 3 chords -- highest three probabilities depending on state go here
       enumPs = zipWith (\n p -> show n ++ " - " ++ p) [1..] ps
   mapM_ print enumPs
+  prompt
   num <- getLine
-  let index = ((read num) - 1) :: Int
-  if index < 0 && index <= (length ps)
-  putStrLn $ ">> Initial state: " ++ (show $ ps!!index)
+  if notElem num $ fmap show [1..3] -- requires generalisation
+    then do 
+      putStrLn ">> unrecognised input"
+      putStrLn ""
+      markovState
+      else do
+        let index = ((read num) - 1) :: Int
+        putStrLn $ ">> Initial state: " ++ (show $ ps!!index)
+
+prompt :: IO ()
+prompt = do 
+  putStr ">> "
+  hFlush stdout
 
 -- appendLogR :: IO ()
 -- appendLogR  = runRegion $ do
