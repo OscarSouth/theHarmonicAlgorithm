@@ -3,6 +3,9 @@ module Lib (
 -- |MusicData
 ------------
 -- |Markov
+chords
+,showCadences
+,printCadences
 ------------
 -- |Overtone
 ------------

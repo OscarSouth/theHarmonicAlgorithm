@@ -16,7 +16,7 @@ import Data.Map (Map)
 main = do
   initR
   header
-  -- initScript
+  initScript
   markovState
   return ()
 
@@ -34,35 +34,40 @@ rGetDir  = do
 -- rReturnDir = runRegion $ rGetDir
 
 initScript = do  
-  putStrLn ">> Welcome to The Harmonic Algorithm, what's your name?"  
-  name <- getLine
-  putStrLn (">> Hey " ++ name)
-  threadDelay 100000
-  putStrLn (">> Let's go")
-  threadDelay 500000
+  putStrLn ">> Welcome to The Harmonic Algorithm." --, what's your name?"  
+  -- name <- getLine
+  -- putStrLn (">> Hey " ++ name)
+  -- threadDelay 100000
+  -- putStrLn (">> Let's go")
+  -- threadDelay 500000
   loadData
   threadDelay 300000
   putStrLn ">> Begin.."
   return ()
   
+-- loadData = do
+--   putStrLn ">> Load demo dataset?"
+--   putStrLn ">> y/n"
+--   load <- getLine
+--   if load == "n"
+--   then putStrLn ">> No Data Loaded"
+--     else if load == "y" 
+--     then do
+--     uciRef
+--     -- |data should be loaded here
+--     threadDelay 1000000
+--     putStrLn ">> Dataset loaded"
+--       else do
+--       putStrLn ">> Unknown Input"
+--       threadDelay 500000
+--       putStrLn ">> Load demo dataset?"
+--       putStrLn ">> y/n"
+--       loadData
+
 loadData = do
-  putStrLn ">> Load demo dataset?"
-  putStrLn ">> y/n"
-  load <- getLine
-  if load == "n"
-  then putStrLn ">> No Data Loaded"
-    else if load == "y" 
-    then do
-    uciRef
-    -- |data should be loaded here
-    threadDelay 1000000
-    putStrLn ">> Dataset loaded"
-      else do
-      putStrLn ">> Unknown Input"
-      threadDelay 500000
-      putStrLn ">> Load demo dataset?"
-      putStrLn ">> y/n"
-      loadData
+  uciRef
+  -- |data should be loaded here
+  -- threadDelay 1000000
 
 header :: IO ()
 header  = do  
@@ -80,6 +85,7 @@ header  = do
 
 uciRef :: IO ()
 uciRef  = do
+    threadDelay 500000
     putStrLn ">> Loading Bach Chorale Dataset from UCI Machine Learning Repository..."
     putStrLn "+--------------------------------------------------------------------------+"
     putStrLn "| Dua, D. and Karra Taniskidou, E. (2017). UCI Machine Learning Repository |"
@@ -108,11 +114,14 @@ initLogR  = runRegion $ do
   return ()
 
 markovState = do
-  putStrLn ">> Enter starting chord:"
-  -- state <- getLine
-  -- initState <- read state
-  -- putStrLn initState
-
+  putStrLn ">> Select starting chord:"
+  let ps = lines $ showCadences $ take 3 chords -- highest three probabilities depending on state go here
+      enumPs = zipWith (\n p -> show n ++ " - " ++ p) [1..] ps
+  mapM_ print enumPs
+  num <- getLine
+  let index = ((read num) - 1) :: Int
+  if index < 0 && index <= (length ps)
+  putStrLn $ ">> Initial state: " ++ (show $ ps!!index)
 
 -- appendLogR :: IO ()
 -- appendLogR  = runRegion $ do
@@ -196,17 +205,6 @@ markovState = do
 
 -- rRet'  :: (Double -> R s [Double]) -> Double -> IO [Double]
 -- rRet' f n = runRegion $ f n
-
-
-
-
--- |Pass data to R from Haskell
-
--- |Pass function from R to Haskell
-
--- |Pass data from Haskell to R
-
--- |Pass function from Haskell to R
 
 
 -- rData'  :: Double -> R s [Double]
