@@ -1,0 +1,31 @@
+=======================================
+The Harmonic Algorithm
+Session: [1] "2018-07-19 22:44:50 BST"
+=======================================
+
+R version 3.5.1 (2018-07-02)
+Platform: x86_64-pc-linux-gnu (64-bit)
+Running under: Manjaro Linux
+
+Matrix products: default
+BLAS/LAPACK: /usr/lib/libopenblas_sandybridgep-r0.3.1.so
+
+locale:
+ [1] LC_CTYPE=en_GB.utf8        LC_NUMERIC=C              
+ [3] LC_TIME=en_GB.UTF-8        LC_COLLATE=en_GB.utf8     
+ [5] LC_MONETARY=en_GB.UTF-8    LC_MESSAGES=en_GB.utf8    
+ [7] LC_PAPER=en_GB.UTF-8       LC_NAME=C                 
+ [9] LC_ADDRESS=C               LC_TELEPHONE=C            
+[11] LC_MEASUREMENT=en_GB.UTF-8 LC_IDENTIFICATION=C       
+
+attached base packages:
+[1] stats     graphics  grDevices utils     datasets  methods   base     
+
+other attached packages:
+[1] stringr_1.3.1 purrr_0.2.4   dplyr_0.7.5   readr_1.1.1  
+
+loaded via a namespace (and not attached):
+ [1] Rcpp_0.12.17     assertthat_0.2.0 R6_2.2.2         magrittr_1.5    
+ [5] pillar_1.2.2     stringi_1.2.2    rlang_0.2.0      bindrcpp_0.2.2  
+ [9] tools_3.5.1      glue_1.2.0       hms_0.4.2        compiler_3.5.1  
+[13] pkgconfig_2.0.1  bindr_0.1.1      tidyselect_0.2.4 tibble_1.4.2    

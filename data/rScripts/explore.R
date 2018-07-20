@@ -1,5 +1,10 @@
-library("tidyverse")
+library(readr)
+library(dplyr)
+library(purrr)
+library(stringr)
+
 setwd("/home/oscarsouth/haskellProjects/theHarmonicAlgorithm/data/rScripts")
+
 bach <- read_csv("../jsbach_chorals_harmony.data", 
                  col_names = c(
                    "seq", "event",
@@ -29,7 +34,7 @@ bach <- read_csv("../jsbach_chorals_harmony.data",
 
 bach <-
   bach %>% 
-    select(seq, event, fund, acc) %>%
+    select(seq, event, fund, acc, label) %>%
     add_column(pitch = bach %>% 
                  select(`0`:`11`) %>% 
                  t() %>% 
