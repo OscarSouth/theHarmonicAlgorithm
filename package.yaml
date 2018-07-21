@@ -33,6 +33,7 @@ library:
   dependencies:
   - containers
   - hmatrix
+  - tidal
 
 executables:
   theHarmonicAlgorithm-exe:
@@ -45,7 +46,6 @@ executables:
     dependencies:
     - theHarmonicAlgorithm
     - inline-r
-    # - hmatrix
     - concurrent-extra
     - containers
     - MonadRandom
