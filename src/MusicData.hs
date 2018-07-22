@@ -2,6 +2,7 @@ module MusicData where
 
 import GHC.Real ( (%) )
 import GHC.Base ( quotInt, remInt, modInt )
+import Data.Function ( on )
 
 import Data.Map ( Map )
 import Data.Set ( Set )
@@ -168,6 +169,7 @@ maj = Chord.major
 pcSet :: [Integer] -> [PitchClass]
 pcSet xs = Set.toList . Set.fromList $ fromInteger <$> xs
 
+-- |'prime' version for work with MusicData typeclass
 pcSet' :: MusicData a => [a] -> [PitchClass]
 pcSet' xs = pcSet $ i <$> xs
 
@@ -177,6 +179,7 @@ zeroForm (x:xs) =
   let zs = (subtract $ x) <$> x:xs
    in Set.toList . Set.fromList $ fromInteger <$> zs 
 
+-- |'prime' version for work with MusicData typeclass
 zeroForm' :: MusicData a => [a] -> [PitchClass]
 zeroForm' xs = zeroForm $ i <$> xs
 
@@ -195,18 +198,40 @@ inversions xs
     let inv   = zeroForm xs
         inv'  = zeroForm $ i <$> last inv : init inv
         inv'' = zeroForm $ i <$> last inv' : init inv'
-     in inv : inv' : inv'' : []
+     in inv : inv'' : inv' : []
   | length xs == 4 = 
-    let inv   = zeroForm xs
-        inv'  = zeroForm $ i <$> last inv : init inv
-        inv'' = zeroForm $ i <$> last inv' : init inv'
+    let inv    = zeroForm xs
+        inv'   = zeroForm $ i <$> last inv : init inv
+        inv''  = zeroForm $ i <$> last inv' : init inv'
         invp'' = zeroForm $ i <$> last inv'' : init inv''
-     in inv : inv' : inv'' : invp'' : []
-  | otherwise = [[]]
+     in inv : invp'' : inv'' : inv' : []
+  | otherwise = [[]] -- not a permanant feature
 
+-- |'prime' version for work with MusicData typeclass
 inversions' :: MusicData a => [a] -> [[PitchClass]]
 inversions' xs = inversions $ i <$> xs
+ 
+-- |mapping from integer pitchclass set to the prime form
+-- #### make this generalisable for over 4 or less than 3 pitches
+primeForm :: [Integer] -> [PitchClass]
+primeForm xs = fromInteger <$> is xs
+  where
+    is xs = prime $ compact xs : (compact $ (`subtract` 12) <$> compact xs) : []
+    prime xs = head $ List.sortBy (compare `on` sum) xs
+    compact xs = -- #### partial function
+      let invs xs = fmap i <$> inversions xs
+          lst xs = filter (\x -> 
+            last x == (minimum $ last <$> invs xs)) $ invs xs
+          sfl xs = filter (\x -> 
+            (last . init) x == (minimum $ last . init <$> lst xs)) $ lst xs
+          tfl xs = filter (\x -> 
+            (last . init . init) x == (minimum $ last . init . init <$> lst xs)) $ sfl xs
+      in head $ tfl xs
 
--- primeForm :: [[Integer]] -> PitchClassSet
--- primeForm xs =
+-- |'prime' version for work with MusicData typeclass
+primeForm' :: MusicData a => [a] -> [PitchClass]
+primeForm' xs = primeForm $ i <$> xs
 
+-- |quick function to convert MusicData set objects into integer versions
+i' :: MusicData a => [a] -> [Integer]
+i' xs = i <$> xs

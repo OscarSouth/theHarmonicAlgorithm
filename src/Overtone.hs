@@ -1,18 +1,18 @@
 module Overtone where
 
--- import Data.List (sort)
+import Data.List ( sort )
 
--- -- |nCr utility function
--- choose     :: Int -> [a] -> [[a]]
--- choose 0 _  = [[]]
--- choose k [] = []
--- choose k (x:xs) = map (x:) (choose (k-1) xs) ++ choose k xs
+-- |nCr utility function
+choose     :: Integer -> [a] -> [[a]]
+choose 0 _  = [[]]
+choose k [] = []
+choose k (x:xs) = map (x:) (choose (k-1) xs) ++ choose k xs
 
--- -- |Generate list of tuples of containing all possible pitch combinations
--- overtoneSets  :: Int -> [[Int]]
--- overtoneSets n = [ i:j | i <- [0..11], 
---                          j <- map sort $ (choose $ n-1) [0..11], 
---                          not $ i `elem` j]
+-- |Generate list containing all possible pitchclass set combinations
+overtoneSets  :: Integer -> [[Integer]]
+overtoneSets n = [ i:j | i <- [0..11], 
+                         j <- map sort $ (choose $ n-1) [0..11], 
+                         not $ i `elem` j]
 
 -- -- |Transform list of overtone sets into zero forms
 -- zeroForms    :: [[Int]] -> [[Int]]
