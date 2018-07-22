@@ -1,0 +1,73 @@
+-- This file has been generated from package.yaml by hpack version 0.28.2.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: ad8321a52a06f4ad4aa5dd6f9818a01ba0cc4e64192e0d2f19efb6dcacedf7bf
+
+name:           theHarmonicAlgorithm
+version:        0.1.0.0
+description:    Please see the README on GitHub at <https://github.com/OscarSouth/theHarmonicAlgorithm#readme>
+homepage:       https://github.com/OscarSouth/theHarmonicAlgorithm#readme
+bug-reports:    https://github.com/OscarSouth/theHarmonicAlgorithm/issues
+author:         Oscar South
+maintainer:     info@oscarsouth.com
+copyright:      2018 (c) Oscar South
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >= 1.10
+extra-source-files:
+    ChangeLog.md
+    README.md
+
+source-repository head
+  type: git
+  location: https://github.com/OscarSouth/theHarmonicAlgorithm
+
+library
+  exposed-modules:
+      Lib
+  other-modules:
+      Overtone
+      Markov
+      Chorale
+      MusicData
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.8 && <5
+    , containers
+    , hmatrix
+    , tidal
+  default-language: Haskell2010
+
+executable theHarmonicAlgorithm-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_theHarmonicAlgorithm
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      MonadRandom
+    , base >=4.8 && <5
+    , concurrent-extra
+    , containers
+    , inline-r
+    , theHarmonicAlgorithm
+  default-language: Haskell2010
+
+test-suite theHarmonicAlgorithm-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_theHarmonicAlgorithm
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      QuickCheck
+    , base >=4.8 && <5
+    , hspec
+    , theHarmonicAlgorithm
+  default-language: Haskell2010

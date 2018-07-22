@@ -235,3 +235,4 @@ primeForm' xs = primeForm $ i <$> xs
 -- |quick function to convert MusicData set objects into integer versions
 i' :: MusicData a => [a] -> [Integer]
 i' xs = i <$> xs
+
