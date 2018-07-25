@@ -45,7 +45,6 @@ bachTriads n r ps  =
 
 
 
-
 -- |test dataset of 'pitch' data
 jsData ::[[Integer]] 
 jsData = [[2, 3, 7, 10],
