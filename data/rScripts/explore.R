@@ -1,6 +1,7 @@
 library(readr)
 library(dplyr)
 library(purrr)
+library(tibble)
 library(stringr)
 
 setwd("/home/oscarsouth/haskellProjects/theHarmonicAlgorithm/data/rScripts")

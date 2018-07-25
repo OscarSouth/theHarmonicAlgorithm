@@ -11,7 +11,7 @@ import qualified Data.Set as Set
 import qualified Data.List as List
 
 -- |set of pitch classes
-newtype PitchClass = P Int deriving (Ord, Eq, Show)
+newtype PitchClass = P Int deriving (Ord, Eq, Show, Read)
 
 instance Bounded PitchClass where
   minBound = P 0
@@ -88,7 +88,7 @@ data NoteName = C
               | A 
               | A' 
               | Bb 
-              | B deriving (Ord, Eq, Show)
+              | B deriving (Ord, Eq, Show, Read)
 
 instance MusicData NoteName where
   pitchClass n 
@@ -229,3 +229,4 @@ primeForm' xs = primeForm $ i <$> xs
 -- |quick function to convert MusicData set objects into integer versions
 i' :: (MusicData a, Num b) => [a] -> [b]
 i' xs = fromInteger <$> i <$> xs
+

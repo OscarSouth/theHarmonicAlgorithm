@@ -1,6 +1,7 @@
 module Lib (
 ------------
 -- |MusicData
+-- NoteName
 ------------
 -- |Markov
 chords
@@ -10,10 +11,13 @@ chords
 -- |Overtone
 ------------
 -- |Chorale
+------------
+-- |Utility
   ) where
 
 import MusicData
 import Markov
 import Overtone
 import Chorale
+import Utility
 

@@ -30,6 +30,7 @@ library:
   - Markov
   - Chorale
   - MusicData
+  - Utility
   dependencies:
   - containers
   - hmatrix

@@ -1,10 +1,12 @@
 module Markov where
 
+import Utility
+
 import Data.Map (Map)
 import Data.Set (Set)
 import qualified Data.Map as Map
 import qualified Data.List as List
-import qualified Data.Set as Set
+import qualified Data.Set as Set ( toList, fromList, size)
 
 import Data.Maybe
 import Data.Map.Merge.Lazy
@@ -39,10 +41,6 @@ type TransitionMatrix = Matrix R
 -- |map containing 'current state' bigrams and list of 'next' probabilities
 type MarkovMap = Map Bigram [(Cadence, Double)]
 
--- |function to reduce data down to ordered list of unique instances
-unique   :: [Cadence] -> [Cadence]
-unique = Set.toList . Set.fromList
-
 -- |mapping from list of events into list of trigrams
 trigrams :: [Cadence] -> [Trigram]
 trigrams (x:xs)
@@ -53,7 +51,7 @@ trigrams (x:xs)
 -- |mapping from input data into all theoretically possible trigrams
 threes   :: [Cadence] -> [Trigram]
 threes xs = 
-  let cs = Set.toList $ Set.fromList xs
+  let cs = unique xs
    in [ ((a, b), c) | a <- cs, b <- cs, c <- cs ]
 
 -- |mapping from input data into all possible trigrams with counts of zero
