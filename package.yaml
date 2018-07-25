@@ -33,7 +33,6 @@ library:
   dependencies:
   - containers
   - hmatrix
-  - tidal
 
 executables:
   theHarmonicAlgorithm-exe:

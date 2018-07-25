@@ -10,9 +10,6 @@ import qualified Data.Map as Map
 import qualified Data.Set as Set
 import qualified Data.List as List
 
-import qualified Sound.Tidal.Scales as Scale
-import qualified Sound.Tidal.Chords as Chord
-
 -- |set of pitch classes
 newtype PitchClass = P Int deriving (Ord, Eq, Show)
 
@@ -63,12 +60,12 @@ class Ord a => MusicData a where
   flat :: a -> NoteName -- mappings into flat note names
   (<+>) :: a -> Integer -> PitchClass 
   (<->) :: a -> Integer -> PitchClass 
-  i :: a -> Integer
+  i :: Num b => a -> b 
   (+|) :: a -> Integer -> NoteName
   (-|) :: a -> Integer -> NoteName
   (+#) :: a -> Integer -> NoteName
   (-#) :: a -> Integer -> NoteName
-  i = toInteger . pitchClass
+  i = fromIntegral . toInteger . pitchClass
   (+|) a = flat . (<+>) a
   (-|) a = flat . (<->) a
   (+#) a = sharp . (<+>) a
@@ -160,9 +157,6 @@ instance MusicData PitchClass where
   a <+> b = a + fromInteger b
   a <-> b = a - fromInteger b
 
-ionian = Scale.ionian
-maj = Chord.major
-
 -- working towards addition and subtraction that maintains key
 
 -- |put a list of integers into a PitchClass set
@@ -233,6 +227,5 @@ primeForm' :: MusicData a => [a] -> [PitchClass]
 primeForm' xs = primeForm $ i <$> xs
 
 -- |quick function to convert MusicData set objects into integer versions
-i' :: MusicData a => [a] -> [Integer]
-i' xs = i <$> xs
-
+i' :: (MusicData a, Num b) => [a] -> [b]
+i' xs = fromInteger <$> i <$> xs
