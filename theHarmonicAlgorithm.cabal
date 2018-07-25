@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: ad8321a52a06f4ad4aa5dd6f9818a01ba0cc4e64192e0d2f19efb6dcacedf7bf
+-- hash: 893e3f5fe0af8b58cc0046d0e16af62d47d90a162cb6c1a5bf5e245865bc40d6
 
 name:           theHarmonicAlgorithm
 version:        0.1.0.0
@@ -32,13 +32,13 @@ library
       Markov
       Chorale
       MusicData
+      Utility
   hs-source-dirs:
       src
   build-depends:
       base >=4.8 && <5
     , containers
     , hmatrix
-    , tidal
   default-language: Haskell2010
 
 executable theHarmonicAlgorithm-exe
