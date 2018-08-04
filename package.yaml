@@ -49,6 +49,7 @@ executables:
     - concurrent-extra
     - containers
     - MonadRandom
+    - tidal
 
 tests:
   theHarmonicAlgorithm-test:

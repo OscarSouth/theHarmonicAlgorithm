@@ -9,19 +9,20 @@ import qualified Data.List as List ( sort )
 readNoteName  :: String -> NoteName
 readNoteName s = read $ replace "#" "'" s
 
--- |mapping from sets of fundamentals and overtones into viable composite sets
-overtoneSets      :: (Num a, Num b, Eq a, Eq b, Ord b) => a -> [b] -> [b] -> [[b]]
-overtoneSets n r p = [ i:j | i <- r, 
-                       j <- List.sort <$> (choose $ n-1) p, 
-                       not $ i `elem` j]
-
 -- |mapping from sets of fundamentals and overtones into lists of viable triads
-bachTriads        :: (Num a, Eq a) => a -> [String] -> [[Integer]] -> [[[Integer]]]
-bachTriads n r ps  =
-  let funds = (\x -> [x]) . i . readNoteName <$> r
-   in zipWith (overtoneSets n) funds ps
+-- bachTriads        :: (Eq a, Num a) => a -> [String] -> [[Integer]] -> [[[Integer]]]
+bachTriads n rs ps  =
+  let fund = (\x -> [x]) . i . readNoteName <$> rs
+   in zipWith (overtoneSets n) fund ps
 
-
+-- |mapping from interval vector to degree of dissonance
+dissonanceLevel                  :: [Integer] -> Integer
+dissonanceLevel xs
+  | countElem iVect 0 == 5 = 27
+  | otherwise           = sum $ zipWith (*) dissonanceVect vect
+    where
+      iVect        = intervalVector xs 
+      dissVect    = [16,8,4,2,1,24] -- based on work of Paul Hindemith
 
 
 

@@ -1,0 +1,7 @@
+hush
+
+d1 $ note "0" # sound "midi" # midichan 1
+
+d1 $ s "test*2"
+
+:l MusicData
