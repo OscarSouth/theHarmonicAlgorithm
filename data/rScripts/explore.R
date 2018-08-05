@@ -1,8 +1,10 @@
-library(readr)
-library(dplyr)
-library(purrr)
-library(tibble)
-library(stringr)
+# library(readr)
+# library(dplyr)
+# library(purrr)
+# library(tibble)
+# library(stringr)
+
+library(tidyverse)
 
 setwd("/home/oscarsouth/haskellProjects/theHarmonicAlgorithm/data/rScripts")
 
@@ -42,4 +44,18 @@ bach <-
                  as.data.frame() %>%
                  unname() %>%
                  map(function(x) str_which(x, "YES")-1)
-              )
+              ) # %>% 
+    # split(bach$seq) ## for a future update
+
+bachMatrix <-
+  reduce(bach$pitch, 
+         rbind,
+         matrix(,0,bach$pitch %>% 
+                     map(length) %>% 
+                     rapply(c) %>% 
+                     max()
+                )
+         ) %>% 
+  unname() %>% 
+  as.integer()
+

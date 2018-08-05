@@ -1,18 +1,21 @@
 module Lib (
 ------------
 -- |MusicData
--- NoteName
-------------
+intervalVector,
+-----------
 -- |Markov
-chords
-,showCadences
-,printCadences
+chords,
+showCadences,
+printCadences,
 ------------
 -- |Overtone
 ------------
 -- |Chorale
+bachTriads,
+mostConsonant,
 ------------
 -- |Utility
+unique
   ) where
 
 import MusicData
