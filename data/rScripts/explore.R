@@ -56,6 +56,5 @@ bachMatrix <-
                      max()
                 )
          ) %>% 
-  unname() %>% 
-  as.integer()
+  unname()
 

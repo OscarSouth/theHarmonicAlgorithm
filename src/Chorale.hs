@@ -66,3 +66,7 @@ jsData = [[2, 3, 7, 10],
 -- |test dataset of 'fundamental' data
 jsData' :: [String]
 jsData' = ["D#", "F", "G", "A", "Bb", "Bb", "Eb", "Eb", "F", "F"]
+
+-- |test dataset of ingested data
+jsData'' :: [[Integer]]
+jsData'' = mostConsonant <$> bachTriads 3 jsData' jsData

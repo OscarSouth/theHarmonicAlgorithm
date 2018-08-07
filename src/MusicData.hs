@@ -162,19 +162,23 @@ instance MusicData PitchClass where
 
 -- working towards addition and subtraction that maintains key
 
--- |put a list of integers into a PitchClass set
-pcSet   :: [Integer] -> [PitchClass]
-pcSet xs = Set.toList . Set.fromList $ fromInteger <$> xs
+-- |convert any integral into a PitchClass
+pc :: (Integral a, Num a) => a -> PitchClass
+pc = fromInteger . fromIntegral
+
+-- |put a list of integers into a PitchClass set (represented as a list)
+pcSet   :: (Integral a, Num a) => [a] -> [PitchClass]
+pcSet xs = Set.toList . Set.fromList $ pc <$> xs
 
 -- |'prime' version for work with MusicData typeclass
 pcSet'   :: MusicData a => [a] -> [PitchClass]
 pcSet' xs = pcSet $ i <$> xs
 
 -- |transform list of integers into 'zero' form of 
-zeroForm       :: [Integer] -> [PitchClass]
+zeroForm       :: (Integral a, Num a) => [a] -> [PitchClass]
 zeroForm (x:xs) = 
   let zs = (subtract $ x) <$> x:xs
-   in Set.toList . Set.fromList $ fromInteger <$> zs 
+   in Set.toList . Set.fromList $ pc <$> zs 
 
 -- |'prime' version for work with MusicData typeclass
 zeroForm'   :: MusicData a => [a] -> [PitchClass]
@@ -182,7 +186,7 @@ zeroForm' xs = zeroForm $ i <$> xs
 
 -- |creates a 'non-deterministic' list of inversions (use !! to select)
 -- #### make this more concise & able to operate on pitch sets of any size
-inversions        :: [Integer] -> [[PitchClass]]
+inversions        :: (Integral a, Num a) => [a] -> [[PitchClass]]
 inversions []      = [[]]
 inversions xs
   | length xs == 1 = zeroForm xs : []
@@ -210,7 +214,7 @@ inversions' xs = inversions $ i <$> xs
  
 -- |mapping from integer pitchclass set to the prime form
 -- #### make this generalisable for over 4 or less than 3 pitches
-primeForm        :: [Integer] -> [PitchClass]
+primeForm        :: (Integral a, Num a) => [a] -> [PitchClass]
 primeForm xs      = fromInteger <$> is xs
   where
     is xs         = prime $ compact xs : (compact $ (`subtract` 12) <$> compact xs) : []
@@ -240,20 +244,21 @@ overtoneSets n rs ps = [ i:j | i <- rs,
                        j <- List.sort <$> (choose $ n-1) ps, 
                        not $ i `elem` j]
 
-newtype IntervalClass = I Int deriving (Ord, Eq, Show, Read)
+-- newtype IntervalClass = I Int deriving (Ord, Eq, Show, Read)
 
-data DiatonicInterval = Unison
-                      | Second
-                      | Third
-                      | Fourth
-                      | Fifth
-                      | Sixth
-                      | Seventh
-                      | Octave
+-- data DiatonicInterval = Unison
+--                       | Second
+--                       | Third
+--                       | Fourth
+--                       | Fifth
+--                       | Sixth
+--                       | Seventh
+--                       | Octave
 
-data ChromaticInterval a = Perfect a | Flat a | Sharp a
+-- data ChromaticInterval a = Perfect a | Flat a | Sharp a
 
-intervalVector         :: [Integer] -> [Integer]
+-- |mapping from list of integers into interval vector
+intervalVector         :: (Integral a, Num a) => [a] -> [Integer]
 intervalVector xs       = toInteger . vectCounts <$> [1..6]
   where
     diffTriangle []     = []
@@ -263,8 +268,22 @@ intervalVector xs       = toInteger . vectCounts <$> [1..6]
       | x <= 6          = x
       | otherwise       = x - 2*(x-6)
 
+-- |'prime' version for work with MusicData typeclass
 intervalVector'   :: MusicData a => [a] -> [Integer]
 intervalVector' xs = intervalVector $ i <$> xs
 
+data Functionality = Functionality PitchClass String deriving (Show, Eq, Ord)
 
+-- |mapping from integer list to tuple of root and chord name
+-- chordName   :: [Integer] -> String
+-- chordName = foldl (.) id seq
+--   where seq = ["0" `mappend` "1",]
 
+nameFunc   :: (Integral a, Num a) => [a] -> String -> String
+nameFunc xs = foldr (.) id seq
+  where 
+    zs = i <$> zeroForm xs
+    seq = 
+      [if (elem 4 zs && all (`notElem` [3,10,11]) zs) && notElem 8 zs then ("maj"++) else (""++)]
+
+chordName xs = (flat . pc $ head xs ,(xs `nameFunc` ""))

@@ -1,6 +1,7 @@
 module Markov where
 
 import Utility
+-- import MusicData
 
 import Data.Map (Map)
 import Data.Set (Set)
@@ -11,7 +12,7 @@ import qualified Data.Set as Set ( toList, fromList, size)
 import Data.Maybe ( fromMaybe )
 import Data.Map.Merge.Lazy
 import Numeric.LinearAlgebra
-import Data.Ord (comparing)
+import Data.Ord ( comparing )
 
 -- |representation of harmonic quality
 data Chord = Maj
@@ -163,48 +164,48 @@ chords = take 50 $ cycle [Cadence Maj, Cadence Min, Cadence Dim]
 
 
 
--- |temporary deterministic test datasets
-tsData :: [Cadence]
-tsData  = [ Cadence Maj
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Min
-          , Cadence Min
-          , Cadence Maj
-          ]
+-- -- |temporary deterministic test datasets
+-- tsData :: [Cadence]
+-- tsData  = [ Cadence Maj
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Min
+--           , Cadence Min
+--           , Cadence Maj
+--           ]
 
-tsData' :: [Cadence]
-tsData'  = [ Cadence Maj
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Dim
-          , Cadence Maj
-          , Cadence Min
-          , Cadence Min
-          , Cadence Maj
-          , Cadence Dim
-          , Cadence Dim
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Min
-          , Cadence Min
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Min
-          , Cadence Maj
-          , Cadence Min
-          , Cadence Min
-          , Cadence Dim
-          , Cadence Dim
-          , Cadence Dim
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Dim
-          , Cadence Maj
-          ]
+-- tsData' :: [Cadence]
+-- tsData'  = [ Cadence Maj
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Dim
+--           , Cadence Maj
+--           , Cadence Min
+--           , Cadence Min
+--           , Cadence Maj
+--           , Cadence Dim
+--           , Cadence Dim
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Min
+--           , Cadence Min
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Min
+--           , Cadence Maj
+--           , Cadence Min
+--           , Cadence Min
+--           , Cadence Dim
+--           , Cadence Dim
+--           , Cadence Dim
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Dim
+--           , Cadence Maj
+--           ]
