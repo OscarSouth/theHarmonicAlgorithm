@@ -212,23 +212,30 @@ inversions xs
 inversions' :: MusicData a => [a] -> [[PitchClass]]
 inversions' xs = inversions $ i <$> xs
  
+-- |mapping from integer pitchclass set to the normal (most compact) form
+-- #### make generalisable for set of more than 4 pitches
+normalForm        :: (Integral a, Num a) => [a] -> [PitchClass]
+normalForm xs = -- #### partial function
+  let invs xs = fmap i <$> inversions xs
+      lst xs  = filter (\x -> 
+        last x == (minimum $ last <$> invs xs)) $ invs xs
+      sfl xs  = filter (\x -> 
+        (last . init) x == (minimum $ last . init <$> lst xs)) $ lst xs
+      tfl xs  = filter (\x -> 
+        (last . init . init) x == (minimum $ last . init . init <$> lst xs)) $ sfl xs
+    in fromInteger <$> (head $ tfl xs)
+
+-- |'prime' version for work with MusicData typeclass
+normalForm' :: MusicData a => [a] -> [PitchClass]
+normalForm' xs = normalForm $ i <$> xs
+
 -- |mapping from integer pitchclass set to the prime form
--- #### make this generalisable for over 4 or less than 3 pitches
 primeForm        :: (Integral a, Num a) => [a] -> [PitchClass]
 primeForm xs      = fromInteger <$> is xs
   where
     is xs         = prime $ compact xs : (compact $ (`subtract` 12) <$> compact xs) : []
-
     prime xs      = head $ List.sortBy (compare `on` sum) xs
-    compact xs    = -- #### partial function
-      let invs xs = fmap i <$> inversions xs
-          lst xs  = filter (\x -> 
-            last x == (minimum $ last <$> invs xs)) $ invs xs
-          sfl xs  = filter (\x -> 
-            (last . init) x == (minimum $ last . init <$> lst xs)) $ lst xs
-          tfl xs  = filter (\x -> 
-            (last . init . init) x == (minimum $ last . init . init <$> lst xs)) $ sfl xs
-       in head $ tfl xs
+    compact xs    = i <$> normalForm xs
 
 -- |'prime' version for work with MusicData typeclass
 primeForm' :: MusicData a => [a] -> [PitchClass]
@@ -272,18 +279,34 @@ intervalVector xs       = toInteger . vectCounts <$> [1..6]
 intervalVector'   :: MusicData a => [a] -> [Integer]
 intervalVector' xs = intervalVector $ i <$> xs
 
-data Functionality = Functionality PitchClass String deriving (Show, Eq, Ord)
+-- |synonym representation of harmonic functionality as a String
+type Functionality = String
 
 -- |mapping from integer list to tuple of root and chord name
--- chordName   :: [Integer] -> String
--- chordName = foldl (.) id seq
---   where seq = ["0" `mappend` "1",]
-
-nameFunc   :: (Integral a, Num a) => [a] -> String -> String
-nameFunc xs = foldr (.) id seq
-  where 
-    zs = i <$> zeroForm xs
-    seq = 
-      [if (elem 4 zs && all (`notElem` [3,10,11]) zs) && notElem 8 zs then ("maj"++) else (""++)]
-
-chordName xs = (flat . pc $ head xs ,(xs `nameFunc` ""))
+triadName     :: (Integral a, Num a) => (PitchClass -> NoteName) -> [a] -> ((NoteName, Functionality), [a])
+triadName f xs = ((f . pc $ head xs, (xs `nameFunc` "")), xs)
+  where
+    nameFunc xs = 
+      let
+        zs = i <$> zeroForm xs
+        seq = 
+          [if (elem 4 zs && all (`notElem` zs) [3,10,11]) && notElem 8 zs then ("maj"++) else (""++)
+          ,if (elem 3 zs && notElem 4 zs) && notElem 6 zs then ("min"++) else (""++)
+          ,if elem 9 zs then ("6"++) else (""++)
+          ,if elem 10 zs then ("7"++) else (""++)
+          ,if elem 11 zs then ("maj7"++) else (""++)
+          ,if all (`elem` [7,8]) zs then ("b13"++) else (""++)
+          ,if elem 2 zs && all (`notElem` [3,4]) zs then ("sus2"++) else (""++)
+          ,if elem 5 zs && all (`notElem` [3,4]) zs then ("sus4"++) else (""++)
+          ,if all (`elem` [2,3]) zs || all (`elem` [2,4]) zs then ("add9"++) else (""++)
+          ,if all (`elem` [5,3]) zs || all (`elem` [5,4]) zs then ("add11"++) else (""++)
+          ,if elem 1 zs then ("b9"++) else (""++)
+          ,if all (`elem` [3,4]) zs then ("#9"++) else (""++)
+          ,if elem 6 zs && notElem 5 zs && any (`elem` [7,8]) zs then ("#11"++) else (""++)
+          ,if ((elem 6 zs && notElem 7 zs) || (elem 6 zs && notElem 8 zs)) && notElem 3 zs && all (`notElem` [7,8]) zs then ("b5"++) else (""++)
+          ,if ((elem 8 zs && notElem 7 zs) || all (`elem` [8,9]) zs) && notElem 4 zs then ("#5"++) else (""++)
+          ,if all (`notElem` [2,3,4,5]) zs then ("no3"++) else (""++)
+          ,if all (`notElem` [6,7,8]) zs then ("no5"++) else (""++)
+          ,if all (`elem` zs) [3,6] then ("dim"++) else (""++)
+          ,if all (`elem` zs) [4,8] then ("aug"++) else (""++)] 
+       in foldr (.) id seq

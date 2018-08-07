@@ -1,7 +1,7 @@
 module Markov where
 
 import Utility
--- import MusicData
+import MusicData
 
 import Data.Map (Map)
 import Data.Set (Set)
@@ -21,10 +21,10 @@ data Chord = Maj
            deriving (Show, Eq, Ord)
 
 -- |representation of root motion
-data Movement = Unison
-              | Second
-              | Fourth
-              deriving (Show, Eq, Ord)
+-- data Movement = Unison
+--               | Second
+--               | Fourth
+--               deriving (Show, Eq, Ord)
 
 -- |representation of a harmonic cadence
 newtype Cadence = Cadence Chord deriving (Show, Eq, Ord)
@@ -164,48 +164,48 @@ chords = take 50 $ cycle [Cadence Maj, Cadence Min, Cadence Dim]
 
 
 
--- -- |temporary deterministic test datasets
--- tsData :: [Cadence]
--- tsData  = [ Cadence Maj
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Min
---           , Cadence Min
---           , Cadence Maj
---           ]
+-- |temporary deterministic test datasets
+tsData :: [Cadence]
+tsData  = [ Cadence Maj
+          , Cadence Maj
+          , Cadence Maj
+          , Cadence Maj
+          , Cadence Maj
+          , Cadence Min
+          , Cadence Min
+          , Cadence Maj
+          ]
 
--- tsData' :: [Cadence]
--- tsData'  = [ Cadence Maj
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Dim
---           , Cadence Maj
---           , Cadence Min
---           , Cadence Min
---           , Cadence Maj
---           , Cadence Dim
---           , Cadence Dim
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Min
---           , Cadence Min
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Min
---           , Cadence Maj
---           , Cadence Min
---           , Cadence Min
---           , Cadence Dim
---           , Cadence Dim
---           , Cadence Dim
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Dim
---           , Cadence Maj
---           ]
+tsData' :: [Cadence]
+tsData'  = [ Cadence Maj
+          , Cadence Maj
+          , Cadence Maj
+          , Cadence Dim
+          , Cadence Maj
+          , Cadence Min
+          , Cadence Min
+          , Cadence Maj
+          , Cadence Dim
+          , Cadence Dim
+          , Cadence Maj
+          , Cadence Maj
+          , Cadence Maj
+          , Cadence Min
+          , Cadence Min
+          , Cadence Maj
+          , Cadence Maj
+          , Cadence Min
+          , Cadence Maj
+          , Cadence Min
+          , Cadence Min
+          , Cadence Dim
+          , Cadence Dim
+          , Cadence Dim
+          , Cadence Maj
+          , Cadence Maj
+          , Cadence Maj
+          , Cadence Maj
+          , Cadence Maj
+          , Cadence Dim
+          , Cadence Maj
+          ]
