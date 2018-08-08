@@ -188,7 +188,7 @@ instance MusicData PitchClass where
 
 -- |convert any integral into a PitchClass
 pc :: (Integral a, Num a) => a -> PitchClass
-pc = fromInteger . fromIntegral
+pc  = fromInteger . fromIntegral
 
 -- |put a list of integers into a PitchClass set (represented as a list)
 pcSet   :: (Integral a, Num a) => [a] -> [PitchClass]
@@ -238,7 +238,7 @@ inversions' xs = inversions $ i <$> xs
  
 -- |mapping from integer pitchclass set to the normal (most compact) form
 -- #### make generalisable for set of more than 4 pitches
-normalForm        :: (Integral a, Num a) => [a] -> [PitchClass]
+normalForm   :: (Integral a, Num a) => [a] -> [PitchClass]
 normalForm xs = -- #### partial function
   let invs xs = fmap i <$> inversions xs
       lst xs  = filter (\x -> 
@@ -246,27 +246,28 @@ normalForm xs = -- #### partial function
       sfl xs  = filter (\x -> 
         (last . init) x == (minimum $ last . init <$> lst xs)) $ lst xs
       tfl xs  = filter (\x -> 
-        (last . init . init) x == (minimum $ last . init . init <$> lst xs)) $ sfl xs
+        (last . init . init) x == 
+        (minimum $ last . init . init <$> lst xs)) $ sfl xs
     in fromInteger <$> (head $ tfl xs)
 
 -- |'prime' version for work with MusicData typeclass
-normalForm' :: MusicData a => [a] -> [PitchClass]
+normalForm'   :: MusicData a => [a] -> [PitchClass]
 normalForm' xs = normalForm $ i <$> xs
 
 -- |mapping from integer pitchclass set to the prime form
 primeForm        :: (Integral a, Num a) => [a] -> [PitchClass]
 primeForm xs      = fromInteger <$> is xs
   where
-    is xs         = prime $ compact xs : (compact $ (`subtract` 12) <$> compact xs) : []
+    is xs         = prime $ cmpt xs : (cmpt $ (`subtract` 12) <$> cmpt xs) : []
     prime xs      = head $ List.sortBy (compare `on` sum) xs
-    compact xs    = i <$> normalForm xs
+    cmpt xs       = i <$> normalForm xs
 
 -- |'prime' version for work with MusicData typeclass
 primeForm' :: MusicData a => [a] -> [PitchClass]
 primeForm' xs = primeForm $ i <$> xs
 
 -- |quick function to convert MusicData set objects into integer versions
-i' :: (MusicData a, Num b) => [a] -> [b]
+i'   :: (MusicData a, Num b) => [a] -> [b]
 i' xs = fromInteger <$> i <$> xs
 
 -- newtype IntervalClass = I Int deriving (Ord, Eq, Show, Read)
@@ -298,20 +299,20 @@ intervalVector'   :: MusicData a => [a] -> [Integer]
 intervalVector' xs = intervalVector $ i <$> xs
 
 -- |mapping from sets of fundamentals and overtones into viable composite sets
-overtoneSets      :: (Num a, Eq a, Eq b, Ord b) => a -> [b] -> [b] -> [[b]]
+overtoneSets        :: (Num a, Eq a, Eq b, Ord b) => a -> [b] -> [b] -> [[b]]
 overtoneSets n rs ps = [ i:j | i <- rs, 
                        j <- List.sort <$> (choose $ n-1) ps, 
                        not $ i `elem` j]
 
 -- |mapping from sets of fundamentals and overtones into lists of viable triads
-possibleTriads         :: (Integral a, Num a) => NoteName -> [a] -> [[a]]
+possibleTriads     :: (Integral a, Num a) => NoteName -> [a] -> [[a]]
 possibleTriads r ps =
   let fund = (\x -> [x]) . i $ r
    in overtoneSets 3 fund ps
 
 -- |mapping from sets of fundamentals and overtones into lists of viable triads
-possibleTriads'         :: (Integral a, Num a) => [String] -> [[a]] -> [[[a]]]
-possibleTriads' rs ps  =
+possibleTriads'      :: (Integral a, Num a) => [String] -> [[a]] -> [[[a]]]
+possibleTriads' rs ps =
   let fund = (\x -> [x]) . i . readNoteName <$> rs
    in zipWith (overtoneSets 3) fund ps
 
@@ -337,52 +338,72 @@ type Functionality = String
 -- |type synonym for a 'static' musical pitch structure of tones over a root
 data Chord = Chord ((NoteName, Functionality), [Integer]) deriving (Eq, Ord)
 
+-- |hides underlying Chord data and presents in a human readable way
 instance Show Chord where
   show (Chord ((a,b),c)) = show a ++ "_" ++ b
 
+-- |mapping from Chord object to a string representation for maximum readability
 showTriad ::  (PitchClass -> NoteName) -> Chord -> String 
 showTriad f (Chord ((a,b),c))
-    | all (`List.isInfixOf` b) ["/1stInv", "maj"] = (show . f $ pitchClass a) ++ " " ++ (takeWhile Char.isAlphaNum b) ++ "/" ++ (show $ f (a <-> 4))
-    | all (`List.isInfixOf` b) ["/1stInv", "min"] = (show . f $ pitchClass a) ++ " " ++ (takeWhile Char.isAlphaNum b) ++ "/" ++ (show $ f (a <-> 3))
-    | "/2ndInv" `List.isInfixOf` b = (show . f $ pitchClass a) ++ " " ++ (takeWhile Char.isAlphaNum b) ++ "/" ++ (show $ f (a <+> 5))
+    | all (`List.isInfixOf` b) ["/1stInv", "maj"] = 
+      (show . f $ pitchClass a) ++ " " ++ (takeWhile Char.isAlphaNum b) 
+      ++ "/" ++ (show $ f (a <-> 4))
+    | all (`List.isInfixOf` b) ["/1stInv", "min"] =
+      (show . f $ pitchClass a) ++ " " ++ (takeWhile Char.isAlphaNum b) 
+      ++ "/" ++ (show $ f (a <-> 3))
+    | "/2ndInv" `List.isInfixOf` b = (show . f $ pitchClass a) ++ " " ++ 
+      (takeWhile Char.isAlphaNum b) ++ "/" ++ (show $ f (a <+> 5))
     | otherwise                    = show a ++ " " ++ b
-
--- |representation of a musical 'movement' to new functionality by an interval
-data Cadence = Cadence PitchClass (Functionality, Functionality)
-  deriving (Show, Eq, Ord)
 
 -- |mapping from integer list to tuple of root and chord name
 toTriad :: (Integral a, Num a) => (PitchClass -> NoteName) -> [a] -> Chord
 toTriad f xs@(fund:tones)
-  | length triad > 3 = toTriad f $ mostConsonant $ possibleTriads (f . pc $ fund) tones
-  | primeForm xs == [P 0, P 3, P 7] = Chord ((fst $ inv, (nameFunc normalForm xs "") ++ (snd $ inv)), (`mod` 12) . fromIntegral <$> triad)
-  | otherwise                       = Chord ((f . pc $ head xs, nameFunc zeroForm xs ""), (`mod` 12) . fromIntegral <$> triad)
+  | length triad > 3 = toTriad f $ mostConsonant 
+    $ possibleTriads (f . pc $ fund) tones
+  | primeForm xs == [P 0, P 3, P 7] = 
+    Chord ((fst $ inv, (nameFunc normalForm xs "") ++ (snd $ inv)), 
+    (`mod` 12) . fromIntegral <$> triad)
+  | otherwise = 
+    Chord ((f . pc $ head xs, nameFunc zeroForm xs ""), 
+    (`mod` 12) . fromIntegral <$> triad)
   where
-    triad = (+fund) <$> (i' . zeroForm $ fund : (List.reverse $ List.sort tones))
+    triad = (+fund) <$> (i' . zeroForm $ fund 
+      : (List.reverse $ List.sort tones))
     invs = inversions triad
     inv
-      | head invs == [P 0, P 4, P 7] || head invs == [P 0, P 3, P 7] = (f . pc $ triad!!0, "")
-      | head invs == [P 0, P 5, P 9] || head invs == [P 0, P 5, P 8] = (f . pc $ triad!!1, "/2ndInv")
-      | head invs == [P 0, P 3, P 8] || head invs == [P 0, P 4, P 9] = (f . pc $ triad!!2, "/1stInv")
+      | head invs == [P 0, P 4, P 7] || head invs == [P 0, P 3, P 7] 
+        = (f . pc $ triad!!0, "")
+      | head invs == [P 0, P 5, P 9] || head invs == [P 0, P 5, P 8] 
+        = (f . pc $ triad!!1, "/2ndInv")
+      | head invs == [P 0, P 3, P 8] || head invs == [P 0, P 4, P 9] 
+        = (f . pc $ triad!!2, "/1stInv")
     nameFunc f xs =
       let  
         zs = i <$> f xs
         chain =
-          [if (elem 4 zs && all (`notElem` zs) [3,10,11]) && notElem 8 zs then ("maj"++) else (""++)
-          ,if (elem 3 zs && notElem 4 zs) && notElem 6 zs then ("min"++) else (""++)
+          [if (elem 4 zs && all (`notElem` zs) [3,10,11]) && notElem 8 zs 
+            then ("maj"++) else (""++)
+          ,if (elem 3 zs && notElem 4 zs) && notElem 6 zs 
+            then ("min"++) else (""++)
           ,if elem 9 zs then ("6"++) else (""++)
           ,if elem 10 zs then ("7"++) else (""++)
           ,if elem 11 zs then ("maj7"++) else (""++)
           ,if all (`elem` zs) [7,8] then ("b13"++) else (""++)
           ,if elem 2 zs && all (`notElem` zs) [3,4] then ("sus2"++) else (""++)
           ,if elem 5 zs && all (`notElem` zs) [3,4] then ("sus4"++) else (""++)
-          ,if all (`elem` zs) [2,3] || all (`elem` zs) [2,4] then ("add9"++) else (""++)
-          ,if all (`elem` zs) [5,3] || all (`elem` zs) [5,4] then ("add11"++) else (""++)
+          ,if all (`elem` zs) [2,3] || all (`elem` zs) [2,4] 
+            then ("add9"++) else (""++)
+          ,if all (`elem` zs) [5,3] || all (`elem` zs) [5,4] 
+            then ("add11"++) else (""++)
           ,if elem 1 zs then ("b9"++) else (""++)
           ,if all (`elem` zs) [3,4] then ("#9"++) else (""++)
-          ,if elem 6 zs && notElem 5 zs && any (`elem` zs) [7,8] then ("#11"++) else (""++)
-          ,if ((elem 6 zs && notElem 7 zs) || (elem 6 zs && notElem 8 zs)) && notElem 3 zs && all (`notElem` zs) [7,8] then ("b5"++) else (""++)
-          ,if ((elem 8 zs && notElem 7 zs) || all (`elem` zs) [8,9]) && notElem 4 zs then ("#5"++) else (""++)
+          ,if elem 6 zs && notElem 5 zs && any (`elem` zs) [7,8] 
+            then ("#11"++) else (""++)
+          ,if ((elem 6 zs && notElem 7 zs) || (elem 6 zs && notElem 8 zs)) 
+            && notElem 3 zs && all (`notElem` zs) [7,8] 
+            then ("b5"++) else (""++)
+          ,if ((elem 8 zs && notElem 7 zs) || all (`elem` zs) [8,9]) 
+            && notElem 4 zs then ("#5"++) else (""++)
           ,if all (`notElem` zs) [2,3,4,5] then ("no3"++) else (""++)
           ,if all (`notElem` zs) [6,7,8] then ("no5"++) else (""++)
           ,if all (`elem` zs) [3,6] then ("dim"++) else (""++)
@@ -394,6 +415,11 @@ flatTriad = toTriad flat
 
 sharpTriad :: (Integral a, Num a) => [a] -> Chord
 sharpTriad = toTriad sharp
+
+-- |representation of a musical 'movement' to new functionality by an interval
+data Cadence = Cadence PitchClass (Functionality, Functionality)
+  deriving (Show, Eq, Ord)
+
 
 
 -- toCadence :: 
