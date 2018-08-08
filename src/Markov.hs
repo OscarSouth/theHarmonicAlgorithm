@@ -15,10 +15,10 @@ import Numeric.LinearAlgebra
 import Data.Ord ( comparing )
 
 -- |representation of harmonic quality
-data Chord = Maj
-           | Min
-           | Dim
-           deriving (Show, Eq, Ord)
+-- data Chord = Maj
+--            | Min
+--            | Dim
+--            deriving (Show, Eq, Ord)
 
 -- |representation of root motion
 -- data Movement = Unison

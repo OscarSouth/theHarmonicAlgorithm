@@ -11,7 +11,7 @@ import Data.Set ( Set )
 import Data.Maybe ( fromMaybe )
 import qualified Data.Map as Map ( fromList, lookup )
 import qualified Data.Set as Set ( fromList, toList )
-import qualified Data.List as List ( sortBy, sort, concat )
+import qualified Data.List as List ( sortBy, sort, concat, reverse )
 
 -- |set of pitch classes
 newtype PitchClass = P Int deriving (Ord, Eq, Show, Read)
@@ -281,15 +281,24 @@ intervalVector' xs = intervalVector $ i <$> xs
 
 -- |synonym representation of harmonic functionality as a String
 type Functionality = String
+-- #### make into Chord data type and define Show instance
 
 -- |mapping from integer list to tuple of root and chord name
-triadName     :: (Integral a, Num a) => (PitchClass -> NoteName) -> [a] -> ((NoteName, Functionality), [a])
-triadName f xs = ((f . pc $ head xs, (xs `nameFunc` "")), xs)
+triadName :: (Integral a, Num a) => (PitchClass -> NoteName) -> [a] -> ((NoteName, Functionality), [a])
+triadName f xs@(fundamental:overtones)
+  | primeForm xs == [P 0, P 3, P 7] = ((fst $ inv, (nameFunc normalForm xs "") ++ (snd $ inv)), xs)
+  | otherwise                       = ((f . pc $ head xs, (nameFunc zeroForm xs "")), xs)
   where
-    nameFunc xs = 
-      let
-        zs = i <$> zeroForm xs
-        seq = 
+    triad = (+fundamental) <$> (i' . zeroForm $ fundamental : (List.reverse $ List.sort overtones))
+    invs = inversions triad
+    inv
+      | head invs == [P 0, P 4, P 7] || head invs == [P 0, P 3, P 7] = (f . pc $ triad!!0, "")
+      | head invs == [P 0, P 3, P 8] || head invs == [P 0, P 4, P 9] = (f . pc $ triad!!2, "/3rd")
+      | head invs == [P 0, P 5, P 9] || head invs == [P 0, P 5, P 8] = (f . pc $ triad!!1, "/5th")
+    nameFunc f xs =
+      let  
+        zs = i <$> f xs
+        seq =
           [if (elem 4 zs && all (`notElem` zs) [3,10,11]) && notElem 8 zs then ("maj"++) else (""++)
           ,if (elem 3 zs && notElem 4 zs) && notElem 6 zs then ("min"++) else (""++)
           ,if elem 9 zs then ("6"++) else (""++)
@@ -310,3 +319,10 @@ triadName f xs = ((f . pc $ head xs, (xs `nameFunc` "")), xs)
           ,if all (`elem` zs) [3,6] then ("dim"++) else (""++)
           ,if all (`elem` zs) [4,8] then ("aug"++) else (""++)] 
        in foldr (.) id seq
+
+flatName :: (Integral a, Num a) => [a] -> ((NoteName, Functionality), [a])
+flatName = triadName flat
+
+sharpName :: (Integral a, Num a) => [a] -> ((NoteName, Functionality), [a])
+sharpName = triadName sharp
+
