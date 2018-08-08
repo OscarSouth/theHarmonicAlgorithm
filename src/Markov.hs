@@ -2,9 +2,10 @@ module Markov where
 
 import Utility
 import MusicData
+import Chorale
 
 import Data.Map (Map)
-import Data.Set (Set)
+
 import qualified Data.Map as Map
 import qualified Data.List as List
 import qualified Data.Set as Set ( toList, fromList, size)
@@ -15,13 +16,13 @@ import Numeric.LinearAlgebra
 import Data.Ord ( comparing )
 
 -- |representation of harmonic quality
-data Chord = Maj
-           | Min
-           | Dim
-           deriving (Show, Eq, Ord)
+-- data Chord = Maj
+--            | Min
+--            | Dim
+--            deriving (Show, Eq, Ord)
 
 -- |representation of a harmonic cadence
-newtype Cadence = Cadence Chord deriving (Show, Eq, Ord)
+-- newtype Cadence = Cadence Chord  deriving (Show, Eq, Ord)
 
 -- |representation of bigrams and trigrams containing deterministic cadences
 type Trigram = ((Cadence, Cadence), Cadence)
@@ -116,7 +117,7 @@ showCadences (c:cs) = showc ++ ('\n' : showcs)
 printCadences   :: [Cadence] -> IO ()
 printCadences xs = putStr $ showCadences xs
 
-chords = take 50 $ cycle [Cadence Maj, Cadence Min, Cadence Dim]
+-- chords = take 50 $ cycle [Cadence Maj, Cadence Min, Cadence Dim]
 
 
 
@@ -158,48 +159,48 @@ chords = take 50 $ cycle [Cadence Maj, Cadence Min, Cadence Dim]
 
 
 
--- |temporary deterministic test datasets
-tsData :: [Cadence]
-tsData  = [ Cadence Maj
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Min
-          , Cadence Min
-          , Cadence Maj
-          ]
+-- -- |temporary deterministic test datasets
+-- tsData :: [Cadence]
+-- tsData  = [ Cadence Maj
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Min
+--           , Cadence Min
+--           , Cadence Maj
+--           ]
 
-tsData' :: [Cadence]
-tsData'  = [ Cadence Maj
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Dim
-          , Cadence Maj
-          , Cadence Min
-          , Cadence Min
-          , Cadence Maj
-          , Cadence Dim
-          , Cadence Dim
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Min
-          , Cadence Min
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Min
-          , Cadence Maj
-          , Cadence Min
-          , Cadence Min
-          , Cadence Dim
-          , Cadence Dim
-          , Cadence Dim
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Maj
-          , Cadence Dim
-          , Cadence Maj
-          ]
+-- tsData' :: [Cadence]
+-- tsData'  = [ Cadence Maj
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Dim
+--           , Cadence Maj
+--           , Cadence Min
+--           , Cadence Min
+--           , Cadence Maj
+--           , Cadence Dim
+--           , Cadence Dim
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Min
+--           , Cadence Min
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Min
+--           , Cadence Maj
+--           , Cadence Min
+--           , Cadence Min
+--           , Cadence Dim
+--           , Cadence Dim
+--           , Cadence Dim
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Maj
+--           , Cadence Dim
+--           , Cadence Maj
+--           ]

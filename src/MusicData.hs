@@ -11,7 +11,8 @@ import Data.Set ( Set )
 import Data.Maybe ( fromMaybe )
 import qualified Data.Map as Map ( fromList, lookup )
 import qualified Data.Set as Set ( fromList, toList )
-import qualified Data.List as List ( sortBy, sort, concat, reverse )
+import qualified Data.List as List ( sortBy, sort, concat, reverse, isInfixOf )
+import qualified Data.Char as Char ( isAlphaNum )
 
 -- |set of pitch classes
 newtype PitchClass = P Int deriving (Ord, Eq, Show, Read)
@@ -91,7 +92,30 @@ data NoteName = C
               | A 
               | A' 
               | Bb 
-              | B deriving (Ord, Eq, Show, Read)
+              | B deriving (Ord, Eq, Read)
+
+instance Show NoteName where
+  show C  = "C"
+  show C' = "C#" 
+  show Db = "Db"
+  show D  = "D"
+  show D' = "D#"
+  show Eb = "Eb"
+  show E  = "E"
+  show F  = "F"
+  show F' = "F#"
+  show Gb = "Gb"
+  show G  = "G"
+  show G' = "G#"
+  show Ab = "Ab"
+  show A  = "A"
+  show A' = "A#"
+  show Bb = "Bb"
+  show B  = "B"
+
+-- |helper function for reading in NoteName data
+readNoteName  :: String -> NoteName
+readNoteName s = read $ replace "#" "'" s
 
 instance MusicData NoteName where
   pitchClass n 
@@ -245,12 +269,6 @@ primeForm' xs = primeForm $ i <$> xs
 i' :: (MusicData a, Num b) => [a] -> [b]
 i' xs = fromInteger <$> i <$> xs
 
--- |mapping from sets of fundamentals and overtones into viable composite sets
-overtoneSets      :: (Num a, Eq a, Eq b, Ord b) => a -> [b] -> [b] -> [[b]]
-overtoneSets n rs ps = [ i:j | i <- rs, 
-                       j <- List.sort <$> (choose $ n-1) ps, 
-                       not $ i `elem` j]
-
 -- newtype IntervalClass = I Int deriving (Ord, Eq, Show, Read)
 
 -- data DiatonicInterval = Unison
@@ -279,50 +297,103 @@ intervalVector xs       = toInteger . vectCounts <$> [1..6]
 intervalVector'   :: MusicData a => [a] -> [Integer]
 intervalVector' xs = intervalVector $ i <$> xs
 
+-- |mapping from sets of fundamentals and overtones into viable composite sets
+overtoneSets      :: (Num a, Eq a, Eq b, Ord b) => a -> [b] -> [b] -> [[b]]
+overtoneSets n rs ps = [ i:j | i <- rs, 
+                       j <- List.sort <$> (choose $ n-1) ps, 
+                       not $ i `elem` j]
+
+-- |mapping from sets of fundamentals and overtones into lists of viable triads
+possibleTriads         :: (Integral a, Num a) => NoteName -> [a] -> [[a]]
+possibleTriads r ps =
+  let fund = (\x -> [x]) . i $ r
+   in overtoneSets 3 fund ps
+
+-- |mapping from sets of fundamentals and overtones into lists of viable triads
+possibleTriads'         :: (Integral a, Num a) => [String] -> [[a]] -> [[[a]]]
+possibleTriads' rs ps  =
+  let fund = (\x -> [x]) . i . readNoteName <$> rs
+   in zipWith (overtoneSets 3) fund ps
+
+-- |mapping from interval vector to degree of dissonance
+dissonanceLevel           :: (Integral a, Num a) => [a] -> (Integer, [a])
+dissonanceLevel xs
+  | countElem iVect 0 == 5 = (27, xs)
+  | elem (7+head xs) xs    = (subtract 1 $ sum $ zipWith (*) dissVect iVect, xs)
+  | otherwise              = (sum $ zipWith (*) dissVect iVect, xs)
+    where
+      iVect                = intervalVector xs 
+      dissVect             = [16,8,4,2,1,24] -- based on work of Paul Hindemith
+
+-- |mapping from a nested list of integers to the most consonant pitchclass set
+mostConsonant         ::  (Integral a, Num a) => [[a]] -> [a]
+mostConsonant xs       = triadChoice . sortFst $ dissonanceLevel <$> xs
+  where triadChoice xs = (snd . head . sortFst) xs
+        sortFst xs     = List.sortBy (compare `on` fst) xs
+
 -- |synonym representation of harmonic functionality as a String
 type Functionality = String
--- #### make into Chord data type and define Show instance
+
+-- |type synonym for a 'static' musical pitch structure of tones over a root
+data Chord = Chord ((NoteName, Functionality), [Integer]) deriving (Eq, Ord)
+
+instance Show Chord where
+  show (Chord ((a,b),c)) = show a ++ "_" ++ b
+
+showTriad ::  (PitchClass -> NoteName) -> Chord -> String 
+showTriad f (Chord ((a,b),c))
+    | all (`List.isInfixOf` b) ["/1stInv", "maj"] = (show . f $ pitchClass a) ++ " " ++ (takeWhile Char.isAlphaNum b) ++ "/" ++ (show $ f (a <-> 4))
+    | all (`List.isInfixOf` b) ["/1stInv", "min"] = (show . f $ pitchClass a) ++ " " ++ (takeWhile Char.isAlphaNum b) ++ "/" ++ (show $ f (a <-> 3))
+    | "/2ndInv" `List.isInfixOf` b = (show . f $ pitchClass a) ++ " " ++ (takeWhile Char.isAlphaNum b) ++ "/" ++ (show $ f (a <+> 5))
+    | otherwise                    = show a ++ " " ++ b
+
+-- |representation of a musical 'movement' to new functionality by an interval
+data Cadence = Cadence PitchClass (Functionality, Functionality)
+  deriving (Show, Eq, Ord)
 
 -- |mapping from integer list to tuple of root and chord name
-triadName :: (Integral a, Num a) => (PitchClass -> NoteName) -> [a] -> ((NoteName, Functionality), [a])
-triadName f xs@(fundamental:overtones)
-  | primeForm xs == [P 0, P 3, P 7] = ((fst $ inv, (nameFunc normalForm xs "") ++ (snd $ inv)), xs)
-  | otherwise                       = ((f . pc $ head xs, (nameFunc zeroForm xs "")), xs)
+toTriad :: (Integral a, Num a) => (PitchClass -> NoteName) -> [a] -> Chord
+toTriad f xs@(fund:tones)
+  | length triad > 3 = toTriad f $ mostConsonant $ possibleTriads (f . pc $ fund) tones
+  | primeForm xs == [P 0, P 3, P 7] = Chord ((fst $ inv, (nameFunc normalForm xs "") ++ (snd $ inv)), (`mod` 12) . fromIntegral <$> triad)
+  | otherwise                       = Chord ((f . pc $ head xs, nameFunc zeroForm xs ""), (`mod` 12) . fromIntegral <$> triad)
   where
-    triad = (+fundamental) <$> (i' . zeroForm $ fundamental : (List.reverse $ List.sort overtones))
+    triad = (+fund) <$> (i' . zeroForm $ fund : (List.reverse $ List.sort tones))
     invs = inversions triad
     inv
       | head invs == [P 0, P 4, P 7] || head invs == [P 0, P 3, P 7] = (f . pc $ triad!!0, "")
-      | head invs == [P 0, P 3, P 8] || head invs == [P 0, P 4, P 9] = (f . pc $ triad!!2, "/3rd")
-      | head invs == [P 0, P 5, P 9] || head invs == [P 0, P 5, P 8] = (f . pc $ triad!!1, "/5th")
+      | head invs == [P 0, P 5, P 9] || head invs == [P 0, P 5, P 8] = (f . pc $ triad!!1, "/2ndInv")
+      | head invs == [P 0, P 3, P 8] || head invs == [P 0, P 4, P 9] = (f . pc $ triad!!2, "/1stInv")
     nameFunc f xs =
       let  
         zs = i <$> f xs
-        seq =
+        chain =
           [if (elem 4 zs && all (`notElem` zs) [3,10,11]) && notElem 8 zs then ("maj"++) else (""++)
           ,if (elem 3 zs && notElem 4 zs) && notElem 6 zs then ("min"++) else (""++)
           ,if elem 9 zs then ("6"++) else (""++)
           ,if elem 10 zs then ("7"++) else (""++)
           ,if elem 11 zs then ("maj7"++) else (""++)
-          ,if all (`elem` [7,8]) zs then ("b13"++) else (""++)
-          ,if elem 2 zs && all (`notElem` [3,4]) zs then ("sus2"++) else (""++)
-          ,if elem 5 zs && all (`notElem` [3,4]) zs then ("sus4"++) else (""++)
-          ,if all (`elem` [2,3]) zs || all (`elem` [2,4]) zs then ("add9"++) else (""++)
-          ,if all (`elem` [5,3]) zs || all (`elem` [5,4]) zs then ("add11"++) else (""++)
+          ,if all (`elem` zs) [7,8] then ("b13"++) else (""++)
+          ,if elem 2 zs && all (`notElem` zs) [3,4] then ("sus2"++) else (""++)
+          ,if elem 5 zs && all (`notElem` zs) [3,4] then ("sus4"++) else (""++)
+          ,if all (`elem` zs) [2,3] || all (`elem` zs) [2,4] then ("add9"++) else (""++)
+          ,if all (`elem` zs) [5,3] || all (`elem` zs) [5,4] then ("add11"++) else (""++)
           ,if elem 1 zs then ("b9"++) else (""++)
-          ,if all (`elem` [3,4]) zs then ("#9"++) else (""++)
-          ,if elem 6 zs && notElem 5 zs && any (`elem` [7,8]) zs then ("#11"++) else (""++)
-          ,if ((elem 6 zs && notElem 7 zs) || (elem 6 zs && notElem 8 zs)) && notElem 3 zs && all (`notElem` [7,8]) zs then ("b5"++) else (""++)
-          ,if ((elem 8 zs && notElem 7 zs) || all (`elem` [8,9]) zs) && notElem 4 zs then ("#5"++) else (""++)
-          ,if all (`notElem` [2,3,4,5]) zs then ("no3"++) else (""++)
-          ,if all (`notElem` [6,7,8]) zs then ("no5"++) else (""++)
+          ,if all (`elem` zs) [3,4] then ("#9"++) else (""++)
+          ,if elem 6 zs && notElem 5 zs && any (`elem` zs) [7,8] then ("#11"++) else (""++)
+          ,if ((elem 6 zs && notElem 7 zs) || (elem 6 zs && notElem 8 zs)) && notElem 3 zs && all (`notElem` zs) [7,8] then ("b5"++) else (""++)
+          ,if ((elem 8 zs && notElem 7 zs) || all (`elem` zs) [8,9]) && notElem 4 zs then ("#5"++) else (""++)
+          ,if all (`notElem` zs) [2,3,4,5] then ("no3"++) else (""++)
+          ,if all (`notElem` zs) [6,7,8] then ("no5"++) else (""++)
           ,if all (`elem` zs) [3,6] then ("dim"++) else (""++)
           ,if all (`elem` zs) [4,8] then ("aug"++) else (""++)] 
-       in foldr (.) id seq
+       in foldr (.) id chain
 
-flatName :: (Integral a, Num a) => [a] -> ((NoteName, Functionality), [a])
-flatName = triadName flat
+flatTriad :: (Integral a, Num a) => [a] -> Chord
+flatTriad = toTriad flat
 
-sharpName :: (Integral a, Num a) => [a] -> ((NoteName, Functionality), [a])
-sharpName = triadName sharp
+sharpTriad :: (Integral a, Num a) => [a] -> Chord
+sharpTriad = toTriad sharp
 
+
+-- toCadence :: 

@@ -15,14 +15,14 @@ import Control.Concurrent ( threadDelay )
 import Data.Map ( Map )
 import Data.Int
 import qualified Data.Map as Map
-import qualified Data.List as List ( zip5 )
+import qualified Data.List as List ( zip5  )
 
 main = do
   putStrLn "Initialising R Interpreter.."
   initR
   initScript
   header
-  markovState
+  -- markovState
   return ()
 
 -- |Initialise R + session log, load libraries & log session info
@@ -91,7 +91,7 @@ loadData = do
   let rawChorale = unique <$> 
         [[a,b,c,d,e] | (a,b,c,d,e) <- List.zip5 x1 x2 x3 x4 x5]
   let choraleData = mostConsonant <$> 
-        bachTriads 3 choraleFundamental (fmap round <$> rawChorale)
+        possibleTriads' choraleFundamental (fmap round <$> rawChorale)
   -- fill out names and convert to 'cadence' object
   -- feed into markov machinery and generate markov map and transition matrix
   -- implement state monad to maintain state of markov chain
@@ -142,22 +142,22 @@ initLogR  = runRegion $ do
     |]
   return ()
 
-markovState = do
-  putStrLn "Select starting chord:\n"
-  let ps = lines $ showCadences $ take 3 chords -- highest three probabilities depending on state go here
-      enumPs = zipWith (\n p -> show n ++ " - " ++ p) [1..] ps
-  mapM_ putStrLn enumPs
-  prompt
-  num <- getLine
-  if notElem num $ fmap show [1..3] -- requires generalisation
-    then do 
-      putStrLn "\nUnrecognised input."
-      threadDelay 300000
-      markovState
-      else do
-        let index = ((read num) - 1) :: Int
-        putStr "\nInitial state: " 
-        putStrLn $ ps!!index
+-- markovState = do
+--   putStrLn "Select starting chord:\n"
+--   let ps = lines $ showCadences $ take 3 chords -- highest three probabilities depending on state go here
+--       enumPs = zipWith (\n p -> show n ++ " - " ++ p) [1..] ps
+--   mapM_ putStrLn enumPs
+--   prompt
+--   num <- getLine
+--   if notElem num $ fmap show [1..3] -- requires generalisation
+--     then do 
+--       putStrLn "\nUnrecognised input."
+--       threadDelay 300000
+--       markovState
+--       else do
+--         let index = ((read num) - 1) :: Int
+--         putStr "\nInitial state: " 
+--         putStrLn $ ps!!index
 
 prompt :: IO ()
 prompt = do 

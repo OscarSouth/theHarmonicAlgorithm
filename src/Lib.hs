@@ -1,18 +1,22 @@
 module Lib (
 ------------
 -- |MusicData
-intervalVector,
+mostConsonant,
+possibleTriads',
+toTriad,
+flatTriad,
+sharpTriad,
+flat,
+showTriad,
 -----------
 -- |Markov
-chords,
+-- chords,
 showCadences,
 printCadences,
 ------------
 -- |Overtone
 ------------
 -- |Chorale
-bachTriads,
-mostConsonant,
 ------------
 -- |Utility
 unique
