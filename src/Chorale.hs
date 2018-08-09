@@ -1,12 +1,14 @@
 module Chorale where
 
 import MusicData
+import Markov
 import Utility
 
 import qualified Data.List as List ( sort, sortBy )
 import Data.Function ( on )
 
 -- ingestData = filter (\(_,ys) -> length ys >= 3) $ zip choraleFundamental choraleData
+
 
 
 
