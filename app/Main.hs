@@ -5,38 +5,76 @@ module Main where
 import Lib
 
 import System.IO
+import Control.Monad.Reader
+import Control.Concurrent ( threadDelay )
+
 import qualified Foreign.R as R
 import qualified Language.R.Literal as R 
 import Language.R.Instance
 import Language.R.QQ
-
-import Control.Concurrent ( threadDelay )
 
 import Data.Map ( Map )
 import Data.Int
 import qualified Data.Map as Map
 import qualified Data.List as List ( zip5  )
 
-main = do
-  putStrLn "Initialising R Interpreter.."
+-- boot R
+-- load data into reader
+-- activate state loop
+
+main = withEmbeddedR defaultConfig $ do
   initR
-  initScript
+  model <- choraleData
   header
-  -- markovState
+  runReaderT testReader model
+  putStrLn "Finished!"
+  return ()
+
+-- printReaderContent :: ReaderT String IO ()
+-- printReaderContent = do
+    -- content <- ask
+    -- input <- liftIO getLine
+    -- liftIO $ putStrLn ("The Reader Content: " ++ content ++ input)
+
+testReader :: ReaderT MarkovMap IO ()
+testReader = do
+  model <- ask
+  -- liftIO $ print model'
   return ()
 
 -- |Initialise R + session log, load libraries & log session info
 initR :: IO ()
-initR = withEmbeddedR defaultConfig $ do
-  putStrLn ""
+initR = do
+  putStrLn "\nInitialising R Interpreter..\n"
   loadPackages
   putStrLn ""
   initLogR
   putStrLn "session will be logged:"
   rDir >>= putStr
   putStrLn "/output/sessionlog.txt\n"
-  loadData
+  threadDelay 100000
   return ()
+  
+choraleData :: IO MarkovMap
+choraleData = do
+  uciRef
+  bachData
+  chFunds <- bachFundamental
+  x1 <- fromBachMatrix 1
+  x2 <- fromBachMatrix 2
+  x3 <- fromBachMatrix 3
+  x4 <- fromBachMatrix 4
+  x5 <- fromBachMatrix 5
+  let model = markovMap $
+        fmap toCadence <$> bigrams $ flatTriad <$>
+        mostConsonant . possibleTriads'' <$>
+        filter (\(_, ys) -> length ys >= 3) (zip chFunds $
+        (fmap round) . unique <$> [[a,b,c,d,e] |
+        (a,b,c,d,e) <- List.zip5 x1 x2 x3 x4 x5])
+  return model
+
+
+  -- return ()
 
 -- |Retrieve R working directory
 rDir :: IO String
@@ -44,21 +82,17 @@ rDir =
   let rData () = R.fromSomeSEXP <$> [r| getwd() |]
    in runRegion $ rData ()
 
--- rGetDir :: R s String
--- rGetDir  = do
---   R.fromSomeSEXP <$> [r| getwd() |]
-
-initScript = do  
-  putStrLn "\n___________________________________________________________________________\n"
-  -- putStrLn "Welcome to The Harmonic Algorithm.\n" --, what's your name?"  
-  -- name <- getLine
-  -- putStrLn (">> Hey " ++ name)
-  -- threadDelay 100000
-  -- putStrLn (">> Let's go")
-  -- threadDelay 500000
-  threadDelay 300000
-  -- putStrLn "Begin..\n"
-  return ()
+-- initScript = do  
+--   putStrLn "\n___________________________________________________________________________\n"
+--   -- putStrLn "Welcome to The Harmonic Algorithm.\n" --, what's your name?"  
+--   -- name <- getLine
+--   -- putStrLn (">> Hey " ++ name)
+--   -- threadDelay 100000
+--   -- putStrLn (">> Let's go")
+--   -- threadDelay 500000
+--   threadDelay 300000
+--   -- putStrLn "Begin..\n"
+--   return ()
   
 -- loadData = do
 --   putStrLn ">> Load demo dataset?"
@@ -79,26 +113,27 @@ initScript = do
 --       putStrLn ">> y/n"
 --       loadData
 
-loadData = do
-  uciRef
-  bachData
-  choraleFundamental <- bachFundamental
-  x1 <- fromBachMatrix 1
-  x2 <- fromBachMatrix 2
-  x3 <- fromBachMatrix 3
-  x4 <- fromBachMatrix 4
-  x5 <- fromBachMatrix 5
-  let rawChorale = unique <$> 
-        [[a,b,c,d,e] | (a,b,c,d,e) <- List.zip5 x1 x2 x3 x4 x5]
-  -- let filterConvert xs = filter (\x -> length x >= 3) $ (fmap round) <$> xs
-  print choraleFundamental
-  -- fill out names and convert to 'cadence' object
-  -- feed into markov machinery and generate markov map and transition matrix
-  -- implement state monad to maintain state of markov chain
-  return ()
+-- loadChoraleData = do
+--   uciRef
+--   bachData
+--   choraleFundamental <- bachFundamental
+--   x1 <- fromBachMatrix 1
+--   x2 <- fromBachMatrix 2
+--   x3 <- fromBachMatrix 3
+--   x4 <- fromBachMatrix 4
+--   x5 <- fromBachMatrix 5
+--   let rawChorale = unique <$> 
+--         [[a,b,c,d,e] | (a,b,c,d,e) <- List.zip5 x1 x2 x3 x4 x5]
+--   -- let filterConvert xs = filter (\x -> length x >= 3) $ (fmap round) <$> xs
+--   -- fill out names and convert to 'cadence' object
+--   -- feed into markov machinery and generate markov map and transition matrix
+--   -- implement state monad to maintain state of markov chain
+--   return ()
 
 header :: IO ()
 header  = do  
+  putStrLn "\n___________________________________________________________________________\n"
+  threadDelay 300000
   putStrLn ""
   putStrLn ""
   putStrLn "  .___________________________________________."
@@ -161,11 +196,12 @@ initLogR  = runRegion $ do
 
 prompt :: IO ()
 prompt = do 
-  putStr "\n>> "
+  putStr "\n♭♯ >> "
   hFlush stdout
+  return ()
 
 loadPackages = runRegion $ do
-  [r| library("tidyverse") |]
+  [r| options(warn = -1) ; library("tidyverse") |]
   return ()
 
 bachData = runRegion $ do

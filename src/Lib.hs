@@ -1,16 +1,20 @@
 module Lib (
 ------------
 -- |MusicData
+Cadence,
 mostConsonant,
-possibleTriads',
+possibleTriads'',
 toTriad,
 flatTriad,
 sharpTriad,
 flat,
 showTriad,
+toCadence,
 -----------
 -- |Markov
--- chords,
+MarkovMap,
+markovMap,
+bigrams,
 ------------
 -- |Overtone
 ------------

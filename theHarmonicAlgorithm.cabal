@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c356bb260d5536bc174c2b9920e4a2611b24c09e03f307c44816500750f71478
+-- hash: 67e5b1bd112e544f920e99d27e5090662e0290789128b4eca1bbcb220b3143f6
 
 name:           theHarmonicAlgorithm
 version:        0.1.0.0
@@ -49,13 +49,12 @@ executable theHarmonicAlgorithm-exe
       app
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
-      MonadRandom
-    , base >=4.8 && <5
+      base >=4.8 && <5
     , concurrent-extra
     , containers
     , inline-r
+    , mtl
     , theHarmonicAlgorithm
-    , tidal
   default-language: Haskell2010
 
 test-suite theHarmonicAlgorithm-test
