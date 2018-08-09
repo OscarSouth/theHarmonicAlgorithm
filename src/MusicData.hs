@@ -432,19 +432,31 @@ showFlatTriad = showTriad flat
 showSharpTriad :: Chord -> String 
 showSharpTriad = showTriad sharp
 
--- |representation of a musical 'movement' to new functionality by an interval
-data Transition = Transition ((Functionality, Functionality), (Movement, [Integer]))
+-- |representation of a transition from old to new functionality by an interval
+data Cadence = Cadence ((Functionality, Functionality), (Movement, [Integer]))
   deriving (Eq, Ord)
 
+-- |show hides underlying Cadence data and presents data in a human readable way
+instance Show Cadence where
+  show (Cadence ((prv, new), (dist, ps))) = 
+    show dist ++ " -> (" ++ prv ++ " -> " ++ new ++ ")"
+
+-- |concrete representation of movement by a musical interval
 data Movement = Asc PitchClass | Desc PitchClass | Unison | Tritone 
   deriving (Ord, Eq)
 
+-- |displays musical interval in a human readable way
 instance Show Movement where
-  show (Asc n)   = "asc " ++ show (i n)
-  show (Desc n)  = "desc " ++ show (i n)
-  show (Unison)  = "asc/desc 0"
-  show (Tritone) = "asc/desc 6"
+  show (Asc n)
+    | n == P 1  = "asc " ++ show (i n) ++ " semitone"
+    | otherwise = "asc " ++ show (i n) ++ " semitones"
+  show (Desc n)
+    | n == P 1  = "desc " ++ show (i n) ++ " semitone"
+    | otherwise = "desc " ++ show (i n) ++ " semitones"
+  show (Unison)  = "stationary"
+  show (Tritone) = "asc/desc 6 semitones"
 
+-- |mapping from two numeric 'pitchclass' values into a Movement
 toMovement        :: (Integral a, Num a) => a -> a -> Movement
 toMovement from to
   | x < y = Asc  x
@@ -455,23 +467,22 @@ toMovement from to
     x = last $ zeroForm [from, to]
     y   = last $ zeroForm [to, from]
 
-
-toTransition :: (Chord, Chord) -> Transition
-toTransition ((Chord ((_, prv), from@(x:_))), (Chord ((_, new), to@(y:_)))) = 
-  Transition ((prv, new), (toMovement x y, i <$> zeroForm to))
-
--- |hides underlying Cadence data and presents in a human readable way
-instance Show Transition where
-  show (Transition ((prv, new), (dist, ps))) = 
-    "(" ++ prv ++ " -> " ++ new ++ ") -> " ++ show dist ++ " semitones"
-
-data Cadence = Cadence (Functionality, (Movement, [Integer]))
-  deriving (Eq, Ord)
-
-instance Show Cadence where
-  show (Cadence (functionality, (dist, ps))) = 
-    "( " ++ show dist ++ " -> " ++ functionality ++ " )"
-
+-- |mapping from tupled pair of Chords to a representation of transition between
 toCadence :: (Chord, Chord) -> Cadence
-toCadence ((Chord ((_, _), from@(x:_))), (Chord ((_, new), to@(y:_)))) = 
-  Cadence (new, (toMovement x y, i <$> zeroForm to))
+toCadence ((Chord ((_, prv), from@(x:_))), (Chord ((_, new), to@(y:_)))) = 
+  Cadence ((prv, new), (toMovement x y, i <$> zeroForm to))
+
+-- |lifted 'shortcut' version which works on a list of integer lists
+toCadences    :: (Integral a, Num a) => [[a]] -> [Cadence] 
+toCadences xs = toCadence <$> (bigrams $ flatTriad <$> xs)
+
+-- data Cadence = Cadence (Functionality, (Movement, [Integer]))
+--   deriving (Eq, Ord)
+
+-- instance Show Cadence where
+--   show (Cadence (functionality, (dist, ps))) = 
+--     "( " ++ show dist ++ " -> " ++ functionality ++ " )"
+
+-- toCadence :: (Chord, Chord) -> Cadence
+-- toCadence ((Chord ((_, _), from@(x:_))), (Chord ((_, new), to@(y:_)))) = 
+--   Cadence (new, (toMovement x y, i <$> zeroForm to))

@@ -176,50 +176,5 @@ markovMap xs            = foldl mInsert Map.empty $ threes xs
 
 
 
--- |temporary deterministic test datasets
-tsData = toCadence <$> (bigrams $ flatTriad <$> jsData'')
-
--- tsData :: [Cadence]
--- tsData  = [ Cadence Maj
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Min
---           , Cadence Min
---           , Cadence Maj
---           ]
-
--- tsData' :: [Cadence]
--- tsData'  = [ Cadence Maj
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Dim
---           , Cadence Maj
---           , Cadence Min
---           , Cadence Min
---           , Cadence Maj
---           , Cadence Dim
---           , Cadence Dim
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Min
---           , Cadence Min
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Min
---           , Cadence Maj
---           , Cadence Min
---           , Cadence Min
---           , Cadence Dim
---           , Cadence Dim
---           , Cadence Dim
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Maj
---           , Cadence Dim
---           , Cadence Maj
---           ]
+-- |temporary deterministic test dataset
+tsData = toCadence <$> (bigrams $ flatTriad <$> chData)
