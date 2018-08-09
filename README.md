@@ -2,13 +2,18 @@
 
 ![Header](img/header.png)
 
-Hello!
-I've noticed that this repo is starting to pick up a few stars and forks.
-It's still a work in progress but I'm making big strides in development.
+The Harmonic Algorithm, written in Haskell and R, generates musical domain 
+specific data inside user defined constraints and then filters it down and 
+deterministically ranks it using a tailored Markov Chain model trained on 
+ingested musical data. 
 
-It's going to be very cool! When I get it operational I'll provide some
-more in depth installation and usage instructions as well as practical
-musical examples of use cases. Wait until you see what this thing can do!
+This presents a unique tool in the hands of the composer or performer, which 
+can be used as a writing aid, analysis device or even in live performance. 
+
+The project spans Machine Learning, Functional Programming and Musical 
+Analysis and has encompassed my MA Thesis in Music and HDip Science In 
+Data Analytics Capstone as well as countless hours of personal research, 
+musicological analysis and software development.
 
 Here's a screenshot of the output from playing around with a few higher 
 level functions in the MusicData module:
