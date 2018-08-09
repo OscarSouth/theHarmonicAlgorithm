@@ -1,6 +1,6 @@
-# theHarmonicAlgorithm
+# The Harmonic Algorithm
 
-![Header](images/header.png)
+![Header](img/header.png)
 
 Hello!
 I've noticed that this repo is starting to pick up a few stars and forks.
@@ -13,10 +13,10 @@ musical examples of use cases. Wait until you see what this thing can do!
 Here's a screenshot of the output from playing around with a few higher 
 level functions in the MusicData module:
 
-![MusicData Screenshot](images/image.png)
+![MusicData Screenshot](images/img.png)
 
 Keep checking back and don't hesitate to get in touch via this 
-repositories 'Issues' section, or the contact form here:
-[UDAGANuniverse.com!](https://www.UDAGANuniverse.com)
+repositories 'Issues' section, or the contact form for my main 
+performance project here: [UDAGANuniverse.com/contact](https://www.UDAGANuniverse.com/contact)
 
 Oscar
