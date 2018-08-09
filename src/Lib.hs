@@ -11,8 +11,6 @@ showTriad,
 -----------
 -- |Markov
 -- chords,
-showCadences,
-printCadences,
 ------------
 -- |Overtone
 ------------

@@ -31,3 +31,10 @@ unique  = Set.toList . Set.fromList
 -- |function to count elements in a list
 countElem     :: Eq a => [a] -> a -> Int
 countElem xs x = (length . filter (== x)) xs
+
+-- |mapping from list of events into list of existing preceding bigrams
+bigrams :: [a] -> [(a, a)]
+bigrams (x:xs)
+  | length (x:xs) < 2 = []
+  | otherwise = bigram (x:xs) : bigrams xs
+  where bigram (x:y:ys) = (\a b -> (a, b)) x y

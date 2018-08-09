@@ -90,8 +90,8 @@ loadData = do
   x5 <- fromBachMatrix 5
   let rawChorale = unique <$> 
         [[a,b,c,d,e] | (a,b,c,d,e) <- List.zip5 x1 x2 x3 x4 x5]
-  let choraleData = mostConsonant <$> 
-        possibleTriads' choraleFundamental (fmap round <$> rawChorale)
+  -- let filterConvert xs = filter (\x -> length x >= 3) $ (fmap round) <$> xs
+  print choraleFundamental
   -- fill out names and convert to 'cadence' object
   -- feed into markov machinery and generate markov map and transition matrix
   -- implement state monad to maintain state of markov chain

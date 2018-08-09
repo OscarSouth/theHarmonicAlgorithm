@@ -304,7 +304,7 @@ overtoneSets n rs ps = [ i:j | i <- rs,
                        j <- List.sort <$> (choose $ n-1) ps, 
                        not $ i `elem` j]
 
--- |mapping from sets of fundamentals and overtones into lists of viable triads
+-- |mapping from sets of fundamental and overtones into list of viable triads
 possibleTriads     :: (Integral a, Num a) => NoteName -> [a] -> [[a]]
 possibleTriads r ps =
   let fund = (\x -> [x]) . i $ r
@@ -315,6 +315,12 @@ possibleTriads'      :: (Integral a, Num a) => [String] -> [[a]] -> [[[a]]]
 possibleTriads' rs ps =
   let fund = (\x -> [x]) . i . readNoteName <$> rs
    in zipWith (overtoneSets 3) fund ps
+
+-- |mapping from tuple of fundamental and overtones into list of viable triads
+possibleTriads''     :: (Integral a, Num a) => (String, [a]) -> [[a]]
+possibleTriads'' (r, ps) =
+  let fund = (\x -> [x]) . i . readNoteName $ r
+   in overtoneSets 3 fund ps
 
 -- |mapping from interval vector to degree of dissonance
 dissonanceLevel           :: (Integral a, Num a) => [a] -> (Integer, [a])
@@ -342,19 +348,6 @@ data Chord = Chord ((NoteName, Functionality), [Integer]) deriving (Eq, Ord)
 instance Show Chord where
   show (Chord ((a,b),c)) = show a ++ "_" ++ b
 
--- |mapping from Chord object to a string representation for maximum readability
-showTriad ::  (PitchClass -> NoteName) -> Chord -> String 
-showTriad f (Chord ((a,b),c))
-    | all (`List.isInfixOf` b) ["/1stInv", "maj"] = 
-      (show . f $ pitchClass a) ++ " " ++ (takeWhile Char.isAlphaNum b) 
-      ++ "/" ++ (show $ f (a <-> 4))
-    | all (`List.isInfixOf` b) ["/1stInv", "min"] =
-      (show . f $ pitchClass a) ++ " " ++ (takeWhile Char.isAlphaNum b) 
-      ++ "/" ++ (show $ f (a <-> 3))
-    | "/2ndInv" `List.isInfixOf` b = (show . f $ pitchClass a) ++ " " ++ 
-      (takeWhile Char.isAlphaNum b) ++ "/" ++ (show $ f (a <+> 5))
-    | otherwise                    = show a ++ " " ++ b
-
 -- |mapping from integer list to tuple of root and chord name
 toTriad :: (Integral a, Num a) => (PitchClass -> NoteName) -> [a] -> Chord
 toTriad f xs@(fund:tones)
@@ -374,9 +367,9 @@ toTriad f xs@(fund:tones)
       | head invs == [P 0, P 4, P 7] || head invs == [P 0, P 3, P 7] 
         = (f . pc $ triad!!0, "")
       | head invs == [P 0, P 5, P 9] || head invs == [P 0, P 5, P 8] 
-        = (f . pc $ triad!!1, "/2ndInv")
+        = (f . pc $ triad!!1, "_2ndInv")
       | head invs == [P 0, P 3, P 8] || head invs == [P 0, P 4, P 9] 
-        = (f . pc $ triad!!2, "/1stInv")
+        = (f . pc $ triad!!2, "_1stInv")
     nameFunc f xs =
       let  
         zs = i <$> f xs
@@ -410,16 +403,75 @@ toTriad f xs@(fund:tones)
           ,if all (`elem` zs) [4,8] then ("aug"++) else (""++)] 
        in foldr (.) id chain
 
+-- |shortcut version of toTriad with flat partially applied
 flatTriad :: (Integral a, Num a) => [a] -> Chord
 flatTriad = toTriad flat
 
+-- |shortcut version of toTriad with sharp partially applied
 sharpTriad :: (Integral a, Num a) => [a] -> Chord
 sharpTriad = toTriad sharp
 
+-- |mapping from Chord object to a string representation for maximum readability
+showTriad :: (PitchClass -> NoteName) -> Chord -> String 
+showTriad f (Chord ((a,b),c))
+    | all (`List.isInfixOf` b) ["_1stInv", "maj"] = 
+      (show . f $ pitchClass a) ++ " " ++ (takeWhile Char.isAlphaNum b) 
+      ++ "/" ++ (show $ f (a <-> 4))
+    | all (`List.isInfixOf` b) ["_1stInv", "min"] =
+      (show . f $ pitchClass a) ++ " " ++ (takeWhile Char.isAlphaNum b) 
+      ++ "/" ++ (show $ f (a <-> 3))
+    | "_2ndInv" `List.isInfixOf` b = (show . f $ pitchClass a) ++ " " ++ 
+      (takeWhile Char.isAlphaNum b) ++ "/" ++ (show $ f (a <+> 7))
+    | otherwise                    = (show . f $ pitchClass a) ++ " " ++ b
+
+-- |shortcut version of showTriad with sharp partially applied
+showFlatTriad :: Chord -> String 
+showFlatTriad = showTriad flat
+
+-- |shortcut version of showTriad with sharp partially applied
+showSharpTriad :: Chord -> String 
+showSharpTriad = showTriad sharp
+
 -- |representation of a musical 'movement' to new functionality by an interval
-data Cadence = Cadence PitchClass (Functionality, Functionality)
-  deriving (Show, Eq, Ord)
+data Transition = Transition ((Functionality, Functionality), (Movement, [Integer]))
+  deriving (Eq, Ord)
+
+data Movement = Asc PitchClass | Desc PitchClass | Unison | Tritone 
+  deriving (Ord, Eq)
+
+instance Show Movement where
+  show (Asc n)   = "asc " ++ show (i n)
+  show (Desc n)  = "desc " ++ show (i n)
+  show (Unison)  = "asc/desc 0"
+  show (Tritone) = "asc/desc 6"
+
+toMovement        :: (Integral a, Num a) => a -> a -> Movement
+toMovement from to
+  | x < y = Asc  x
+  | y < x = Desc y
+  | x == 0 && y == 0 = Unison
+  | otherwise   = Tritone
+  where       
+    x = last $ zeroForm [from, to]
+    y   = last $ zeroForm [to, from]
 
 
+toTransition :: (Chord, Chord) -> Transition
+toTransition ((Chord ((_, prv), from@(x:_))), (Chord ((_, new), to@(y:_)))) = 
+  Transition ((prv, new), (toMovement x y, i <$> zeroForm to))
 
--- toCadence :: 
+-- |hides underlying Cadence data and presents in a human readable way
+instance Show Transition where
+  show (Transition ((prv, new), (dist, ps))) = 
+    "(" ++ prv ++ " -> " ++ new ++ ") -> " ++ show dist ++ " semitones"
+
+data Cadence = Cadence (Functionality, (Movement, [Integer]))
+  deriving (Eq, Ord)
+
+instance Show Cadence where
+  show (Cadence (functionality, (dist, ps))) = 
+    "( " ++ show dist ++ " -> " ++ functionality ++ " )"
+
+toCadence :: (Chord, Chord) -> Cadence
+toCadence ((Chord ((_, _), from@(x:_))), (Chord ((_, new), to@(y:_)))) = 
+  Cadence (new, (toMovement x y, i <$> zeroForm to))

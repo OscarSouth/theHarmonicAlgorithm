@@ -108,14 +108,31 @@ markovMap xs            = foldl mInsert Map.empty $ threes xs
         pList key       = [(snd key, fromMaybe 0 $ Map.lookup key pMap)]
         pMap            = probabilityMap xs
 
-showCadences       :: [Cadence] -> String
-showCadences []     = []
-showCadences (c:cs) = showc ++ ('\n' : showcs)
-   where showc      = (show c)
-         showcs     = showCadences cs
+-- #### WRITE CODE FOR 1ST ORDER MARKOV CHAIN
 
-printCadences   :: [Cadence] -> IO ()
-printCadences xs = putStr $ showCadences xs
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+-- showCadences       :: [Cadence] -> String
+-- showCadences []     = []
+-- showCadences (c:cs) = showc ++ ('\n' : showcs)
+--    where showc      = (show c)
+--          showcs     = showCadences cs
+
+-- printCadences   :: [Cadence] -> IO ()
+-- printCadences xs = putStr $ showCadences xs
 
 -- chords = take 50 $ cycle [Cadence Maj, Cadence Min, Cadence Dim]
 
@@ -159,7 +176,9 @@ printCadences xs = putStr $ showCadences xs
 
 
 
--- -- |temporary deterministic test datasets
+-- |temporary deterministic test datasets
+tsData = toCadence <$> (bigrams $ flatTriad <$> jsData'')
+
 -- tsData :: [Cadence]
 -- tsData  = [ Cadence Maj
 --           , Cadence Maj
