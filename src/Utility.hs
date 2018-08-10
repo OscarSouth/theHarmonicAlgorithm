@@ -1,7 +1,7 @@
 module Utility where
 
-import Data.Set (Set)
-import qualified Data.Set as Set ( toList, fromList)
+import           Data.Set (Set)
+import qualified Data.Set as Set (fromList, toList)
 
 -- |nCr utility function
 choose         :: (Num a, Eq a) => a -> [b] -> [[b]]
@@ -11,9 +11,9 @@ choose k (x:xs) = map (x:) (choose (k-1) xs) ++ choose k xs
 
 -- |helper function to replace
 begins                           :: Eq a => [a] -> [a] -> Maybe [a]
-begins string []                  = Just string
+begins string []         = Just string
 begins (x : xs) (y : ys) | x == y = begins xs ys
-begins _        _                 = Nothing
+begins _        _        = Nothing
 
 -- |replace occurences in a String
 replace               :: Eq a => [a] -> [a] -> [a] -> [a]

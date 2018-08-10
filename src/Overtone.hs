@@ -1,12 +1,12 @@
 module Overtone where
 
-import Data.List ( sort )
-import Utility
+import           Data.List (sort)
+import           Utility
 
 -- -- |Generate list containing all possible pitchclass set combinations
 -- overtoneSets  :: Integer -> [[Integer]]
--- overtoneSets n = [ i:j | i <- [0..11], 
---                          j <- map sort $ (choose $ n-1) [0..11], 
+-- overtoneSets n = [ i:j | i <- [0..11],
+--                          j <- map sort $ (choose $ n-1) [0..11],
 --                          not $ i `elem` j]
 
 -- -- |Transform list of overtone sets into zero forms

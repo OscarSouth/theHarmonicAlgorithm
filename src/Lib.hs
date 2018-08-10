@@ -24,9 +24,9 @@ bigrams,
 unique
   ) where
 
-import MusicData
-import Markov
-import Overtone
-import Chorale
-import Utility
+import           Chorale
+import           Markov
+import           MusicData
+import           Overtone
+import           Utility
 

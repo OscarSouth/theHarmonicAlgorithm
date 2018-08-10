@@ -1,12 +1,11 @@
 module Chorale where
 
-import MusicData
-import Markov
-import Utility
+import           Markov
+import           MusicData
+import           Utility
 
-import qualified Data.List as List ( sort, sortBy )
-import Data.Function ( on )
-
+import           Data.Function (on)
+import qualified Data.List     as List (sort, sortBy)
 
 
 

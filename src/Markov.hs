@@ -1,20 +1,21 @@
 module Markov where
 
-import Utility
-import MusicData
+import           MusicData
+import           Utility
 
-import Data.Map ( Map )
-import qualified Data.Map.Strict as Strict ( Map )
+import           Data.Map              (Map)
+import           Data.Ord              (comparing)
+import           Numeric.LinearAlgebra (Matrix, R, (><))
 
-import qualified Data.Map as Map
-import qualified Data.Map.Strict as Map'
-import qualified Data.List as List
-import qualified Data.Set as Set ( toList, fromList, size)
-
-import Data.Maybe ( fromMaybe )
-import Data.Map.Merge.Lazy
-import Numeric.LinearAlgebra
-import Data.Ord ( comparing )
+import qualified Data.Map              as Map (empty, insertWith, lookup)
+import qualified Data.Map.Merge.Strict as Map' (merge, preserveMissing,
+                                                zipWithMatched)
+import qualified Data.Map.Strict       as Strict (Map)
+import qualified Data.Map.Strict       as Map' (difference, elems, empty,
+                                                fromList, insert, insertWith,
+                                                keys, lookup, member, toList)
+import qualified Data.Maybe            as Maybe (fromMaybe)
+import qualified Data.Set              as Set (fromList, size, toList)
 
 -- |representation of bigrams and containing deterministic cadence sequences
 type Bigram  = (Cadence, Cadence)
@@ -36,24 +37,24 @@ bigrams (x:xs)
   where bigram (x:y:ys) = (\a b -> (a, b)) x y
 
 -- |lifted 'shortcut' `toCadence` which operates on a list of integer lists
-toCadences    :: (Integral a, Num a) => [[a]] -> [Cadence] 
+toCadences    :: (Integral a, Num a) => [[a]] -> [Cadence]
 toCadences xs = toCadence <$> (bigrams $ flatTriad <$> xs)
 
 -- |mapping from input data into all theoretically possible bigrams
 pairs   :: [Cadence] -> [Bigram]
-pairs xs = 
+pairs xs =
   let cs  = unique xs
    in [ (x, y) | x <- cs, y <- cs ]
 
 -- |mapping from input data into all possible trigrams with counts of zero
 zeroCounts             :: [Cadence] -> TransitionCounts
-zeroCounts xs           = 
+zeroCounts xs           =
   let mapInsert acc key = Map'.insert key 0 acc
    in foldl mapInsert Map'.empty $ pairs xs
 
 -- |mapping from input data to counts of all occurring transitions
 cadenceCounts        :: [Cadence] -> TransitionCounts
-cadenceCounts xs      = 
+cadenceCounts xs      =
   let mInsert acc key = Map'.insertWith (+) key 1 acc
    in foldl mInsert Map'.empty $ bigrams xs
 
@@ -63,8 +64,8 @@ transitionCounts xs     = mergeMaps (foldl mInsert cadences (Map'.keys diff)) ze
   where diff            = Map'.difference zeros cadences
         zeros           = zeroCounts xs
         cadences        = cadenceCounts xs
-        mergeMaps m1 m2 = merge preserveMissing preserveMissing 
-                          (zipWithMatched (\k x y -> x)) m1 m2
+        mergeMaps m1 m2 = Map'.merge Map'.preserveMissing Map'.preserveMissing
+                          (Map'.zipWithMatched (\k x y -> x)) m1 m2
         keys k          = [ (fst k, nxt) | nxt <- unique xs ]
         newKey k        = (fst k, fst k)
         member k        = sequenceA [ f ks | f <- [Map'.member], ks <- keys k ] (cadences)
@@ -72,7 +73,7 @@ transitionCounts xs     = mergeMaps (foldl mInsert cadences (Map'.keys diff)) ze
           | all (\x -> x == False) (member key) == True =
               Map'.insert (newKey key) 1 acc
           | otherwise   =
-              Map'.insert key (fromMaybe 0 $ Map'.lookup key $ cadences) acc
+              Map'.insert key (Maybe.fromMaybe 0 $ Map'.lookup key $ cadences) acc
 
 -- |helper function for probabilityList which generates probability sublists
 transitionProbs      :: [Cadence] -> [Double] -> [[Double]]
@@ -86,12 +87,12 @@ transitionProbs xs ys =
 
 -- |mapping from list of Cadences into list of transitions with probabilities
 probabilityMap   :: [Cadence] -> Map Bigram Double
-probabilityMap xs = Map'.fromList $ zip (Map'.keys $ zeroCounts xs) $ concat 
+probabilityMap xs = Map'.fromList $ zip (Map'.keys $ zeroCounts xs) $ concat
                      . transitionProbs xs $ Map'.elems $ transitionCounts xs
 
 -- |mapping from list of cadences into transition matrix
 transitionMatrix   :: [Cadence] -> TransitionMatrix
-transitionMatrix xs = 
+transitionMatrix xs =
   let i             = j^2
       j             = Set.size $ Set.fromList xs
    in (j><j) $ Map'.elems $ probabilityMap xs :: Matrix R
@@ -100,6 +101,6 @@ transitionMatrix xs =
 markovMap              :: [Cadence] -> MarkovMap
 markovMap xs            = foldl mInsert Map.empty $ pairs xs
   where mInsert acc key = Map.insertWith (++) (fst key) (pList key) acc
-        pList key       = [(snd key, fromMaybe 0 $ Map.lookup key pMap)]
+        pList key       = [(snd key, Maybe.fromMaybe 0 $ Map.lookup key pMap)]
         pMap            = probabilityMap xs
 

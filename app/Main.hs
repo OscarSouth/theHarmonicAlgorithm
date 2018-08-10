@@ -2,21 +2,20 @@
 
 module Main where
 
-import Lib
+import           Lib
 
-import System.IO
-import Control.Monad.Reader
-import Control.Concurrent ( threadDelay )
+import           Control.Concurrent   (threadDelay)
+import           Control.Monad.Reader
+import           System.IO
 
-import qualified Foreign.R as R
-import qualified Language.R.Literal as R 
-import Language.R.Instance
-import Language.R.QQ
+import qualified Foreign.R            as R
+import           Language.R.Instance
+import qualified Language.R.Literal   as R
+import           Language.R.QQ
 
-import Data.Map ( Map )
-import Data.Int
-import qualified Data.Map as Map
-import qualified Data.List as List ( zip5  )
+import qualified Data.List            as List (zip5)
+import           Data.Map             (Map)
+import qualified Data.Map             as Map
 
 -- boot R
 -- load data into reader
@@ -39,7 +38,7 @@ main = withEmbeddedR defaultConfig $ do
 testReader :: ReaderT MarkovMap IO ()
 testReader = do
   model <- ask
-  -- liftIO $ print model'
+  liftIO . print $ (take 10 $ Map.keys model)
   return ()
 
 -- |Initialise R + session log, load libraries & log session info
@@ -54,7 +53,7 @@ initR = do
   putStrLn "/output/sessionlog.txt\n"
   threadDelay 100000
   return ()
-  
+
 choraleData :: IO MarkovMap
 choraleData = do
   uciRef
@@ -77,13 +76,13 @@ choraleData = do
 
 -- |Retrieve R working directory
 rDir :: IO String
-rDir = 
+rDir =
   let rData () = R.fromSomeSEXP <$> [r| getwd() |]
    in runRegion $ rData ()
 
--- initScript = do  
+-- initScript = do
 --   putStrLn "\n___________________________________________________________________________\n"
---   -- putStrLn "Welcome to The Harmonic Algorithm.\n" --, what's your name?"  
+--   -- putStrLn "Welcome to The Harmonic Algorithm.\n" --, what's your name?"
 --   -- name <- getLine
 --   -- putStrLn (">> Hey " ++ name)
 --   -- threadDelay 100000
@@ -92,14 +91,14 @@ rDir =
 --   threadDelay 300000
 --   -- putStrLn "Begin..\n"
 --   return ()
-  
+
 -- loadData = do
 --   putStrLn ">> Load demo dataset?"
 --   putStrLn ">> y/n"
 --   load <- getLine
 --   if load == "n"
 --   then putStrLn ">> No Data Loaded"
---     else if load == "y" 
+--     else if load == "y"
 --     then do
 --     uciRef
 --     -- |data should be loaded here
@@ -121,7 +120,7 @@ rDir =
 --   x3 <- fromBachMatrix 3
 --   x4 <- fromBachMatrix 4
 --   x5 <- fromBachMatrix 5
---   let rawChorale = unique <$> 
+--   let rawChorale = unique <$>
 --         [[a,b,c,d,e] | (a,b,c,d,e) <- List.zip5 x1 x2 x3 x4 x5]
 --   -- let filterConvert xs = filter (\x -> length x >= 3) $ (fmap round) <$> xs
 --   -- fill out names and convert to 'cadence' object
@@ -130,7 +129,7 @@ rDir =
 --   return ()
 
 header :: IO ()
-header  = do  
+header  = do
   putStrLn "\n___________________________________________________________________________\n"
   threadDelay 300000
   putStrLn ""
@@ -184,17 +183,17 @@ initLogR  = runRegion $ do
 --   prompt
 --   num <- getLine
 --   if notElem num $ fmap show [1..3] -- requires generalisation
---     then do 
+--     then do
 --       putStrLn "\nUnrecognised input."
 --       threadDelay 300000
 --       markovState
 --       else do
 --         let index = ((read num) - 1) :: Int
---         putStr "\nInitial state: " 
+--         putStr "\nInitial state: "
 --         putStrLn $ ps!!index
 
 prompt :: IO ()
-prompt = do 
+prompt = do
   putStr "\n♭♯ >> "
   hFlush stdout
   return ()
@@ -204,10 +203,10 @@ loadPackages = runRegion $ do
   return ()
 
 bachData = runRegion $ do
-  [r| bach <- read_csv("data/jsbach_chorals_harmony.data", 
+  [r| bach <- read_csv("data/jsbach_chorals_harmony.data",
                  col_names = c(
                    "seq", "event",
-                   "0", "1", "2", "3", "4", "5", 
+                   "0", "1", "2", "3", "4", "5",
                    "6", "7", "8", "9", "10", "11",
                    "fund", "acc", "label"
                  ), cols(
@@ -232,22 +231,22 @@ bachData = runRegion $ do
                )
 
 bach <-
-  bach %>% 
+  bach %>%
     select(seq, event, fund, acc, label) %>%
-    add_column(pitch = bach %>% 
-                 select(`0`:`11`) %>% 
-                 t() %>% 
+    add_column(pitch = bach %>%
+                 select(`0`:`11`) %>%
+                 t() %>%
                  as.data.frame() %>%
                  unname() %>%
                  map(function(x) str_which(x, "YES")-1)
-              ) 
+              )
 
 bachMatrix <<-
-  reduce(bach$pitch, 
+  reduce(bach$pitch,
          rbind,
-           matrix(,0,bach$pitch %>% 
-                     map(length) %>% 
-                     rapply(c) %>% 
+           matrix(,0,bach$pitch %>%
+                     map(length) %>%
+                     rapply(c) %>%
                      max()
                  )
          ) %>%
@@ -259,12 +258,12 @@ bachFund <<- bach$fund
   return ()
 
 fromBachMatrix  :: Double -> IO [Double]
-fromBachMatrix x = 
+fromBachMatrix x =
   let rData x = R.fromSomeSEXP <$> [r| bachMatrix[,x_hs] |]
    in runRegion $ rData x
 
 bachFundamental  :: IO [String]
-bachFundamental = 
+bachFundamental =
   let rData () = R.fromSomeSEXP <$> [r| bachFund |]
    in runRegion $ rData ()
 
@@ -280,7 +279,7 @@ bachFundamental =
 -- plotR  = runRegion $ do
 --   [r| library(ggplot2)
 --       p <- ggplot(mtcars, aes(x=wt, y=mpg)) + geom_point()
---       ggsave(filename="output/plots/plot.png", plot=p, 
+--       ggsave(filename="output/plots/plot.png", plot=p,
 --               width=4, height=4, scale=2)
 --     |]
 --   return ()
