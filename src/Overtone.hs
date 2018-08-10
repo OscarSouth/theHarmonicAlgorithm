@@ -1,7 +1,7 @@
 module Overtone where
 
-import           Data.List (sort)
-import           Utility
+-- import           Data.List (sort)
+-- import           Utility
 
 -- -- |Generate list containing all possible pitchclass set combinations
 -- overtoneSets  :: Integer -> [[Integer]]

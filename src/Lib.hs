@@ -1,6 +1,9 @@
 module Lib (
 ------------
 -- |MusicData
+MusicData,
+NoteName,
+Chord,
 Cadence,
 mostConsonant,
 possibleTriads'',
@@ -8,6 +11,7 @@ toTriad,
 flatTriad,
 sharpTriad,
 flat,
+sharp,
 showTriad,
 toCadence,
 -----------

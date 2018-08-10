@@ -4,7 +4,6 @@ import           MusicData
 import           Utility
 
 import           Data.Map              (Map)
-import           Data.Ord              (comparing)
 import           Numeric.LinearAlgebra (Matrix, R, (><))
 
 import qualified Data.Map              as Map (empty, insertWith, lookup)

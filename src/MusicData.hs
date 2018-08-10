@@ -436,7 +436,7 @@ data Movement = Asc PitchClass | Desc PitchClass | Unison | Tritone
 instance Show Movement where
   show (Asc n)   = "asc " ++ show (i n)
   show (Desc n)  = "desc " ++ show (i n)
-  show (Unison)  = "stationary"
+  show (Unison)  = "pedal"
   show (Tritone) = "tritone"
 
 -- |mapping from two numeric 'pitchclass' values into a Movement

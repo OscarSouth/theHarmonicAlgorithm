@@ -13,35 +13,30 @@ import           Language.R.Instance
 import qualified Language.R.Literal   as R
 import           Language.R.QQ
 
-import qualified Data.List            as List (zip5)
-import           Data.Map             (Map)
-import qualified Data.Map             as Map
-
--- boot R
--- load data into reader
--- activate state loop
+import           Data.Function        (on)
+import qualified Data.List            as List (sortBy, zip5)
+import qualified Data.Map             as Map (keys, lookup)
+import           Data.Maybe           (fromMaybe)
 
 main = withEmbeddedR defaultConfig $ do
-  initR
-  model <- choraleData
+  initR -- load R libraries & settings, initialise R log, print info to stout
+  model <- choraleData -- bind trained model
   header
-  runReaderT testReader model
-  putStrLn "Finished!"
+  runReaderT interactive model -- enter ReaderT Monad with trained model
+  putStrLn tempText
   return ()
 
--- printReaderContent :: ReaderT String IO ()
--- printReaderContent = do
-    -- content <- ask
-    -- input <- liftIO getLine
-    -- liftIO $ putStrLn ("The Reader Content: " ++ content ++ input)
-
-testReader :: ReaderT MarkovMap IO ()
-testReader = do
+-- |'interactive' environment for working with the trained model
+interactive :: ReaderT MarkovMap IO ()
+interactive = do
   model <- ask
-  liftIO . print $ (take 10 $ Map.keys model)
+  -- liftIO . mapM_ print $ (take 10 $ Map.keys model)
+  let query = toCadence (flatTriad [11,2,7], flatTriad [0,3,7])
+  let result = take 10 $ List.sortBy (compare `on` (\(_, x) -> 1-x)) $ fromMaybe [(query, 1.0)] $ Map.lookup query model
+  liftIO $ mapM_ print result
   return ()
 
--- |Initialise R + session log, load libraries & log session info
+-- |Initialise R + session log, load libraries/set options & log session info
 initR :: IO ()
 initR = do
   putStrLn "\nInitialising R Interpreter..\n"
@@ -56,23 +51,25 @@ initR = do
 
 choraleData :: IO MarkovMap
 choraleData = do
-  uciRef
-  bachData
-  chFunds <- bachFundamental
-  x1 <- fromBachMatrix 1
-  x2 <- fromBachMatrix 2
-  x3 <- fromBachMatrix 3
-  x4 <- fromBachMatrix 4
-  x5 <- fromBachMatrix 5
-  let model = markovMap $
-        fmap toCadence <$> bigrams $ flatTriad <$>
-        mostConsonant . possibleTriads'' <$>
-        filter (\(_, ys) -> length ys >= 3) (zip chFunds $
-        (fmap round) . unique <$> [[a,b,c,d,e] |
-        (a,b,c,d,e) <- List.zip5 x1 x2 x3 x4 x5])
+  uciRef -- print dataset source reference
+  bachData -- execute R script to preprocess data
+  chFunds <- bachFundamental -- retrieve and bind R column of fundamental notes
+  x1 <- fromBachMatrix 1 -- retrieve and bind columns from R matrix
+  x2 <- fromBachMatrix 2 -- |
+  x3 <- fromBachMatrix 3 -- |
+  x4 <- fromBachMatrix 4 -- |
+  x5 <- fromBachMatrix 5 -- V
+  let model = markovMap $ -- train model on
+        fmap toCadence <$> -- map bigram sets into Cadence data types
+        bigrams $ -- combine chords into sequential bigrams
+        flatTriad <$> -- convert to 'Chord' data type
+        mostConsonant . possibleTriads'' <$> -- derive most suitable triad over fundamental
+        filter (\(_, ys) -> length ys >= 3) ( -- remove sets of less than 3
+        zip chFunds $ -- zip with fundamentals R column
+        (fmap round) . unique <$> -- remove duplicate elems . convert to Integer
+        [[a,b,c,d,e] | (a,b,c,d,e) <- List.zip5 x1 x2 x3 x4 x5]
+        ) -- ^ convert R matrix columns to a list of lists ^
   return model
-
-
 
 -- |Retrieve R working directory
 rDir :: IO String
@@ -111,23 +108,6 @@ rDir =
 --       putStrLn ">> y/n"
 --       loadData
 
--- loadChoraleData = do
---   uciRef
---   bachData
---   choraleFundamental <- bachFundamental
---   x1 <- fromBachMatrix 1
---   x2 <- fromBachMatrix 2
---   x3 <- fromBachMatrix 3
---   x4 <- fromBachMatrix 4
---   x5 <- fromBachMatrix 5
---   let rawChorale = unique <$>
---         [[a,b,c,d,e] | (a,b,c,d,e) <- List.zip5 x1 x2 x3 x4 x5]
---   -- let filterConvert xs = filter (\x -> length x >= 3) $ (fmap round) <$> xs
---   -- fill out names and convert to 'cadence' object
---   -- feed into markov machinery and generate markov map and transition matrix
---   -- implement state monad to maintain state of markov chain
---   return ()
-
 header :: IO ()
 header  = do
   putStrLn "\n___________________________________________________________________________\n"
@@ -149,18 +129,26 @@ header  = do
 uciRef :: IO ()
 uciRef  = do
     threadDelay 500000
-    putStrLn "Loading Bach Chorale Dataset from UCI Machine Learning Repository..."
+    putStrLn "Loading Bach Chorale Dataset from UCI Machine Learning Repository...\n"
     putStrLn "+--------------------------------------------------------------------------+"
     putStrLn "| Dua, D. and Karra Taniskidou, E. (2017). UCI Machine Learning Repository |"
     putStrLn "| [http://archive.ics.uci.edu/ml]. Irvine, CA: University of California,   |"
     putStrLn "| School of Information and Computer Science.                              |"
-    putStrLn "+--------------------------------------------------------------------------+"
-    -- threadDelay 100000
-    -- putStrLn "."
-    -- threadDelay 100000
-    -- putStrLn ".."
-    -- threadDelay 100000
-    -- putStrLn "...\n"
+    putStrLn "+--------------------------------------------------------------------------+\n"
+    threadDelay 100000
+    putStrLn "."
+    threadDelay 100000
+    putStrLn ".."
+    threadDelay 100000
+    putStrLn "...\n"
+    threadDelay 100000
+    putStr "Loading"
+    threadDelay 100000
+    putStr "."
+    threadDelay 100000
+    putStr "."
+    threadDelay 100000
+    putStr ".\n\n"
     return ()
 
 initLogR :: IO ()
@@ -284,3 +272,20 @@ bachFundamental =
 --     |]
 --   return ()
 
+tempText :: String
+tempText =
+  "\n\
+  \The Harmonic Algorithm, written in Haskell and R, generates musical\n\
+  \domain specific data inside user defined constraints then filters it\n\
+  \down and deterministically ranks it using a tailored Markov Chain\n\
+  \model trained on ingested musical data. This presents a unique tool\n\
+  \in the hands of the composer or performer which can be used as a\n\
+  \writing aid, analysis device or even in live performance.\n\
+  \\n\
+  \The Harmonic Algorithm is currently in active development.\n\
+  \Keep checking back and don't hesitate to get in touch via the\n\
+  \repository's 'Issues' section:\n\
+  \https://github.com/OscarSouth/theHarmonicAlgorithm/issues\n\
+  \\n\
+  \or the contact form for my main performance project: \n\
+  \https://UDAGANuniverse.com/contact\n"
