@@ -3,12 +3,11 @@
 ![Header](img/header.png)
 
 The Harmonic Algorithm, written in Haskell and R, generates musical domain 
-specific data inside user defined constraints and then filters it down and 
+specific data inside user defined constraints then filters it down and 
 deterministically ranks it using a tailored Markov Chain model trained on 
-ingested musical data. 
-
-This presents a unique tool in the hands of the composer or performer, which 
-can be used as a writing aid, analysis device or even in live performance. 
+ingested musical data. This presents a unique tool in the hands of the 
+composer or performer, which can be used as a writing aid, analysis 
+device or even in live performance. 
 
 The project spans Machine Learning, Functional Programming and Musical 
 Analysis and has encompassed my MA Thesis in Music and HDip Science In 
