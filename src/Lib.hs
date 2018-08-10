@@ -2,9 +2,12 @@ module Lib (
 ------------
 -- |MusicData
 MusicData,
+PitchClass (P),
 NoteName,
 Chord,
 Cadence,
+i,
+pitchClass,
 mostConsonant,
 possibleTriads'',
 toTriad,
@@ -14,6 +17,7 @@ flat,
 sharp,
 showTriad,
 toCadence,
+pc,
 -----------
 -- |Markov
 MarkovMap,

@@ -24,13 +24,10 @@ Here's a view of the 'raw' data returned by the trained model:
 ![Result](img/result.png)
 
 In this case, it's returning the top 10 ranked 'next' harmonic movements
-following a perfect cadence (with the dominant in first inversion).
+following a (V -> i) cadence with the V in first inversion.
 
 Keep checking back and don't hesitate to get in touch via this 
 repository's 'Issues' section, or the contact form for my main 
 performance project here: [UDAGANuniverse.com/contact](https://www.UDAGANuniverse.com/contact)
-
-
-
 
 Oscar

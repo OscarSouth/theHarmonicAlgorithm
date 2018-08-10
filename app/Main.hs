@@ -15,8 +15,12 @@ import           Language.R.QQ
 
 import           Data.Function        (on)
 import qualified Data.List            as List (sortBy, zip5)
-import qualified Data.Map             as Map (keys, lookup)
+import qualified Data.Map             as Map (keys, lookup, fromList)
+import           Data.Map             (Map)
 import           Data.Maybe           (fromMaybe)
+import qualified Data.Char            as Char (toLower, isAlphaNum)
+-- import qualified Data.Map.Strict as Strict (Map)
+-- import qualified Data.Map.Strict as Map' (fromList, lookup)
 
 main = withEmbeddedR defaultConfig $ do
   initR -- load R libraries & settings, initialise R log, print info to stout
@@ -30,11 +34,156 @@ main = withEmbeddedR defaultConfig $ do
 interactive :: ReaderT MarkovMap IO ()
 interactive = do
   model <- ask
-  -- liftIO . mapM_ print $ (take 10 $ Map.keys model)
-  let query = toCadence (flatTriad [11,2,7], flatTriad [0,3,7])
-  let result = take 10 $ List.sortBy (compare `on` (\(_, x) -> 1-x)) $ fromMaybe [(query, 1.0)] $ Map.lookup query model
-  liftIO $ mapM_ print result
+  liftIO $ putStrLn "Welcome to The Harmonic Algorithm!\n"
+  liftIO $ threadDelay 300000
+  liftIO $ putStrLn "Do you prefer to read ♭ (flat) or ♯ (sharp) notation?\n"
+  enharmonic <- flatSharp
+  liftIO $ putStrLn "\nSelect starting keycentre:\n"
+  fundamental <- initFundamental enharmonic
+  liftIO $ putStrLn "\nSelect starting functionality:\n"
+  functionality <- chooseFunctionality enharmonic fundamental
+  liftIO $ putStrLn "\nStarting Chord:\n"
+  liftIO . putStrLn $ showTriad (enharmMap enharmonic) functionality
+  -- markovLoop enharmonic fundamental functionality
   return ()
+
+
+
+chooseFunctionality :: String -> PitchClass -> ReaderT MarkovMap IO Chord
+chooseFunctionality k r = do
+  let opts = zipWith (\n p -> show n ++ " - " ++ p) [1..] initFcList
+  liftIO $ mapM_ putStrLn opts
+  liftIO prompt
+  num <- liftIO $ getLine
+  if notElem num $ fmap show [1..(length opts)]     
+    then do
+      liftIO $ putStrLn "\nUnrecognised input, please retry:\n"
+      liftIO $ threadDelay 300000
+      chooseFunctionality k r
+      else do
+        let index = ((read num) - 1) :: Int
+            chord = toTriad (enharmMap k) $ -- make correctly enharmonic Chord
+                    (+ i r) <$> -- transpose structure to meet fundamental note
+                    (fromMaybe [0,4,7] $ -- extract Map lookup from Maybe
+                    Map.lookup (initFcList!!index) initFcMap
+                    ) -- ^ extract choice from Map
+        return chord
+
+initFundamental :: String -> ReaderT MarkovMap IO PitchClass
+initFundamental k = do
+  let pcs  = show . (enharmMap k) <$> [P 0 .. P 11]
+      opts = zipWith (\n p -> show n ++ " - " ++ p) [1..] pcs
+  liftIO $ mapM_ putStrLn opts
+  liftIO prompt
+  num <- liftIO $ getLine
+  if notElem num $ fmap show [1..(length opts)]     
+    then do
+      liftIO $ putStrLn "\nUnrecognised input, please retry:\n"
+      liftIO $ threadDelay 300000
+      initFundamental k
+      else do
+        let index = ((read num) - 1) :: Int
+        return (pc index)
+
+flatSharp :: ReaderT MarkovMap IO String
+flatSharp = do 
+  let enh  = ["Flat ♭", "Sharp ♯"]
+      opts = zipWith (\n p -> show n ++ " - " ++ p) [1..] enh
+  liftIO $ mapM_ putStrLn opts
+  liftIO prompt
+  num <- liftIO $ getLine
+  if notElem num $ fmap show [1..(length opts)]
+    then do
+      liftIO $ putStrLn "\nUnrecognised input, please retry:\n"
+      liftIO $ threadDelay 300000
+      flatSharp
+      else do
+        let index      = ((read num) - 1) :: Int
+            enharmonic = takeWhile Char.isAlphaNum $ Char.toLower <$> enh!!index
+        return enharmonic
+
+
+
+
+
+  -- if   enharmonic == (Char.toLower <$> "flat")
+  --   || enharmonic == (Char.toLower <$> "f")
+  --   || enharmonic == (Char.toLower <$> "b")
+  --   || enharmonic == "♭"
+  --   then return "flat"
+  --   else if  enharmonic == (Char.toLower <$> "sharp")
+  --         || enharmonic == (Char.toLower <$> "s")
+  --         || enharmonic == (Char.toLower <$> "#")
+  --         || enharmonic == "♯"
+  --         then return "sharp"
+  --         else do
+  --           liftIO $ putStrLn "\nUnrecognised input, please retry:"
+  --           liftIO $ threadDelay 300000
+  --           flatSharp
+
+enharmMap :: MusicData a => String -> (a -> NoteName)
+enharmMap key = 
+  let funcMap = (Map.fromList [("flat", flat), ("sharp", sharp)])
+   in fromMaybe (flat) $ Map.lookup key funcMap
+
+initFcMap :: (Integral a, Num a) => Map String [a]
+initFcMap = Map.fromList $
+  [("maj",[0,4,7]),
+  ("maj_1stInv",[0,3,8]),
+  ("min",[0,3,7]),
+  ("min_1stInv",[0,4,9]),
+  ("maj_2ndInv",[0,5,9]),
+  ("sus2",[0,2,7]),
+  ("min6no5",[0,3,9]),
+  ("sus4",[0,5,7]),
+  ("7sus4no5",[0,5,10]),
+  ("min_2ndInv",[0,5,8]),
+  ("min7no5",[0,3,10]),
+  ("6sus2no5",[0,2,9]),
+  ("dim",[0,3,6]),
+  ("6b5no3",[0,6,9]),
+  ("7no3",[0,7,10]),
+  ("7no5",[0,4,10]),
+  ("sus2sus4no5",[0,2,5]),
+  ("minadd11no5",[0,3,5])]
+
+initFcList :: [String] 
+initFcList = 
+  ["maj",
+  "maj_1stInv",
+  "min",
+  "min_1stInv",
+  "maj_2ndInv",
+  "sus2",
+  "min6no5",
+  "sus4",
+  "7sus4no5",
+  "min_2ndInv",
+  "min7no5",
+  "6sus2no5",
+  "dim",
+  "6b5no3",
+  "7no3",
+  "7no5",
+  "sus2sus4no5",
+  "minadd11no5"]
+
+-- markovState = do
+--   putStrLn "Select starting chord:\n"
+--   let nexts = lines $ showCadences $ take 3 chords -- highest three probabilities depending on state go here
+--       enums = zipWith (\n p -> show n ++ " - " ++ p) [1..] nexts
+--   mapM_ putStrLn enumPs
+--   prompt
+--   num <- getLine
+--   if notElem num $ fmap show [1..3] -- requires generalisation
+--     then do
+--       putStrLn "\nUnrecognised input."
+--       threadDelay 300000
+--       markovState
+--       else do
+--         let index = ((read num) - 1) :: Int
+--         putStr "\nInitial state: "
+--         putStrLn $ ps!!index
 
 -- |Initialise R + session log, load libraries/set options & log session info
 initR :: IO ()
@@ -68,7 +217,7 @@ choraleData = do
         zip chFunds $ -- zip with fundamentals R column
         (fmap round) . unique <$> -- remove duplicate elems . convert to Integer
         [[a,b,c,d,e] | (a,b,c,d,e) <- List.zip5 x1 x2 x3 x4 x5]
-        ) -- ^ convert R matrix columns to a list of lists ^
+        ) -- ^ convert R matrix columns to a list of lists
   return model
 
 -- |Retrieve R working directory
@@ -114,6 +263,8 @@ header  = do
   threadDelay 300000
   putStrLn ""
   putStrLn ""
+  putStrLn ""
+  putStrLn ""
   putStrLn "  .___________________________________________."
   putStrLn "  |__/___\\_.___The____________________________|"
   putStrLn "  |__\\___|_.______Harmonic_____________/|_____|"
@@ -143,12 +294,16 @@ uciRef  = do
     putStrLn "...\n"
     threadDelay 100000
     putStr "Loading"
+    hFlush stdout
     threadDelay 100000
     putStr "."
+    hFlush stdout
     threadDelay 100000
     putStr "."
+    hFlush stdout
     threadDelay 100000
     putStr ".\n\n"
+    hFlush stdout
     return ()
 
 initLogR :: IO ()
@@ -163,26 +318,10 @@ initLogR  = runRegion $ do
     |]
   return ()
 
--- markovState = do
---   putStrLn "Select starting chord:\n"
---   let ps = lines $ showCadences $ take 3 chords -- highest three probabilities depending on state go here
---       enumPs = zipWith (\n p -> show n ++ " - " ++ p) [1..] ps
---   mapM_ putStrLn enumPs
---   prompt
---   num <- getLine
---   if notElem num $ fmap show [1..3] -- requires generalisation
---     then do
---       putStrLn "\nUnrecognised input."
---       threadDelay 300000
---       markovState
---       else do
---         let index = ((read num) - 1) :: Int
---         putStr "\nInitial state: "
---         putStrLn $ ps!!index
 
 prompt :: IO ()
 prompt = do
-  putStr "\n♭♯ >> "
+  putStr "\n>> "
   hFlush stdout
   return ()
 

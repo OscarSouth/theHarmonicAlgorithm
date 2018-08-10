@@ -1,5 +1,6 @@
 module Utility where
 
+import Data.Map (fromListWith, toList)
 import           Data.Set (Set)
 import qualified Data.Set as Set (fromList, toList)
 
@@ -32,4 +33,6 @@ unique  = Set.toList . Set.fromList
 countElem     :: Eq a => [a] -> a -> Int
 countElem xs x = (length . filter (== x)) xs
 
-
+-- |mapping from a list to association list of counts of elements
+frequency :: (Ord a) => [a] -> [(a, Int)]
+frequency xs = toList (fromListWith (+) [(x, 1) | x <- xs])
