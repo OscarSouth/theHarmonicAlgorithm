@@ -270,19 +270,6 @@ primeForm' xs = primeForm $ i <$> xs
 i'   :: (MusicData a, Num b) => [a] -> [b]
 i' xs = fromInteger <$> i <$> xs
 
--- newtype IntervalClass = I Int deriving (Ord, Eq, Show, Read)
-
--- data DiatonicInterval = Unison
---                       | Second
---                       | Third
---                       | Fourth
---                       | Fifth
---                       | Sixth
---                       | Seventh
---                       | Octave
-
--- data ChromaticInterval a = Perfect a | Flat a | Sharp a
-
 -- |mapping from list of integers into interval vector
 intervalVector         :: (Integral a, Num a) => [a] -> [Integer]
 intervalVector xs       = toInteger . vectCounts <$> [1..6]
@@ -449,11 +436,7 @@ data Movement = Asc PitchClass | Desc PitchClass | Unison | Tritone
 -- |displays musical interval in a human readable way
 instance Show Movement where
   show (Asc n) = "asc " ++ show (i n) 
-    -- | n == P 1  = "asc " ++ show (i n) ++ " semitone"
-    -- | otherwise = "asc " ++ show (i n) ++ " semitones"
   show (Desc n) = "desc " ++ show (i n) 
-    -- | n == P 1  = "desc " ++ show (i n) ++ " semitone"
-    -- | otherwise = "desc " ++ show (i n) ++ " semitones"
   show (Unison)  = "stationary"
   show (Tritone) = "tritone"
 
