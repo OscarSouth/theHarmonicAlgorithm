@@ -10,7 +10,7 @@ import           GHC.Real      ((%))
 
 import qualified Data.Char     as Char (isAlphaNum)
 import qualified Data.List     as List (concat, isInfixOf, reverse, sort,
-                                        sortBy)
+                                        sortBy, sort)
 import qualified Data.Set      as Set (fromList, toList)
 
 -- |set of pitch classes
@@ -206,6 +206,12 @@ zeroForm (x:xs) =
 -- |'prime' version for work with MusicData typeclass
 zeroForm'   :: MusicData a => [a] -> [PitchClass]
 zeroForm' xs = zeroForm $ i <$> xs
+
+-- |'double prime' version for work purely with integral numbers **does not trim
+zeroForm''       :: (Num a, Integral a) => [a] -> [a]
+zeroForm'' (x:xs) = List.sort $ [(zeroTrans x) i | i <- (x:xs)]
+  where zeroTrans x y | x <= y = y-x
+                      | x > y  = y+12-x
 
 -- |creates a 'non-deterministic' list of inversions (use !! to select)
 -- #### make this more concise & able to operate on pitch sets of any size

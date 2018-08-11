@@ -38,7 +38,7 @@ interactive = do
   liftIO $ threadDelay 300000
   liftIO $ putStrLn "Do you prefer to read ♭ (flat) or ♯ (sharp) notation?\n"
   enharmonic <- flatSharp
-  liftIO $ putStrLn "\nSelect starting keycentre:\n"
+  liftIO $ putStrLn "\nSelect starting root note:\n"
   fundamental <- initFundamental enharmonic
   liftIO $ putStrLn "\nSelect starting functionality:\n"
   functionality <- chooseFunctionality enharmonic fundamental
