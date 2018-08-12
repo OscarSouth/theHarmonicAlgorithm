@@ -4,7 +4,7 @@ module Lib (
 MusicData,
 PitchClass (P),
 NoteName,
-Chord,
+Chord (Chord),
 Cadence,
 i,
 pitchClass,
@@ -20,6 +20,7 @@ toCadence,
 pc,
 fromCadence,
 movementFromCadence,
+dissonanceLevel,
 -----------
 -- |Markov
 MarkovMap,
@@ -27,7 +28,8 @@ markovMap,
 bigrams,
 ------------
 -- |Overtone
-theHarmonicAlgorithm,
+-- theHarmonicAlgorithm,
+theHarmonicAlgorithm',
 parseOvertones,
 parseTuning,
 parseKey,

@@ -45,10 +45,10 @@ executables:
     - -with-rtsopts=-N
     dependencies:
     - theHarmonicAlgorithm
+    - containers
     - mtl
     - inline-r
-    - concurrent-extra
-    - containers
+    # - concurrent-extra
     # - MonadRandom
 
 tests:

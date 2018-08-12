@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 67e5b1bd112e544f920e99d27e5090662e0290789128b4eca1bbcb220b3143f6
+-- hash: 2508b55b71869a0f49a7047c20a4ef7431314fe2f1a3bb696b5c796e2640dceb
 
 name:           theHarmonicAlgorithm
 version:        0.1.0.0
@@ -50,7 +50,6 @@ executable theHarmonicAlgorithm-exe
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.8 && <5
-    , concurrent-extra
     , containers
     , inline-r
     , mtl
