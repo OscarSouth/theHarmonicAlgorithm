@@ -18,6 +18,8 @@ sharp,
 showTriad,
 toCadence,
 pc,
+fromCadence,
+movementFromCadence,
 -----------
 -- |Markov
 MarkovMap,
@@ -25,6 +27,11 @@ markovMap,
 bigrams,
 ------------
 -- |Overtone
+theHarmonicAlgorithm,
+parseOvertones,
+parseTuning,
+parseKey,
+parseFunds,
 ------------
 -- |Chorale
 ------------

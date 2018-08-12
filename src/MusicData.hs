@@ -10,7 +10,7 @@ import           GHC.Real      ((%))
 
 import qualified Data.Char     as Char (isAlphaNum)
 import qualified Data.List     as List (concat, isInfixOf, reverse, sort,
-                                        sortBy, sort)
+                                        sortBy)
 import qualified Data.Set      as Set (fromList, toList)
 
 -- |set of pitch classes
@@ -456,18 +456,42 @@ toMovement from to
     x = last $ zeroForm [from, to]
     y   = last $ zeroForm [to, from]
 
+-- |mapping from Movement data type to PitchClass
+fromMovement :: Movement -> PitchClass
+fromMovement (Asc n) = pc n
+fromMovement (Desc n) = 12 - (pc n)
+fromMovement (Unison) = P 0
+fromMovement (Tritone) = P 6
+
+movementFromCadence :: Cadence -> PitchClass
+movementFromCadence (Cadence (_,(mvmt,_))) = fromMovement mvmt
+
 -- |mapping from tupled pair of Chords to a representation of transition between
 toTransition :: (Chord, Chord) -> Transition
 toTransition ((Chord ((_, prv), from@(x:_))), (Chord ((_, new), to@(y:_)))) =
   Transition ((prv, new), (toMovement x y, i <$> zeroForm to))
 
-data Cadence = Cadence (Functionality, (Movement, [Integer]))
+data Cadence = Cadence (Functionality, (Movement, [PitchClass]))
   deriving (Eq, Ord)
 
 instance Show Cadence where
   show (Cadence (functionality, (dist, ps))) =
     "( " ++ show dist ++ " -> " ++ functionality ++ " )"
 
+-- |mapping from two Chord data structures to a Cadence
 toCadence :: (Chord, Chord) -> Cadence
 toCadence ((Chord ((_, _), from@(x:_))), (Chord ((_, new), to@(y:_)))) =
-  Cadence (new, (toMovement x y, i <$> zeroForm to))
+  Cadence (new, (toMovement x y, zeroForm to))
+
+-- |mapping from Cadence and 'concrete' pitch back to Chord
+fromCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord
+fromCadence f root (Cadence (_,(Asc n, tones))) = 
+  (toTriad f) $ i . (+ n) <$> tones
+fromCadence f root (Cadence (_,(Desc n,tones))) = 
+  (toTriad f) $ i . (n `subtract`) <$> tones
+fromCadence f root (Cadence (_,(Unison,tones))) =
+  (toTriad f) $ i <$> tones
+fromCadence f root (Cadence (_,(Tritone,tones))) =
+  (toTriad f) $ i . (+ P 6) <$> tones
+-- fromCadence f root (Cadence (_,(_,tones))) =
+--   (toTriad f) $ i . (+ root) <$> tones
