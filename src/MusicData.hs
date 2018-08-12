@@ -483,15 +483,21 @@ toCadence :: (Chord, Chord) -> Cadence
 toCadence ((Chord ((_, _), from@(x:_))), (Chord ((_, new), to@(y:_)))) =
   Cadence (new, (toMovement x y, zeroForm to))
 
--- |mapping from Cadence and 'concrete' pitch back to Chord
+-- -- |mapping from Cadence and 'concrete' pitch back to Chord
+-- fromCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord
+-- fromCadence f root (Cadence (_,(Asc n, tones))) = 
+--   (toTriad f) $ i . (+ n) <$> tones
+-- fromCadence f root (Cadence (_,(Desc n,tones))) = 
+--   (toTriad f) $ i . (n `subtract`) <$> tones
+-- fromCadence f root (Cadence (_,(Unison,tones))) =
+--   (toTriad f) $ i <$> tones
+-- fromCadence f root (Cadence (_,(Tritone,tones))) =
+--   (toTriad f) $ i . (+ P 6) <$> tones
+
 fromCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord
-fromCadence f root (Cadence (_,(Asc n, tones))) = 
-  (toTriad f) $ i . (+ n) <$> tones
-fromCadence f root (Cadence (_,(Desc n,tones))) = 
-  (toTriad f) $ i . (n `subtract`) <$> tones
-fromCadence f root (Cadence (_,(Unison,tones))) =
-  (toTriad f) $ i <$> tones
-fromCadence f root (Cadence (_,(Tritone,tones))) =
-  (toTriad f) $ i . (+ P 6) <$> tones
--- fromCadence f root (Cadence (_,(_,tones))) =
---   (toTriad f) $ i . (+ root) <$> tones
+fromCadence f root c@(Cadence (_,(_,tones))) =
+  (toTriad f) $ i . (+ movementFromCadence c) . (+ root) <$> tones
+
+transposeCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord
+transposeCadence f root (Cadence (_,(_,tones))) =
+  (toTriad f) $ i . (+ root) <$> tones

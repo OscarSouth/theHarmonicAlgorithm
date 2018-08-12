@@ -16,11 +16,12 @@ sharpTriad,
 flat,
 sharp,
 showTriad,
+dissonanceLevel,
 toCadence,
 pc,
 fromCadence,
 movementFromCadence,
-dissonanceLevel,
+transposeCadence,
 -----------
 -- |Markov
 MarkovMap,

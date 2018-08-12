@@ -69,17 +69,18 @@ markovLoop :: Enharmonic -> Root -> Cadence -> Filters -> Int ->
               ReaderT MarkovMap IO ()
 markovLoop fs root prev filters n = do
   model <- ask
-  let enharm = enharmMap fs
-      hAlgo = List.sortBy (compare `on` (\(Chord (_,x)) -> 
-              fst . dissonanceLevel $ x)) $ 
-              filters enharm
-      bach  = filter (\(x,_) -> fromCadence enharm root x `elem` hAlgo) $
-              List.sortBy (compare `on` (\(_,x) -> 1-x)) $ 
-              fromMaybe [(prev, 1.0)] $ 
-              Map.lookup prev model
-      nexts = take n $ (fst <$> bach) ++ 
-              (filter (\x -> x `notElem` fmap fst bach) $
-              (\x -> toCadence (fromCadence enharm root prev, x)) <$> hAlgo)  
+  let enharm = enharmMap fs -- extract enharmonic 'key' into function
+      hAlgo = (\xs -> [ toCadence (transposeCadence enharm root prev, nxt) 
+              | nxt <- xs ]) $ -- ^ Convert list of Chords into Cadences from last state
+              List.sortBy (compare `on` (\(Chord (_,x)) -> -- sort by dissonance level
+              fst . dissonanceLevel $ x)) $ filters enharm -- get values from Filters
+      bach  = filter (\(x,_) -> x `elem` hAlgo) $ -- remove elements not in Filters
+              List.sortBy (compare `on` (\(_,x) -> 1-x)) $ -- sort by markov probability
+              fromMaybe [(prev, 1.0)] $ -- extract Cadence list from maybe
+              Map.lookup prev model -- extract current markov state from model
+      nexts = take n $ (fst <$> bach) ++ -- append to markov list and take n
+              (filter (\x -> x `notElem` fmap fst bach) hAlgo) 
+              -- ^ keep elements of Filters list not in markov list
       menu = ((showTriad enharm) . (fromCadence enharm root) <$> nexts) ++ 
              ["[       Modify filter       ]",
               if n == 15 then "[         Show more         ]" 
@@ -89,9 +90,8 @@ markovLoop fs root prev filters n = do
               "[ Select new starting chord ]",
               "[           Quit            ]"]
       opts = zipWith (\n p -> show n ++ " - " ++ p) [1..] menu
-  -- liftIO $ mapM_ putStrLn $ showTriad enharm <$> hAlgo
   liftIO $ putStrLn $ "The current chord is " ++ 
-           (showTriad enharm $ fromCadence enharm root prev) ++
+           (showTriad enharm $ transposeCadence enharm root prev) ++
            " -- Select next chord or choose another option:\n"
   liftIO $ mapM_ putStrLn opts
   liftIO prompt
