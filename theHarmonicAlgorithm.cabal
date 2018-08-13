@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2508b55b71869a0f49a7047c20a4ef7431314fe2f1a3bb696b5c796e2640dceb
+-- hash: d4a79bdaea9d453083db4627a997c5d9acdd2cb12ab376e7690b735bf2068b0a
 
 name:           theHarmonicAlgorithm
 version:        0.1.0.0
@@ -30,7 +30,6 @@ library
   other-modules:
       Overtone
       Markov
-      Chorale
       MusicData
       Utility
   hs-source-dirs:

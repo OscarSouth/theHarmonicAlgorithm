@@ -6,6 +6,7 @@ import           Utility
 import qualified Data.Char as Char (isNumber, toLower)
 import qualified Data.List as List (isInfixOf)
 
+-- |mapping from String to Integral list representing overtones present in a tuning
 parseTuning' :: (Num a, Integral a) => Int -> String -> [a]
 parseTuning' n str = unique $ pitchList n str []
   where
@@ -33,6 +34,7 @@ parseTuning' n str = unique $ pitchList n str []
           ]
       in foldr (.) id chain
 
+-- |mapping from String to Integral list representing tones present in a key
 parseKey' :: (Num a, Integral a) => Int -> String -> [a]
 parseKey' n str = unique $ pitchList n str []
   where
@@ -60,6 +62,7 @@ parseKey' n str = unique $ pitchList n str []
           ]
       in foldr (.) id chain
 
+-- |mapping from String to Integral list representing fundamental tones
 parseFunds' :: (Num a, Integral a) => Int -> String -> [a]
 parseFunds' n str = unique $ pitchList n str []
   where
@@ -99,6 +102,7 @@ parseFunds' n str = unique $ pitchList n str []
           ]
       in foldr (.) id chain
 
+-- |generalised 'one shot' filtering function incorporating the above three
 parseOvertones' :: (Num a, Integral a) => Int -> String -> [a]
 parseOvertones' n str = unique $ pitchList n str []
   where
@@ -151,18 +155,23 @@ parseOvertones' n str = unique $ pitchList n str []
           ]
       in foldr (.) id chain
 
-parseOvertones :: (Num a, Integral a) => String -> [a]
-parseOvertones = parseOvertones' 3
-
+-- |shortcut to tuning parsing function which 3 overtones pre-defined
 parseTuning :: (Num a, Integral a) => String -> [a]
 parseTuning = parseTuning' 3
 
+-- |shortcut to key parsing function which 3 overtones pre-defined
 parseKey :: (Num a, Integral a) => String -> [a]
 parseKey = parseKey' 3
 
+-- |shortcut to fundamentals parsing function which 3 overtones pre-defined
 parseFunds :: (Num a, Integral a) => String -> [a]
 parseFunds = parseFunds' 3
 
+-- |shortcut to generalised parsing function which 3 overtones pre-defined
+parseOvertones :: (Num a, Integral a) => String -> [a]
+parseOvertones = parseOvertones' 3
+
+-- |mapping from user defined input requirements into list of Chords
 theHarmonicAlgorithm :: (MusicData a, Num b, Integral b) =>
                         (PitchClass -> NoteName) ->
                         b -> [a] -> String -> [Chord]
@@ -170,6 +179,7 @@ theHarmonicAlgorithm f n roots str =
   let integralSets = overtoneSets n (i' roots) $ parseOvertones str
    in toTriad f <$> integralSets
 
+-- |prime version for usage with the command line interface markov loop
 theHarmonicAlgorithm' :: (Num a, Integral a) =>
                         a -> [a] -> [a] -> (PitchClass -> NoteName) -> [Chord]
 theHarmonicAlgorithm' n roots overtones f =

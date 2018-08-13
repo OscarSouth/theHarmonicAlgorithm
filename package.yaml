@@ -28,7 +28,6 @@ library:
   other-modules:
   - Overtone
   - Markov
-  - Chorale
   - MusicData
   - Utility
   dependencies:
@@ -48,8 +47,6 @@ executables:
     - containers
     - mtl
     - inline-r
-    # - concurrent-extra
-    # - MonadRandom
 
 tests:
   theHarmonicAlgorithm-test:

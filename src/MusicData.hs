@@ -13,13 +13,15 @@ import qualified Data.List     as List (concat, isInfixOf, reverse, sort,
                                         sortBy)
 import qualified Data.Set      as Set (fromList, toList)
 
--- |set of pitch classes
+-- |newtype defining PitchClass
 newtype PitchClass = P Int deriving (Ord, Eq, Show, Read)
 
+-- |Bounded instance definition for PitchClass
 instance Bounded PitchClass where
   minBound = P 0
   maxBound = P 11
 
+-- |Num instance definition for PitchClass, defining PitchClass arithmetic
 instance Num PitchClass where
   (+) (P n1) (P n2) = P (n1 + n2) `mod` P 12
   (-) (P n1) (P n2) = P (n1 - n2) `mod` P 12
@@ -29,6 +31,7 @@ instance Num PitchClass where
   abs               = id
   signum a          = 1
 
+-- |Integral instance definition for PitchClass with more PitchClass arithmetic laws
 instance Integral PitchClass where
   toInteger = toInteger . fromEnum
   a `mod` b
@@ -44,9 +47,11 @@ instance Integral PitchClass where
       where toInt                = fromIntegral . toInteger
             (a', b')             = (toInt a, toInt b)
 
+-- |Real instance definition for PitchClass, required for Integral instance
 instance Real PitchClass where
   toRational n = toInteger n % 1
 
+-- |Enum instance definition for PitchClass, define 'infinite' PitchClass rotation 
 instance Enum PitchClass where
   succ n
     | n == maxBound = minBound
@@ -57,6 +62,7 @@ instance Enum PitchClass where
   toEnum n          = P $ n `mod` 12
   fromEnum n        = case n of {P v -> v}
 
+-- | MusicData class definition
 class Ord a => MusicData a where
   pitchClass :: a -> PitchClass -- mappings into pitch classes
   sharp :: a -> NoteName -- mappings into sharp note names
@@ -74,7 +80,7 @@ class Ord a => MusicData a where
   (+#) a = sharp . (<+>) a
   (-#) a = sharp . (<->) a
 
--- |set of note names
+-- |data type defining set all (standard) enharmonic note names
 data NoteName = C
               | C'
               | Db
@@ -93,6 +99,7 @@ data NoteName = C
               | Bb
               | B deriving (Ord, Eq, Read)
 
+-- |custom Show instance for NoteName
 instance Show NoteName where
   show C  = "C"
   show C' = "C#"
@@ -116,6 +123,7 @@ instance Show NoteName where
 readNoteName  :: String -> NoteName
 readNoteName s = read $ replace "#" "'" s
 
+-- | MusicData instance for NoteName
 instance MusicData NoteName where
   pitchClass n
     | n == C    = 0
@@ -152,6 +160,7 @@ instance MusicData NoteName where
   a <+> b       = pitchClass a + fromInteger b
   a <-> b       = pitchClass a + fromInteger b
 
+-- | MusicData instance for PitchClass
 instance MusicData PitchClass where
   pitchClass  = id
   sharp n
@@ -458,11 +467,12 @@ toMovement from to
 
 -- |mapping from Movement data type to PitchClass
 fromMovement :: Movement -> PitchClass
-fromMovement (Asc n) = pc n
-fromMovement (Desc n) = 12 - (pc n)
-fromMovement (Unison) = P 0
+fromMovement (Asc n)   = pc n
+fromMovement (Desc n)  = 12 - (pc n)
+fromMovement (Unison)  = P 0
 fromMovement (Tritone) = P 6
 
+-- |helper function to extract a Movement value from a Cadence
 movementFromCadence :: Cadence -> PitchClass
 movementFromCadence (Cadence (_,(mvmt,_))) = fromMovement mvmt
 
@@ -471,9 +481,11 @@ toTransition :: (Chord, Chord) -> Transition
 toTransition ((Chord ((_, prv), from@(x:_))), (Chord ((_, new), to@(y:_)))) =
   Transition ((prv, new), (toMovement x y, i <$> zeroForm to))
 
+-- |representation of a Cadence as a transition to a stucture by an interval
 data Cadence = Cadence (Functionality, (Movement, [PitchClass]))
   deriving (Eq, Ord)
 
+-- |customised Show instance for readability
 instance Show Cadence where
   show (Cadence (functionality, (dist, ps))) =
     "( " ++ show dist ++ " -> " ++ functionality ++ " )"
@@ -483,21 +495,12 @@ toCadence :: (Chord, Chord) -> Cadence
 toCadence ((Chord ((_, _), from@(x:_))), (Chord ((_, new), to@(y:_)))) =
   Cadence (new, (toMovement x y, zeroForm to))
 
--- -- |mapping from Cadence and 'concrete' pitch back to Chord
--- fromCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord
--- fromCadence f root (Cadence (_,(Asc n, tones))) = 
---   (toTriad f) $ i . (+ n) <$> tones
--- fromCadence f root (Cadence (_,(Desc n,tones))) = 
---   (toTriad f) $ i . (n `subtract`) <$> tones
--- fromCadence f root (Cadence (_,(Unison,tones))) =
---   (toTriad f) $ i <$> tones
--- fromCadence f root (Cadence (_,(Tritone,tones))) =
---   (toTriad f) $ i . (+ P 6) <$> tones
-
+-- |mapping from possible Cadence and Pitchclass into next Chord with transposition
 fromCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord
 fromCadence f root c@(Cadence (_,(_,tones))) =
   (toTriad f) $ i . (+ movementFromCadence c) . (+ root) <$> tones
 
+-- |mapping from prev Cadence and Pitchclass into current Chord with transposition
 transposeCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord
 transposeCadence f root (Cadence (_,(_,tones))) =
   (toTriad f) $ i . (+ root) <$> tones

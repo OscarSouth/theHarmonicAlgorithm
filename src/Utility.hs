@@ -1,6 +1,6 @@
 module Utility where
 
-import Data.Map (fromListWith, toList)
+import           Data.Map (fromListWith, toList)
 import           Data.Set (Set)
 import qualified Data.Set as Set (fromList, toList)
 
