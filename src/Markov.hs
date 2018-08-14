@@ -102,4 +102,3 @@ markovMap xs            = foldl mInsert Map.empty $ pairs xs
   where mInsert acc key = Map.insertWith (++) (fst key) (pList key) acc
         pList key       = [(snd key, Maybe.fromMaybe 0 $ Map.lookup key pMap)]
         pMap            = probabilityMap xs
-

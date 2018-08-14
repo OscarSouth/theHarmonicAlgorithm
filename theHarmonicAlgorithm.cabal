@@ -2,10 +2,10 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d4a79bdaea9d453083db4627a997c5d9acdd2cb12ab376e7690b735bf2068b0a
+-- hash: 5c75f845458207bd0b7b6977069f2ddaf7f65e162c7c55dcd74d28f2274dec9a
 
 name:           theHarmonicAlgorithm
-version:        0.1.0.0
+version:        1.0.0.0
 description:    Please see the README on GitHub at <https://github.com/OscarSouth/theHarmonicAlgorithm#readme>
 homepage:       https://github.com/OscarSouth/theHarmonicAlgorithm#readme
 bug-reports:    https://github.com/OscarSouth/theHarmonicAlgorithm/issues

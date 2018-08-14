@@ -44,4 +44,3 @@ import           Markov -- contains markov chain numerical processing machinery
 import           MusicData -- defines MusicData and many pitchclass analysis functions
 import           Overtone -- mainly parsing functions for generating lists of MusicData
 import           Utility -- various 'misc' helper functions
-
