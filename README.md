@@ -35,16 +35,24 @@ https://www.dropbox.com/s/2e2vb3ba0m91rfa/Harmonic%20Algorithm%20Reflections.pdf
 
 1. Haskell Stack Tool (https://docs.haskellstack.org/en/latest/install_and_upgrade/)
 2. R Interpreter (https://cran.r-project.org/)
-3. TidyVerse packages for R (from inside R, enter `install.packages("tidyverse")`)
+3. TidyVerse packages for R (from inside R, execute the command 
+`install.packages("tidyverse")`)
 
 Once dependencies have been installed, the following steps can be used to
 build the executable:
 
-1. Clone with git or download and unzip the Harmonic Algorithm repository
-2. In a terminal or command prompt, navigate to the Harmonic Algorithm directory
+### Installation
+1. Clone with git (recommended) or download and unzip the Harmonic Algorithm 
+repository from GitHub. To clone with git, make sure that git is installed on 
+your system and execute `git clone https://github.com/OscarSouth/theHarmonicAlgorithm` 
+in the desired location.
+2. In a terminal or command prompt, navigate to the Harmonic Algorithm directory.
 3. Run the following command from inside the Harmonic Algorithm directory:
 `stack --install-ghc build`
 
 You can now run The Harmonic Algorithm by executing the following command from
 inside it's directory:
 `stack exec theHarmonicAlgorithm-exe`
+
+
+
