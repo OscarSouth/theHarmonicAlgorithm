@@ -160,8 +160,8 @@ markovLoop fs root prev filters n = do
       menu = ((showTriad enharm) . (fromCadence enharm root) <$> nexts) ++
              ["[       Modify filter       ]",
               if n == 15 then "[         Show more         ]"
-              else "[ Show less                 ]",
-              if fs == "flat" then "[  Switch to flat notation  ]"
+              else "[         Show less         ]",
+              if fs == "sharp" then "[  Switch to flat notation  ]"
               else "[ Switch to sharp notation  ]",
               "[ Select new starting chord ]",
               "[           Quit            ]"]

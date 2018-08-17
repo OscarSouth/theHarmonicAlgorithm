@@ -48,8 +48,8 @@ pairs xs =
 -- |mapping from input data into all possible trigrams with counts of zero
 zeroCounts             :: [Cadence] -> TransitionCounts
 zeroCounts xs           =
-  let mapInsert acc key = Map'.insert key 0 acc
-   in foldl mapInsert Map'.empty $ pairs xs
+  let mInsert acc key = Map'.insert key 0 acc
+   in foldl mInsert Map'.empty $ pairs xs
 
 -- |mapping from input data to counts of all occurring transitions
 cadenceCounts        :: [Cadence] -> TransitionCounts

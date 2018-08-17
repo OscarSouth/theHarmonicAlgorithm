@@ -222,36 +222,24 @@ zeroForm'' (x:xs) = List.sort $ [(zeroTrans x) i | i <- (x:xs)]
   where zeroTrans x y | x <= y = y-x
                       | x > y  = y+12-x
 
--- |creates a 'non-deterministic' list of inversions (use !! to select)
--- #### make this more concise & able to operate on pitch sets of any size
-inversions        :: (Integral a, Num a) => [a] -> [[PitchClass]]
-inversions []      = [[]]
-inversions xs
-  | length xs == 1 = zeroForm xs : []
-inversions xs
-  | length xs == 2 =
-    let inv        = zeroForm xs
-        inv'       = zeroForm $ i <$> last inv : init inv
-     in inv : inv' : []
-  | length xs == 3 =
-    let inv        = zeroForm xs
-        inv'       = zeroForm $ i <$> last inv : init inv
-        inv''      = zeroForm $ i <$> last inv' : init inv'
-     in inv : inv'' : inv' : []
-  | length xs == 4 =
-    let inv        = zeroForm xs
-        inv'       = zeroForm $ i <$> last inv : init inv
-        inv''      = zeroForm $ i <$> last inv' : init inv'
-        invp''     = zeroForm $ i <$> last inv'' : init inv''
-     in inv : invp'' : inv'' : inv' : []
-  | otherwise      = [[]] -- not a permanant feature
+-- |minimal inversions function which simply returns all rotations of a list 
+simpleInversions :: [a] -> [[a]]
+simpleInversions xs = 
+  let l = [0 .. length xs - 1] 
+      shift n xs = zipWith const (drop n $ cycle xs) xs
+      lAppend acc key = acc ++ [shift key xs]
+   in foldl lAppend [] l 
+
+-- |creates a list of inversions in zero form
+inversions :: (Integral a, Num a) => [a] -> [[PitchClass]]
+inversions xs = zeroForm <$> simpleInversions xs
 
 -- |'prime' version for work with MusicData typeclass
 inversions' :: MusicData a => [a] -> [[PitchClass]]
-inversions' xs = inversions $ i <$> xs
+inversions' xs = zeroForm' <$> simpleInversions xs
 
 -- |mapping from integer pitchclass set to the normal (most compact) form
--- #### make generalisable for set of more than 4 pitches
+-- #### make generalisable for set of more than 4 pitches or less than 2
 normalForm   :: (Integral a, Num a) => [a] -> [PitchClass]
 normalForm xs = -- #### partial function
   let invs xs = fmap i <$> inversions xs
