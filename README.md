@@ -59,7 +59,7 @@ inside it's directory:
 Initially on loading the app, the R interpreter will be booted and required
 libraries loaded. The Harmonic Algorithm is written primarily in Haskell and
 interfaces with the R statistical computation language for enhanced dataframe 
-manipulation and plotting functionality.
+manipulation and plotting functionality:
 
 ![loadingtitle](img/loadingtitle.gif)
 
@@ -68,7 +68,7 @@ multiple choice questions relating to what enharmonic (flat or sharp) notation
 style you would prefer to begin with as well as which root note and upper 
 musical structure will be chosen as the initial state.
 
-In this example, flat notation with the starting chord of G minor is chosen.
+In this example, flat notation with the starting chord of Eb minor is chosen:
 
 ![selections](img/selections.gif)
 
@@ -102,84 +102,83 @@ usage of the app.
     limits of the upper structure filters to be displayed. To strictly limit by
     a key, enter the same key signature as entered for the key filter.
 
-Results can also be left unfiltered by entering the wild car `*` symbol for all
-filters. In this case, all filters are left open.
+Results can also be left unfiltered by entering the wild card `*` symbol for all
+filters. In this case, all filters are left open:
 
 ![filternone](img/filternone.gif)
 
 After taking a few moments to train the recommendation model, the initial list 
 of 'next' harmonic choices is displayed along with a few additional options.
 The possibilities presented are ranked on a combination of learned behavior 
-from the J.S.Bach Chorale harmonisation used to train the model as well as
+from the J.S.Bach Chorale harmonisations used to train the model as well as
 derived dissonance ranking. The model takes prescidence where there is conflict.
 
 The first ranking would be assuming that our current chord is acting as a iii
 in the key of B. Let's remain in Ebm for now. I've chosen option 7 of Db/F
-(a VII in Eb voiced in First Inversion).
+(a VII in Eb voiced in first inversion):
 
 ![choiceone](img/choiceone.gif)
 
-The recommentation system will suggest unique possibilties for each cadence,
+The recommentation system will suggest unique possibilties after each cadence,
 depending deterministically on recent harmonic motions. It is also possible to 
 remain on the same chord, which is itself a decision and will thus influence
-recommendations for the next successive movement.
+recommendations for the next successive movements.
 
-Let's continue with option 1 for an upwards root motion to the III chord (Gb).
+Let's continue with option 1 for an upwards root motion to the III chord (Gb):
 
 ![choicetwo](img/choicetwo.gif)
 
 Let's maintain the ascending root motion, this time chromatically. In order to
 see what possibilities are available, I'll filter down the results to show 
-only structures with a G in the bass while keeping the upper tones chromatic.
+only structures with a G in the bass while keeping the upper tones chromatic:
 
 ![filterbass](img/filterbass.gif)
 
 This gives us some interesting options! Let's modulate! I'm going to choose
-option 6 and think of it as a v chord (in first inversion) in A minor.
+option 6 and think of it as a v chord (in first inversion) in A minor:
 
 ![choicethree](img/choicethree.gif)
 
 The previous minor v is a weak chord to modulate from, however we're
 starting to build tension through root motion. Let's modify our filters
 and see if there is an interesting choice with an upper structure in the key 
-of A minor that will let us continue our chromatic root motion through G#.
+of A minor that will let us continue our chromatic root motion through G#:
 
 ![filterkey](img/filterkey.gif)
 
-I'd also prefer to read this in sharp enharmonic notation, so I'll switch over.
+I'd also prefer to read this in sharp enharmonic notation, so I'll switch over:
 
 ![enharm](img/enharm.gif)
 
 Wow! Some very interesting choices here! The obvious choice would be E/G#, 
 representing a V in first inversion leading into the tonic of Am. This seems 
 too obvious though. Let's go with G# diminished to really build tension as we
-ascend into the new key.
+ascend into the new key:
 
 ![choicefour](img/choicefour.gif)
 
 We know we want to modulate to an A root, so we need to modify the filters. 
 Since there's already a strong harmonic pull from G# diminished to an A, 
-lets just set all filters to `*` and see what the algorithm recommends.
+lets just set all filters to `*` and see what the algorithm recommends:
 
 ![openfilters](img/openfilters.gif)
 
 Cool! A minor and A major are our top two recommendations! J.S.Bach really
-knew what he wsa doing! 
+knew what he was doing! 
 
 Let's diverge from minor keys and resolve to the major. I'll filter down to 
-diatonic recommendations inside A major and move intothe major tonic through a 
-sus4 to add a little ambiguity to the transition.
+diatonic recommendations inside A major and move into the major tonic through a 
+sus4 to add a little ambiguity to the transition:
 
 ![resolve](img/resolve.gif)
 
 We're now in the new key and have a variety of choices for where to go next!
-
 That's it for the tutorial. I think you get the idea!
 
 Let me know if you have any feature suggestions or comments in general and
 feel free to get in touch through this repository's 'Issues' section:  https://github.com/OscarSouth/theHarmonicAlgorithm/issues
 
-Or the contact form for my main performance project:
+Alternatively, use the contact form for my main performance project 'UDAGAN':
 https://UDAGANuniverse.com/contact
 
 Oscar
