@@ -287,7 +287,7 @@ header  = do
   putStrLn ""
   putStrLn ""
   putStrLn "  .___________________________________________."
-  putStrLn "  |__/___\\_.___The____________________________|"
+  putStrLn "  |__/___\\_.___The______________________._____|"
   putStrLn "  |__\\___|_.______Harmonic_____________/|_____|"
   putStrLn "  |_____/______________Algorithm______/_|_____|"
   putStrLn "  |____/_____________________________|__|_____|"
@@ -433,3 +433,26 @@ exitText =
   \\n\
   \Oscar\n\
   \"
+
+gammaDist :: Double -> Double -> IO [Double]
+gammaDist n x =
+  let rData () = R.fromSomeSEXP <$> [r| rgamma(n_hs, x_hs) |]
+   in runRegion $ rData ()
+
+gammaGen :: Double -> Double -> IO [Integer]
+gammaGen n x = do
+  let entropy | x >=5 = 8 | x <= 0 = 0 | otherwise = (7+x)*x
+  rand <- gammaDist n entropy
+  return (floor <$> rand)
+
+randomGen :: (Num a, Integral a) => 
+             Double -> Double -> [a] -> IO (PitchClass, Cadence, [Integer])
+randomGen n x c = do
+  let gamma = gammaGen (n+2) x
+  rs <- gamma
+  let motion = 5*(rs!!0 - rs!!1) `mod` 12
+      c' = (+motion) . fromIntegral <$> c
+      start = toCadence (toTriad flat c', toTriad flat c)
+      xs = drop 2 rs
+      root = pc $ head c
+  return (root, start, xs)

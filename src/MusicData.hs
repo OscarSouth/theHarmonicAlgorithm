@@ -200,7 +200,7 @@ pc  = fromInteger . fromIntegral
 
 -- |put a list of integers into a PitchClass set (represented as a list)
 pcSet   :: (Integral a, Num a) => [a] -> [PitchClass]
-pcSet xs = Set.toList . Set.fromList $ pc <$> xs
+pcSet xs = unique $ pc <$> xs
 
 -- |'prime' version for work with MusicData typeclass
 pcSet'   :: MusicData a => [a] -> [PitchClass]
@@ -209,8 +209,8 @@ pcSet' xs = pcSet $ i <$> xs
 -- |transform list of integers into 'zero' form of
 zeroForm       :: (Integral a, Num a) => [a] -> [PitchClass]
 zeroForm (x:xs) =
-  let zs = (subtract $ x) <$> x:xs
-   in Set.toList . Set.fromList $ pc <$> zs
+  let zs = (subtract x) <$> x:xs
+   in unique $ pc <$> zs
 
 -- |'prime' version for work with MusicData typeclass
 zeroForm'   :: MusicData a => [a] -> [PitchClass]
