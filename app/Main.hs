@@ -17,6 +17,7 @@ import qualified Data.List            as List (sortBy, zip5)
 import           Data.Map             (Map)
 import qualified Data.Map             as Map (fromList, lookup)
 import           Data.Maybe           (fromMaybe)
+import           Text.Read            (readMaybe)
 
 main = withEmbeddedR defaultConfig $ do
   initR -- load R libraries & settings, initialise R log, print info to stout
@@ -66,7 +67,7 @@ loadLoop = do
   chord <- chooseFunctionality enharmonic root
   let cadence = toCadence (chord, chord)
   filters <- harmonicFilters
-  markovLoop enharmonic root cadence filters 15
+  markovLoop enharmonic root cadence filters 14
   return ()
 
 -- |returns a String to be used as a lookup for choosing 'enharmonic' function
@@ -141,9 +142,8 @@ harmonicFilters = do
   let filters = theHarmonicAlgorithm' 3 roots overtones
   return filters
 
--- |recursive loop in which most of the user interaction takes place
-markovLoop :: Enharmonic -> Root -> Cadence -> Filters -> Int -> Model ()
-markovLoop fs root prev filters n = do
+recommendations :: Enharmonic -> Root -> Cadence -> Filters -> Int -> Model [Cadence]
+recommendations fs root prev filters n = do
   model <- ask
   let enharm = enharmMap fs -- extract enharmonic 'key' into function
       hAlgo = (\xs -> [ toCadence (transposeCadence enharm root prev, nxt)
@@ -157,13 +157,21 @@ markovLoop fs root prev filters n = do
       nexts = take n $ (fst <$> bach) ++ -- append to markov list and take n
               (filter (\x -> x `notElem` fmap fst bach) hAlgo)
               -- ^ keep elements of Filters list not in markov list
+  return nexts
+
+-- |recursive loop in which most of the user interaction takes place
+markovLoop :: Enharmonic -> Root -> Cadence -> Filters -> Int -> Model ()
+markovLoop fs root prev filters n = do
+  nexts <- recommendations fs root prev filters n 
+  let enharm = enharmMap fs
       menu = ((showTriad enharm) . (fromCadence enharm root) <$> nexts) ++
-             ["[       Modify filter       ]",
-              if n == 15 then "[         Show more         ]"
-              else "[         Show less         ]",
-              if fs == "sharp" then "[  Switch to flat notation  ]"
-              else "[ Switch to sharp notation  ]",
-              "[ Select new starting chord ]",
+             ["[       Modify Filter       ]",
+              "[      Random Sequence      ]",
+              if n == 14 then "[         Show More         ]"
+              else "[         Show Less         ]",
+              if fs == "sharp" then "[  Switch to Flat Notation  ]"
+              else "[ Switch to Sharp Notation  ]",
+              "[ Select New Starting Chord ]",
               "[           Quit            ]"]
       opts = zipWith (\n p -> show n ++ " - " ++ p) [1..] menu
   liftIO $ putStrLn $ "\nThe current chord is " ++
@@ -183,27 +191,67 @@ markovLoop fs root prev filters n = do
         markovLoop fs root prev filters' n
         else if index == 1 + length nexts
           then do
-          liftIO $ putStrLn ""
-          markovLoop fs root prev filters $ if n == 15 then 30 else 15
+          randomSeq fs root prev filters n
           else if index == 2 + length nexts
             then do
             liftIO $ putStrLn ""
-            markovLoop (if fs == "flat" then "sharp"
-                        else "flat") root prev filters n
+            markovLoop fs root prev filters $ if n == 14 then 29 else 14
             else if index == 3 + length nexts
               then do
               liftIO $ putStrLn ""
-              loadLoop
+              markovLoop (if fs == "flat" then "sharp"
+                          else "flat") root prev filters n
               else if index == 4 + length nexts
                 then do
-                liftIO $ putStrLn exitText
-                return ()
-                else do
-                let next = nexts!!index
-                    root' = root + movementFromCadence next
                 liftIO $ putStrLn ""
-                markovLoop fs root' next filters n
+                loadLoop
+                else if index == 5 + length nexts
+                  then do
+                  liftIO $ putStrLn exitText
+                  return ()
+                  else do
+                  let next = nexts!!index
+                      root' = root + movementFromCadence next
+                  liftIO $ putStrLn ""
+                  markovLoop fs root' next filters n
   return ()
+
+randomSeq :: Enharmonic -> Root -> Cadence -> Filters -> Int -> Model ()
+randomSeq fs root prev filters n = do
+  liftIO $ putStrLn "\nEnter desired length of sequence (default 4, max 16):"
+  len <- do 
+    liftIO prompt
+    getLen <- liftIO getLine 
+    let readLen = fromMaybe 4 $ (readMaybe getLen :: Maybe Double)
+    if readLen >= 16 then return 16 else return readLen
+  liftIO $ putStrLn "\nChoose entropy level as a number between 1 and 10 (default 2):"
+  entropy <- do 
+    liftIO prompt
+    getEntropy <- liftIO getLine 
+    let readEntropy = fromMaybe 2 $ (readMaybe getEntropy :: Maybe Double)
+    if readEntropy >= 10 then return 1 else return (readEntropy/10)
+  liftIO $ putStrLn ""
+  rns <- liftIO $ gammaGen len entropy
+  cadences <- cadenceSeq fs root prev filters rns
+  liftIO $ mapM_ putStrLn $ fst cadences
+
+  liftIO $ putStr "\n>> Press enter to continue" >> hFlush stdout >> getChar
+  markovLoop fs root (last . init $ snd cadences) filters n
+  return ()
+
+-- #### check that naming function is correct (seems unlikely)
+
+
+cadenceSeq :: Enharmonic -> Root -> Cadence -> Filters -> [Integer] -> Model ([String], [Cadence])
+cadenceSeq _ _ c _ [] = return ([], [])
+cadenceSeq fs root prev filters (x:xs) = do
+  let enharm = enharmMap fs
+      x' = fromIntegral x
+  nexts <- recommendations fs root prev filters 30
+  let next = nexts!!(if x' > 29 then 29 else x')
+      triad = showTriad enharm $ transposeCadence enharm root prev
+  nexts <- cadenceSeq fs root next filters xs
+  return (triad : (fst nexts), next : (snd nexts))
 
 -- |mapping from string to 'enharmonic' function
 enharmMap :: MusicData a => String -> (a -> NoteName)
@@ -434,25 +482,28 @@ exitText =
   \Oscar\n\
   \"
 
+-- |wrapper for the 'rgamma' R function
 gammaDist :: Double -> Double -> IO [Double]
 gammaDist n x =
   let rData () = R.fromSomeSEXP <$> [r| rgamma(n_hs, x_hs) |]
    in runRegion $ rData ()
 
+-- |function to deliver 'rgamma' data in integer form with a tailored scale
 gammaGen :: Double -> Double -> IO [Integer]
 gammaGen n x = do
-  let entropy | x >=5 = 8 | x <= 0 = 0 | otherwise = (7+x)*x
+  let entropy | x >=1 = 8 | x <= 0 = 0 | otherwise = (7+x)*x
   rand <- gammaDist n entropy
   return (floor <$> rand)
 
+-- |function that returns required data (tupled) for generating random sequences
 randomGen :: (Num a, Integral a) => 
              Double -> Double -> [a] -> IO (PitchClass, Cadence, [Integer])
 randomGen n x c = do
   let gamma = gammaGen (n+2) x
-  rs <- gamma
-  let motion = 5*(rs!!0 - rs!!1) `mod` 12
+  rns <- gamma
+  let motion = 5*(rns!!0 - rns!!1) `mod` 12
       c' = (+motion) . fromIntegral <$> c
       start = toCadence (toTriad flat c', toTriad flat c)
-      xs = drop 2 rs
+      xs = drop 2 rns
       root = pc $ head c
   return (root, start, xs)
