@@ -47,6 +47,7 @@ executables:
     - containers
     - mtl
     - inline-r
+    - split
 
 tests:
   theHarmonicAlgorithm-test:

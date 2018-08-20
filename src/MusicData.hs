@@ -492,3 +492,6 @@ fromCadence f root c@(Cadence (_,(_,tones))) =
 transposeCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord
 transposeCadence f root (Cadence (_,(_,tones))) =
   (toTriad f) $ i . (+ root) <$> tones
+
+rootNote :: Chord -> PitchClass
+rootNote (Chord (_,(x:_))) = pc x

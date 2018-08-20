@@ -22,6 +22,7 @@ pc,
 fromCadence,
 movementFromCadence,
 transposeCadence,
+rootNote,
 -----------
 -- |Markov
 MarkovMap,

@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5c75f845458207bd0b7b6977069f2ddaf7f65e162c7c55dcd74d28f2274dec9a
+-- hash: 5f6e6fb4bc49413f3b74c85913f438f5db770bc006b821a2d1744270518a7d80
 
 name:           theHarmonicAlgorithm
 version:        1.0.0.0
@@ -52,6 +52,7 @@ executable theHarmonicAlgorithm-exe
     , containers
     , inline-r
     , mtl
+    , split
     , theHarmonicAlgorithm
   default-language: Haskell2010
 
