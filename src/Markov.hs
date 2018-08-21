@@ -25,7 +25,7 @@ type TransitionCounts = Strict.Map Bigram Double
 -- |representations of the Markov transition matrix
 type TransitionMatrix = Matrix R
 
--- |map containing 'current state' and list of 'next' probabilities
+-- |representation of markov transition matrix as key-value pairs
 type MarkovMap = Map Cadence [(Cadence, Double)]
 
 -- |mapping from list of events into list of existing preceding bigrams
