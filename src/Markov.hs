@@ -25,7 +25,7 @@ type TransitionCounts = Strict.Map Bigram Double
 -- |representations of the Markov transition matrix
 type TransitionMatrix = Matrix R
 
--- |map containing 'current state' bigrams and list of 'next' probabilities
+-- |map containing 'current state' and list of 'next' probabilities
 type MarkovMap = Map Cadence [(Cadence, Double)]
 
 -- |mapping from list of events into list of existing preceding bigrams
@@ -92,9 +92,8 @@ probabilityMap xs = Map'.fromList $ zip (Map'.keys $ zeroCounts xs) $ concat
 -- |mapping from list of cadences into transition matrix
 transitionMatrix   :: [Cadence] -> TransitionMatrix
 transitionMatrix xs =
-  let i             = j^2
-      j             = Set.size $ Set.fromList xs
-   in (j><j) $ Map'.elems $ probabilityMap xs :: Matrix R
+  let n             = Set.size $ Set.fromList xs
+   in (n><n) $ Map'.elems $ probabilityMap xs :: Matrix R
 
 -- |mapping from list of cadences into map with possible next probabilities
 markovMap              :: [Cadence] -> MarkovMap
