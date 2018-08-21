@@ -28,18 +28,18 @@ main = withEmbeddedR defaultConfig $ do
   runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
   return ()
 
--- |
+-- |script directing process of loading & transforming data then training model
 choraleData :: IO MarkovMap
 choraleData = do
   uciRef -- print dataset source reference
   bachData -- execute R script to preprocess data
   chFunds <- bachFundamental -- retrieve and bind R column of fundamental notes
-  x1 <- fromBachMatrix 1 -- retrieve and bind columns from R matrix
-  x2 <- fromBachMatrix 2 -- |
-  x3 <- fromBachMatrix 3 -- |
-  x4 <- fromBachMatrix 4 -- |
-  x5 <- fromBachMatrix 5 -- V
-  let model = markovMap $ -- train model on
+  x1 <- fromRMatrix 1 -- retrieve and bind columns from R matrix
+  x2 <- fromRMatrix 2 -- |
+  x3 <- fromRMatrix 3 -- |
+  x4 <- fromRMatrix 4 -- |
+  x5 <- fromRMatrix 5 -- V
+  let model = markovMap $ -- call Markov module to train model
         fmap toCadence <$> -- map bigram sets into Cadence data types
         bigrams $ -- combine chords into sequential bigrams
         flatTriad <$> -- convert to 'Chord' data type
@@ -450,8 +450,8 @@ bachFund <<- bach$fund
   return ()
 
 -- |helper function to extract R matrix column from R and deliver to Haskell
-fromBachMatrix  :: Double -> IO [Double]
-fromBachMatrix x =
+fromRMatrix  :: Double -> IO [Double]
+fromRMatrix x =
   let rData x = R.fromSomeSEXP <$> [r| bachMatrix[,x_hs] |]
    in runRegion $ rData x
 
