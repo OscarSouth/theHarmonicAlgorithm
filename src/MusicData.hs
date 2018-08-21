@@ -67,18 +67,18 @@ class Ord a => MusicData a where
   pitchClass :: a -> PitchClass -- mappings into pitch classes
   sharp :: a -> NoteName -- mappings into sharp note names
   flat :: a -> NoteName -- mappings into flat note names
-  (<+>) :: a -> Integer -> PitchClass
-  (<->) :: a -> Integer -> PitchClass
-  i :: Num b => a -> b
-  (+|) :: a -> Integer -> NoteName
-  (-|) :: a -> Integer -> NoteName
-  (+#) :: a -> Integer -> NoteName
-  (-#) :: a -> Integer -> NoteName
-  i      = fromIntegral . toInteger . pitchClass
-  (+|) a = flat . (<+>) a
-  (-|) a = flat . (<->) a
-  (+#) a = sharp . (<+>) a
-  (-#) a = sharp . (<->) a
+  (<+>) :: a -> Integer -> PitchClass -- addition between MusicData & Integer
+  (<->) :: a -> Integer -> PitchClass -- subtraction between MusicData & Integer
+  i :: Num b => a -> b -- polymorphic mapping from MusicData into numeric types
+  (+|) :: a -> Integer -> NoteName -- addition by Integer to flat representations
+  (-|) :: a -> Integer -> NoteName -- subtraction by Integer to flat representations
+  (+#) :: a -> Integer -> NoteName -- addition by Integer to sharp representations
+  (-#) :: a -> Integer -> NoteName -- subtraction by Integer to sharp representations
+  i      = fromIntegral . toInteger . pitchClass -- automatic derivation
+  (+|) a = flat . (<+>) a --                     |
+  (-|) a = flat . (<->) a --                     |
+  (+#) a = sharp . (<+>) a --                    |
+  (-#) a = sharp . (<->) a --                    v
 
 -- |data type defining set all (standard) enharmonic note names
 data NoteName = C
