@@ -43,7 +43,7 @@ choraleData = do
         fmap toCadence <$> -- map bigram sets into Cadence data types
         bigrams $ -- combine chords into sequential bigrams
         flatTriad <$> -- convert to 'Chord' data type
-        mostConsonant . possibleTriads'' <$> -- derive most suitable triad over fundamental
+        mostConsonant . possibleTriads'' <$> -- derive most suitable triad
         filter (\(_, ys) -> length ys >= 3) ( -- remove sets of less than 3
         zip chFunds $ -- zip with fundamentals R column
         (fmap round) . unique <$> -- remove duplicate elems . convert to Integer
