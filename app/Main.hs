@@ -19,6 +19,7 @@ import qualified Data.Map             as Map (fromList, lookup)
 import           Data.Maybe           (fromMaybe)
 import           Text.Read            (readMaybe)
 import           Data.List.Split      (chunksOf)
+import           Text.Read            (readMaybe)
 
 main = withEmbeddedR defaultConfig $ do
   initR -- load R libraries & settings, initialise R log, print info to stout
@@ -140,7 +141,7 @@ harmonicFilters = do
   liftIO prompt
   getFunds <- liftIO getLine
   let roots = parseFunds getFunds
-  let filters = theHarmonicAlgorithm' 3 roots overtones
+      filters = theHarmonicAlgorithm' 3 roots overtones
   return filters
 
 -- |function to retrieve and filter down possibilities based on current state 
@@ -166,16 +167,19 @@ markovLoop :: Enharmonic -> Root -> Cadence -> Filters -> Int -> Model ()
 markovLoop fs root prev filters n = do
   nexts <- recommendations fs root prev filters n 
   let enharm = enharmMap fs
-      menu = ((showTriad enharm) . (fromCadence enharm root) <$> nexts) ++
-             ["[       Modify Filter       ]",
-              "[      Random Sequence      ]",
-              if n == 14 then "[         Show More         ]"
-              else "[         Show Less         ]",
-              if fs == "sharp" then "[  Switch to Flat Notation  ]"
-              else "[ Switch to Sharp Notation  ]",
-              "[ Select New Starting Chord ]",
-              "[           Quit            ]"]
-      opts = zipWith (\n p -> show n ++ " - " ++ p) [1..] menu
+      choose = ["[       Modify filter       ]",
+                "[      Random sequence      ]",
+                if n == 14 then "[         Show more         ]"
+                else "[         Show less         ]",
+                if fs == "sharp" then "[  Switch to flat notation  ]"
+                else "[ Switch to sharp notation  ]",
+                "[ Select new starting chord ]",
+                "[           Quit            ]"]
+      menu   = ((showTriad enharm) . (fromCadence enharm root) <$> 
+                nexts) ++ choose
+      opts    = zipWith (\n p -> 
+                (if n < 10 then show n ++ " " else show n) ++ " - " ++ p) 
+                [1..] menu
   liftIO $ putStrLn $ "\nThe current chord is " ++
            (showTriad enharm $ transposeCadence enharm root prev) ++
            " -- Select next chord or choose another option:\n"
@@ -191,34 +195,39 @@ markovLoop fs root prev filters n = do
       markovLoop fs root prev filters' n
       else if index == 1 + length nexts
         then do
-        randomSeq fs root prev filters n
-        else if index == 2 + length nexts
+          if length opts == length choose 
           then do
-          liftIO $ putStrLn ""
-          markovLoop fs root prev filters $ if n == 14 then 29 else 14
-          else if index == 3 + length nexts
+            liftIO $ putStrLn 
+              "\nCannot generate from empty set of possibilities.\n\
+               \Adjust filters or choose another option:"
+            markovLoop fs root prev filters n
+            else getSeqParams fs root prev filters n
+          else if index == 2 + length nexts
             then do
             liftIO $ putStrLn ""
-            markovLoop (if fs == "flat" then "sharp"
-                        else "flat") root prev filters n
-            else if index == 4 + length nexts
+            markovLoop fs root prev filters $ if n == 14 then 29 else 14
+            else if index == 3 + length nexts
               then do
               liftIO $ putStrLn ""
-              loadLoop
-              else if index == 5 + length nexts
+              markovLoop (if fs == "flat" then "sharp"
+                          else "flat") root prev filters n
+              else if index == 4 + length nexts
                 then do
-                liftIO $ putStrLn exitText
-                return ()
-                else do
-                let next = nexts!!index
-                    root' = root + movementFromCadence next
                 liftIO $ putStrLn ""
-                markovLoop fs root' next filters n
+                loadLoop
+                else if index == 5 + length nexts
+                  then do
+                  liftIO $ putStrLn exitText
+                  return ()
+                  else do
+                  let next = nexts!!index
+                      root' = root + movementFromCadence next
+                  liftIO $ putStrLn ""
+                  markovLoop fs root' next filters n
   return ()
 
--- |interactive loop for generating random sequences
-randomSeq :: Enharmonic -> Root -> Cadence -> Filters -> Int -> Model ()
-randomSeq fs root prev filters n = do
+getSeqParams :: Enharmonic -> Root -> Cadence -> Filters -> Int -> Model ()
+getSeqParams fs root prev filters n = do
   liftIO $ putStrLn "\nEnter desired length of sequence (default 4, max 16):"
   len <- do 
     liftIO prompt
@@ -233,31 +242,65 @@ randomSeq fs root prev filters n = do
     getEntropy <- liftIO getLine 
     let readEntropy = fromMaybe 2 $ (readMaybe getEntropy :: Maybe Double)
     if readEntropy >= 10 then return 1 else return (readEntropy/10)
+  randomSeq fs root prev filters n (len, entropy)
+  return ()
+
+-- |interactive loop for generating random sequences
+randomSeq :: Enharmonic -> Root -> Cadence -> Filters -> Int -> (Double, Double)
+          -> Model ()
+randomSeq fs root prev filters n seqParams = do
+  let (len, entropy) = seqParams
   rns <- liftIO $ gammaGen len entropy
   cadences <- cadenceSeq fs root prev filters rns
-  let chords = showTriad (enharmMap fs) <$> fst cadences
-      lines = (++"|   ") . concat . (`replicate`" ") <$> 
-              ((14-) . length) <$> chords
-      fours = concat $ zipWith (++) 
-              ["\n1  ||   ", "\n5   |   ", "\n9   |   ", "\n13  |   "]
-              (init . init . init <$> (fmap concat <$> chunksOf 4 $ 
-              zipWith (++) chords lines))
-  liftIO $ putStr fours >> putStrLn "|\n"
-  let opts = ["1 - [    Accept    ]", "2 - [    Reject    ]", "3 - [  Regenerate  ]"]
-      actions = do
-        num <- liftIO $ mapM_ putStrLn opts >> prompt >> getLine
-        let index = ((read num) - 1) :: Int
-        if notElem num $ fmap show [1..length opts]
-          then do
-            liftIO $ putStrLn "\nUnrecognised input, please retry:\n"
-            liftIO $ putStr fours >> putStrLn "|\n"
-            actions
-            else if index == 0
-              then markovLoop fs (rootNote $ last $ fst cadences) (last $ snd cadences) filters n
-              else if index == 1
+  let chordLen  = length $ chords fs :: Int
+      chords fs = showTriad (enharmMap fs) <$> fst cadences
+      lines     = (++"|   ") . concat . (`replicate`" ") <$> 
+                  ((14-) . length) <$> chords fs
+      fours fs  = concat $ zipWith (++) 
+                  ["\n1   ||   ", "\n5    |   ", "\n9    |   ", "\n13   |   "]
+                  (init . init . init <$> (fmap concat <$> chunksOf 4 $ 
+                  zipWith (++) (chords fs) lines))
+  liftIO $ putStr "\nPress enter to accept, \
+           \specify a bar number, or choose another option: \n" 
+        >> hFlush stdout
+  liftIO $ putStr (fours fs) >> putStrLn "|\n"
+  let menu = ["[      Reject sequence      ]", 
+              "[    Regenerate sequence    ]",
+              if fs == "sharp" then "[  Show with flat notation  ]"
+              else "[ Show with sharp notation  ]"]
+      opts menu = zipWith (\n p -> 
+                  (if n < 10 then show n ++ " " else show n) ++ " - " ++ p) 
+                  [1+(length $ chords fs)..] menu
+      actions ls = do
+        num <- liftIO $ mapM_ putStrLn ls >> prompt >> getLine
+        let index | num == "" = (-1)
+                  | otherwise = (read num - 1) :: Int
+        if index == (-1)
+          then markovLoop fs (rootNote $ last $ fst cadences) 
+                             (last $ snd cadences) filters n
+          else if notElem num $ 
+                  fmap show [1..chordLen + length ls]
+            then do
+              liftIO $ putStrLn "\nUnrecognised input, please retry:\n"
+                    >> putStr (fours fs) >> putStrLn "|\n"
+              actions $ opts menu
+              else if index == chordLen
                 then markovLoop fs root prev filters n
-                else randomSeq fs root prev filters n
-  actions
+                else if index == 1 + chordLen
+                  then randomSeq fs root prev filters n seqParams
+                  else if index == 2 + chordLen
+                    then do
+                    liftIO $ putStrLn "\nUnrecognised input, please retry:"
+                          >> putStr (fours 
+                             (if fs == "flat" then "sharp" else "flat")) 
+                          >> putStrLn "|\n"
+                    actions $ opts ["[      Reject sequence      ]", 
+                                    "[    Regenerate sequence    ]"]
+                    else do
+                    let root' = rootNote $ (fst cadences)!!index 
+                        next = (snd cadences)!!index 
+                    markovLoop fs root' next filters n
+  actions $ opts menu
   return ()
 
 -- |function to retrieve and return random sequence
@@ -320,7 +363,7 @@ initFcList =
 initR :: IO ()
 initR = do
   putStrLn "\nInitialising R Interpreter..\n"
-  loadPackages -- load required R packages
+  loadPackages
   putStrLn ""
   initLogR
   putStrLn "session will be logged:"
