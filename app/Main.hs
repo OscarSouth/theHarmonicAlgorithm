@@ -143,6 +143,7 @@ harmonicFilters = do
   let filters = theHarmonicAlgorithm' 3 roots overtones
   return filters
 
+-- |function to retrieve and filter down possibilities based on current state 
 recommendations :: Enharmonic -> Root -> Cadence -> Filters -> Int -> Model [Cadence]
 recommendations fs root prev filters n = do
   model <- ask
@@ -160,7 +161,7 @@ recommendations fs root prev filters n = do
               -- ^ keep elements of Filters list not in markov list
   return nexts
 
--- |recursive loop in which most of the user interaction takes place
+-- |interactive loop in which most of the user interaction takes place
 markovLoop :: Enharmonic -> Root -> Cadence -> Filters -> Int -> Model ()
 markovLoop fs root prev filters n = do
   nexts <- recommendations fs root prev filters n 
@@ -215,6 +216,7 @@ markovLoop fs root prev filters n = do
                 markovLoop fs root' next filters n
   return ()
 
+-- |interactive loop for generating random sequences
 randomSeq :: Enharmonic -> Root -> Cadence -> Filters -> Int -> Model ()
 randomSeq fs root prev filters n = do
   liftIO $ putStrLn "\nEnter desired length of sequence (default 4, max 16):"
@@ -258,6 +260,7 @@ randomSeq fs root prev filters n = do
   actions
   return ()
 
+-- |function to retrieve and return random sequence
 cadenceSeq :: Enharmonic -> Root -> Cadence -> Filters -> [Integer] 
               -> Model ([Chord], [Cadence])
 cadenceSeq _ _ c _ [] = return ([], [])
