@@ -173,7 +173,19 @@ sus4 to add a little ambiguity to the transition:
 ![resolve](img/resolve.gif)
 
 We're now in the new key and have a variety of choices for where to go next!
-That's it for the tutorial. I think you get the idea!
+
+## Random Sequences
+
+New in Version 1.0.1.0 is the ability to generate Random Sequences of harmonic
+movement!
+
+Random sequences allow the performer/composer to traverse deterministic space 
+(move through musical cadences!) at a much faster rate and give a 'higher up' 
+viewpoint to the character and nature of harmonic motion in a given musical 
+context. The performer/composer can then 'jump in' to any point of the
+generated sequence and move through musical space in 'blocks' of harmony.
+
+![sequence](img/sequence.gif)
 
 Let me know if you have any feature suggestions or comments in general and
 feel free to get in touch through this repository's 'Issues' section:  https://github.com/OscarSouth/theHarmonicAlgorithm/issues
