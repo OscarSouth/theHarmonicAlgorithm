@@ -32,7 +32,7 @@ library:
   - Utility
   dependencies:
   - containers
-  - hmatrix
+  # - hmatrix
 
 executables:
   theHarmonicAlgorithm-exe:

@@ -2,10 +2,10 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5f6e6fb4bc49413f3b74c85913f438f5db770bc006b821a2d1744270518a7d80
+-- hash: 24fbcca8eb595e68c0edc91a5f742439637373a4d751b3db8c5b42f44cac1aa1
 
 name:           theHarmonicAlgorithm
-version:        1.0.0.0
+version:        1.0.1.0
 description:    Please see the README on GitHub at <https://github.com/OscarSouth/theHarmonicAlgorithm#readme>
 homepage:       https://github.com/OscarSouth/theHarmonicAlgorithm#readme
 bug-reports:    https://github.com/OscarSouth/theHarmonicAlgorithm/issues
@@ -37,7 +37,6 @@ library
   build-depends:
       base >=4.8 && <5
     , containers
-    , hmatrix
   default-language: Haskell2010
 
 executable theHarmonicAlgorithm-exe

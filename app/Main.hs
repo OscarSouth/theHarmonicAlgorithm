@@ -365,10 +365,10 @@ initR = do
   putStrLn "\nInitialising R Interpreter..\n"
   loadPackages
   putStrLn ""
-  initLogR
-  putStrLn "session will be logged:"
-  rDir >>= putStr
-  putStrLn "/output/sessionlog.txt\n"
+  -- initLogR
+  -- putStrLn "session will be logged:"
+  -- rDir >>= putStr
+  -- putStrLn "/output/sessionlog.txt\n"
   return ()
 
 -- |initialise R session log

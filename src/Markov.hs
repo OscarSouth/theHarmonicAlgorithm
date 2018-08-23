@@ -3,9 +3,9 @@ module Markov where
 import           MusicData
 import           Utility
 
-import           Data.Map              (Map)
-import           Numeric.LinearAlgebra (Matrix, R, (><))
+-- import           Numeric.LinearAlgebra (Matrix, R, (><))
 
+import           Data.Map              (Map)
 import qualified Data.Map              as Map (empty, insertWith, lookup)
 import qualified Data.Map.Merge.Strict as Map' (merge, preserveMissing,
                                                 zipWithMatched)
@@ -22,8 +22,8 @@ type Bigram  = (Cadence, Cadence)
 -- |representation of counts for each trigram
 type TransitionCounts = Strict.Map Bigram Double
 
--- |representations of the Markov transition matrix
-type TransitionMatrix = Matrix R
+-- -- |representations of the Markov transition matrix
+-- type TransitionMatrix = Matrix R
 
 -- |representation of markov transition matrix as key-value pairs
 type MarkovMap = Map Cadence [(Cadence, Double)]
@@ -89,11 +89,11 @@ probabilityMap   :: [Cadence] -> Map Bigram Double
 probabilityMap xs = Map'.fromList $ zip (Map'.keys $ zeroCounts xs) $ concat
                      . transitionProbs xs $ Map'.elems $ transitionCounts xs
 
--- |mapping from list of cadences into transition matrix
-transitionMatrix   :: [Cadence] -> TransitionMatrix
-transitionMatrix xs =
-  let n             = Set.size $ Set.fromList xs
-   in (n><n) $ Map'.elems $ probabilityMap xs :: Matrix R
+-- -- |mapping from list of cadences into transition matrix
+-- transitionMatrix   :: [Cadence] -> TransitionMatrix
+-- transitionMatrix xs =
+--   let n             = Set.size $ Set.fromList xs
+--    in (n><n) $ Map'.elems $ probabilityMap xs :: Matrix R
 
 -- |mapping from list of cadences into map with possible next probabilities
 markovMap              :: [Cadence] -> MarkovMap
