@@ -342,23 +342,28 @@ toTriad :: (Integral a, Num a) => (PitchClass -> NoteName) -> [a] -> Chord
 toTriad f xs@(fund:tones)
   | length triad > 3 = toTriad f $ mostConsonant
     $ possibleTriads (f . pc $ fund) tones
-  | primeForm xs == [P 0, P 3, P 7] =
+  | any (`elem` [[P 0, P 3, P 7], [P 0, P 2, P 7],[0, 3, 6]]) [primeForm xs] =
     Chord ((fst $ inv, (nameFunc normalForm xs "") ++ (snd $ inv)),
     (`mod` 12) . fromIntegral <$> triad)
   | otherwise =
     Chord ((f . pc $ head xs, nameFunc zeroForm xs ""),
     (`mod` 12) . fromIntegral <$> triad)
   where
-    triad = (+fund) <$> (i' . zeroForm $ fund
-      : (List.reverse $ List.sort tones))
+    triad = (+fund) <$> (i' . zeroForm $ fund : (List.reverse $ List.sort tones))
     invs = inversions triad
     inv
       | head invs == [P 0, P 4, P 7] || head invs == [P 0, P 3, P 7]
-        = (f . pc $ triad!!0, "")
+                                      = (f . pc $ triad!!0, "")
       | head invs == [P 0, P 5, P 9] || head invs == [P 0, P 5, P 8]
-        = (f . pc $ triad!!1, "_2ndInv")
+                                      = (f . pc $ triad!!1, "_2ndInv")
       | head invs == [P 0, P 3, P 8] || head invs == [P 0, P 4, P 9]
-        = (f . pc $ triad!!2, "_1stInv")
+                                      = (f . pc $ triad!!2, "_1stInv")
+      | head invs == [P 0, P 5, P 7]  = (f . pc $ triad!!0, "")
+      | head invs == [P 0, P 5, P 10] = (f . pc $ triad!!1, "_2ndInv")
+      | head invs == [P 0, P 2, P 7]  = (f . pc $ triad!!2, "_1stInv")
+      | head invs == [P 0, P 3, P 6]  = (f . pc $ triad!!0, "")
+      | head invs == [P 0, P 6, P 9]  = (f . pc $ triad!!1, "_2ndInv")
+      | head invs == [P 0, P 3, P 9]  = (f . pc $ triad!!2, "_1stInv")
     nameFunc f xs =
       let
         zs = i <$> f xs
@@ -368,11 +373,16 @@ toTriad f xs@(fund:tones)
           ,if (elem 3 zs && notElem 4 zs) && notElem 6 zs
             then ("min"++) else (""++)
           ,if elem 9 zs then ("6"++) else (""++)
-          ,if elem 10 zs then ("7"++) else (""++)
+          ,if elem 10 zs && notElem 5 zs then ("7"++) else (""++)
           ,if elem 11 zs then ("maj7"++) else (""++)
           ,if all (`elem` zs) [7,8] then ("b13"++) else (""++)
-          ,if elem 2 zs && all (`notElem` zs) [3,4] then ("sus2"++) else (""++)
-          ,if elem 5 zs && all (`notElem` zs) [3,4] then ("sus4"++) else (""++)
+          ,if (any (`elem` zs) [2,5] && all (`notElem` zs) [3,4] && elem 7 zs) 
+            || all (`elem` zs) [5,10] then ("sus4"++) else (""++)
+          ,if all (`elem` zs) [2,5] then ("sus2/4"++) else (""++)
+          ,if notElem 5 zs && elem 2 zs && all (`notElem` zs) [3,4] 
+            && notElem 7 zs then ("sus2"++) else (""++)
+          ,if notElem 2 zs && elem 5 zs && all (`notElem` zs) [3,4] 
+            && notElem 7 zs then ("sus4"++) else (""++)
           ,if all (`elem` zs) [2,3] || all (`elem` zs) [2,4]
             then ("add9"++) else (""++)
           ,if all (`elem` zs) [5,3] || all (`elem` zs) [5,4]
@@ -403,15 +413,29 @@ sharpTriad = toTriad sharp
 -- |mapping from Chord object to a string representation for maximum readability
 showTriad :: (PitchClass -> NoteName) -> Chord -> String
 showTriad f (Chord ((a,b),c))
+    | "sus4" `List.isInfixOf` b && not (any (`List.isInfixOf` b) ["_1stInv", "_2ndInv"]) =
+      (show . f $ pitchClass a) ++ " " ++ b
     | all (`List.isInfixOf` b) ["_1stInv", "maj"] =
       (show . f $ pitchClass a) ++ " " ++ (takeWhile Char.isAlphaNum b)
       ++ "/" ++ (show $ f (a <-> 4))
     | all (`List.isInfixOf` b) ["_1stInv", "min"] =
       (show . f $ pitchClass a) ++ " " ++ (takeWhile Char.isAlphaNum b)
       ++ "/" ++ (show $ f (a <-> 3))
-    | "_2ndInv" `List.isInfixOf` b = (show . f $ pitchClass a) ++ " " ++
+    | all (`List.isInfixOf` b) ["_1stInv", "sus4"] =
+      (show $ f (a <-> 5)) ++ " sus2"
+    | all (`List.isInfixOf` b) ["_1stInv", "dim"] =
+      (show . f $ pitchClass a) ++ " " ++ (takeWhile Char.isAlphaNum b) ++
+      "/" ++ (show $ f (a <-> 3))
+    | "_2ndInv" `List.isInfixOf` b && any (`List.isInfixOf` b) ["maj", "min"] = 
+      (show . f $ pitchClass a) ++ " " ++
       (takeWhile Char.isAlphaNum b) ++ "/" ++ (show $ f (a <+> 7))
-    | otherwise                    = (show . f $ pitchClass a) ++ " " ++ b
+    | "_2ndInv" `List.isInfixOf` b && "sus4" `List.isInfixOf` b = 
+      (show . f $ pitchClass a) ++ " " ++
+      (takeWhile Char.isAlphaNum b) ++ "/" ++ (show $ f (a <+> 7))
+    | "_2ndInv" `List.isInfixOf` b && "dim" `List.isInfixOf` b = 
+      (show . f $ pitchClass a) ++ " " ++
+      (takeWhile Char.isAlphaNum b) ++ "/" ++ (show $ f (a <+> 6))
+    | otherwise = (show . f $ pitchClass a) ++ " " ++ b
 
 -- |shortcut version of showTriad with sharp partially applied
 showFlatTriad :: Chord -> String

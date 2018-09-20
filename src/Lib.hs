@@ -30,7 +30,6 @@ markovMap,
 bigrams,
 ------------
 -- |Overtone
--- theHarmonicAlgorithm,
 theHarmonicAlgorithm',
 parseOvertones,
 parseTuning,
