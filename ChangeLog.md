@@ -3,6 +3,7 @@
 ## Version 1.0.1.1
 
 More intelligent naming logic with regard to slash chord notation.
+Removed some system specific path dependencies
 
 ## Version 1.0.1.0
 
