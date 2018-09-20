@@ -1,5 +1,9 @@
 # Changelog for theHarmonicAlgorithm
 
+## Version 1.0.1.1
+
+More intelligent naming logic with regard to slash chord notation.
+
 ## Version 1.0.1.0
 
 Version 1.0.1.0 makes a few refinements to the codebase as well as introducing
