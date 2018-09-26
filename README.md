@@ -18,17 +18,18 @@ research and realises them in a Command Line Interface. The Harmonic Algorithm
 is not just useful for electric bass players, but can be utilised by 
 composers and performers on or for any instrument.
 
-The original research documents on which The Harmonic Algorithm draws it's
+The original 2016 research documents on which The Harmonic Algorithm (2018) draws 
 influence can be accessed at the following links:
 
 Core document:
-https://www.dropbox.com/s/7ctf91d59g2o558/The%20Harmonic%20Algorithm.pdf?dl=0
+[original core document (2016)](documents/The_Harmonic_Algorithm_2016.pdf)
 
 Reflective document:
-https://www.dropbox.com/s/7ctf91d59g2o558/The%20Harmonic%20Algorithm.pdf?dl=0
+[original reflective document (2016)](documents/Harmonic_Algorithm_Reflections_2016.pdf)
 
-All materials:
-https://www.dropbox.com/s/2e2vb3ba0m91rfa/Harmonic%20Algorithm%20Reflections.pdf?dl=0
+The accompanying document for this 2018 project which discusses The Harmonic Algorithm
+as a creative system can be accessed here:
+[creative system document (2018)](documents/Data_Science_In_The_Creative_Process_2018.pdf)
 
 ## Command Line Interface Installation Instructions
 ### Dependencies
