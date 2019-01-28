@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 24fbcca8eb595e68c0edc91a5f742439637373a4d751b3db8c5b42f44cac1aa1
+-- hash: 36f616918823568d9aeb871c3f3ac61c1a3ba007ae81631b030f312b9d9f0b63
 
 name:           theHarmonicAlgorithm
 version:        1.0.1.0
@@ -53,6 +53,7 @@ executable theHarmonicAlgorithm-exe
     , mtl
     , split
     , theHarmonicAlgorithm
+    , tidal
   default-language: Haskell2010
 
 test-suite theHarmonicAlgorithm-test

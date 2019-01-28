@@ -48,6 +48,7 @@ executables:
     - mtl
     - inline-r
     - split
+    - tidal
 
 tests:
   theHarmonicAlgorithm-test:

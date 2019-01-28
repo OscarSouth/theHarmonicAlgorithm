@@ -7,9 +7,9 @@ import           Lib
 import           Control.Monad.Reader
 import           System.IO
 
-import           Language.R.Instance
+import qualified Language.R.Instance  as R
 import qualified Language.R.Literal   as R
-import           Language.R.QQ
+import qualified Language.R.QQ        as QQ
 
 import qualified Data.Char            as Char (isAlphaNum, toLower)
 import           Data.Function        (on)
@@ -21,7 +21,9 @@ import           Text.Read            (readMaybe)
 import           Data.List.Split      (chunksOf)
 import           Text.Read            (readMaybe)
 
-main = withEmbeddedR defaultConfig $ do
+-- import           Sound.Tidal.Context
+
+main = R.withEmbeddedR R.defaultConfig $ do
   initR -- load R libraries & settings, initialise R log, print info to stout
   model <- choraleData -- bind trained model
   header -- print main title
@@ -373,8 +375,8 @@ initR = do
 
 -- |initialise R session log
 initLogR :: IO ()
-initLogR  = runRegion $ do
-  [r| sink("output/sessionlog.txt")
+initLogR  = R.runRegion $ do
+  [QQ.r| sink("output/sessionlog.txt")
       cat("=======================================\n")
       cat("The Harmonic Algorithm\nSession: ")
       print(Sys.time())
@@ -387,8 +389,8 @@ initLogR  = runRegion $ do
 -- |Retrieve R working directory
 rDir :: IO String
 rDir =
-  let rData () = R.fromSomeSEXP <$> [r| getwd() |]
-   in runRegion $ rData ()
+  let rData () = R.fromSomeSEXP <$> [QQ.r| getwd() |]
+   in R.runRegion $ rData ()
 
 -- |print out main title
 header :: IO ()
@@ -432,16 +434,16 @@ prompt = do
 
 -- |load R packaged and options
 loadPackages :: IO ()
-loadPackages = runRegion $ do
-  [r| options(warn = -1)
+loadPackages = R.runRegion $ do
+  [QQ.r| options(warn = -1)
       library("tidyverse")
     |]
   return ()
 
 -- |R script to ingest and process raw data to be passed to Haskell
 bachData :: IO ()
-bachData = runRegion $ do
-  [r| bach <- read_csv("data/jsbach_chorals_harmony.data",
+bachData = R.runRegion $ do
+  [QQ.r| bach <- read_csv("data/jsbach_chorals_harmony.data",
                  col_names = c(
                    "seq", "event",
                    "0", "1", "2", "3", "4", "5",
@@ -498,14 +500,14 @@ bachFund <<- bach$fund
 -- |helper function to extract R matrix column from R and deliver to Haskell
 fromRMatrix  :: Double -> IO [Double]
 fromRMatrix x =
-  let rData x = R.fromSomeSEXP <$> [r| bachMatrix[,x_hs] |]
-   in runRegion $ rData x
+  let rData x = R.fromSomeSEXP <$> [QQ.r| bachMatrix[,x_hs] |]
+   in R.runRegion $ rData x
 
 -- |helper function to extract vector of fundamental notes from R into Haskell
 bachFundamental  :: IO [String]
 bachFundamental =
-  let rData () = R.fromSomeSEXP <$> [r| bachFund |]
-   in runRegion $ rData ()
+  let rData () = R.fromSomeSEXP <$> [QQ.r| bachFund |]
+   in R.runRegion $ rData ()
 
 -- appendLogR :: IO ()
 -- appendLogR  = runRegion $ do
@@ -549,8 +551,8 @@ exitText =
 -- |wrapper for the 'rgamma' R function
 gammaDist :: Double -> Double -> IO [Double]
 gammaDist n x =
-  let rData () = R.fromSomeSEXP <$> [r| rgamma(n_hs, x_hs) |]
-   in runRegion $ rData ()
+  let rData () = R.fromSomeSEXP <$> [QQ.r| rgamma(n_hs, x_hs) |]
+   in R.runRegion $ rData ()
 
 -- |function to deliver 'rgamma' data in integer form with a tailored scale
 gammaGen :: Double -> Double -> IO [Integer]
