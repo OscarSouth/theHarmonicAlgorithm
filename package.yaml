@@ -1,0 +1,67 @@
+name:                theHarmonicAlgorithm
+version:             1.0.1.0
+github:              "OscarSouth/theHarmonicAlgorithm"
+license:             BSD3
+author:              "Oscar South"
+maintainer:          "info@oscarsouth.com"
+copyright:           "2018 (c) Oscar South"
+
+extra-source-files:
+- README.md
+- ChangeLog.md
+
+# Metadata used when publishing your package
+# synopsis:            Short description of your package
+# category:            Academic
+
+# To avoid duplicated efforts in documentation and dealing with the
+# complications of embedding Haddock markup inside cabal files, it is
+# common to point users to the README.md file.
+description:         Please see the README on GitHub at <https://github.com/OscarSouth/theHarmonicAlgorithm#readme>
+
+dependencies:
+- base >= 4.8 && < 5
+
+library:
+  exposed-modules:       Lib
+  source-dirs:           src
+  other-modules:
+  - Overtone
+  - Markov
+  - MusicData
+  - Utility
+  - GraphDB
+  - Perform
+  dependencies:
+  - containers
+  - hasbolt
+  - data-default
+
+executables:
+  theHarmonicAlgorithm-exe:
+    main:                Main.hs
+    source-dirs:         app
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - theHarmonicAlgorithm
+    - containers
+    - mtl
+    - inline-r
+    - split
+    - tidal
+
+tests:
+  theHarmonicAlgorithm-test:
+    main:                Spec.hs
+    source-dirs:         test
+    ghc-options:
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - theHarmonicAlgorithm
+    - hspec
+    - QuickCheck
