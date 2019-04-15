@@ -30,9 +30,12 @@ library:
   - Markov
   - MusicData
   - Utility
+  - GraphDB
+  - Perform
   dependencies:
   - containers
-  # - hmatrix
+  - hasbolt
+  - data-default
 
 executables:
   theHarmonicAlgorithm-exe:

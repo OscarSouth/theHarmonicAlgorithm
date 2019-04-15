@@ -143,7 +143,7 @@ harmonicFilters = do
   liftIO prompt
   getFunds <- liftIO getLine
   let roots = parseFunds getFunds
-      filters = theHarmonicAlgorithm' 3 roots overtones
+      filters = chordList' 3 roots overtones
   return filters
 
 -- |function to retrieve and filter down possibilities based on current state 

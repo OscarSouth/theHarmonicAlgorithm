@@ -19,9 +19,8 @@
 # resolver: ./custom-snapshot.yaml
 # resolver: https://example.com/snapshots/2018-01-01.yaml
 
-# resolver: lts-11.9
-# resolver: lts-12.26
-resolver: lts-13.5
+resolver: lts-12.26
+# resolver: lts-13.5
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -44,10 +43,11 @@ packages:
 # using the same syntax as the packages field.
 # (e.g., acme-missiles-0.3)
 extra-deps:
-- tidal-1.0.7
+- archive: https://github.com/tidalcycles/Tidal/archive/master.zip
+# - tidal-1.0.7
 - inline-r-0.9.2
-- inline-c-0.6.1.0
 - vector-0.12.0.1
+- hosc-0.17
 
 
 # Override default flag values for local packages and extra-deps

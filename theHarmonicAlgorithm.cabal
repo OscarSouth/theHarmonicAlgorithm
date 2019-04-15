@@ -2,7 +2,7 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 36f616918823568d9aeb871c3f3ac61c1a3ba007ae81631b030f312b9d9f0b63
+-- hash: e8a3884a9da1ce989512b593ac7d49da33542a2bed937b84489257ad8af06314
 
 name:           theHarmonicAlgorithm
 version:        1.0.1.0
@@ -32,11 +32,15 @@ library
       Markov
       MusicData
       Utility
+      GraphDB
+      Perform
   hs-source-dirs:
       src
   build-depends:
       base >=4.8 && <5
     , containers
+    , data-default
+    , hasbolt
   default-language: Haskell2010
 
 executable theHarmonicAlgorithm-exe

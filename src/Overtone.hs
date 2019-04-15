@@ -184,16 +184,16 @@ parseOvertones :: (Num a, Integral a) => String -> [a]
 parseOvertones = parseOvertones' 3
 
 -- |mapping from user defined input requirements into list of Chords
-theHarmonicAlgorithm :: (MusicData a, Num b, Integral b) =>
+chordList :: (MusicData a, Num b, Integral b) =>
                         (PitchClass -> NoteName) ->
                         b -> [a] -> String -> [Chord]
-theHarmonicAlgorithm f n roots str =
+chordList f n roots str =
   let integralSets = overtoneSets n (i' roots) $ parseOvertones str
    in toTriad f <$> integralSets
 
 -- |prime version for usage with the command line interface markov loop
-theHarmonicAlgorithm' :: (Num a, Integral a) =>
+chordList' :: (Num a, Integral a) =>
                         a -> [a] -> [a] -> (PitchClass -> NoteName) -> [Chord]
-theHarmonicAlgorithm' n roots overtones f =
+chordList' n roots overtones f =
   let integralSets = overtoneSets n roots overtones
    in toTriad f <$> integralSets

@@ -30,7 +30,7 @@ markovMap,
 bigrams,
 ------------
 -- |Overtone
-theHarmonicAlgorithm',
+chordList',
 parseOvertones,
 parseTuning,
 parseKey,
@@ -44,3 +44,5 @@ import           Markov -- contains markov chain numerical processing machinery
 import           MusicData -- defines MusicData and many pitchclass analysis functions
 import           Overtone -- mainly parsing functions for generating lists of MusicData
 import           Utility -- various 'misc' helper functions
+import           GraphDB -- functions to populate and access markov graph database (Neo4j)
+import           Perform -- functions related to performance with TidalCycles

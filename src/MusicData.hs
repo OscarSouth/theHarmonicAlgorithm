@@ -475,7 +475,7 @@ toMovement from to
   | otherwise   = Tritone
   where
     x = last $ zeroForm [from, to]
-    y   = last $ zeroForm [to, from]
+    y = last $ zeroForm [to, from]
 
 -- |mapping from Movement data type to PitchClass
 fromMovement :: Movement -> PitchClass
