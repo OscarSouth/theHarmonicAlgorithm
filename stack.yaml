@@ -44,7 +44,7 @@ packages:
 # (e.g., acme-missiles-0.3)
 extra-deps:
 # - archive: https://github.com/tidalcycles/Tidal/archive/master.zip
-- tidal-1.0.10
+- tidal-1.0.11
 - inline-r-0.9.2
 - vector-0.12.0.1
 - hosc-0.17
