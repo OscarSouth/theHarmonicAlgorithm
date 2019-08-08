@@ -21,7 +21,14 @@ import           Text.Read            (readMaybe)
 import           Data.List.Split      (chunksOf)
 import           Text.Read            (readMaybe)
 
--- import           Sound.Tidal.Context
+-- import           sound.tidal.context
+
+-- main = do pipe <- connect defaultConfig
+--           records <- run pipe $ query "MATCH (n:Person) WHERE n.name CONTAINS \"Tom\" RETURN n"
+--           let first = head records
+--           cruise <- first `at` "n" >>= exact :: IO Node
+--           print cruise
+--           close pipe
 
 main = R.withEmbeddedR R.defaultConfig $ do
   initR -- load R libraries & settings, initialise R log, print info to stout

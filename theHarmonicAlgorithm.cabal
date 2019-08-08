@@ -1,0 +1,77 @@
+cabal-version: 1.12
+
+-- This file has been generated from package.yaml by hpack version 0.31.1.
+--
+-- see: https://github.com/sol/hpack
+--
+-- hash: 548d84785d319dadade326154554caff400885934ffc52b6c5b507fa856609d0
+
+name:           theHarmonicAlgorithm
+version:        1.0.1.0
+description:    Please see the README on GitHub at <https://github.com/OscarSouth/theHarmonicAlgorithm#readme>
+homepage:       https://github.com/OscarSouth/theHarmonicAlgorithm#readme
+bug-reports:    https://github.com/OscarSouth/theHarmonicAlgorithm/issues
+author:         Oscar South
+maintainer:     info@oscarsouth.com
+copyright:      2018 (c) Oscar South
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+extra-source-files:
+    README.md
+    ChangeLog.md
+
+source-repository head
+  type: git
+  location: https://github.com/OscarSouth/theHarmonicAlgorithm
+
+library
+  exposed-modules:
+      Lib
+  other-modules:
+      Overtone
+      Markov
+      MusicData
+      Utility
+      GraphDB
+      Perform
+  hs-source-dirs:
+      src
+  build-depends:
+      base >=4.8 && <5
+    , containers
+    , data-default
+    , hasbolt
+  default-language: Haskell2010
+
+executable theHarmonicAlgorithm-exe
+  main-is: Main.hs
+  other-modules:
+      Paths_theHarmonicAlgorithm
+  hs-source-dirs:
+      app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      base >=4.8 && <5
+    , containers
+    , inline-r
+    , mtl
+    , split
+    , theHarmonicAlgorithm
+    , tidal
+  default-language: Haskell2010
+
+test-suite theHarmonicAlgorithm-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  other-modules:
+      Paths_theHarmonicAlgorithm
+  hs-source-dirs:
+      test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  build-depends:
+      QuickCheck
+    , base >=4.8 && <5
+    , hspec
+    , theHarmonicAlgorithm
+  default-language: Haskell2010
