@@ -2,12 +2,18 @@
 
 module GraphDB where
 
-import Data.Default (Default (..))
-import Database.Bolt
+import Data.Aeson
+import Network.HTTP.Client
 
--- -- |Default configuration for localhost neo4j server
--- defaultConfig :: BoltCfg
--- defaultConfig = def {user = "neo4j", password = "0980"}
+-- buildRequest :: String -> RequestBody -> IO Request
+-- buildRequest url body = do
+--   nakedRequest <- parseRequest url
+--   return (nakedRequest { method = "POST", requestBody = body })
 
--- -- makeDB
-
+-- send :: RequestBody -> IO ()
+-- send s = do
+--   manager <- newManager defaultManagerSettings
+--   request <- buildRequest "http://httpbin.org/post" s
+--   response <- httpLbs request manager
+--   let Just obj = decode (responseBody response)
+--   print (obj :: Object)

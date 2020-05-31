@@ -19,16 +19,12 @@ import qualified Data.Map             as Map (fromList, lookup)
 import           Data.Maybe           (fromMaybe)
 import           Text.Read            (readMaybe)
 import           Data.List.Split      (chunksOf)
-import           Text.Read            (readMaybe)
 
 -- import           sound.tidal.context
 
--- main = do pipe <- connect defaultConfig
---           records <- run pipe $ query "MATCH (n:Person) WHERE n.name CONTAINS \"Tom\" RETURN n"
---           let first = head records
---           cruise <- first `at` "n" >>= exact :: IO Node
---           print cruise
---           close pipe
+import Control.Monad.IO.Class
+-- import Data.Aeson
+-- import Network.HTTP.Req
 
 main = R.withEmbeddedR R.defaultConfig $ do
   initR -- load R libraries & settings, initialise R log, print info to stout
@@ -52,11 +48,11 @@ choraleData = do
   let model = markovMap $ -- call Markov module to train model
         fmap toCadence <$> -- map bigram sets into Cadence data types
         bigrams $ -- combine chords into sequential bigrams
-        flatTriad <$> -- convert to 'Chord' data type
+        flatTriad . -- convert to 'Chord' data type
         mostConsonant . possibleTriads'' <$> -- derive most suitable triad
         filter (\(_, ys) -> length ys >= 3) ( -- remove sets of less than 3
         zip chFunds $ -- zip with fundamentals R column
-        (fmap round) . unique <$> -- remove duplicate elems . convert to Integer
+        fmap round . unique <$> -- remove duplicate elems . convert to Integer
         [[a,b,c,d,e] | (a,b,c,d,e) <- List.zip5 x1 x2 x3 x4 x5]
         ) -- ^ convert R matrix columns to a list of lists
   return model
@@ -88,13 +84,13 @@ flatSharp = do
       opts = zipWith (\n p -> show n ++ " - " ++ p) [1..] enh
   liftIO $ mapM_ putStrLn opts
   liftIO prompt
-  num <- liftIO $ getLine
+  num <- liftIO getLine
   if notElem num $ fmap show [1..(length opts)]
     then do
       liftIO $ putStrLn "\nUnrecognised input, please retry:\n"
       flatSharp
       else do
-        let index      = ((read num) - 1) :: Int
+        let index      = read num - 1 :: Int
             enharmonic = takeWhile Char.isAlphaNum $ Char.toLower <$> enh!!index
         return enharmonic
 
@@ -102,17 +98,17 @@ flatSharp = do
 -- |returns a PitchClass to designate starting root note
 initFundamental :: String -> Model PitchClass
 initFundamental k = do
-  let pcs  = show . (enharmMap k) <$> [P 0 .. P 11]
+  let pcs  = show . enharmMap k <$> [P 0 .. P 11]
       opts = zipWith (\n p -> show n ++ " - " ++ p) [1..] pcs
   liftIO $ mapM_ putStrLn opts
   liftIO prompt
-  num <- liftIO $ getLine
+  num <- liftIO getLine
   if notElem num $ fmap show [1..(length opts)]
     then do
       liftIO $ putStrLn "\nUnrecognised input, please retry:\n"
       initFundamental k
       else do
-        let index = ((read num) - 1) :: Int
+        let index = read num - 1 :: Int
         return (pc index)
 
 -- |returns a Chord to designate starting functionality over root
@@ -121,16 +117,16 @@ chooseFunctionality k r = do
   let opts = zipWith (\n p -> show n ++ " - " ++ p) [1..] initFcList
   liftIO $ mapM_ putStrLn opts
   liftIO prompt
-  num <- liftIO $ getLine
+  num <- liftIO getLine
   if notElem num $ fmap show [1..(length opts)]
     then do
       liftIO $ putStrLn "\nUnrecognised input, please retry:\n"
       chooseFunctionality k r
       else do
-        let index = ((read num) - 1) :: Int
+        let index = read num - 1 :: Int
             chord = toTriad (enharmMap k) $ -- make correctly enharmonic Chord
                     (+ i r) <$> -- transpose structure to meet fundamental note
-                    (fromMaybe [0,4,7] $ -- extract Map lookup from Maybe
+                    fromMaybe [0,4,7] ( -- extract Map lookup from Maybe
                     Map.lookup (initFcList!!index) initFcMap
                     ) -- ^ extract choice from Map
         return chord
@@ -167,7 +163,7 @@ recommendations fs root prev filters n = do
               fromMaybe [(prev, 1.0)] $ -- extract Cadence list from maybe
               Map.lookup prev model -- extract current markov state from model
       nexts = take n $ (fst <$> bach) ++ -- append to markov list and take n
-              (filter (\x -> x `notElem` fmap fst bach) hAlgo)
+              filter (\x -> x `notElem` fmap fst bach) hAlgo
               -- ^ keep elements of Filters list not in markov list
   return nexts
 
@@ -184,16 +180,16 @@ markovLoop fs root prev filters n = do
                 else "[ Switch to sharp notation  ]",
                 "[ Select new starting chord ]",
                 "[           Quit            ]"]
-      menu   = ((showTriad enharm) . (fromCadence enharm root) <$> 
+      menu   = (showTriad enharm . fromCadence enharm root <$> 
                 nexts) ++ choose
       opts    = zipWith (\n p -> 
                 (if n < 10 then show n ++ " " else show n) ++ " - " ++ p) 
                 [1..] menu
   liftIO $ putStrLn $ "\nThe current chord is " ++
-           (showTriad enharm $ transposeCadence enharm root prev) ++
+           showTriad enharm (transposeCadence enharm root prev) ++
            " -- Select next chord or choose another option:\n"
   num <- liftIO $ mapM_ putStrLn opts >> prompt >> getLine
-  let index = ((read num) - 1) :: Int
+  let index = read num - 1 :: Int
   if notElem num $ fmap show [1..length opts]
     then do
     liftIO $ putStrLn "\nUnrecognised input, please retry:\n"
@@ -203,8 +199,7 @@ markovLoop fs root prev filters n = do
       filters' <- harmonicFilters
       markovLoop fs root prev filters' n
       else if index == 1 + length nexts
-        then do
-          if length opts == length choose 
+        then if length opts == length choose 
           then do
             liftIO $ putStrLn 
               "\nCannot generate from empty set of possibilities.\n\
@@ -241,7 +236,7 @@ getSeqParams fs root prev filters n = do
   len <- do 
     liftIO prompt
     getLen <- liftIO getLine
-    let readLen = fromMaybe 4 $ (readMaybe getLen :: Maybe Double)
+    let readLen = fromMaybe 4 (readMaybe getLen :: Maybe Double)
     if readLen >= 16 then return 16
     else if readLen <= 0 then return 4
     else return readLen
@@ -249,7 +244,7 @@ getSeqParams fs root prev filters n = do
   entropy <- do 
     liftIO prompt
     getEntropy <- liftIO getLine 
-    let readEntropy = fromMaybe 2 $ (readMaybe getEntropy :: Maybe Double)
+    let readEntropy = fromMaybe 2 (readMaybe getEntropy :: Maybe Double)
     if readEntropy >= 10 then return 1 else return (readEntropy/10)
   randomSeq fs root prev filters n (len, entropy)
   return ()
@@ -263,7 +258,7 @@ randomSeq fs root prev filters n seqParams = do
   cadences <- cadenceSeq fs root prev filters rns
   let chordLen  = length $ chords fs :: Int
       chords fs = showTriad (enharmMap fs) <$> fst cadences
-      lines     = (++"|   ") . concat . (`replicate`" ") <$> 
+      lines     = (++"|   ") . concat . (`replicate`" ") .
                   ((14-) . length) <$> chords fs
       fours fs  = concat $ zipWith (++) 
                   ["\n1   ||   ", "\n5    |   ", "\n9    |   ", "\n13   |   "]
@@ -277,13 +272,13 @@ randomSeq fs root prev filters n seqParams = do
               "[    Regenerate sequence    ]",
               if fs == "sharp" then "[  Show with flat notation  ]"
               else "[ Show with sharp notation  ]"]
-      opts menu = zipWith (\n p -> 
+      opts = zipWith (\n p -> 
                   (if n < 10 then show n ++ " " else show n) ++ " - " ++ p) 
-                  [1+(length $ chords fs)..] menu
+                  [1+length (chords fs)..]
       actions ls = do
         num <- liftIO $ mapM_ putStrLn ls >> prompt >> getLine
-        let index | num == "" = (-1)
-                  | otherwise = (read num - 1) :: Int
+        let index | num == "" = -1
+                  | otherwise = read num - 1 :: Int
         if index == (-1)
           then markovLoop fs (rootNote $ last $ fst cadences) 
                              (last $ snd cadences) filters n
@@ -306,8 +301,8 @@ randomSeq fs root prev filters n seqParams = do
                     actions $ opts ["[      Reject sequence      ]", 
                                     "[    Regenerate sequence    ]"]
                     else do
-                    let root' = rootNote $ (fst cadences)!!index 
-                        next = (snd cadences)!!index 
+                    let root' = rootNote $ fst cadences!!index 
+                        next = snd cadences!!index 
                     markovLoop fs root' next filters n
   actions $ opts menu
   return ()
@@ -324,17 +319,17 @@ cadenceSeq fs root prev filters rns@(x:xs) = do
       triad = transposeCadence enharm root prev
       root' = root + movementFromCadence next
   nexts <- cadenceSeq fs root' next filters xs
-  return (triad : (fst nexts), prev : (snd nexts))
+  return (triad : fst nexts, prev : snd nexts)
 
 -- |mapping from string to 'enharmonic' function
 enharmMap :: MusicData a => String -> (a -> NoteName)
 enharmMap key =
-  let funcMap = (Map.fromList [("flat", flat), ("sharp", sharp)])
-   in fromMaybe (flat) $ Map.lookup key funcMap
+  let funcMap = Map.fromList [("flat", flat), ("sharp", sharp)]
+   in fromMaybe flat $ Map.lookup key funcMap
 
 -- |mapping from string to Integral pitchclass set representation
 initFcMap :: (Integral a, Num a) => Map String [a]
-initFcMap = Map.fromList $
+initFcMap = Map.fromList
   [("maj",[0,4,7]),
   ("min",[0,3,7]),
   ("maj 1stInv",[0,3,8]),
@@ -403,10 +398,7 @@ rDir =
 header :: IO ()
 header  = do
   putStrLn "\n___________________________________________________________________________\n"
-  putStrLn ""
-  putStrLn ""
-  putStrLn ""
-  putStrLn ""
+  putStrLn "\n\n\n"
   putStrLn "  .___________________________________________."
   putStrLn "  |__/___\\_.___The______________________._____|"
   putStrLn "  |__\\___|_.______Harmonic_____________/|_____|"
@@ -415,10 +407,7 @@ header  = do
   putStrLn "                                     |-()-"
   putStrLn "                                 by  |"
   putStrLn "                                   -()-scar South, 2018 "
-  putStrLn ""
-  putStrLn ""
-  putStrLn ""
-  putStrLn ""
+  putStrLn "\n\n\n"
   return ()
 
 -- |print out reference to dataset source
@@ -574,7 +563,7 @@ randomGen :: (Num a, Integral a) =>
 randomGen n x c = do
   let gamma = gammaGen (n+2) x
   rns <- gamma
-  let motion = 5*(rns!!0 - rns!!1) `mod` 12
+  let motion = 5*(head rns - rns!!1) `mod` 12
       c' = (+motion) . fromIntegral <$> c
       start = toCadence (toTriad flat c', toTriad flat c)
       xs = drop 2 rns

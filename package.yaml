@@ -34,8 +34,8 @@ library:
   - Perform
   dependencies:
   - containers
-  - hasbolt
-  - data-default
+  - http-client
+  - aeson
 
 executables:
   theHarmonicAlgorithm-exe:

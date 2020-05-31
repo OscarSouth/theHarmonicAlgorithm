@@ -37,7 +37,9 @@ parseKey,
 parseFunds,
 ------------
 -- |Utility
-unique
+unique,
+-- |GraphDB
+-- testFunction
   ) where
 
 import           Markov -- contains markov chain numerical processing machinery

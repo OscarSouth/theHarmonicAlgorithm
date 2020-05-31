@@ -37,7 +37,7 @@ bigrams (x:xs)
 
 -- |lifted 'shortcut' `toCadence` which operates on a list of integer lists
 toCadences    :: (Integral a, Num a) => [[a]] -> [Cadence]
-toCadences xs = toCadence <$> (bigrams $ flatTriad <$> xs)
+toCadences xs = toCadence <$> bigrams (flatTriad <$> xs)
 
 -- |mapping from input data into all theoretically possible bigrams
 pairs   :: [Cadence] -> [Bigram]
