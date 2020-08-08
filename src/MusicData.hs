@@ -206,7 +206,7 @@ pcSet xs = unique $ pc <$> xs
 pcSet'   :: MusicData a => [a] -> [PitchClass]
 pcSet' xs = pcSet $ i <$> xs
 
--- |transform list of integers into 'zero' form of
+-- |transform list of integers into 'zero' form of the PitchClass set
 zeroForm       :: (Integral a, Num a) => [a] -> [PitchClass]
 zeroForm (x:xs) =
   let zs = (subtract x) <$> x:xs
@@ -216,7 +216,9 @@ zeroForm (x:xs) =
 zeroForm'   :: MusicData a => [a] -> [PitchClass]
 zeroForm' xs = zeroForm $ i <$> xs
 
--- |'double prime' version for work purely with integral numbers **does not trim
+-- ** zeroForm CAN GIVE A DIFFERENT RESULT TO zeroForm' $ pcSet AS pcSet MAY REORDER THE SET **
+
+-- |'double prime' version for work purely with integral numbers **DOES NOT TRIM
 zeroForm''       :: (Num a, Integral a) => [a] -> [a]
 zeroForm'' (x:xs) = List.sort $ [(zeroTrans x) i | i <- (x:xs)]
   where zeroTrans x y | x <= y = y-x
@@ -239,18 +241,33 @@ inversions' :: MusicData a => [a] -> [[PitchClass]]
 inversions' xs = zeroForm' <$> simpleInversions xs
 
 -- |mapping from integer pitchclass set to the normal (most compact) form
--- #### make generalisable for set of more than 4 pitches or less than 2
 normalForm   :: (Integral a, Num a) => [a] -> [PitchClass]
-normalForm xs = -- #### partial function
-  let invs xs = fmap i <$> inversions xs
-      lst xs  = filter (\x ->
-        last x == (minimum $ last <$> invs xs)) $ invs xs
-      sfl xs  = filter (\x ->
-        (last . init) x == (minimum $ last . init <$> lst xs)) $ lst xs
-      tfl xs  = filter (\x ->
-        (last . init . init) x ==
-        (minimum $ last . init . init <$> lst xs)) $ sfl xs
-    in fromInteger <$> (head $ tfl xs)
+normalForm xs 
+  | length xs == 1 = [P 0]
+  | length xs == 2 = fromInteger <$> (head $ lst xs)
+  | length xs == 3 = fromInteger <$> (head $ sfl xs)
+  | length xs == 4 = fromInteger <$> (head $ tfl xs)
+  | length xs == 5 = fromInteger <$> (head $ ffl xs)
+  | length xs == 6 = fromInteger <$> (head $ vfl xs)
+  | otherwise      = fromInteger <$> (head $ fin xs)
+  where 
+    invs xs = fmap i <$> inversions xs
+    lst xs  = filter (\x ->
+      last x == (minimum $ last <$> invs xs)) $ invs xs
+    sfl xs  = filter (\x ->
+      (last . init) x == (minimum $ last . init <$> lst xs)) $ lst xs
+    tfl xs  = filter (\x ->
+      (last . init . init) x ==
+      (minimum $ last . init . init <$> lst xs)) $ sfl xs
+    ffl xs  = filter (\x ->
+      (last . init . init . init) x ==
+      (minimum $ last . init . init . init <$> lst xs)) $ tfl xs
+    vfl xs  = filter (\x ->
+      (last . init . init . init . init) x ==
+      (minimum $ last . init . init . init . init <$> lst xs)) $ ffl xs
+    fin xs  = filter (\x ->
+      (last . init . init . init . init) x ==
+      (minimum $ last . init . init . init . init <$> lst xs)) $ vfl xs
 
 -- |'prime' version for work with MusicData typeclass
 normalForm'   :: MusicData a => [a] -> [PitchClass]
@@ -311,7 +328,7 @@ possibleTriads'' (r, ps) =
   let fund = (\x -> [x]) . i . readNoteName $ r
    in overtoneSets 3 fund ps
 
--- |mapping from interval vector to degree of dissonance
+-- |mapping of integral set to tuple containing degree of dissonance and original input 
 dissonanceLevel           :: (Integral a, Num a) => [a] -> (Integer, [a])
 dissonanceLevel xs
   | countElem iVect 0 == 5 = (27, xs)
@@ -453,7 +470,7 @@ data Transition =
 -- |show hides underlying Cadence data and presents data in a human readable way
 instance Show Transition where
   show (Transition ((prv, new), (dist, ps))) =
-    show dist ++ " -> (" ++ prv ++ " -> " ++ new ++ ")"
+    show dist ++ " (" ++ prv ++ " -> " ++ new ++ ")"
 
 -- |concrete representation of movement by a musical interval
 data Movement = Asc PitchClass | Desc PitchClass | Unison | Tritone

@@ -439,7 +439,7 @@ loadPackages = R.runRegion $ do
 -- |R script to ingest and process raw data to be passed to Haskell
 bachData :: IO ()
 bachData = R.runRegion $ do
-  [QQ.r| bach <- read_csv("data/jsbach_chorals_harmony.data",
+  [QQ.r| bach <- read_csv("/home/oscarsouth/.stack/global-project/data/jsbach_chorals_harmony.data",
                  col_names = c(
                    "seq", "event",
                    "0", "1", "2", "3", "4", "5",
