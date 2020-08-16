@@ -10,7 +10,7 @@ import           GHC.Real      ((%))
 
 import qualified Data.Char     as Char (isAlphaNum)
 import qualified Data.List     as List (concat, isInfixOf, reverse, sort,
-                                        sortBy)
+                                        sortBy, intersect)
 import qualified Data.Set      as Set (fromList, toList)
 
 -- |newtype defining PitchClass
@@ -352,7 +352,10 @@ data Chord = Chord ((NoteName, Functionality), [Integer]) deriving (Eq, Ord)
 
 -- |hides underlying Chord data and presents in a human readable way
 instance Show Chord where
-  show (Chord ((a,b),c)) = show a ++ "_" ++ b
+  show (Chord ((a,b),c)) 
+    | b == "N/A"   = show "N/A" 
+    -- | length c > 3 = show a ++ " " ++ b
+    | otherwise    = show a ++ "_" ++ b
 
 -- |mapping from integer list to tuple of root and chord name
 toTriad :: (Integral a, Num a) => (PitchClass -> NoteName) -> [a] -> Chord
@@ -537,3 +540,128 @@ transposeCadence f root (Cadence (_,(_,tones))) =
 -- |mapping from Chord the root note of that chord
 rootNote :: Chord -> PitchClass
 rootNote (Chord (_,(x:_))) = pc x
+
+---------------------------
+-- #### ADDITIONS #### ----
+---------------------------
+
+-- |mapping from integer list to tuple of root and chord name
+toChord :: (Integral a, Num a) => (PitchClass -> NoteName) -> [a] -> Chord
+toChord f xs@(fund:tones)
+    -- | (any (True==) $ (xs?>) <$> vocabulary) == False = -- fix with recursion
+    --                   Chord ((C, "N/A"), [])
+    | otherwise     = Chord ((f . pc $ head xs, nameFunc zeroForm xs ""),
+                      (`mod` 12) . fromIntegral <$> chord)
+  where
+    chord           = (+fund) <$> (i' . zeroForm $ fund : (List.reverse $ List.sort tones))
+    nameFunc f xs   = --
+      let
+        zs          = i <$> f xs
+        chain       =
+          [(""++)
+          -- ,if all (`elem` zs) [0,4,7] && all (`notElem` zs) [1,2,3,5,6,8,9,10,11] 
+            -- then ("maj"++) else (""++)
+          ,if elem 3 zs && all (`notElem` zs) [4,10] then ("m"++) else (""++)
+          ,if all (`elem` zs) [3,10] && notElem 4 zs then ("-"++) else (""++)
+          ,if elem 9 zs then ("6"++) else (""++)
+          ,if elem 10 zs && (notElem 3 zs || all (`elem` zs) [3,4]) then ("7"++) else (""++)
+          -- ,if (elem 10 zs && elem 3 zs) then ("7"++) else (""++)
+          ,if elem 11 zs then ("maj7"++) else (""++)
+          ,if all (`elem` zs) [2,5] && all (`notElem` zs) [3,4] then ("sus2/4"++) else (""++)
+          ,if notElem 5 zs && elem 2 zs && all (`notElem` zs) [3,4]
+            then ("sus2"++) else (""++)
+          ,if notElem 2 zs && elem 5 zs && all (`notElem` zs) [3,4]
+            then ("sus4"++) else (""++)
+          ,if ((elem 6 zs && notElem 7 zs) && notElem 5 zs) 
+            || (elem 5 zs && elem 6 zs) then ("b5"++) else (""++)
+          ,if ((elem 8 zs && notElem 7 zs) || all (`elem` zs) [8,9]) then ("#5"++) else (""++)
+          ,if all (`elem` zs) [2,3,5] || all (`elem` zs) [2,4,5]
+            then ("add9/11"++) else (""++)
+          ,if notElem 5 zs && (all (`elem` zs) [2,3] || all (`elem` zs) [2,4])
+            then ("add9"++) else (""++)
+          ,if notElem 2 zs && (all (`elem` zs) [5,3] || all (`elem` zs) [5,4])
+            then ("add11"++) else (""++)
+          ,if (elem 6 zs && notElem 5 zs) && (elem 7 zs && notElem 8 zs) then ("#11"++) else (""++)
+          ,if elem 1 zs then ("b9"++) else (""++)
+          ,if all (`elem` zs) [3,4] then ("#9"++) else (""++)
+          ,if all (`elem` zs) [7,8] then ("b13"++) else (""++)
+          ,if all (`notElem` zs) [2,3,4,5] then ("no3"++) else (""++)
+          ,if all (`notElem` zs) [6,7,8] then ("no5"++) else (""++)
+          -- ,if all (`elem` zs) [4,8] && not (any (`elem` zs) [1,3,5,7,9,11]) 
+          --   then ("aug"++) else (""++)
+          -- ,if all (`elem` zs) [3,6] then ("dim"++) else (""++)
+          ]
+       in foldr (.) id chain
+
+-- |shortcut version of toTriad with flat partially applied
+flatChord :: (Integral a, Num a) => [a] -> Chord
+flatChord = toChord flat
+
+-- |sortcut version of toTriad with sharp partially applied
+sharpChord :: (Integral a, Num a) => [a] -> Chord
+sharpChord = toChord sharp
+
+pentaChords :: (Integral a, Num a) => ([a], [a]) -> [[a]]
+pentaChords (up, rs) = 
+  let upper = replicate (length rs) up
+   in zipWith (:) rs upper
+
+fromChord :: (Integral a, Num a) => Chord -> [a]
+fromChord (Chord (_,xs)) = fromIntegral . toInteger <$> xs
+
+tetra1 = ([0,2,4,7], [0,5,10,8,6,11,9])
+tetra2 = ([0,2,5,7], [0,10,3,8,11,4,9])
+tetra3 = ([0,3,5,8], [0,10,1,6,11,9,2,7])
+tetra4 = ([0,3,5,7], [0,10,8,1,11,9,2])
+
+penta1 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords tetra1)
+penta2 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords tetra2)
+penta3 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords tetra3)
+penta4 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords tetra4)
+
+vocabulary :: (Integral a, Num a) => [[a]]
+vocabulary =
+  let major         = i' <$> inversions [0,2,4,5,7,9,11]
+      melodicMinor  = i' <$> inversions [0,2,3,5,7,9,11]
+      harmonicMinor = i' <$> inversions [0,2,3,5,7,8,11]
+      harmonicMajor = i' <$> inversions [0,2,4,5,7,8,11]
+   in []
+      ++ major 
+      ++ melodicMinor 
+      ++ harmonicMinor
+      -- ++ harmonicMajor
+
+vocabulary' :: (Integral a, Num a) => [[a]]
+vocabulary' = fromChord <$> []
+              ++ concat penta1
+              ++ concat penta2
+              ++ concat penta3
+              ++ concat penta4
+
+(<?) :: (Integral a, Num a) => [a] -> [a] -> Bool
+(<?) k p
+  | k == [] || p == [] = False
+  | otherwise          = List.intersect p k == p
+
+(?>) :: (Integral a, Num a) => [a] -> [a] -> Bool
+(?>) p k = k <? p
+
+oktet1 = ([0,4,5,7],[0,10,8,1,11,9,2])
+oktet2 = ([0,1,3,7],[0,5,10,8,6,4,9])
+oktet3 = ([0,2,6,7],[0,10,3,11,4,9])
+oktet4 = ([0,4,5,9],[0,10,8,1,11,2,7])
+oktet5 = ([0,1,5,6],[0,10,3,8,9])
+
+okpen1 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet1)
+okpen2 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet2)
+okpen3 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet3)
+okpen4 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet4)
+okpen5 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet5)
+
+okinawan :: (Integral a, Num a) => [[a]]
+okinawan = fromChord <$> []
+           ++ concat okpen1
+           ++ concat okpen2
+           ++ concat okpen3
+           ++ concat okpen4
+           ++ concat okpen5
