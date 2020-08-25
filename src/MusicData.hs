@@ -1,3 +1,5 @@
+{-# LANGUAGE FlexibleContexts #-}
+
 module MusicData where
 
 import           Utility
@@ -243,31 +245,34 @@ inversions' xs = zeroForm' <$> simpleInversions xs
 -- |mapping from integer pitchclass set to the normal (most compact) form
 normalForm   :: (Integral a, Num a) => [a] -> [PitchClass]
 normalForm xs 
-  | length xs == 1 = [P 0]
-  | length xs == 2 = fromInteger <$> (head $ lst xs)
-  | length xs == 3 = fromInteger <$> (head $ sfl xs)
-  | length xs == 4 = fromInteger <$> (head $ tfl xs)
-  | length xs == 5 = fromInteger <$> (head $ ffl xs)
-  | length xs == 6 = fromInteger <$> (head $ vfl xs)
-  | otherwise      = fromInteger <$> (head $ fin xs)
-  where 
+  | length pitches == 1 = [P 0]
+  | length pitches == 2 = fromInteger <$> (head $ lst xs)
+  | length pitches == 3 = fromInteger <$> (head $ sfl xs)
+  | length pitches == 4 = fromInteger <$> (head $ tfl xs)
+  | length pitches == 5 = fromInteger <$> (head $ ffl xs)
+  | length pitches == 6 = fromInteger <$> (head $ vfl xs)
+  | otherwise           = fromInteger <$> (head $ fin xs)
+  where
+    pitches = pcSet xs
     invs xs = fmap i <$> inversions xs
     lst xs  = filter (\x ->
-      last x == (minimum $ last <$> invs xs)) $ invs xs
+      last x == 
+      (minimum $ last <$> invs xs)) $ invs xs
     sfl xs  = filter (\x ->
-      (last . init) x == (minimum $ last . init <$> lst xs)) $ lst xs
+      (last . init) x == 
+      (minimum $ last . init <$> lst xs)) $ lst xs
     tfl xs  = filter (\x ->
       (last . init . init) x ==
-      (minimum $ last . init . init <$> lst xs)) $ sfl xs
+      (minimum $ last . init . init <$> sfl xs)) $ sfl xs
     ffl xs  = filter (\x ->
       (last . init . init . init) x ==
-      (minimum $ last . init . init . init <$> lst xs)) $ tfl xs
+      (minimum $ last . init . init . init <$> tfl xs)) $ tfl xs
     vfl xs  = filter (\x ->
       (last . init . init . init . init) x ==
-      (minimum $ last . init . init . init . init <$> lst xs)) $ ffl xs
+      (minimum $ last . init . init . init . init <$> ffl xs)) $ ffl xs
     fin xs  = filter (\x ->
       (last . init . init . init . init) x ==
-      (minimum $ last . init . init . init . init <$> lst xs)) $ vfl xs
+      (minimum $ last . init . init . init . init <$> vfl xs)) $ vfl xs
 
 -- |'prime' version for work with MusicData typeclass
 normalForm'   :: MusicData a => [a] -> [PitchClass]
@@ -559,8 +564,8 @@ toChord f xs@(fund:tones)
         zs          = i <$> f xs
         chain       =
           [(""++)
-          -- ,if all (`elem` zs) [0,4,7] && all (`notElem` zs) [1,2,3,5,6,8,9,10,11] 
-            -- then ("maj"++) else (""++)
+          ,if all (`elem` zs) [0,4,7] && all (`notElem` zs) [1,2,3,5,6,8,9,10,11] 
+            then ("maj"++) else (""++)
           ,if elem 3 zs && all (`notElem` zs) [4,10] then ("m"++) else (""++)
           ,if all (`elem` zs) [3,10] && notElem 4 zs then ("-"++) else (""++)
           ,if elem 9 zs then ("6"++) else (""++)
@@ -609,15 +614,15 @@ pentaChords (up, rs) =
 fromChord :: (Integral a, Num a) => Chord -> [a]
 fromChord (Chord (_,xs)) = fromIntegral . toInteger <$> xs
 
-tetra1 = ([0,2,4,7], [0,5,10,8,6,11,9])
-tetra2 = ([0,2,5,7], [0,10,3,8,11,4,9])
-tetra3 = ([0,3,5,8], [0,10,1,6,11,9,2,7])
-tetra4 = ([0,3,5,7], [0,10,8,1,11,9,2])
+tetra0 = ([0,2,4,7], [0,5,10,8,6,11,9])
+tetra1 = ([0,2,5,7], [0,10,3,8,11,4,9])
+tetra2 = ([0,3,5,8], [0,10,1,6,11,9,2,7])
+tetra3 = ([0,3,5,7], [0,10,8,1,11,9,2])
 
+penta0 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords tetra0)
 penta1 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords tetra1)
 penta2 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords tetra2)
 penta3 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords tetra3)
-penta4 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords tetra4)
 
 vocabulary :: (Integral a, Num a) => [[a]]
 vocabulary =
@@ -633,10 +638,10 @@ vocabulary =
 
 vocabulary' :: (Integral a, Num a) => [[a]]
 vocabulary' = fromChord <$> []
+              ++ concat penta0
               ++ concat penta1
               ++ concat penta2
               ++ concat penta3
-              ++ concat penta4
 
 (<?) :: (Integral a, Num a) => [a] -> [a] -> Bool
 (<?) k p
@@ -646,22 +651,83 @@ vocabulary' = fromChord <$> []
 (?>) :: (Integral a, Num a) => [a] -> [a] -> Bool
 (?>) p k = k <? p
 
-oktet1 = ([0,4,5,7],[0,10,8,1,11,9,2])
-oktet2 = ([0,1,3,7],[0,5,10,8,6,4,9])
-oktet3 = ([0,2,6,7],[0,10,3,11,4,9])
-oktet4 = ([0,4,5,9],[0,10,8,1,11,2,7])
-oktet5 = ([0,1,5,6],[0,10,3,8,9])
+oktet0 = ([0,4,5,7],[0,10,8,1,11,9,2])
+oktet1 = ([0,1,3,7],[0,5,10,8,6,4,9])
+oktet2 = ([0,2,6,7],[0,10,3,11,4,9])
+oktet3 = ([0,4,5,9],[0,10,8,1,11,2,7])
+oktet4 = ([0,1,5,6],[0,10,3,8,9])
 
+okpen0 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet0)
 okpen1 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet1)
 okpen2 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet2)
 okpen3 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet3)
 okpen4 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet4)
-okpen5 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet5)
 
 okinawan :: (Integral a, Num a) => [[a]]
 okinawan = fromChord <$> []
+           ++ concat okpen0
            ++ concat okpen1
            ++ concat okpen2
            ++ concat okpen3
            ++ concat okpen4
-           ++ concat okpen5
+
+penta :: Num a => Int -> Int -> Int -> [a]
+penta tt rt iv
+  | tt == 0 = fromIntegral <$> simpleInversions (pentaChords tetra0!!rt)!!iv
+  | tt == 1 = fromIntegral <$> simpleInversions (pentaChords tetra1!!rt)!!iv
+  | tt == 2 = fromIntegral <$> simpleInversions (pentaChords tetra2!!rt)!!iv
+  | tt == 3 = fromIntegral <$> simpleInversions (pentaChords tetra3!!rt)!!iv
+  | otherwise = []
+
+hasDuplicates :: (Ord a) => [a] -> Bool
+hasDuplicates xs = length xs /= length set
+  where set = Set.fromList xs 
+
+triadSets tt rt = 
+  let ps = penta tt rt 0
+      results = overtoneSets 3 ps ps
+   in unique $ filter (not . hasDuplicates) results
+
+triadSets' ps = 
+  let results = overtoneSets 3 ps ps
+   in unique $ filter (not . hasDuplicates) results
+
+consonance = List.sortBy (compare `on` (\x ->  fst . dissonanceLevel $ x))
+
+allPenta' :: [[Integer]]
+allPenta' = 
+  let one   = simpleInversions <$> pentaChords tetra0
+      two   = simpleInversions <$> pentaChords tetra1
+      three = simpleInversions <$> pentaChords tetra2
+      four  = simpleInversions <$> pentaChords tetra3
+   in  (concat (one ++ two ++ three ++ four))
+
+allPenta  :: [[Integer]]
+allPenta   =
+  let f xs = (sequence ((+) <$> xs)) <$> [0..11]
+   in filter (\xs -> length xs >= 5) (unique $ i' . pcSet <$> concat (f <$> allPenta'))
+
+chr               :: Int -> Int -> [(((Integer, [Integer]), [Integer]), [Char],
+                                     ((Integer, [Integer]), [Integer]))]
+chr n k            = 
+  let combinations = ([ (xs, ys) | xs <- unique (i' . normalForm <$> allPenta), ys <- allPenta ]) 
+      filt         = filter (\(xs,ys) -> (length (pcSet (xs ++ ys)) == 10-n)) combinations
+      sorted       =  List.sortBy (compare `on` (\(xs,ys) -> (fst $ dissonanceLevel xs) + 
+                                                             (fst $ dissonanceLevel ys))) filt
+   in (\(xs,ys) -> 
+     ((dissonanceLevel xs, intervalVector xs), " --> ", 
+      (dissonanceLevel ys, intervalVector ys))
+     ) <$> (take k $ sorted)
+
+chr' n p k         = 
+  let combinations = ([ (xs, ys) | xs <- allPenta, ys <- allPenta ]) 
+      filt         = filter (\(xs,ys) -> (length (pcSet (xs ++ ys)) == 10-n) && 
+                              ((i' . pcSet $ p) == xs)) combinations
+      sorted       = List.sortBy (compare `on` (\(_,ys) -> fst $ dissonanceLevel ys)) filt
+   in (\(xs,ys) -> 
+     ((dissonanceLevel xs, intervalVector xs), " --> ", 
+      (dissonanceLevel ys, intervalVector ys))
+     ) <$> (take k $ sorted)
+
+-- NAMING FUNCTION FOR PENTATONICS 
+

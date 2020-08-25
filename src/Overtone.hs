@@ -183,6 +183,10 @@ parseFunds = parseFunds' 3
 parseOvertones :: (Num a, Integral a) => String -> [a]
 parseOvertones = parseOvertones' 3
 
+-- |shortcut to generalised parsing function which 3 notes pre-defined
+parseNotes :: (Num a, Integral a) => String -> [a]
+parseNotes = parseOvertones' 1
+
 -- |mapping from user defined input requirements into list of Chords
 chordList :: (MusicData a, Num b, Integral b) =>
                         (PitchClass -> NoteName) ->

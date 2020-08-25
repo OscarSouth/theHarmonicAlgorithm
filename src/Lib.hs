@@ -32,6 +32,7 @@ bigrams,
 -- |Overtone
 chordList',
 parseOvertones,
+parseNotes,
 parseTuning,
 parseKey,
 parseFunds,

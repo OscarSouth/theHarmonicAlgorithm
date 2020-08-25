@@ -137,7 +137,8 @@ harmonicFilters = do
   liftIO $ putStrLn "\nEnter tuning (with strings separated by spaces) or * for chromatic:"
   liftIO prompt
   getTuning <- liftIO getLine
-  let tuning = parseTuning getTuning
+  let tuning = parseNotes getTuning
+  -- let tuning = parseTuning getTuning -- FOR USE WITH POLYPHONIC OVERTONE INSTRUMENTS
   liftIO $ putStrLn "\nEnter upper structure key signature (eg. bbb, ##, 2b, 0#) or * :"
   liftIO prompt
   getKey <- liftIO getLine
