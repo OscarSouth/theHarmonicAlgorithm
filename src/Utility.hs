@@ -2,7 +2,7 @@ module Utility where
 
 import           Data.Map (fromListWith, toList)
 import           Data.Set (Set)
-import qualified Data.Set as Set (fromList, toList)
+import qualified Data.Set as Set (fromList, toList, empty, member, insert)
 
 -- |nCr utility function
 choose         :: (Num a, Eq a) => a -> [b] -> [[b]]
@@ -27,8 +27,13 @@ replace from to string =
 
 -- |function to reduce data down to ordered list of unique instances
 unique :: Ord a => [a] -> [a]
-unique  = Set.toList . Set.fromList
-
+-- unique  = Set.toList . Set.fromList
+unique = rmdups' Set.empty where
+  rmdups' _ [] = []
+  rmdups' a (b : c) = if Set.member b a
+    then rmdups' a c
+    else b : rmdups' (Set.insert b a) c
+    
 -- |function to count elements in a list
 countElem     :: Eq a => [a] -> a -> Int
 countElem xs x = (length . filter (== x)) xs
@@ -36,3 +41,4 @@ countElem xs x = (length . filter (== x)) xs
 -- |mapping from a list to association list of counts of elements
 frequency :: (Ord a) => [a] -> [(a, Int)]
 frequency xs = toList (fromListWith (+) [(x, 1) | x <- xs])
+

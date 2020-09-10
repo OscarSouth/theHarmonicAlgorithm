@@ -26,13 +26,18 @@ import Control.Monad.IO.Class
 -- import Data.Aeson
 -- import Network.HTTP.Req
 
-main = R.withEmbeddedR R.defaultConfig $ do
-  initR -- load R libraries & settings, initialise R log, print info to stout
-  model <- choraleData -- bind trained model
-  header -- print main title
-  putStrLn "Welcome to The Harmonic Algorithm!\n"
-  runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
-  return ()
+main = do
+  let contents = (prog3 8 11 10000)
+  -- writeFile "prog4_7-12-100.txt" (show contents)
+  writeFile "output/prog3_8-11.txt" (unlines contents)
+
+-- main = R.withEmbeddedR R.defaultConfig $ do
+--   initR -- load R libraries & settings, initialise R log, print info to stout
+--   model <- choraleData -- bind trained model
+--   header -- print main title
+--   putStrLn "Welcome to The Harmonic Algorithm!\n"
+--   runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
+--   return ()
 
 -- |script directing process of loading & transforming data then training model
 choraleData :: IO MarkovMap

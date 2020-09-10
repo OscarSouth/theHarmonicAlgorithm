@@ -23,6 +23,7 @@ fromCadence,
 movementFromCadence,
 transposeCadence,
 rootNote,
+prog3,
 -----------
 -- |Markov
 MarkovMap,

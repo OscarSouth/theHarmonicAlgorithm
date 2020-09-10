@@ -711,7 +711,7 @@ chr               :: Int -> Int -> [(((Integer, [Integer]), [Integer]), [Char],
                                      ((Integer, [Integer]), [Integer]))]
 chr n k            = 
   let combinations = ([ (xs, ys) | xs <- unique (i' . normalForm <$> allPenta), ys <- allPenta ]) 
-      filt         = filter (\(xs,ys) -> (length (pcSet (xs ++ ys)) == 10-n)) combinations
+      filt         = filter (\(xs,ys) -> (length (pcSet (xs ++ ys)) == n)) combinations
       sorted       =  List.sortBy (compare `on` (\(xs,ys) -> (fst $ dissonanceLevel xs) + 
                                                              (fst $ dissonanceLevel ys))) filt
    in (\(xs,ys) -> 
@@ -719,15 +719,87 @@ chr n k            =
       (dissonanceLevel ys, intervalVector ys))
      ) <$> (take k $ sorted)
 
+chr'              :: Int -> [Integer] -> Int -> [(((Integer, [Integer]), [Integer]), [Char],
+                                           ((Integer, [Integer]), [Integer]))]
 chr' n p k         = 
-  let combinations = ([ (xs, ys) | xs <- allPenta, ys <- allPenta ]) 
-      filt         = filter (\(xs,ys) -> (length (pcSet (xs ++ ys)) == 10-n) && 
-                              ((i' . pcSet $ p) == xs)) combinations
-      sorted       = List.sortBy (compare `on` (\(_,ys) -> fst $ dissonanceLevel ys)) filt
+  let combinations = [ (xs, ys) | xs <- allPenta, ys <- allPenta,
+                       (length (pcSet (xs ++ ys)) == n) && ((i' . pcSet $ p) == xs)]
+      sorted       = List.sortBy (compare `on` (\(_,ys) -> fst $ dissonanceLevel ys)) combinations
    in (\(xs,ys) -> 
      ((dissonanceLevel xs, intervalVector xs), " --> ", 
       (dissonanceLevel ys, intervalVector ys))
      ) <$> (take k $ sorted)
 
--- NAMING FUNCTION FOR PENTATONICS 
+-- FUNCTION WHICH RETURNS LIST OF 4 CYCLIC PENTATONICS OVER A PEDAL TONE
+-- -- CONTAINING A TOTAL OF n SIMILAR TONES PER TRANSITION
+-- -- CONTAINING A TOTAL OF n TONES OVERALL
 
+-- pentaProg        :: Int -> Int -> Int [(((Integer, [Integer]), [Integer]), [Char],
+--                                         ((Integer, [Integer]), [Integer]))]
+
+prog3 n1 n2 k = take k $ sorted
+  where
+    vocab     = unique (i' . zeroForm <$> allPenta)
+    voca2     = allPenta
+    tsns      = [ (dissonanceLevel xs,
+                  dissonanceLevel ys,
+                  dissonanceLevel zs) | 
+                  xs <- vocab, ys <- voca2, zs <- voca2, 
+                  ((length (pcSet (xs ++ ys)) == n1) &&
+                    (length (pcSet (xs ++ zs)) == n1) &&
+                    (length (pcSet (ys ++ zs)) == n1)) &&
+                  (length (pcSet (xs ++ ys ++ zs)) == n2) &&
+                  ((xs /= ys) && (xs /= zs) && (ys /= zs)) &&
+                  ((elem 0 xs) && (elem 0 ys) && (elem 0 zs))
+                  ]
+    sorted    = show <$> List.sortBy (compare `on` (\(dx,dy,dz) -> (fst dx) + 
+                                                                   (fst dy) +
+                                                                   (fst dz))) tsns 
+
+-- prog4 n1 n2 k = take k $ t2
+--   where
+--     vocab   = unique (i' . zeroForm' . pcSet <$> allPenta)
+--     voca2   = allPenta
+--     tsns    = [ show (as, bs, cs, ds) | 
+--                 as <- vocab, bs <- voca2, cs <- voca2, ds <- voca2, 
+--                 ((length (pcSet (as ++ bs)) == n1) &&
+--                   (length (pcSet (bs ++ cs)) == n1) &&
+--                   (length (pcSet (cs ++ ds)) == n1) &&
+--                   (length (pcSet (ds ++ as)) == n1)) &&
+--                 (length (pcSet (as ++ bs ++ cs ++ ds)) == n2) &&
+--                 (length (unique [as,bs,cs,ds]) == 4) &&
+--                 ((elem 0 as) && (elem 0 bs) && (elem 0 cs) && (elem 0 ds))
+--                 ]
+
+
+
+
+
+
+  -- let vocab       = unique (i' . zeroForm <$> allPenta)
+  --     t1          = [ (xs, ys) | xs <- vocab, ys <- vocab,
+  --                     (length (pcSet (xs ++ ys)) == 10-n1) &&
+  --                     (ys /= xs)]
+  --     t2          =  [ (fst xs', xs, ys) | xs' <- t1, xs <- (snd <$> t1), ys <- vocab,
+  --                     ((length (pcSet (xs ++ ys)) == 10-n1) && 
+  --                       (length (pcSet (fst xs' ++ ys)) == 10-n1)) &&
+  --                     (snd xs' == xs)  && ((ys /= fst xs') && (ys /= xs))] 
+
+
+
+      -- t3          =  [ (((\(ts,_,_) -> ts) xs'), 
+      --                 ((\(_,ts,_) -> ts) xs'), 
+      --                 ((\(_,_,ts) -> ts) xs'), 
+      --                 ys) | 
+      --                 xs' <- t2, xs <- ((\(_,_,ts) -> ts) <$> t2), ys <- vocab,
+      --                 ((length (pcSet (xs ++ ys)) == 10-n1) && 
+      --                   (length (pcSet ((\(ts,_,_) -> ts) xs' ++ ys)) == 10-n1)) &&
+      --                 (((\(_,_,ts) -> ts) xs') == xs) &&
+      --                 ((ys /= ((\(ts,_,_) -> ts) xs')) && ((ys /= (\(_,ts,_) -> ts) xs')) && 
+      --                   (ys /= xs)) ] 
+
+      -- progs       = (\(((((((xs'',_)),(xs',_)),(xs,_))),(_,ys))) -> 
+      --                 (xs'',xs',xs, ys)) <$> t4
+      -- filt         = filter (\(a,b,c,d) -> (length (pcSet (a++b++c++d)) == n2)) progs
+
+      --  in take k $ filt
