@@ -211,8 +211,8 @@ pcSet' xs = pcSet $ i <$> xs
 -- |transform list of integers into 'zero' form of the PitchClass set
 zeroForm       :: (Integral a, Num a) => [a] -> [PitchClass]
 zeroForm (x:xs) =
-  let zs = (subtract x) <$> x:xs
-   in unique $ pc <$> zs
+  let ps = (subtract x) <$> x:xs
+   in List.sort (unique $ pc <$> ps)
 
 -- |'prime' version for work with MusicData typeclass
 zeroForm'   :: MusicData a => [a] -> [PitchClass]
@@ -227,12 +227,15 @@ zeroForm'' (x:xs) = List.sort $ [(zeroTrans x) i | i <- (x:xs)]
                       | x > y  = y+12-x
 
 -- |minimal inversions function which simply returns all rotations of a list
-simpleInversions :: [a] -> [[a]]
-simpleInversions xs =
-  let l = [0 .. length xs - 1]
+simpleInversions :: Ord a => [a] -> [[a]]
+simpleInversions (p:ps) =
+  let xs = p:(List.sort ps)
+      l = [0 .. length xs - 1]
       shift n xs = zipWith const (drop n $ cycle xs) xs
       lAppend acc key = acc ++ [shift key xs]
-   in foldl lAppend [] l
+      sortPs (z:zs) = z:(List.sort zs) 
+      result = foldl lAppend [] l
+   in sortPs <$> result
 
 -- |creates a list of inversions in zero form
 inversions :: (Integral a, Num a) => [a] -> [[PitchClass]]
@@ -253,7 +256,7 @@ normalForm xs
   | length pitches == 6 = fromInteger <$> (head $ vfl xs)
   | otherwise           = fromInteger <$> (head $ fin xs)
   where
-    pitches = pcSet xs
+    pitches = i' . pcSet $ xs
     invs xs = fmap i <$> inversions xs
     lst xs  = filter (\x ->
       last x == 
@@ -285,6 +288,13 @@ primeForm xs      = fromInteger <$> is xs
     is xs         = prime $ cmpt xs : (cmpt $ (`subtract` 12) <$> cmpt xs) : []
     prime xs      = head $ List.sortBy (compare `on` sum) xs
     cmpt xs       = i <$> normalForm xs
+
+-- -- primeForm        :: (Integral a, Num a) => [a] -> [PitchClass]
+-- pForm xs      =   (cmpt $ (`subtract` 12) <$> cmpt xs) : [] --fromInteger <$> is xs
+--   where
+--     is xs         = prime $ cmpt xs : (cmpt $ (`subtract` 12) <$> cmpt xs) : []
+--     prime xs      = head $ List.sortBy (compare `on` sum) xs
+--     cmpt xs       = i <$> normalForm xs
 
 -- |'prime' version for work with MusicData typeclass
 primeForm' :: MusicData a => [a] -> [PitchClass]
@@ -365,9 +375,9 @@ instance Show Chord where
 -- |mapping from integer list to tuple of root and chord name
 toTriad :: (Integral a, Num a) => (PitchClass -> NoteName) -> [a] -> Chord
 toTriad f xs@(fund:tones)
-  | length triad > 3 = toTriad f $ mostConsonant
-    $ possibleTriads (f . pc $ fund) tones
-  | any (`elem` [[P 0, P 3, P 7], [P 0, P 2, P 7],[0, 3, 6]]) [primeForm xs] =
+  -- | True = ()
+  | length triad > 3 = toTriad f $ mostConsonant $ possibleTriads (f . pc $ fund) tones
+  | any (`elem` [[P 0, P 3, P 7], [P 0, P 2, P 7],[P 0, P 3, P 6]]) [primeForm xs] =
     Chord ((fst $ inv, (nameFunc normalForm xs "") ++ (snd $ inv)),
     (`mod` 12) . fromIntegral <$> triad)
   | otherwise =
@@ -389,6 +399,7 @@ toTriad f xs@(fund:tones)
       | head invs == [P 0, P 3, P 6]  = (f . pc $ triad!!0, "")
       | head invs == [P 0, P 6, P 9]  = (f . pc $ triad!!1, "_2ndInv")
       | head invs == [P 0, P 3, P 9]  = (f . pc $ triad!!2, "_1stInv")
+      | otherwise = (f . pc $ triad!!0, "*PATTERNMATCH_ERROR*")
     nameFunc f xs =
       let
         zs = i <$> f xs
@@ -426,6 +437,75 @@ toTriad f xs@(fund:tones)
           ,if all (`elem` zs) [3,6] then ("dim"++) else (""++)
           ,if all (`elem` zs) [4,8] then ("aug"++) else (""++)]
        in foldr (.) id chain
+
+-- toTriad f xs@(fund:tones)
+--   | length (pcSet xs) > 3 = toTriad f $ mostConsonant $ possibleTriads (f . pc $ fund) tones
+--   | any (`elem` [[P 0, P 3, P 7], [P 0, P 2, P 7],[P 0, P 3, P 6]]) [primeForm xs] =
+--     Chord ((fst $ inv, (nameFunc normalForm xs "") ++ (snd $ inv)),
+--     (`mod` 12) . fromIntegral <$> xs)
+--   | otherwise = 
+--    Chord ((f . pc $ head xs, nameFunc zeroForm xs ""),
+--     (`mod` 12) . fromIntegral <$> xs)
+--   where
+--     invs = inversions xs
+--     inv
+--       | head invs == [P 0, P 4, P 7] || head invs == [P 0, P 3, P 7]
+--                                       = (f . pc $ xs!!0, "")
+--       | head invs == [P 0, P 3, P 8] || head invs == [P 0, P 4, P 9]
+--                                       = (f . pc $ xs!!2, "_1stInv")
+--       | head invs == [P 0, P 5, P 9] || head invs == [P 0, P 5, P 8]
+--                                       = (f . pc $ xs!!1, "_2ndInv")
+--       | head invs == [P 0, P 5, P 7]  
+--                                       = (f . pc $ xs!!0, "")
+--       | head invs == [P 0, P 5, P 10] 
+--                                       = (f . pc $ xs!!2, "_2ndInv")
+--       | head invs == [P 0, P 2, P 7]  
+--                                       = (f . pc $ xs!!2, "_1stInv")
+--       | head invs == [P 0, P 3, P 6]  
+--                                       = (f . pc $ xs!!0, "")
+--       | head invs == [P 0, P 6, P 9]  
+--                                       = (f . pc $ xs!!1, "_2ndInv")
+--       | head invs == [P 0, P 3, P 9]  
+--                                       = (f . pc $ xs!!2, "_1stInv")
+--       | otherwise = (f . pc $ xs!!0, "*INVERSION_ERROR*")
+--     nameFunc f xs =
+--       let
+--         zs = i <$> f xs
+--         chain =
+--           [if (elem 4 zs && all (`notElem` zs) [3,10,11]) && notElem 8 zs
+--             then ("maj"++) else (""++)
+--           ,if (elem 3 zs && notElem 4 zs) && notElem 6 zs
+--             then ("min"++) else (""++)
+--           ,if elem 9 zs then ("6"++) else (""++)
+--           ,if elem 10 zs && notElem 5 zs then ("7"++) else (""++)
+--           ,if elem 11 zs then ("maj7"++) else (""++)
+--           ,if all (`elem` zs) [7,8] then ("b13"++) else (""++)
+--           ,if (any (`elem` zs) [2,5] && all (`notElem` zs) [3,4] && elem 7 zs)
+--             || all (`elem` zs) [5,10] then ("sus4"++) else (""++)
+--           ,if all (`elem` zs) [2,5] then ("sus2/4"++) else (""++)
+--           ,if notElem 5 zs && elem 2 zs && all (`notElem` zs) [3,4]
+--             && notElem 7 zs then ("sus2"++) else (""++)
+--           ,if notElem 2 zs && elem 5 zs && all (`notElem` zs) [3,4]
+--             && notElem 7 zs then ("sus4"++) else (""++)
+--           ,if all (`elem` zs) [2,3] || all (`elem` zs) [2,4]
+--             then ("add9"++) else (""++)
+--           ,if all (`elem` zs) [5,3] || all (`elem` zs) [5,4]
+--             then ("add11"++) else (""++)
+--           ,if elem 1 zs then ("b9"++) else (""++)
+--           ,if all (`elem` zs) [3,4] then ("#9"++) else (""++)
+--           ,if elem 6 zs && notElem 5 zs && any (`elem` zs) [7,8]
+--             then ("#11"++) else (""++)
+--           ,if ((elem 6 zs && notElem 7 zs) || (elem 6 zs && notElem 8 zs))
+--             && notElem 3 zs && all (`notElem` zs) [7,8]
+--             then ("b5"++) else (""++)
+--           ,if ((elem 8 zs && notElem 7 zs) || all (`elem` zs) [8,9])
+--             && notElem 4 zs then ("#5"++) else (""++)
+--           ,if all (`notElem` zs) [2,3,4,5] then ("no3"++) else (""++)
+--           ,if all (`notElem` zs) [6,7,8] then ("no5"++) else (""++)
+--           ,if all (`elem` zs) [3,6] then ("dim"++) else (""++)
+--           ,if all (`elem` zs) [4,8] then ("aug"++) else (""++)]
+--        in foldr (.) id chain
+
 
 -- |shortcut version of toTriad with flat partially applied
 flatTriad :: (Integral a, Num a) => [a] -> Chord
@@ -651,25 +731,25 @@ vocabulary' = fromChord <$> []
 (?>) :: (Integral a, Num a) => [a] -> [a] -> Bool
 (?>) p k = k <? p
 
-oktet0 = ([0,4,5,7],[0,10,8,1,11,9,2])
-oktet1 = ([0,1,3,7],[0,5,10,8,6,4,9])
-oktet2 = ([0,2,6,7],[0,10,3,11,4,9])
-oktet3 = ([0,4,5,9],[0,10,8,1,11,2,7])
-oktet4 = ([0,1,5,6],[0,10,3,8,9])
+-- oktet0 = ([0,4,5,7],[0,10,8,1,11,9,2])
+-- oktet1 = ([0,1,3,7],[0,5,10,8,6,4,9])
+-- oktet2 = ([0,2,6,7],[0,10,3,11,4,9])
+-- oktet3 = ([0,4,5,9],[0,10,8,1,11,2,7])
+-- oktet4 = ([0,1,5,6],[0,10,3,8,9])
 
-okpen0 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet0)
-okpen1 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet1)
-okpen2 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet2)
-okpen3 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet3)
-okpen4 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet4)
+-- okpen0 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet0)
+-- okpen1 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet1)
+-- okpen2 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet2)
+-- okpen3 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet3)
+-- okpen4 = (fmap flatChord) <$> (simpleInversions) <$> (pentaChords oktet4)
 
-okinawan :: (Integral a, Num a) => [[a]]
-okinawan = fromChord <$> []
-           ++ concat okpen0
-           ++ concat okpen1
-           ++ concat okpen2
-           ++ concat okpen3
-           ++ concat okpen4
+-- okinawan :: (Integral a, Num a) => [[a]]
+-- okinawan = fromChord <$> []
+--            ++ concat okpen0
+--            ++ concat okpen1
+--            ++ concat okpen2
+--            ++ concat okpen3
+--            ++ concat okpen4
 
 penta :: Num a => Int -> Int -> Int -> [a]
 penta tt rt iv
@@ -683,13 +763,13 @@ hasDuplicates :: (Ord a) => [a] -> Bool
 hasDuplicates xs = length xs /= length set
   where set = Set.fromList xs 
 
-triadSets tt rt = 
-  let ps = penta tt rt 0
-      results = overtoneSets 3 ps ps
+triadSets ps = 
+  let results = overtoneSets 3 ps ps
    in unique $ filter (not . hasDuplicates) results
 
-triadSets' ps = 
-  let results = overtoneSets 3 ps ps
+triadSets' tt rt = 
+  let ps = penta tt rt 0
+      results = overtoneSets 3 ps ps
    in unique $ filter (not . hasDuplicates) results
 
 consonance = List.sortBy (compare `on` (\x ->  fst . dissonanceLevel $ x))
@@ -756,50 +836,46 @@ prog3 n1 n2 k = take k $ sorted
                                                                    (fst dy) +
                                                                    (fst dz))) tsns 
 
--- prog4 n1 n2 k = take k $ t2
---   where
---     vocab   = unique (i' . zeroForm' . pcSet <$> allPenta)
---     voca2   = allPenta
---     tsns    = [ show (as, bs, cs, ds) | 
---                 as <- vocab, bs <- voca2, cs <- voca2, ds <- voca2, 
---                 ((length (pcSet (as ++ bs)) == n1) &&
---                   (length (pcSet (bs ++ cs)) == n1) &&
---                   (length (pcSet (cs ++ ds)) == n1) &&
---                   (length (pcSet (ds ++ as)) == n1)) &&
---                 (length (pcSet (as ++ bs ++ cs ++ ds)) == n2) &&
---                 (length (unique [as,bs,cs,ds]) == 4) &&
---                 ((elem 0 as) && (elem 0 bs) && (elem 0 cs) && (elem 0 ds))
---                 ]
+pentaPatterns xs = 
+  let patterns   = filter (xs ?>) (unique (i' . zeroForm <$> allPenta))
+      sorted     = List.sort <$> (List.sortBy (compare `on` (\xs -> dissonanceLevel xs)) patterns)
+   in zip (dissonanceLevel <$> sorted) (intervalVector <$> sorted) 
 
+pentaHarmonies xs  = 
+  let toPrint = snd . fst <$> pentaPatterns xs
+   in zip (triadSets (head toPrint)) (flatTriad <$> triadSets (head toPrint))
 
+-- two different pitches per transition
+-- each pair fits into different diatonic scale
+-- three different diatonic scales
 
+prog3ecbc t1 t2 = sorted
+  where
+    vocab     = unique $
+                  filter (t1 ?>) (unique (i' . zeroForm <$> allPenta)) ++ 
+                  filter (t2 ?>) (unique (i' . zeroForm <$> allPenta))
+    dsls      = dissonanceLevel <$> (List.sort <$> vocab) 
+    tsns      =  unique [ ((fst xs, fst ys, fst zs), (snd xs, snd ys, snd zs),
+                    (intervalVector $ snd xs, intervalVector $ snd ys, intervalVector $ snd zs),
+                    (length $ pcSet (snd xs ++ snd ys ++ snd zs),
+                      [ x | x <- [0..11], x `notElem` (i <$> pcSet (snd xs ++ snd ys ++ snd zs)) ] ),
+                    (dissonanceLevel (List.sort (i <$> pcSet (snd xs ++ snd ys ++ snd zs))),
+                      intervalVector (i <$> pcSet (snd xs ++ snd ys ++ snd zs)))
+                  ) | 
+                  -- xs <- vocab, ys <- vocab, zs <- vocab, 
+                  xs <- dsls, ys <- dsls, zs <- dsls, 
+                  (
+                    ((xs /= ys) && (xs /= zs) && (ys /= zs)) &&
+                    ((fst xs <= fst ys) && (fst ys <= fst zs)) &&
+                    ((((snd xs ++ snd ys) /= (snd ys ++ snd zs)) || 
+                         ((snd xs ++ snd ys) /= (snd zs ++ snd ys))) && 
+                     (((snd ys ++ snd zs) /= (snd zs ++ snd xs)) || 
+                         ((snd ys ++ snd zs) /= (snd xs ++ snd zs))) && 
+                     (((snd zs ++ snd xs) /= (snd xs ++ snd ys)) || 
+                         ((snd zs ++ snd xs) /= (snd ys ++ snd xs))))
+                  )
+                  ]
+    sorted    = show <$> List.sortBy (compare `on` (\(_,_,_,_,((x,_),_)) -> x)) tsns
 
+-- sets+dissonanceLevels, intervalVectors, tone count+omitted
 
-
-  -- let vocab       = unique (i' . zeroForm <$> allPenta)
-  --     t1          = [ (xs, ys) | xs <- vocab, ys <- vocab,
-  --                     (length (pcSet (xs ++ ys)) == 10-n1) &&
-  --                     (ys /= xs)]
-  --     t2          =  [ (fst xs', xs, ys) | xs' <- t1, xs <- (snd <$> t1), ys <- vocab,
-  --                     ((length (pcSet (xs ++ ys)) == 10-n1) && 
-  --                       (length (pcSet (fst xs' ++ ys)) == 10-n1)) &&
-  --                     (snd xs' == xs)  && ((ys /= fst xs') && (ys /= xs))] 
-
-
-
-      -- t3          =  [ (((\(ts,_,_) -> ts) xs'), 
-      --                 ((\(_,ts,_) -> ts) xs'), 
-      --                 ((\(_,_,ts) -> ts) xs'), 
-      --                 ys) | 
-      --                 xs' <- t2, xs <- ((\(_,_,ts) -> ts) <$> t2), ys <- vocab,
-      --                 ((length (pcSet (xs ++ ys)) == 10-n1) && 
-      --                   (length (pcSet ((\(ts,_,_) -> ts) xs' ++ ys)) == 10-n1)) &&
-      --                 (((\(_,_,ts) -> ts) xs') == xs) &&
-      --                 ((ys /= ((\(ts,_,_) -> ts) xs')) && ((ys /= (\(_,ts,_) -> ts) xs')) && 
-      --                   (ys /= xs)) ] 
-
-      -- progs       = (\(((((((xs'',_)),(xs',_)),(xs,_))),(_,ys))) -> 
-      --                 (xs'',xs',xs, ys)) <$> t4
-      -- filt         = filter (\(a,b,c,d) -> (length (pcSet (a++b++c++d)) == n2)) progs
-
-      --  in take k $ filt

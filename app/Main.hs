@@ -27,9 +27,26 @@ import Control.Monad.IO.Class
 -- import Network.HTTP.Req
 
 main = do
-  let contents = (prog3 8 11 10000)
-  -- writeFile "prog4_7-12-100.txt" (show contents)
-  writeFile "output/prog3_8-11.txt" (unlines contents)
+  let contents1 = (show <$> pentaPatterns [3,7]) -- EAEGB
+  let contents2 = (show <$> pentaPatterns [3,8]) -- EAEGC
+  let contents3 = (show <$> pentaPatterns [5,10]) -- DADGC
+  let contents4 = (show <$> pentaPatterns [5,9]) -- DADGB
+  let contents5 = (show <$> prog3ecbc [3,7] [3,7])
+  let contents6 = (show <$> prog3ecbc [3,8] [3,8])
+  let contents7 = (show <$> prog3ecbc [3,7] [3,8])
+  let contents8 = (show <$> prog3ecbc [5,10] [5,10])
+  let contents9 = (show <$> prog3ecbc [5,9] [5,9])
+  let contents10 = (show <$> prog3ecbc [5,9] [5,10])
+  writeFile "output/patterns37" (unlines contents1)
+  writeFile "output/patterns38" (unlines contents2)
+  writeFile "output/patterns510" (unlines contents3)
+  writeFile "output/patterns59" (unlines contents4)
+  writeFile "output/ecbc_patterns37.txt" (unlines contents5)
+  writeFile "output/ecbc_patterns38.txt" (unlines contents6)
+  writeFile "output/ecbc_patterns378.txt" (unlines contents7)
+  writeFile "output/ecbc_patterns510.txt" (unlines contents8)
+  writeFile "output/ecbc_patterns59.txt" (unlines contents9)
+  writeFile "output/ecbc_patterns5910.txt" (unlines contents10)
 
 -- main = R.withEmbeddedR R.defaultConfig $ do
 --   initR -- load R libraries & settings, initialise R log, print info to stout
