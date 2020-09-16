@@ -27,44 +27,72 @@ import Control.Monad.IO.Class
 -- import Network.HTTP.Req
 
 main = do
-  let contents = (show <$> prog3ecbc [0] [0] [0] [0] [0]) 
-  let contents1 = (show <$> pentaPatterns [0,3,7]) 
-  let contents2 = (show <$> pentaPatterns [0,3,8]) 
-  let contents3 = (show <$> pentaPatterns [0,5,10]) 
-  let contents4 = (show <$> pentaPatterns [0,5,9])
-  let contents5 = (show <$> prog3ecbc [0,3,7] [0,3,7] [0,3,7] [0,3,7] [0,3,7])
-  let contents6 = (show <$> prog3ecbc [0,3,8] [0,3,8] [0,3,8] [0,3,8] [0,3,8])
-  let contents7 = (show <$> prog3ecbc [0,3,7] [0,3,8] [0,3,8] [0,3,8] [0,3,8])
-  let contents8 = (show <$> prog3ecbc [0,5,10] [0,5,10] [0,5,10] [0,5,10] [0,5,10])
-  let contents9 = (show <$> prog3ecbc [0,5,9] [0,5,9] [0,5,9] [0,5,9] [0,5,9])
-  let contents10 = (show <$> prog3ecbc [0,5,9] [0,5,10] [0,5,10] [0,5,10] [0,5,10])
-  let contents11 = (show <$> pentaPatterns [0,3])
-  let contents12 = (show <$> pentaPatterns [0,7])
-  let contents13 = (show <$> pentaPatterns [0,8])
-  let contents14 = (show <$> pentaPatterns [0,5])
-  let contents15 = (show <$> pentaPatterns [0,9])
-  let contents16 = (show <$> pentaPatterns [0,10])
-  let contents17 = (show <$> prog3ecbc [0,3] [0,7] [0,8] [3,7] [3,8])
-  let contents18 = (show <$> prog3ecbc [0,5] [0,9] [0,10] [5,9] [5,10])
-  writeFile "output/3patterns37" (unlines contents1)
-  writeFile "output/3patterns38" (unlines contents2)
-  writeFile "output/3patterns510" (unlines contents3)
-  writeFile "output/3patterns59" (unlines contents4)
-  writeFile "output/3ecbc_patterns37.txt" (unlines contents5)
-  writeFile "output/3ecbc_patterns38.txt" (unlines contents6)
-  writeFile "output/3ecbc_patterns378.txt" (unlines contents7)
-  writeFile "output/3ecbc_patterns510.txt" (unlines contents8)
-  writeFile "output/3ecbc_patterns59.txt" (unlines contents9)
-  writeFile "output/3ecbc_patterns5910.txt" (unlines contents10)
-  writeFile "output/0ecbc_patternsALL.txt" (unlines contents)
-  writeFile "output/2patterns03" (unlines contents11)
-  writeFile "output/2patterns07" (unlines contents12)
-  writeFile "output/2patterns08" (unlines contents13)
-  writeFile "output/2patterns05" (unlines contents14)
-  writeFile "output/2patterns09" (unlines contents15)
-  writeFile "output/2patterns010" (unlines contents16)
-  writeFile "output/2ecbc_patterns0378.txt" (unlines contents17)
-  writeFile "output/2ecbc_patterns05910.txt" (unlines contents18)
+  let filePath = "/home/oscarsouth/.stack/global-project/output/" 
+  -- fileContents <- readFile $ filePath ++ "2ecbc_patterns0378.txt"
+  -- let contents = read <$> lines fileContents
+  -- let testWrite = zip (show <$> [1..]) (["one", "two", "three"])
+  -- let testAppend = zip (show <$> [1..]) (["two", "three", "four"])
+  -- mapM_ (\(ns,xs) -> writeFile ("output/analysis_" ++ ns ++ ".txt") xs) testWrite
+  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n" ++ xs)) testAppend
+  let contents = prog3ecbc [0,3] [0,7] [0,8] [3,7] [3,8]
+  -- let contents = zip (show <$> [1..]) (show <$> prog3ecbc [0,3] [0,7] [0,8] [3,7] [3,8])
+  mapM_ (\(ns,xs) -> writeFile ("output/analysis_" ++ ns ++ ".txt") (xs ++ "\n\n" ++ fullSet3title)) (zip (show <$> [1..]) contents)
+  -- appendFile "output/testFile.txt" "\n"
+  -- appendFile "output/testFile.txt" pentatonicSet1title
+  -- appendFile "output/testFile.txt" "\n"
+  -- appendFile "output/testFile.txt" pentatonicSet2title
+  -- appendFile "output/testFile.txt" "\n"
+  -- appendFile "output/testFile.txt" pentatonicSet3title
+  -- appendFile "output/testFile.txt" "\n"
+  -- appendFile "output/testFile.txt" diatonicSet12title
+  -- appendFile "output/testFile.txt" "\n"
+  -- appendFile "output/testFile.txt" diatonicSet23title
+  -- appendFile "output/testFile.txt" "\n"
+  -- appendFile "output/testFile.txt" diatonicSet31title
+  -- appendFile "output/testFile.txt" "\n"
+  
+
+  
+
+-- main = do
+--   let contents = (show <$> prog3ecbc [0] [0] [0] [0] [0]) 
+  -- let contents1 = (show <$> pentaPatterns [0,3,7]) 
+--   let contents2 = (show <$> pentaPatterns [0,3,8]) 
+--   let contents3 = (show <$> pentaPatterns [0,5,10]) 
+--   let contents4 = (show <$> pentaPatterns [0,5,9])
+--   let contents5 = (show <$> prog3ecbc [0,3,7] [0,3,7] [0,3,7] [0,3,7] [0,3,7])
+--   let contents6 = (show <$> prog3ecbc [0,3,8] [0,3,8] [0,3,8] [0,3,8] [0,3,8])
+--   let contents7 = (show <$> prog3ecbc [0,3,7] [0,3,8] [0,3,8] [0,3,8] [0,3,8])
+--   let contents8 = (show <$> prog3ecbc [0,5,10] [0,5,10] [0,5,10] [0,5,10] [0,5,10])
+--   let contents9 = (show <$> prog3ecbc [0,5,9] [0,5,9] [0,5,9] [0,5,9] [0,5,9])
+--   let contents10 = (show <$> prog3ecbc [0,5,9] [0,5,10] [0,5,10] [0,5,10] [0,5,10])
+--   let contents11 = (show <$> pentaPatterns [0,3])
+--   let contents12 = (show <$> pentaPatterns [0,7])
+--   let contents13 = (show <$> pentaPatterns [0,8])
+--   let contents14 = (show <$> pentaPatterns [0,5])
+--   let contents15 = (show <$> pentaPatterns [0,9])
+--   let contents16 = (show <$> pentaPatterns [0,10])
+--   let contents17 = (show <$> prog3ecbc [0,3] [0,7] [0,8] [3,7] [3,8])
+--   let contents18 = (show <$> prog3ecbc [0,5] [0,9] [0,10] [5,9] [5,10])
+  -- writeFile "output/3patterns37" (unlines contents1)
+--   writeFile "output/3patterns38" (unlines contents2)
+--   writeFile "output/3patterns510" (unlines contents3)
+--   writeFile "output/3patterns59" (unlines contents4)
+--   writeFile "output/3ecbc_patterns37.txt" (unlines contents5)
+--   writeFile "output/3ecbc_patterns38.txt" (unlines contents6)
+--   writeFile "output/3ecbc_patterns378.txt" (unlines contents7)
+--   writeFile "output/3ecbc_patterns510.txt" (unlines contents8)
+--   writeFile "output/3ecbc_patterns59.txt" (unlines contents9)
+--   writeFile "output/3ecbc_patterns5910.txt" (unlines contents10)
+--   writeFile "output/0ecbc_patternsALL.txt" (unlines contents)
+--   writeFile "output/2patterns03" (unlines contents11)
+--   writeFile "output/2patterns07" (unlines contents12)
+--   writeFile "output/2patterns08" (unlines contents13)
+--   writeFile "output/2patterns05" (unlines contents14)
+--   writeFile "output/2patterns09" (unlines contents15)
+--   writeFile "output/2patterns010" (unlines contents16)
+--   writeFile "output/2ecbc_patterns0378.txt" (unlines contents17)
+--   writeFile "output/2ecbc_patterns05910.txt" (unlines contents18)
 
 
 -- main = R.withEmbeddedR R.defaultConfig $ do

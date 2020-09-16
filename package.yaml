@@ -29,6 +29,7 @@ library:
   - Overtone
   - Markov
   - MusicData
+  - Analysis
   - Utility
   - GraphDB
   - Perform

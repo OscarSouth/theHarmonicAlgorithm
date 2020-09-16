@@ -1,0 +1,344 @@
+module Analysis where
+
+import           Utility
+import           MusicData
+
+import           Data.Function (on)
+import qualified Data.List     as List (sortBy, sort, intersect)
+import qualified Data.Set      as Set (fromList)
+
+tetra0 = ([0,2,4,7], [0,5,10,8,6,11,9])
+tetra1 = ([0,2,5,7], [0,10,3,8,11,4,9])
+tetra2 = ([0,3,5,8], [0,10,1,6,11,9,2,7])
+tetra3 = ([0,3,5,7], [0,10,8,1,11,9,2])
+
+penta0 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords tetra0)
+penta1 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords tetra1)
+penta2 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords tetra2)
+penta3 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords tetra3)
+
+vocabulary :: (Integral a, Num a) => [[a]]
+vocabulary =
+  let major         = i' <$> inversions [0,2,4,5,7,9,11]
+      melodicMinor  = i' <$> inversions [0,2,3,5,7,9,11]
+      harmonicMinor = i' <$> inversions [0,2,3,5,7,8,11]
+      harmonicMajor = i' <$> inversions [0,2,4,5,7,8,11]
+   in []
+      ++ major 
+      ++ melodicMinor 
+      ++ harmonicMinor
+      ++ harmonicMajor
+
+vocabulary' :: (Integral a, Num a) => [[a]]
+vocabulary' = fromChord <$> []
+              ++ concat penta0
+              ++ concat penta1
+              ++ concat penta2
+              ++ concat penta3
+
+(<?) :: (Integral a, Num a) => [a] -> [a] -> Bool
+(<?) k p
+  | k == [] || p == [] = False
+  | otherwise          = List.intersect p k == p
+
+(?>) :: (Integral a, Num a) => [a] -> [a] -> Bool
+(?>) p k = k <? p
+
+oktet0 = ([0,4,5,7],[0,10,8,1,11,9,2])
+oktet1 = ([0,1,3,7],[0,5,10,8,6,4,9])
+oktet2 = ([0,2,6,7],[0,10,3,11,4,9])
+oktet3 = ([0,4,5,9],[0,10,8,1,11,2,7])
+oktet4 = ([0,1,5,6],[0,10,3,8,9])
+
+okpen0 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords oktet0)
+okpen1 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords oktet1)
+okpen2 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords oktet2)
+okpen3 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords oktet3)
+okpen4 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords oktet4)
+
+okinawan :: (Integral a, Num a) => [[a]]
+okinawan = fromChord <$> []
+           ++ concat okpen0
+           ++ concat okpen1
+           ++ concat okpen2
+           ++ concat okpen3
+           ++ concat okpen4
+
+penta :: Num a => Int -> Int -> Int -> [a]
+penta tt rt iv
+  | tt == 0 = fromIntegral <$> simpleInversions' (pentaChords tetra0!!rt)!!iv
+  | tt == 1 = fromIntegral <$> simpleInversions' (pentaChords tetra1!!rt)!!iv
+  | tt == 2 = fromIntegral <$> simpleInversions' (pentaChords tetra2!!rt)!!iv
+  | tt == 3 = fromIntegral <$> simpleInversions' (pentaChords tetra3!!rt)!!iv
+  | otherwise = []
+
+hasDuplicates :: (Ord a) => [a] -> Bool
+hasDuplicates xs = length xs /= length set
+  where set = Set.fromList xs 
+
+triadSets ps = 
+  let results = overtoneSets 3 ps ps
+   in unique $ filter (not . hasDuplicates) results
+
+chordSets ps = 
+  let results = overtoneSets 4 ps ps
+   in unique $ filter (not . hasDuplicates) results
+
+triadSets' tt rt = 
+  let ps = penta tt rt 0
+      results = overtoneSets 3 ps ps
+   in unique $ filter (not . hasDuplicates) results
+
+consonance = List.sortBy (compare `on` (\x ->  fst . dissonanceLevel $ x))
+
+allPenta' :: [[Integer]]
+allPenta' = 
+  let one   = simpleInversions' <$> pentaChords tetra0
+      two   = simpleInversions' <$> pentaChords tetra1
+      three = simpleInversions' <$> pentaChords tetra2
+      four  = simpleInversions' <$> pentaChords tetra3
+   in  (concat (one ++ two ++ three ++ four))
+
+allOkinawan' :: [[Integer]]
+allOkinawan' = 
+  let one   = simpleInversions' <$> pentaChords oktet0
+      two   = simpleInversions' <$> pentaChords oktet1
+      three = simpleInversions' <$> pentaChords oktet2
+      four  = simpleInversions' <$> pentaChords oktet3
+      five  = simpleInversions' <$> pentaChords oktet4
+   in  (concat (one ++ two ++ three ++ four ++ five))
+
+allPenta  :: [[Integer]]
+allPenta   =
+  let f xs = (sequence ((+) <$> xs)) <$> [0..11]
+   in filter (\xs -> length xs >= 5) (unique $ i' . pcSet <$> concat (f <$> allPenta'))
+
+allOkinawan  :: [[Integer]]
+allOkinawan   =
+  let f xs = (sequence ((+) <$> xs)) <$> [0..11]
+   in filter (\xs -> length xs >= 5) (unique $ i' . pcSet <$> concat (f <$> allOkinawan'))
+
+chr               :: Int -> Int -> [(((Integer, [Integer]), [Integer]), [Char],
+                                     ((Integer, [Integer]), [Integer]))]
+chr n k            = 
+  let combinations = ([ (xs, ys) | xs <- unique (i' . normalForm <$> allPenta), ys <- allPenta ]) 
+      filt         = filter (\(xs,ys) -> (length (pcSet (xs ++ ys)) == n)) combinations
+      sorted       =  List.sortBy (compare `on` (\(xs,ys) -> (fst $ dissonanceLevel xs) + 
+                                                             (fst $ dissonanceLevel ys))) filt
+   in (\(xs,ys) -> 
+     ((dissonanceLevel xs, intervalVector xs), " --> ", 
+      (dissonanceLevel ys, intervalVector ys))
+     ) <$> (take k $ sorted)
+
+chr'              :: Int -> [Integer] -> Int -> [(((Integer, [Integer]), [Integer]), [Char],
+                                           ((Integer, [Integer]), [Integer]))]
+chr' n p k         = 
+  let combinations = [ (xs, ys) | xs <- allPenta, ys <- allPenta,
+                       (length (pcSet (xs ++ ys)) == n) && ((i' . pcSet $ p) == xs)]
+      sorted       = List.sortBy (compare `on` (\(_,ys) -> fst $ dissonanceLevel ys)) combinations
+   in (\(xs,ys) -> 
+     ((dissonanceLevel xs, intervalVector xs), " --> ", 
+      (dissonanceLevel ys, intervalVector ys))
+     ) <$> (take k $ sorted)
+
+-- FUNCTION WHICH RETURNS LIST OF 4 CYCLIC PENTATONICS OVER A PEDAL TONE
+-- -- CONTAINING A TOTAL OF n SIMILAR TONES PER TRANSITION
+-- -- CONTAINING A TOTAL OF n TONES OVERALL
+
+prog3 n1 n2 k = take k $ sorted
+  where
+    vocab     = unique (i' . zeroForm <$> allPenta)
+    voca2     = allPenta
+    tsns      = [ (dissonanceLevel xs,
+                  dissonanceLevel ys,
+                  dissonanceLevel zs) | 
+                  xs <- vocab, ys <- voca2, zs <- voca2, 
+                  ((length (pcSet (xs ++ ys)) == n1) &&
+                    (length (pcSet (xs ++ zs)) == n1) &&
+                    (length (pcSet (ys ++ zs)) == n1)) &&
+                  (length (pcSet (xs ++ ys ++ zs)) == n2) &&
+                  ((xs /= ys) && (xs /= zs) && (ys /= zs)) &&
+                  ((elem 0 xs) && (elem 0 ys) && (elem 0 zs))
+                  ]
+    sorted    = show <$> List.sortBy (compare `on` (\(dx,dy,dz) -> (fst dx) + 
+                                                                   (fst dy) +
+                                                                   (fst dz))) tsns 
+
+pentaPatterns xs = 
+  let patterns   = filter (xs ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan))
+      sorted     = List.sort <$> (List.sortBy (compare `on` (\xs -> dissonanceLevel xs)) patterns)
+   in zip (dissonanceLevel <$> sorted) (intervalVector <$> sorted) 
+
+pentaHarmonies xs  = 
+  let toPrint = snd . fst <$> pentaPatterns xs
+   in zip (triadSets (head toPrint)) (flatTriad <$> triadSets (head toPrint))
+
+-- two different pitches per transition
+-- each pair fits into different diatonic scale
+-- three different diatonic scales
+
+type Analysis = [((Integer, Integer, Integer),
+                 ([Integer], [Integer], [Integer]),
+                 ([Integer], [Integer], [Integer]), (Int, [Integer]),
+                 ((Integer, [Integer]), [Integer]),
+                 ([Integer], [Integer], [Integer]))]
+
+prog3ecbc t1 t2 t3 t4 t5 = sorted
+  where
+    vocab     = unique $
+                  -- filter (t1 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan)) ++ 
+                  -- filter (t2 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan)) ++ 
+                  -- filter (t3 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan))
+                  filter (t1 ?>) (allPenta ++ allOkinawan) ++ 
+                  filter (t2 ?>) (allPenta ++ allOkinawan) ++ 
+                  filter (t3 ?>) (allPenta ++ allOkinawan) ++ 
+                  filter (t4 ?>) (allPenta ++ allOkinawan) ++ 
+                  filter (t5 ?>) (allPenta ++ allOkinawan)
+
+    dsls      = dissonanceLevel <$> (List.sort <$> vocab) 
+    tsns      =  unique [ ((fst xs, fst ys, fst zs), (snd xs, snd ys, snd zs),
+                    (intervalVector $ snd xs, intervalVector $ snd ys, intervalVector $ snd zs),
+                    (length $ pcSet (snd xs ++ snd ys ++ snd zs),
+                      [ x | x <- [0..11], x `notElem` (i <$> pcSet (snd xs ++ snd ys ++ snd zs)) ] ),
+                    (dissonanceLevel (List.sort (i <$> pcSet (snd xs ++ snd ys ++ snd zs))),
+                      intervalVector (i <$> pcSet (snd xs ++ snd ys ++ snd zs))),
+                      (i' $ pcSet (List.sort $ snd xs ++ snd ys),
+                        i' $ pcSet (List.sort $ snd ys ++ snd zs),
+                        i' $ pcSet (List.sort $ snd zs ++ snd xs))
+                  ) | 
+                  xs <- dsls, ys <- dsls, zs <- dsls, 
+                  (
+                    (
+                      (xs /= ys) && (xs /= zs) && (ys /= zs)
+                    ) &&
+                    (
+                        (fst xs <= fst ys) && (fst ys <= fst zs)
+                    ) &&
+                      ((((snd xs ++ snd ys) /= (snd ys ++ snd zs)) && 
+                          ((snd xs ++ snd ys) /= (snd zs ++ snd ys))) && 
+                      (((snd ys ++ snd zs) /= (snd zs ++ snd xs)) && 
+                          ((snd ys ++ snd zs) /= (snd xs ++ snd zs))) && 
+                      (((snd zs ++ snd xs) /= (snd xs ++ snd ys)) && 
+                          ((snd zs ++ snd xs) /= (snd ys ++ snd xs)))
+                    ) &&
+                    (
+                      (pcSet (List.sort $ snd xs ++ snd ys) `elem` vocabulary) &&
+                      (pcSet (List.sort $ snd ys ++ snd zs) `elem` vocabulary) &&
+                      (pcSet (List.sort $ snd zs ++ snd xs) `elem` vocabulary)
+                    ) && 
+                    (
+                      ((pcSet (List.sort $ snd xs ++ snd ys) /= pcSet (List.sort $ snd xs ++ snd zs)) &&
+                        (pcSet (List.sort $ snd xs ++ snd ys) /= pcSet (List.sort $ snd ys ++ snd zs))) &&
+                      ((pcSet (List.sort $ snd ys ++ snd zs) /= pcSet (List.sort $ snd ys ++ snd xs)) &&
+                        (pcSet (List.sort $ snd ys ++ snd zs) /= pcSet (List.sort $ snd zs ++ snd xs))) &&
+                      ((pcSet (List.sort $ snd zs ++ snd xs) /= pcSet (List.sort $ snd zs ++ snd ys)) &&
+                        (pcSet (List.sort $ snd zs ++ snd xs) /= pcSet (List.sort $ snd xs ++ snd ys)))
+                    ) &&
+                    (
+                      (pcSet (List.sort $ snd xs ++ snd ys) /= pcSet (List.sort $ snd ys ++ snd zs)) && 
+                      (pcSet (List.sort $ snd ys ++ snd zs) /= pcSet (List.sort $ snd zs ++ snd xs)) && 
+                      (pcSet (List.sort $ snd zs ++ snd xs) /= pcSet (List.sort $ snd xs ++ snd ys))
+                    )
+                  )
+                  ]
+    sets =  
+      ((\(_,(xs,ys,zs),_,_,_,_) -> xs ++ ys) <$> tsns) ++
+      ((\(_,(xs,ys,zs),_,_,_,_) -> ys ++ zs) <$> tsns)
+    rmDups analysis = 
+        (\(_,(xs,ys,zs),_,_,_,_) -> ((ys ++ xs) `notElem` sets) && ((zs ++ ys) `notElem` sets)) analysis
+    filtered  = filter rmDups tsns
+    sorted    = show <$> List.sortBy (compare `on` (\(_,_,_,_,((x,_),_),_) -> x)) filtered 
+
+-- sets+dissonanceLevels, intervalVectors, tone count+omitted
+
+-- mapM_ (putStrLn . show) $ filter (\(x,_,_) -> (fst (dissonanceLevel x)) <= 9) (zip3 (triadSets [0,3,7,8,10]) (fmap (flat . pc) <$> triadSets [0,3,7,8,10]) (flatTriad <$> triadSets [0,3,7,8,10]))
+
+-- analyse = 
+
+fullSet3title :: String
+fullSet3title =
+  "\
+  \------------------\n\
+  \---- FULL SET ----\n\
+  \------------------\n\
+  \"
+
+pentatonicSet1title :: String
+pentatonicSet1title =
+  "\
+  \------------------\n\
+  \-- PENTATONIC 1 --\n\
+  \------------------\n\
+  \"
+
+pentatonicSet2title :: String
+pentatonicSet2title =
+  "\
+  \------------------\n\
+  \-- PENTATONIC 2 --\n\
+  \------------------\n\
+  \"
+  
+pentatonicSet3title :: String
+pentatonicSet3title =
+  "\
+  \------------------\n\
+  \-- PENTATONIC 3 --\n\
+  \------------------\n\
+  \"
+  
+diatonicSet12title :: String
+diatonicSet12title =
+  "\
+  \------------------\n\
+  \-- DIATONIC 1+2 --\n\
+  \------------------\n\
+  \"
+  
+diatonicSet23title :: String
+diatonicSet23title =
+  "\
+  \------------------\n\
+  \-- DIATONIC 2+3 --\n\
+  \------------------\n\
+  \"
+  
+diatonicSet31title :: String
+diatonicSet31title =
+  "\
+  \------------------\n\
+  \-- DIATONIC 3+1 --\n\
+  \------------------\n\
+  \"
+
+-- [0,2,4,5,7,9,11] "Ionian"
+-- [0,2,3,5,7,9,10] "Dorian"
+-- [0,1,3,5,7,8,10] "Phrygian"
+-- [0,2,4,6,7,9,11] "Lydian"
+-- [0,2,4,5,7,9,10] "Mixolydian"
+-- [0,2,3,5,7,8,10] "Aeolian"
+-- [0,1,3,5,6,8,10] "Locrian"
+
+-- [0,2,3,5,7,9,11] "Melodic Minor"
+-- [0,1,3,5,7,9,10] "Dorian b2"
+-- [0,2,4,6,8,9,11] "Lydian #5"
+-- [0,2,4,6,7,9,10] "Lydian Dominant"
+-- [0,2,4,5,7,8,10] "Dominant b6"
+-- [0,2,3,5,6,8,10] "Locrian nat.2"
+-- [0,1,3,4,6,8,10] "Altered"
+
+-- [0,2,3,5,7,8,11] "Harmonic Minor"
+-- [0,1,3,5,6,9,10] "Locrian nat.6"
+-- [0,2,4,5,8,9,11] "Ionian #5"
+-- [0,2,3,6,7,9,10] "Dorian #4"
+-- [0,1,4,5,7,8,10] "Phrygian nat.3"
+-- [0,3,4,6,7,9,11] "Lydian #2"
+-- [0,1,3,4,6,8,9]  "Altered bb7"
+
+-- [0,2,4,5,7,8,11] "Harmonic Major"
+-- [0,2,3,5,6,9,10] "Dorian b5"
+-- [0,1,3,4,7,8,10] "Phrygian b4"
+-- [0,2,3,6,7,9,11] "Lydian b3"
+-- [0,1,4,5,7,9,10] "Mixolydian b2"
+-- [0,3,4,6,8,9,11] "Lydian #5 #2"
+-- [0,1,3,5,6,8,9]  "Locrian bb7"
