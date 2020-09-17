@@ -27,35 +27,20 @@ import Control.Monad.IO.Class
 -- import Network.HTTP.Req
 
 main = do
+  let contents = (show <$> prog3ecbc [0] [0] [0] [0] [0]) 
+  writeFile "output/0ecbc_patternsALL.txt" (unlines contents)
   let filePath = "/home/oscarsouth/.stack/global-project/output/" 
-  -- fileContents <- readFile $ filePath ++ "2ecbc_patterns0378.txt"
-  -- let contents = read <$> lines fileContents
-  -- let testWrite = zip (show <$> [1..]) (["one", "two", "three"])
-  -- let testAppend = zip (show <$> [1..]) (["two", "three", "four"])
-  -- mapM_ (\(ns,xs) -> writeFile ("output/analysis_" ++ ns ++ ".txt") xs) testWrite
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n" ++ xs)) testAppend
+--   -- fileContents <- readFile $ filePath ++ "2ecbc_patterns0378.txt"
+--   -- let contents = read <$> lines fileContents
+--   -- let testWrite = zip (show <$> [1..]) (["one", "two", "three"])
+--   -- let testAppend = zip (show <$> [1..]) (["two", "three", "four"])
+--   -- mapM_ (\(ns,xs) -> writeFile ("output/analysis_" ++ ns ++ ".txt") xs) testWrite
+--   -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n" ++ xs)) testAppend
   let contents = prog3ecbc [0,3] [0,7] [0,8] [3,7] [3,8]
-  -- let contents = zip (show <$> [1..]) (show <$> prog3ecbc [0,3] [0,7] [0,8] [3,7] [3,8])
   mapM_ (\(ns,xs) -> writeFile ("output/analysis_" ++ ns ++ ".txt") (xs ++ "\n\n" ++ fullSet3title)) (zip (show <$> [1..]) contents)
-  -- appendFile "output/testFile.txt" "\n"
-  -- appendFile "output/testFile.txt" pentatonicSet1title
-  -- appendFile "output/testFile.txt" "\n"
-  -- appendFile "output/testFile.txt" pentatonicSet2title
-  -- appendFile "output/testFile.txt" "\n"
-  -- appendFile "output/testFile.txt" pentatonicSet3title
-  -- appendFile "output/testFile.txt" "\n"
-  -- appendFile "output/testFile.txt" diatonicSet12title
-  -- appendFile "output/testFile.txt" "\n"
-  -- appendFile "output/testFile.txt" diatonicSet23title
-  -- appendFile "output/testFile.txt" "\n"
-  -- appendFile "output/testFile.txt" diatonicSet31title
-  -- appendFile "output/testFile.txt" "\n"
-  
-
   
 
 -- main = do
---   let contents = (show <$> prog3ecbc [0] [0] [0] [0] [0]) 
   -- let contents1 = (show <$> pentaPatterns [0,3,7]) 
 --   let contents2 = (show <$> pentaPatterns [0,3,8]) 
 --   let contents3 = (show <$> pentaPatterns [0,5,10]) 
@@ -84,7 +69,6 @@ main = do
 --   writeFile "output/3ecbc_patterns510.txt" (unlines contents8)
 --   writeFile "output/3ecbc_patterns59.txt" (unlines contents9)
 --   writeFile "output/3ecbc_patterns5910.txt" (unlines contents10)
---   writeFile "output/0ecbc_patternsALL.txt" (unlines contents)
 --   writeFile "output/2patterns03" (unlines contents11)
 --   writeFile "output/2patterns07" (unlines contents12)
 --   writeFile "output/2patterns08" (unlines contents13)

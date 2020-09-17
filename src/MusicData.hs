@@ -313,8 +313,8 @@ i'   :: (MusicData a, Num b) => [a] -> [b]
 i' xs = fromInteger <$> i <$> xs
 
 -- |mapping from list of integers into interval vector
-intervalVector         :: (Integral a, Num a) => [a] -> [Integer]
-intervalVector xs       = toInteger . vectCounts <$> [1..6]
+intervalVector''         :: (Integral a, Num a) => [a] -> [Integer]
+intervalVector'' xs       = toInteger . vectCounts <$> [1..6]
   where
     diffTriangle []     = []
     diffTriangle (x:xs) = (modCorrect . (subtract x) <$> xs) : diffTriangle xs
@@ -326,6 +326,17 @@ intervalVector xs       = toInteger . vectCounts <$> [1..6]
 -- |'prime' version for work with MusicData typeclass
 intervalVector'   :: MusicData a => [a] -> [Integer]
 intervalVector' xs = intervalVector $ i <$> xs
+
+-- |implementation using the prime form NEEDS TO BE CONFIRMED TO WORK WITHOUT
+intervalVector         :: (Integral a, Num a) => [a] -> [Integer]
+intervalVector xs       = toInteger . vectCounts <$> [1..6]
+  where
+    diffTriangle []     = []
+    diffTriangle (x:xs) = (modCorrect . (subtract x) <$> xs) : diffTriangle xs
+    vectCounts          = countElem . List.concat . diffTriangle $ zeroForm xs
+    modCorrect x
+      | x <= 6          = x
+      | otherwise       = x - 2*(x-6)
 
 -- |mapping from sets of fundamentals and overtones into viable composite sets
 overtoneSets        :: (Num a, Eq a, Eq b, Ord b) => a -> [b] -> [b] -> [[b]]
@@ -631,3 +642,49 @@ pentaChords (up, rs) =
 fromChord :: (Integral a, Num a) => Chord -> [a]
 fromChord (Chord (_,xs)) = fromIntegral . toInteger <$> xs
 
+-- |mapping from integer list to tuple of mode and chord name
+toMode :: (Integral a, Num a) => (PitchClass -> NoteName) -> [a] -> Chord
+toMode f xs@(fund:tones)
+    | otherwise     = Chord ((f . pc $ head xs, nameFunc zeroForm xs ""),
+                      (`mod` 12) . fromIntegral <$> chord)
+  where
+    chord           = (+fund) <$> (i' . zeroForm $ fund : (List.reverse $ List.sort tones))
+    nameFunc f xs   = --
+      let
+        zs          = i <$> f xs
+        chain       =
+          [(""++)
+          -- Major Modes
+          ,if all (`elem` zs) [0,2,4,5,7,9,11] && all (`notElem` zs) [1,3,6,8,10] then ("Ionian"++) else (""++)
+          ,if all (`elem` zs) [0,2,3,5,7,9,10] && all (`notElem` zs) [1,4,6,8,11] then ("Dorian"++) else (""++)
+          ,if all (`elem` zs) [0,1,3,5,7,8,10] && all (`notElem` zs) [2,4,6,9,11] then ("Phrygian"++) else (""++)
+          ,if all (`elem` zs) [0,2,4,6,7,9,11] && all (`notElem` zs) [1,3,5,8,10] then ("Lydian"++) else (""++)
+          ,if all (`elem` zs) [0,2,4,5,7,9,10] && all (`notElem` zs) [1,3,6,8,11] then ("Mixolydian"++) else (""++)
+          ,if all (`elem` zs) [0,2,3,5,7,8,10] && all (`notElem` zs) [1,4,6,9,11] then ("Aeolian"++) else (""++)
+          ,if all (`elem` zs) [0,1,3,5,6,8,10] && all (`notElem` zs) [2,4,7,9,11] then ("Locrian"++) else (""++)
+          -- Melodic Minor Modes
+          ,if all (`elem` zs) [0,2,3,5,7,9,11] && all (`notElem` zs) [1,4,6,8,10] then ("Melodic_Minor"++) else (""++)
+          ,if all (`elem` zs) [0,1,3,5,7,9,10] && all (`notElem` zs) [2,4,6,8,11] then ("Dorian_b2"++) else (""++)
+          ,if all (`elem` zs) [0,2,4,6,8,9,11] && all (`notElem` zs) [1,3,5,7,10] then ("Lydian_#5"++) else (""++)
+          ,if all (`elem` zs) [0,2,4,6,7,9,10] && all (`notElem` zs) [1,3,5,8,11] then ("Lydian_Dominant"++) else (""++)
+          ,if all (`elem` zs) [0,2,4,5,7,8,10] && all (`notElem` zs) [1,3,6,9,11] then ("Mixolydian_b6"++) else (""++)
+          ,if all (`elem` zs) [0,2,3,5,6,8,10] && all (`notElem` zs) [1,4,7,9,11] then ("Locrian_nat.2"++) else (""++)
+          ,if all (`elem` zs) [0,1,3,4,6,8,10] && all (`notElem` zs) [2,5,7,9,11] then ("Altered_Dominant"++) else (""++)
+          -- Harmonic Minor Modes
+          ,if all (`elem` zs) [0,2,3,5,7,8,11] && all (`notElem` zs) [1,4,6,9,10] then ("Harmonic_Minor"++) else (""++)
+          ,if all (`elem` zs) [0,1,3,5,6,9,10] && all (`notElem` zs) [2,4,7,8,11] then ("Locrian_nat.6"++) else (""++)
+          ,if all (`elem` zs) [0,2,4,5,8,9,11] && all (`notElem` zs) [1,3,6,7,10] then ("Ionian_#5"++) else (""++)
+          ,if all (`elem` zs) [0,2,3,6,7,9,10] && all (`notElem` zs) [1,4,5,8,11] then ("Dorian_#4"++) else (""++)
+          ,if all (`elem` zs) [0,1,4,5,7,8,10] && all (`notElem` zs) [2,3,6,9,11] then ("Phrygian_nat.3"++) else (""++)
+          ,if all (`elem` zs) [0,3,4,6,7,9,11] && all (`notElem` zs) [1,2,5,8,10] then ("Lydian_#2"++) else (""++)
+          ,if all (`elem` zs) [0,1,3,4,6,8,9] && all (`notElem` zs) [2,5,7,10,11] then ("Altered_bb7"++) else (""++)
+          -- Harmonic Major Modes
+          ,if all (`elem` zs) [0,2,4,5,7,8,11] && all (`notElem` zs) [1,3,6,9,10] then ("Harmonic_Major"++) else (""++)
+          ,if all (`elem` zs) [0,2,3,5,6,9,10] && all (`notElem` zs) [1,4,7,8,11] then ("Dorian_b5"++) else (""++)
+          ,if all (`elem` zs) [0,1,3,4,7,8,10] && all (`notElem` zs) [2,5,6,9,11] then ("Phrygian_b4"++) else (""++)
+          ,if all (`elem` zs) [0,2,3,6,7,9,11] && all (`notElem` zs) [1,4,5,8,10] then ("Lydian_b3"++) else (""++)
+          ,if all (`elem` zs) [0,1,4,5,7,9,10] && all (`notElem` zs) [2,3,6,8,11] then ("Mixolydian_b2"++) else (""++)
+          ,if all (`elem` zs) [0,3,4,6,8,9,11] && all (`notElem` zs) [1,2,5,7,10] then ("Lydian_Augmented #2"++) else (""++)
+          ,if all (`elem` zs) [0,1,3,5,6,8,9] && all (`notElem` zs) [2,4,7,10,11] then ("Locrian_bb7"++) else (""++)
+          ]
+       in foldr (.) id chain

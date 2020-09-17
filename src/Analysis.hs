@@ -4,7 +4,7 @@ import           Utility
 import           MusicData
 
 import           Data.Function (on)
-import qualified Data.List     as List (sortBy, sort, intersect)
+import qualified Data.List     as List (sortBy, sort, intersect, isSubsequenceOf)
 import qualified Data.Set      as Set (fromList)
 
 tetra0 = ([0,2,4,7], [0,5,10,8,6,11,9])
@@ -186,14 +186,16 @@ type Analysis = [((Integer, Integer, Integer),
 prog3ecbc t1 t2 t3 t4 t5 = sorted
   where
     vocab     = unique $
-                  -- filter (t1 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan)) ++ 
-                  -- filter (t2 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan)) ++ 
-                  -- filter (t3 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan))
-                  filter (t1 ?>) (allPenta ++ allOkinawan) ++ 
-                  filter (t2 ?>) (allPenta ++ allOkinawan) ++ 
-                  filter (t3 ?>) (allPenta ++ allOkinawan) ++ 
-                  filter (t4 ?>) (allPenta ++ allOkinawan) ++ 
-                  filter (t5 ?>) (allPenta ++ allOkinawan)
+                  filter (t1 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan)) ++ 
+                  filter (t2 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan)) ++ 
+                  filter (t3 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan)) ++ 
+                  filter (t4 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan)) ++ 
+                  filter (t5 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan))
+                  -- filter (t1 ?>) (allPenta ++ allOkinawan) ++ 
+                  -- filter (t2 ?>) (allPenta ++ allOkinawan) ++
+                  -- filter (t3 ?>) (allPenta ++ allOkinawan) ++ 
+                  -- filter (t4 ?>) (allPenta ++ allOkinawan) ++ 
+                  -- filter (t5 ?>) (allPenta ++ allOkinawan)
 
     dsls      = dissonanceLevel <$> (List.sort <$> vocab) 
     tsns      =  unique [ ((fst xs, fst ys, fst zs), (snd xs, snd ys, snd zs),
@@ -227,12 +229,12 @@ prog3ecbc t1 t2 t3 t4 t5 = sorted
                       (pcSet (List.sort $ snd zs ++ snd xs) `elem` vocabulary)
                     ) && 
                     (
-                      ((pcSet (List.sort $ snd xs ++ snd ys) /= pcSet (List.sort $ snd xs ++ snd zs)) &&
-                        (pcSet (List.sort $ snd xs ++ snd ys) /= pcSet (List.sort $ snd ys ++ snd zs))) &&
-                      ((pcSet (List.sort $ snd ys ++ snd zs) /= pcSet (List.sort $ snd ys ++ snd xs)) &&
-                        (pcSet (List.sort $ snd ys ++ snd zs) /= pcSet (List.sort $ snd zs ++ snd xs))) &&
-                      ((pcSet (List.sort $ snd zs ++ snd xs) /= pcSet (List.sort $ snd zs ++ snd ys)) &&
-                        (pcSet (List.sort $ snd zs ++ snd xs) /= pcSet (List.sort $ snd xs ++ snd ys)))
+                      (((snd xs ++ snd ys) /= (snd xs ++ snd zs)) &&
+                        ((snd xs ++ snd ys) /= (snd ys ++ snd zs))) &&
+                      (((snd ys ++ snd zs) /= (snd ys ++ snd xs)) &&
+                        ((snd ys ++ snd zs) /= (snd zs ++ snd xs))) &&
+                      (((snd zs ++ snd xs) /= (snd zs ++ snd ys)) &&
+                        ((snd zs ++ snd xs) /= (snd xs ++ snd ys)))
                     ) &&
                     (
                       (pcSet (List.sort $ snd xs ++ snd ys) /= pcSet (List.sort $ snd ys ++ snd zs)) && 
@@ -311,34 +313,29 @@ diatonicSet31title =
   \------------------\n\
   \"
 
--- [0,2,4,5,7,9,11] "Ionian"
--- [0,2,3,5,7,9,10] "Dorian"
--- [0,1,3,5,7,8,10] "Phrygian"
--- [0,2,4,6,7,9,11] "Lydian"
--- [0,2,4,5,7,9,10] "Mixolydian"
--- [0,2,3,5,7,8,10] "Aeolian"
--- [0,1,3,5,6,8,10] "Locrian"
+generateScale (ps1,ps2,ps3) 
+  | (length pitches == 7) = pitches
+  | otherwise = []
+  where 
+    tonic       = ps1
+    dominant    = i' ((7+) <$> pcSet ps2)
+    subdominant = i' ((5+) <$> pcSet ps3)
+    pitches     = List.sort $ (i' . pcSet) (tonic ++ dominant ++ subdominant)
 
--- [0,2,3,5,7,9,11] "Melodic Minor"
--- [0,1,3,5,7,9,10] "Dorian b2"
--- [0,2,4,6,8,9,11] "Lydian #5"
--- [0,2,4,6,7,9,10] "Lydian Dominant"
--- [0,2,4,5,7,8,10] "Dominant b6"
--- [0,2,3,5,6,8,10] "Locrian nat.2"
--- [0,1,3,4,6,8,10] "Altered"
+-- WHY IS THIS TAKING SO LONG TO COMPUTE? OPTIMISE
+generateScales = normalised
+  where
+    sets = [(tonic,dominant,subdominant) | 
+              tonic       <- [[0,4,7],[0,3,7]], 
+              dominant    <- [[0,4,7],[0,3,7]],
+              subdominant <- [[0,4,7],[0,3,7]]]
+    filtered = filter (\xs -> (length xs /= 0)) (generateScale <$> sets)
+    normalised = i' <$> unique (normalForm <$> filtered)
 
--- [0,2,3,5,7,8,11] "Harmonic Minor"
--- [0,1,3,5,6,9,10] "Locrian nat.6"
--- [0,2,4,5,8,9,11] "Ionian #5"
--- [0,2,3,6,7,9,10] "Dorian #4"
--- [0,1,4,5,7,8,10] "Phrygian nat.3"
--- [0,3,4,6,7,9,11] "Lydian #2"
--- [0,1,3,4,6,8,9]  "Altered bb7"
+vocab'' = i' <$> concat (inversions <$> generateScales)
 
--- [0,2,4,5,7,8,11] "Harmonic Major"
--- [0,2,3,5,6,9,10] "Dorian b5"
--- [0,1,3,4,7,8,10] "Phrygian b4"
--- [0,2,3,6,7,9,11] "Lydian b3"
--- [0,1,4,5,7,9,10] "Mixolydian b2"
--- [0,3,4,6,8,9,11] "Lydian #5 #2"
--- [0,1,3,5,6,8,9]  "Locrian bb7"
+chrCluster xs' = not (chrClusters xs') -- filter chrClusters xs
+  where
+    chrClusters xs = any (`List.isSubsequenceOf` xs) ([0,10,11]:[0,1,11]:(sequence ((+) <$> [0,1,2]) <$> [0..9]))
+
+allModes = filter chrCluster vocab''

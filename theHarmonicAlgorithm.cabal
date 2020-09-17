@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 9c604d4637dc2de2eaf928bffc4ec6996745cb191e35e11a3c9fba08b5bb3a4a
+-- hash: 5cdb94629f48420d546ff6f4e44f15a204278366b9750aff92e1789c9e8f57bb
 
 name:           theHarmonicAlgorithm
 version:        1.0.1.0
@@ -32,6 +32,7 @@ library
       Overtone
       Markov
       MusicData
+      Analysis
       Utility
       GraphDB
       Perform

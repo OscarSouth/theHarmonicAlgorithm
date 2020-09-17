@@ -23,6 +23,7 @@ fromCadence,
 movementFromCadence,
 transposeCadence,
 rootNote,
+toMode,
 -----------
 -- |Analysis
 prog3ecbc, pentaPatterns, -- temp
@@ -33,6 +34,9 @@ pentatonicSet3title,
 diatonicSet12title,
 diatonicSet23title,
 diatonicSet31title,
+generateScale,
+vocab'',
+allModes,
 -----------
 -- |Markov
 MarkovMap,
@@ -51,7 +55,7 @@ parseFunds,
 unique,
 -- uniqueAnalysis,
 -- |GraphDB
--- testFunction,
+-- testFunc,
 -- testData
   ) where
 
