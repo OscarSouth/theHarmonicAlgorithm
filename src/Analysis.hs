@@ -4,8 +4,13 @@ import           Utility
 import           MusicData
 
 import           Data.Function (on)
-import qualified Data.List     as List (sortBy, sort, intersect, isSubsequenceOf)
+import qualified Data.List     as List (sortBy, sort, intersect, isSubsequenceOf, isInfixOf, concat)
 import qualified Data.Set      as Set (fromList)
+
+pentaChords :: (Integral a, Num a) => ([a], [a]) -> [[a]]
+pentaChords (up, rs) = 
+  let upper = replicate (length rs) up
+   in zipWith (:) rs upper
 
 tetra0 = ([0,2,4,7], [0,5,10,8,6,11,9])
 tetra1 = ([0,2,5,7], [0,10,3,8,11,4,9])
@@ -64,6 +69,26 @@ okinawan = fromChord <$> []
            ++ concat okpen3
            ++ concat okpen4
 
+iwtet0 = ([0,1,5,6],[0,3,8,9,10])
+iwtet1 = ([0,4,5,9],[0,1,2,7,8,10,11])
+iwtet2 = ([0,1,5,7],[0,3,4,8,9,10])
+iwtet3 = ([0,4,6,7],[0,1,2,3,9,10,11])
+iwtet4 = ([0,2,3,7],[0,5,6,8,9,10,11])
+
+iwpen0 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords iwtet0)
+iwpen1 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords iwtet1)
+iwpen2 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords iwtet2)
+iwpen3 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords iwtet3)
+iwpen4 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords iwtet4)
+
+iwato :: (Integral a, Num a) => [[a]]
+iwato = fromChord <$> []
+           ++ concat iwpen0
+           ++ concat iwpen1
+           ++ concat iwpen2
+           ++ concat iwpen3
+           ++ concat iwpen4
+
 penta :: Num a => Int -> Int -> Int -> [a]
 penta tt rt iv
   | tt == 0 = fromIntegral <$> simpleInversions' (pentaChords tetra0!!rt)!!iv
@@ -108,15 +133,32 @@ allOkinawan' =
       five  = simpleInversions' <$> pentaChords oktet4
    in  (concat (one ++ two ++ three ++ four ++ five))
 
-allPenta  :: [[Integer]]
+allIwato' :: [[Integer]]
+allIwato' = 
+  let one   = simpleInversions' <$> pentaChords iwtet0
+      two   = simpleInversions' <$> pentaChords iwtet1
+      three = simpleInversions' <$> pentaChords iwtet2
+      four  = simpleInversions' <$> pentaChords iwtet3
+      five  = simpleInversions' <$> pentaChords iwtet4
+   in  (concat (one ++ two ++ three ++ four ++ five))
+
+allPenta  :: (Num a, Integral a) => [[a]]
 allPenta   =
   let f xs = (sequence ((+) <$> xs)) <$> [0..11]
    in filter (\xs -> length xs >= 5) (unique $ i' . pcSet <$> concat (f <$> allPenta'))
 
-allOkinawan  :: [[Integer]]
+allOkinawan  :: (Num a, Integral a) => [[a]]
 allOkinawan   =
   let f xs = (sequence ((+) <$> xs)) <$> [0..11]
    in filter (\xs -> length xs >= 5) (unique $ i' . pcSet <$> concat (f <$> allOkinawan'))
+
+allIwato  :: (Num a, Integral a) => [[a]]
+allIwato   =
+  let f xs = (sequence ((+) <$> xs)) <$> [0..11]
+   in filter (\xs -> length xs >= 5) (unique $ i' . pcSet <$> concat (f <$> allIwato'))
+
+pVocab  :: (Num a, Integral a) => [[a]]
+pVocab = allPenta ++ allOkinawan ++ allIwato 
 
 chr               :: Int -> Int -> [(((Integer, [Integer]), [Integer]), [Char],
                                      ((Integer, [Integer]), [Integer]))]
@@ -322,7 +364,7 @@ generateScale (ps1,ps2,ps3)
     subdominant = i' ((5+) <$> pcSet ps3)
     pitches     = List.sort $ (i' . pcSet) (tonic ++ dominant ++ subdominant)
 
--- WHY IS THIS TAKING SO LONG TO COMPUTE? OPTIMISE
+-- WHY IS THIS TAKING SO LONG TO COMPUTE? OPTIMISE NORMAL FORM FUNCTION
 generateScales = normalised
   where
     sets = [(tonic,dominant,subdominant) | 
@@ -339,3 +381,5 @@ chrCluster xs' = not (chrClusters xs') -- filter chrClusters xs
     chrClusters xs = any (`List.isSubsequenceOf` xs) ([0,10,11]:[0,1,11]:(sequence ((+) <$> [0,1,2]) <$> [0..9]))
 
 allModes = filter chrCluster vocab''
+
+

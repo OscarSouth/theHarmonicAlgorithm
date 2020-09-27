@@ -24,6 +24,8 @@ movementFromCadence,
 transposeCadence,
 rootNote,
 toMode,
+basePenta,
+sortPcSet,
 -----------
 -- |Analysis
 prog3ecbc, pentaPatterns, -- temp
@@ -37,6 +39,9 @@ diatonicSet31title,
 generateScale,
 vocab'',
 allModes,
+majorPentaChr,
+okinaPentaChr,
+iwatoPentaChr,
 -----------
 -- |Markov
 MarkovMap,

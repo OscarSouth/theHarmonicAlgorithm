@@ -634,11 +634,6 @@ flatChord = toChord flat
 sharpChord :: (Integral a, Num a) => [a] -> Chord
 sharpChord = toChord sharp
 
-pentaChords :: (Integral a, Num a) => ([a], [a]) -> [[a]]
-pentaChords (up, rs) = 
-  let upper = replicate (length rs) up
-   in zipWith (:) rs upper
-
 fromChord :: (Integral a, Num a) => Chord -> [a]
 fromChord (Chord (_,xs)) = fromIntegral . toInteger <$> xs
 
@@ -684,7 +679,34 @@ toMode f xs@(fund:tones)
           ,if all (`elem` zs) [0,1,3,4,7,8,10] && all (`notElem` zs) [2,5,6,9,11] then ("Phrygian_b4"++) else (""++)
           ,if all (`elem` zs) [0,2,3,6,7,9,11] && all (`notElem` zs) [1,4,5,8,10] then ("Lydian_b3"++) else (""++)
           ,if all (`elem` zs) [0,1,4,5,7,9,10] && all (`notElem` zs) [2,3,6,8,11] then ("Mixolydian_b2"++) else (""++)
-          ,if all (`elem` zs) [0,3,4,6,8,9,11] && all (`notElem` zs) [1,2,5,7,10] then ("Lydian_Augmented #2"++) else (""++)
+          ,if all (`elem` zs) [0,3,4,6,8,9,11] && all (`notElem` zs) [1,2,5,7,10] then ("Lydian_Augmented_#2"++) else (""++)
           ,if all (`elem` zs) [0,1,3,5,6,8,9] && all (`notElem` zs) [2,4,7,10,11] then ("Locrian_bb7"++) else (""++)
           ]
        in foldr (.) id chain
+
+-- basePenta :: (Integral a, Num a) => [a] -> [(a, String)]
+basePenta ps  = unique ((\x -> if any ((snd x) `List.isInfixOf`) majorPentaChr 
+                              then (fst x, sortPcSet (snd x), (show (flat $ P (head (snd x)))) ++ "_major") 
+                              else if any ((snd x) `List.isInfixOf`) okinaPentaChr 
+                                then (fst x, sortPcSet (snd x), (show (flat $ P (head (snd x)))) ++ "_okinawan")
+                                else if any ((snd x) `List.isInfixOf`) iwatoPentaChr 
+                                  then (fst x, sortPcSet (snd x), (show (flat $ P (head (snd x)))) ++ "_iwato")
+                                  else (fst x, snd x, "n/a")) <$> filtered)
+  where
+    filtered = fst <$> filter (\(_,x) -> x==True) results
+    results  = [ ((sortPcSet ps, ys), (`List.isInfixOf` ys) xs) | 
+                  xs <- choose 4 (sortPcSet ps), 
+                  ys <- majorPentaChr ++ okinaPentaChr ++ iwatoPentaChr ]
+
+sortPcSet :: (Num a, Integral a) => [a] -> [a]
+sortPcSet pcs = head ps : (List.sort $ tail ps)
+  where ps = i . pc <$> pcs
+
+majorPentaChr = (\xs -> head xs : (List.sort $ tail xs)) <$> sets
+  where sets = i' . pcSet <$> ((sequence ((+) <$> [0,2,4,7,9])) <$> [0..11])
+
+okinaPentaChr = (\xs -> head xs : (List.sort $ tail xs)) <$> sets
+  where sets = i' . pcSet <$> ((sequence ((+) <$> [0,4,5,7,11])) <$> [0..11])
+
+iwatoPentaChr = (\xs -> head xs : (List.sort $ tail xs)) <$> sets
+  where sets = i' . pcSet <$> ((sequence ((+) <$> [0,1,5,6,10])) <$> [0..11])

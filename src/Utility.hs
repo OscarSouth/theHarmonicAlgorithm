@@ -3,7 +3,7 @@ module Utility where
 import           Data.Map (fromListWith, toList)
 import           Data.Set (Set)
 import qualified Data.Set as Set (fromList, toList, empty, member, insert)
-import qualified Data.List as List (sort)
+import qualified Data.List as List (sort, concat)
 
 -- |nCr utility function
 choose         :: (Num a, Eq a) => a -> [b] -> [[b]]
