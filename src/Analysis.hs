@@ -7,6 +7,8 @@ import           Data.Function (on)
 import qualified Data.List     as List (sortBy, sort, intersect, isSubsequenceOf, isInfixOf, concat)
 import qualified Data.Set      as Set (fromList)
 
+-- VOCABULARY FUNCTIONS
+
 pentaChords :: (Integral a, Num a) => ([a], [a]) -> [[a]]
 pentaChords (up, rs) = 
   let upper = replicate (length rs) up
@@ -40,14 +42,6 @@ vocabulary' = fromChord <$> []
               ++ concat penta1
               ++ concat penta2
               ++ concat penta3
-
-(<?) :: (Integral a, Num a) => [a] -> [a] -> Bool
-(<?) k p
-  | k == [] || p == [] = False
-  | otherwise          = List.intersect p k == p
-
-(?>) :: (Integral a, Num a) => [a] -> [a] -> Bool
-(?>) p k = k <? p
 
 oktet0 = ([0,4,5,7],[0,10,8,1,11,9,2])
 oktet1 = ([0,1,3,7],[0,5,10,8,6,4,9])
@@ -97,25 +91,6 @@ penta tt rt iv
   | tt == 3 = fromIntegral <$> simpleInversions' (pentaChords tetra3!!rt)!!iv
   | otherwise = []
 
-hasDuplicates :: (Ord a) => [a] -> Bool
-hasDuplicates xs = length xs /= length set
-  where set = Set.fromList xs 
-
-triadSets ps = 
-  let results = overtoneSets 3 ps ps
-   in unique $ filter (not . hasDuplicates) results
-
-chordSets ps = 
-  let results = overtoneSets 4 ps ps
-   in unique $ filter (not . hasDuplicates) results
-
-triadSets' tt rt = 
-  let ps = penta tt rt 0
-      results = overtoneSets 3 ps ps
-   in unique $ filter (not . hasDuplicates) results
-
-consonance = List.sortBy (compare `on` (\x ->  fst . dissonanceLevel $ x))
-
 allPenta' :: [[Integer]]
 allPenta' = 
   let one   = simpleInversions' <$> pentaChords tetra0
@@ -159,6 +134,33 @@ allIwato   =
 
 pVocab  :: (Num a, Integral a) => [[a]]
 pVocab = allPenta ++ allOkinawan ++ allIwato 
+
+(<?) :: (Integral a, Num a) => [a] -> [a] -> Bool
+(<?) k p
+  | k == [] || p == [] = False
+  | otherwise          = List.intersect p k == p
+
+(?>) :: (Integral a, Num a) => [a] -> [a] -> Bool
+(?>) p k = k <? p
+
+hasDuplicates :: (Ord a) => [a] -> Bool
+hasDuplicates xs = length xs /= length set
+  where set = Set.fromList xs 
+
+triadSets ps = 
+  let results = overtoneSets 3 ps ps
+   in unique $ filter (not . hasDuplicates) results
+
+chordSets ps = 
+  let results = overtoneSets 4 ps ps
+   in unique $ filter (not . hasDuplicates) results
+
+triadSets' tt rt = 
+  let ps = penta tt rt 0
+      results = overtoneSets 3 ps ps
+   in unique $ filter (not . hasDuplicates) results
+
+consonance = List.sortBy (compare `on` (\x ->  fst . dissonanceLevel $ x))
 
 chr               :: Int -> Int -> [(((Integer, [Integer]), [Integer]), [Char],
                                      ((Integer, [Integer]), [Integer]))]

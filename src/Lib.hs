@@ -66,7 +66,7 @@ parseFunds,
 unique,
 -- uniqueAnalysis,
 -- |GraphDB
-testFunc,
+-- testFunc,
 -- testData
   ) where
 

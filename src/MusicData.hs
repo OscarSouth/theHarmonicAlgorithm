@@ -689,22 +689,25 @@ basePenta pcs  =
   unique ((\x -> 
   if any ((snd x) `List.isInfixOf`) majorPentaChr
     then ((show (flat $ pc (head (snd x)))) ++ "_major," ++
-      show ((flat . pc) <$> ( (+(head (snd x))) <$> (i' . zeroForm $ snd x))))
+      show ((flat . pc) <$> ((+(head (snd x))) <$> (i' . zeroForm $ snd x))))
     else if any ((snd x) `List.isInfixOf`) okinaPentaChr
       then ((show (flat $ pc (head (snd x)))) ++ "_okinawan," ++
-        show ((flat . pc) <$> ( (+(head (snd x))) <$> (i' . zeroForm $ snd x))))
+        show ((flat . pc) <$> ((+(head (snd x))) <$> (i' . zeroForm $ snd x))))
       else if any ((snd x) `List.isInfixOf`) iwatoPentaChr
         then ((show (flat $ pc (head (snd x)))) ++ "_iwato," ++
-          show ((flat . pc) <$> ( (+(head (snd x))) <$> (i' . zeroForm $ snd x))))
+          show ((flat . pc) <$> ((+(head (snd x))) <$> (i' . zeroForm $ snd x))))
         else ("n/a," ++
-          show ((flat . pc) <$> ( (+(head (snd x))) <$> (i' . zeroForm $ snd x))))
+          show ((flat . pc) <$> ((+(head (snd x))) <$> (i' . zeroForm $ snd x))))
   ) <$> filtered)
   where
     ps = fromIntegral <$> pcs
     filtered = fst <$> filter (\(_,x) -> x==True) results
-    results  = [ ((sortPcSet ps, ys), (`List.isInfixOf` ys) xs) | 
+    results  = [ ((sortPcSet ps, ys), (`isContainedIn` ys) xs) | 
                   xs <- choose 4 (sortPcSet ps), 
                   ys <- majorPentaChr ++ okinaPentaChr ++ iwatoPentaChr ]
+
+isContainedIn ps0 ps1 = all (`elem` ps1) ps0
+  -- w [ ((sortPcSet ps, ys), (`List.isInfixOf` ys) xs) | xs <- choose 4 (sortPcSet ps), ys <- majorPentaChr ++ okinaPentaChr ++ iwatoPentaChr ]
 
 sortPcSet :: (Num a, Integral a) => [a] -> [a]
 sortPcSet pcs = head ps : (List.sort $ tail ps)
@@ -718,11 +721,4 @@ okinaPentaChr = (\xs -> head xs : (List.sort $ tail xs)) <$> sets
 
 iwatoPentaChr = (\xs -> head xs : (List.sort $ tail xs)) <$> sets
   where sets = i' . pcSet <$> ((sequence ((+) <$> [0,1,5,6,10])) <$> [0..11])
-
-testFunc ps =() 
-  -- where
-  --   filtered = (fst) <$> results-- <$> filter (\(_,x) -> x==True) results
-  --   results = [ ((sortPcSet ps, ys), (`List.isInfixOf` ys) xs) | xs <- choose 4 (sortPcSet ps), ys <- majorPentaChr ++ okinaPentaChr ++ iwatoPentaChr ]
-
-
 

@@ -30,8 +30,12 @@
 -- interval vector 1
 [1,2,2,2,3,0]
 
--- base pentatonic scales (through substitution of one note)
+-- related pentatonic scales (through substitution of one note)
+Ab_okinawan,[Ab,C,Db,Eb,G]
 D_iwato,[D,Eb,G,Ab,C]
+Eb_major,[Eb,F,G,Bb,C]
+Ab_major,[Ab,Bb,C,Eb,F]
+Eb_okinawan,[Eb,G,Ab,Bb,D]
 
 -- available triads (name, pitches, dissonance level, pitchclasses, interval vector
 C_min,[C,Eb,G],6,[0,3,7],[0,0,1,1,1,0]
@@ -109,8 +113,12 @@ Bb_Dorian,[Bb,C,Db,Eb,F,G,Ab]
 -- interval vector 2
 [1,2,2,2,3,0]
 
--- base pentatonic scales (through substitution of one note)
+-- related pentatonic scales (through substitution of one note)
+Db_okinawan,[Db,F,Gb,Ab,C]
 G_iwato,[G,Ab,C,Db,F]
+C_iwato,[C,Db,F,Gb,Bb]
+Ab_major,[Ab,Bb,C,Eb,F]
+Db_major,[Db,Eb,F,Ab,Bb]
 
 -- available triads (name, pitches, dissonance level, pitchclasses, interval vector
 Db_maj,[Db,F,Ab],6,[1,5,8],[0,0,1,1,1,0]
@@ -188,7 +196,9 @@ Bb_Dorian_#4,[Bb,C,Db,E,F,G,Ab]
 -- interval vector 3
 [2,0,2,3,2,1]
 
--- base pentatonic scales (through substitution of one note)
+-- related pentatonic scales (through substitution of one note)
+Ab_okinawan,[Ab,C,Db,Eb,G]
+G_iwato,[G,Ab,C,Db,F]
 
 -- available triads (name, pitches, dissonance level, pitchclasses, interval vector
 C_maj,[C,E,G],6,[0,4,7],[0,0,1,1,1,0]
