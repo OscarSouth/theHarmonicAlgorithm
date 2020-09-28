@@ -1,0 +1,261 @@
+------------------
+---- FULL SET ----
+------------------
+
+-- total tones 1+2+3
+8
+
+-- omitted tones 1+2+3
+[2,4,7,11]
+[D,E,G,B]
+
+-- included tones 1+2+3
+[0,1,3,5,6,8,9,10]
+[C,Db,Eb,F,Gb,Ab,A,Bb]
+
+-- interval vector 1+2+3
+[4,5,6,5,6,2]
+
+------------------
+-- PENTATONIC 1 --
+------------------
+
+-- pentatonic set 1
+[1,3,5,6,8]
+[Db,Eb,F,Gb,Ab]
+
+-- dissonance level 1
+52
+
+-- interval vector 1
+[1,3,2,1,3,0]
+
+-- base pentatonic scales (through substitution of one note)
+Db_major,[Db,Eb,F,Ab,Bb]
+B_major,[B,Db,Eb,Gb,Ab]
+
+-- available triads (name, pitches, dissonance level, pitchclasses, interval vector
+Db_maj,[Db,F,Ab],6,[1,5,8],[0,0,1,1,1,0]
+Db_sus4,[Db,Gb,Ab],9,[1,6,8],[0,1,0,0,2,0]
+Ab_sus4,[Ab,Db,Eb],10,[8,1,3],[0,1,0,0,2,0]
+Db_sus2/4no5,[Db,Eb,Gb],13,[1,3,6],[0,1,1,0,1,0]
+Eb_min7no5,[Eb,Db,Gb],13,[3,1,6],[0,1,1,0,1,0]
+Eb_sus2/4no5,[Eb,F,Ab],13,[3,5,8],[0,1,1,0,1,0]
+Eb_minadd11no5,[Eb,Gb,Ab],13,[3,6,8],[0,1,1,0,1,0]
+F_min7no5,[F,Eb,Ab],13,[5,3,8],[0,1,1,0,1,0]
+Gb_6no3,[Gb,Db,Eb],13,[6,1,3],[0,1,1,0,1,0]
+Gb_6sus2no5,[Gb,Eb,Ab],13,[6,3,8],[0,1,1,0,1,0]
+Ab_6no3,[Ab,Eb,F],13,[8,3,5],[0,1,1,0,1,0]
+Ab_7no3,[Ab,Eb,Gb],13,[8,3,6],[0,1,1,0,1,0]
+Db_majadd9no5,[Db,Eb,F],18,[1,3,5],[0,2,0,1,0,0]
+Eb_7sus2no5,[Eb,Db,F],18,[3,1,5],[0,2,0,1,0,0]
+F_7#5no3,[F,Db,Eb],18,[5,1,3],[0,2,0,1,0,0]
+Db_majadd11no5,[Db,F,Gb],19,[1,5,6],[1,0,0,1,1,0]
+F_b9#5no3,[F,Db,Gb],19,[5,1,6],[1,0,0,1,1,0]
+Gb_maj7no3,[Gb,Db,F],19,[6,1,5],[1,0,0,1,1,0]
+Eb_minadd9no5,[Eb,F,Gb],28,[3,5,6],[1,1,1,0,0,0]
+F_7b9no3no5,[F,Eb,Gb],28,[5,3,6],[1,1,1,0,0,0]
+F_minb9no5,[F,Gb,Ab],28,[5,6,8],[1,1,1,0,0,0]
+Gb_6maj7no3no5,[Gb,Eb,F],28,[6,3,5],[1,1,1,0,0,0]
+Gb_maj7sus2no5,[Gb,F,Ab],28,[6,5,8],[1,1,1,0,0,0]
+Ab_67no3no5,[Ab,F,Gb],28,[8,5,6],[1,1,1,0,0,0]
+
+-- available 4 note chords (name, pitches, dissonance level, pitchclasses, interval vector
+Db_sus2/4,[Db,Eb,Gb,Ab],22,[1,3,6,8],[0,2,1,0,3,0]
+Db_add9,[Db,Eb,F,Ab],23,[1,3,5,8],[0,2,1,1,2,0]
+Eb_m7add11no5,[Eb,Db,Gb,Ab],23,[3,1,6,8],[0,2,1,0,3,0]
+Gb_6sus2,[Gb,Db,Eb,Ab],23,[6,1,3,8],[0,2,1,0,3,0]
+Ab_7sus4,[Ab,Db,Eb,Gb],23,[8,1,3,6],[0,2,1,0,3,0]
+Eb_7sus2/4no5,[Eb,Db,F,Ab],24,[3,1,5,8],[0,2,1,1,2,0]
+F_m7#5,[F,Db,Eb,Ab],24,[5,1,3,8],[0,2,1,1,2,0]
+Ab_6sus4,[Ab,Db,Eb,F],24,[8,1,3,5],[0,2,1,1,2,0]
+Db_add11,[Db,F,Gb,Ab],31,[1,5,6,8],[1,1,1,1,2,0]
+F_m#5b9,[F,Db,Gb,Ab],32,[5,1,6,8],[1,1,1,1,2,0]
+Gb_maj7sus2,[Gb,Db,F,Ab],32,[6,1,5,8],[1,1,1,1,2,0]
+Ab_67sus4no5,[Ab,Db,F,Gb],32,[8,1,5,6],[1,1,1,1,2,0]
+Db_add9/11no5,[Db,Eb,F,Gb],39,[1,3,5,6],[1,2,1,1,1,0]
+Eb_m7add9no5,[Eb,Db,F,Gb],39,[3,1,5,6],[1,2,1,1,1,0]
+F_7#5b9no3,[F,Db,Eb,Gb],39,[5,1,3,6],[1,2,1,1,1,0]
+Gb_6maj7no3,[Gb,Db,Eb,F],39,[6,1,3,5],[1,2,1,1,1,0]
+Eb_madd9/11no5,[Eb,F,Gb,Ab],41,[3,5,6,8],[1,2,2,0,1,0]
+F_m7b9no5,[F,Eb,Gb,Ab],41,[5,3,6,8],[1,2,2,0,1,0]
+Gb_6maj7sus2no5,[Gb,Eb,F,Ab],41,[6,3,5,8],[1,2,2,0,1,0]
+Ab_67no3,[Ab,Eb,F,Gb],41,[8,3,5,6],[1,2,2,0,1,0]
+
+------------------
+-- DIATONIC 1+2 --
+------------------
+
+-- diatonic modes 1+2
+C_Locrian,[C,Db,Eb,F,Gb,Ab,Bb]
+Db_Ionian,[Db,C,Eb,F,Gb,Ab,Bb]
+Eb_Dorian,[Eb,C,Db,F,Gb,Ab,Bb]
+F_Phrygian,[F,C,Db,Eb,Gb,Ab,Bb]
+Gb_Lydian,[Gb,C,Db,Eb,F,Ab,Bb]
+Ab_Mixolydian,[Ab,C,Db,Eb,F,Gb,Bb]
+Bb_Aeolian,[Bb,C,Db,Eb,F,Gb,Ab]
+
+-- interval vector 1
+[2,5,4,3,6,1]
+
+------------------
+-- PENTATONIC 2 --
+------------------
+
+-- pentatonic set 2
+[0,1,3,5,10]
+[C,Db,Eb,F,Bb]
+
+-- dissonance level 2
+53
+
+-- interval vector 2
+[1,3,2,1,3,0]
+
+-- base pentatonic scales (through substitution of one note)
+Ab_major,[Ab,Bb,C,Eb,F]
+
+-- available triads (name, pitches, dissonance level, pitchclasses, interval vector
+Bb_min,[Bb,Db,F],7,[10,1,5],[0,0,1,1,1,0]
+F_sus4,[F,C,Bb],10,[5,0,10],[0,1,0,0,2,0]
+Bb_sus4,[Bb,Eb,F],10,[10,3,5],[0,1,0,0,2,0]
+Eb_6no3,[Eb,C,Bb],12,[3,0,10],[0,1,1,0,1,0]
+Eb_7no3,[Eb,Db,Bb],12,[3,1,10],[0,1,1,0,1,0]
+C_minadd11no5,[C,Eb,F],13,[0,3,5],[0,1,1,0,1,0]
+C_min7no5,[C,Eb,Bb],13,[0,3,10],[0,1,1,0,1,0]
+Db_6sus2no5,[Db,Eb,Bb],13,[1,3,10],[0,1,1,0,1,0]
+Eb_6sus2no5,[Eb,C,F],13,[3,0,5],[0,1,1,0,1,0]
+F_7no3,[F,C,Eb],13,[5,0,3],[0,1,1,0,1,0]
+Bb_sus2/4no5,[Bb,C,Eb],13,[10,0,3],[0,1,1,0,1,0]
+Bb_minadd11no5,[Bb,Db,Eb],13,[10,1,3],[0,1,1,0,1,0]
+Db_majadd9no5,[Db,Eb,F],18,[1,3,5],[0,2,0,1,0,0]
+Eb_7sus2no5,[Eb,Db,F],18,[3,1,5],[0,2,0,1,0,0]
+F_7#5no3,[F,Db,Eb],18,[5,1,3],[0,2,0,1,0,0]
+C_sus4b9no5,[C,Db,F],19,[0,1,5],[1,0,0,1,1,0]
+Db_maj7no5,[Db,C,F],19,[1,0,5],[1,0,0,1,1,0]
+F_b13no3,[F,C,Db],19,[5,0,1],[1,0,0,1,1,0]
+C_minb9no5,[C,Db,Eb],28,[0,1,3],[1,1,1,0,0,0]
+C_7b9no3no5,[C,Db,Bb],28,[0,1,10],[1,1,1,0,0,0]
+Db_maj7sus2no5,[Db,C,Eb],28,[1,0,3],[1,1,1,0,0,0]
+Db_6maj7no3no5,[Db,C,Bb],28,[1,0,10],[1,1,1,0,0,0]
+Eb_67no3no5,[Eb,C,Db],28,[3,0,1],[1,1,1,0,0,0]
+Bb_minadd9no5,[Bb,C,Db],28,[10,0,1],[1,1,1,0,0,0]
+
+-- available 4 note chords (name, pitches, dissonance level, pitchclasses, interval vector
+Eb_6sus2,[Eb,C,F,Bb],22,[3,0,5,10],[0,2,1,0,3,0]
+C_m7add11no5,[C,Eb,F,Bb],23,[0,3,5,10],[0,2,1,0,3,0]
+Eb_7sus2,[Eb,Db,F,Bb],23,[3,1,5,10],[0,2,1,1,2,0]
+F_7sus4,[F,C,Eb,Bb],23,[5,0,3,10],[0,2,1,0,3,0]
+Bb_sus2/4,[Bb,C,Eb,F],23,[10,0,3,5],[0,2,1,0,3,0]
+Db_6add9no5,[Db,Eb,F,Bb],24,[1,3,5,10],[0,2,1,1,2,0]
+F_7sus4#5,[F,Db,Eb,Bb],24,[5,1,3,10],[0,2,1,1,2,0]
+Bb_madd11,[Bb,Db,Eb,F],24,[10,1,3,5],[0,2,1,1,2,0]
+C_7sus4b9no5,[C,Db,F,Bb],32,[0,1,5,10],[1,1,1,1,2,0]
+Db_6maj7no5,[Db,C,F,Bb],32,[1,0,5,10],[1,1,1,1,2,0]
+F_sus4b13,[F,C,Db,Bb],32,[5,0,1,10],[1,1,1,1,2,0]
+Bb_madd9,[Bb,C,Db,F],32,[10,0,1,5],[1,1,1,1,2,0]
+C_madd11b9no5,[C,Db,Eb,F],39,[0,1,3,5],[1,2,1,1,1,0]
+Db_maj7add9no5,[Db,C,Eb,F],39,[1,0,3,5],[1,2,1,1,1,0]
+Eb_67sus2no5,[Eb,C,Db,F],39,[3,0,1,5],[1,2,1,1,1,0]
+F_7b13no3,[F,C,Db,Eb],39,[5,0,1,3],[1,2,1,1,1,0]
+Eb_67no3,[Eb,C,Db,Bb],40,[3,0,1,10],[1,2,2,0,1,0]
+C_m7b9no5,[C,Db,Eb,Bb],41,[0,1,3,10],[1,2,2,0,1,0]
+Db_6maj7sus2no5,[Db,C,Eb,Bb],41,[1,0,3,10],[1,2,2,0,1,0]
+Bb_madd9/11no5,[Bb,C,Db,Eb],41,[10,0,1,3],[1,2,2,0,1,0]
+
+------------------
+-- DIATONIC 2+3 --
+------------------
+
+-- diatonic modes 2+3
+C_Locrian_nat.6,[C,Db,Eb,F,Gb,A,Bb]
+Db_Ionian_#5,[Db,C,Eb,F,Gb,A,Bb]
+Eb_Dorian_#4,[Eb,C,Db,F,Gb,A,Bb]
+F_Phrygian_nat.3,[F,C,Db,Eb,Gb,A,Bb]
+Gb_Lydian_#2,[Gb,C,Db,Eb,F,A,Bb]
+A_Altered_bb7,[A,C,Db,Eb,F,Gb,Bb]
+Bb_Harmonic_Minor,[Bb,C,Db,Eb,F,Gb,A]
+
+-- interval vector 2
+[3,3,5,4,4,2]
+
+------------------
+-- PENTATONIC 3 --
+------------------
+
+-- pentatonic set 3
+[0,1,5,6,9]
+[C,Db,F,Gb,A]
+
+-- dissonance level 3
+72
+
+-- interval vector 3
+[2,0,2,3,2,1]
+
+-- base pentatonic scales (through substitution of one note)
+C_iwato,[C,Db,F,Gb,Bb]
+
+-- available triads (name, pitches, dissonance level, pitchclasses, interval vector
+F_maj,[F,C,A],7,[5,0,9],[0,0,1,1,1,0]
+Gb_min,[Gb,Db,A],7,[6,1,9],[0,0,1,1,1,0]
+C_sus4b9no5,[C,Db,F],19,[0,1,5],[1,0,0,1,1,0]
+Db_maj7no5,[Db,C,F],19,[1,0,5],[1,0,0,1,1,0]
+Db_majadd11no5,[Db,F,Gb],19,[1,5,6],[1,0,0,1,1,0]
+F_b13no3,[F,C,Db],19,[5,0,1],[1,0,0,1,1,0]
+F_b9#5no3,[F,Db,Gb],19,[5,1,6],[1,0,0,1,1,0]
+Gb_maj7no3,[Gb,Db,F],19,[6,1,5],[1,0,0,1,1,0]
+C_6b9no3no5,[C,Db,A],22,[0,1,9],[1,0,1,1,0,0]
+Db_maj7#5no3,[Db,C,A],22,[1,0,9],[1,0,1,1,0,0]
+F_majb9no5,[F,Gb,A],22,[5,6,9],[1,0,1,1,0,0]
+Gb_minmaj7no5,[Gb,F,A],22,[6,5,9],[1,0,1,1,0,0]
+A_#9no5,[A,C,Db],22,[9,0,1],[1,0,1,1,0,0]
+A_6#5no3,[A,F,Gb],22,[9,5,6],[1,0,1,1,0,0]
+Db_aug,[Db,F,A],27,[1,5,9],[0,0,0,3,0,0]
+F_aug,[F,Db,A],27,[5,1,9],[0,0,0,3,0,0]
+A_aug,[A,Db,F],27,[9,1,5],[0,0,0,3,0,0]
+Gb_dim,[Gb,C,A],32,[6,0,9],[0,0,2,0,0,1]
+C_b9b5no3,[C,Db,Gb],41,[0,1,6],[1,0,0,0,1,1]
+C_sus4b5,[C,F,Gb],41,[0,5,6],[1,0,0,0,1,1]
+Db_maj7sus4no5,[Db,C,Gb],41,[1,0,6],[1,0,0,0,1,1]
+F_b9no3,[F,C,Gb],41,[5,0,6],[1,0,0,0,1,1]
+Gb_#11no3,[Gb,C,Db],41,[6,0,1],[1,0,0,0,1,1]
+Gb_maj7b5no3,[Gb,C,F],41,[6,0,5],[1,0,0,0,1,1]
+
+-- available 4 note chords (name, pitches, dissonance level, pitchclasses, interval vector
+C_6sus4b9no5,[C,Db,F,A],27,[0,1,5,9],[1,0,1,3,1,0]
+Db_maj7#5,[Db,C,F,A],27,[1,0,5,9],[1,0,1,3,1,0]
+Db_#5add11,[Db,F,Gb,A],27,[1,5,6,9],[1,0,1,3,1,0]
+F_b13,[F,C,Db,A],27,[5,0,1,9],[1,0,1,3,1,0]
+F_#5b9,[F,Db,Gb,A],27,[5,1,6,9],[1,0,1,3,1,0]
+Gb_mmaj7,[Gb,Db,F,A],27,[6,1,5,9],[1,0,1,3,1,0]
+A_#5#9,[A,C,Db,F],27,[9,0,1,5],[1,0,1,3,1,0]
+A_6#5,[A,Db,F,Gb],27,[9,1,5,6],[1,0,1,3,1,0]
+C_6b5b9no3,[C,Db,Gb,A],51,[0,1,6,9],[1,0,2,1,1,1]
+C_6sus4b5,[C,F,Gb,A],51,[0,5,6,9],[1,0,2,1,1,1]
+Db_maj7sus4#5,[Db,C,Gb,A],51,[1,0,6,9],[1,0,2,1,1,1]
+F_b9,[F,C,Gb,A],51,[5,0,6,9],[1,0,2,1,1,1]
+Gb_m#11,[Gb,C,Db,A],51,[6,0,1,9],[1,0,2,1,1,1]
+Gb_mmaj7b5,[Gb,C,F,A],51,[6,0,5,9],[1,0,2,1,1,1]
+A_6#9no5,[A,C,Db,Gb],51,[9,0,1,6],[1,0,2,1,1,1]
+A_m6#5,[A,C,F,Gb],51,[9,0,5,6],[1,0,2,1,1,1]
+C_sus4b5b9,[C,Db,F,Gb],60,[0,1,5,6],[2,0,0,1,2,1]
+Db_maj7add11no5,[Db,C,F,Gb],60,[1,0,5,6],[2,0,0,1,2,1]
+F_b9b13no3,[F,C,Db,Gb],60,[5,0,1,6],[2,0,0,1,2,1]
+Gb_maj7#11no3,[Gb,C,Db,F],60,[6,0,1,5],[2,0,0,1,2,1]
+
+------------------
+-- DIATONIC 3+1 --
+------------------
+
+-- diatonic modes 3+1
+C_Locrian_bb7,[C,Db,Eb,F,Gb,Ab,A]
+Db_Harmonic_Major,[Db,C,Eb,F,Gb,Ab,A]
+Eb_Dorian_b5,[Eb,C,Db,F,Gb,Ab,A]
+F_Phrygian_b4,[F,C,Db,Eb,Gb,Ab,A]
+Gb_Lydian_b3,[Gb,C,Db,Eb,F,Ab,A]
+Ab_Mixolydian_b2,[Ab,C,Db,Eb,F,Gb,A]
+A_Lydian_Augmented_#2,[A,C,Db,Eb,F,Gb,Ab]
+
+-- interval vector 3+1
+[3,3,5,4,4,2]

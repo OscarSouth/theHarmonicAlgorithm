@@ -207,7 +207,7 @@ prog3 n1 n2 k = take k $ sorted
                                                                    (fst dz))) tsns 
 
 pentaPatterns xs = 
-  let patterns   = filter (xs ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan))
+  let patterns   = filter (xs ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan ++ allIwato))
       sorted     = List.sort <$> (List.sortBy (compare `on` (\xs -> dissonanceLevel xs)) patterns)
    in zip (dissonanceLevel <$> sorted) (intervalVector <$> sorted) 
 
@@ -225,14 +225,16 @@ type Analysis = [((Integer, Integer, Integer),
                  ((Integer, [Integer]), [Integer]),
                  ([Integer], [Integer], [Integer]))]
 
-prog3ecbc t1 t2 t3 t4 t5 = sorted
+-- prog3ecbc t1 t2 t3 t4 t5 = sorted
+prog3ecbc = sorted
   where
     vocab     = unique $
-                  filter (t1 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan)) ++ 
-                  filter (t2 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan)) ++ 
-                  filter (t3 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan)) ++ 
-                  filter (t4 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan)) ++ 
-                  filter (t5 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan))
+                  (List.sort <$> allPenta ++ allOkinawan ++ allIwato)
+                  -- filter (t1 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan ++ allIwato)) ++ 
+                  -- filter (t2 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan ++ allIwato)) ++ 
+                  -- filter (t3 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan ++ allIwato)) ++ 
+                  -- filter (t4 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan ++ allIwato)) ++ 
+                  -- filter (t5 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan ++ allIwato))
                   -- filter (t1 ?>) (allPenta ++ allOkinawan) ++ 
                   -- filter (t2 ?>) (allPenta ++ allOkinawan) ++
                   -- filter (t3 ?>) (allPenta ++ allOkinawan) ++ 
@@ -291,11 +293,12 @@ prog3ecbc t1 t2 t3 t4 t5 = sorted
     rmDups analysis = 
         (\(_,(xs,ys,zs),_,_,_,_) -> ((ys ++ xs) `notElem` sets) && ((zs ++ ys) `notElem` sets)) analysis
     filtered  = filter rmDups tsns
-    sorted    = show <$> List.sortBy (compare `on` (\(_,_,_,_,((x,_),_),_) -> x)) filtered 
+    sorted    = List.sortBy (compare `on` (\((x,y,z),_,_,_,_,_) -> x+y+z)) filtered 
 
 -- sets+dissonanceLevels, intervalVectors, tone count+omitted
 
 -- mapM_ (putStrLn . show) $ filter (\(x,_,_) -> (fst (dissonanceLevel x)) <= 9) (zip3 (triadSets [0,3,7,8,10]) (fmap (flat . pc) <$> triadSets [0,3,7,8,10]) (flatTriad <$> triadSets [0,3,7,8,10]))
+-- mapM_ (putStrLn . show) (zip4 (flatTriad <$> triadSets [0,3,7,8,10]) (dissonanceLevel <$> triadSets [0,3,7,8,10]) (fmap (flat . pc) <$> triadSets [0,3,7,8,10]) (intervalVector <$> triadSets [0,3,7,8,10]))
 
 -- analyse = 
 
@@ -381,5 +384,3 @@ chrCluster xs' = not (chrClusters xs') -- filter chrClusters xs
     chrClusters xs = any (`List.isSubsequenceOf` xs) ([0,10,11]:[0,1,11]:(sequence ((+) <$> [0,1,2]) <$> [0..9]))
 
 allModes = filter chrCluster vocab''
-
-

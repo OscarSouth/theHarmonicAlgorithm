@@ -595,7 +595,7 @@ toChord f xs@(fund:tones)
           ,if all (`elem` zs) [0,4,7] && all (`notElem` zs) [1,2,3,5,6,8,9,10,11] 
             then ("maj"++) else (""++)
           ,if elem 3 zs && all (`notElem` zs) [4,10] then ("m"++) else (""++)
-          ,if all (`elem` zs) [3,10] && notElem 4 zs then ("-"++) else (""++)
+          ,if all (`elem` zs) [3,10] && notElem 4 zs then ("m7"++) else (""++)
           ,if elem 9 zs then ("6"++) else (""++)
           ,if elem 10 zs && (notElem 3 zs || all (`elem` zs) [3,4]) then ("7"++) else (""++)
           -- ,if (elem 10 zs && elem 3 zs) then ("7"++) else (""++)
@@ -684,15 +684,23 @@ toMode f xs@(fund:tones)
           ]
        in foldr (.) id chain
 
--- basePenta :: (Integral a, Num a) => [a] -> [(a, String)]
-basePenta ps  = unique ((\x -> if any ((snd x) `List.isInfixOf`) majorPentaChr 
-                              then (fst x, sortPcSet (snd x), (show (flat $ P (head (snd x)))) ++ "_major") 
-                              else if any ((snd x) `List.isInfixOf`) okinaPentaChr 
-                                then (fst x, sortPcSet (snd x), (show (flat $ P (head (snd x)))) ++ "_okinawan")
-                                else if any ((snd x) `List.isInfixOf`) iwatoPentaChr 
-                                  then (fst x, sortPcSet (snd x), (show (flat $ P (head (snd x)))) ++ "_iwato")
-                                  else (fst x, snd x, "n/a")) <$> filtered)
+basePenta :: Integral a => [a] -> [String]
+basePenta pcs  = 
+  unique ((\x -> 
+  if any ((snd x) `List.isInfixOf`) majorPentaChr
+    then ((show (flat $ pc (head (snd x)))) ++ "_major," ++
+      show ((flat . pc) <$> ( (+(head (snd x))) <$> (i' . zeroForm $ snd x))))
+    else if any ((snd x) `List.isInfixOf`) okinaPentaChr
+      then ((show (flat $ pc (head (snd x)))) ++ "_okinawan," ++
+        show ((flat . pc) <$> ( (+(head (snd x))) <$> (i' . zeroForm $ snd x))))
+      else if any ((snd x) `List.isInfixOf`) iwatoPentaChr
+        then ((show (flat $ pc (head (snd x)))) ++ "_iwato," ++
+          show ((flat . pc) <$> ( (+(head (snd x))) <$> (i' . zeroForm $ snd x))))
+        else ("n/a," ++
+          show ((flat . pc) <$> ( (+(head (snd x))) <$> (i' . zeroForm $ snd x))))
+  ) <$> filtered)
   where
+    ps = fromIntegral <$> pcs
     filtered = fst <$> filter (\(_,x) -> x==True) results
     results  = [ ((sortPcSet ps, ys), (`List.isInfixOf` ys) xs) | 
                   xs <- choose 4 (sortPcSet ps), 
@@ -710,3 +718,11 @@ okinaPentaChr = (\xs -> head xs : (List.sort $ tail xs)) <$> sets
 
 iwatoPentaChr = (\xs -> head xs : (List.sort $ tail xs)) <$> sets
   where sets = i' . pcSet <$> ((sequence ((+) <$> [0,1,5,6,10])) <$> [0..11])
+
+testFunc ps =() 
+  -- where
+  --   filtered = (fst) <$> results-- <$> filter (\(_,x) -> x==True) results
+  --   results = [ ((sortPcSet ps, ys), (`List.isInfixOf` ys) xs) | xs <- choose 4 (sortPcSet ps), ys <- majorPentaChr ++ okinaPentaChr ++ iwatoPentaChr ]
+
+
+
