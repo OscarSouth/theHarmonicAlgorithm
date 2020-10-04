@@ -2,11 +2,12 @@
 
 ![Header](img/header.png)
 
-#### NOTICE
-### this is my current active branch for musical exploration
-### the app will likely not work as described here in this branch
-### the 'master' branch is the most up to date working release
-### the 'development' branch is unmerged updates to 'master'
+### NOTICE
+#### this is my current active branch for musical exploration
+#### the app will likely not work as described here in this branch
+#### the 'master' branch is the most up to date working release
+#### the 'development' branch is unmerged updates to 'master'
+
 
 The Harmonic Algorithm, written in Haskell and R, generates musical domain 
 specific data inside user defined constraints then filters it down and 
