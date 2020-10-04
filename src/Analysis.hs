@@ -83,6 +83,26 @@ iwato = fromChord <$> []
            ++ concat iwpen3
            ++ concat iwpen4
 
+kutet0 = ([0,2,3,7],[0,5,6,8,9,10,11])
+kutet1 = ([0,1,5,7],[0,3,4,8,9,10])
+kutet2 = ([0,4,6,9],[0,1,2,3,7,8,10,11])
+kutet3 = ([0,2,5,7],[0,3,4,8,9,10,11])
+kutet4 = ([0,3,5,6],[0,1,2,8,9,10,11])
+
+kupen0 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords iwtet0)
+kupen1 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords iwtet1)
+kupen2 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords iwtet2)
+kupen3 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords iwtet3)
+kupen4 = (fmap flatChord) <$> (simpleInversions') <$> (pentaChords iwtet4)
+
+kumoi :: (Integral a, Num a) => [[a]]
+kumoi = fromChord <$> []
+           ++ concat kupen0
+           ++ concat kupen1
+           ++ concat kupen2
+           ++ concat kupen3
+           ++ concat kupen4
+
 penta :: Num a => Int -> Int -> Int -> [a]
 penta tt rt iv
   | tt == 0 = fromIntegral <$> simpleInversions' (pentaChords tetra0!!rt)!!iv
@@ -99,8 +119,8 @@ allPenta' =
       four  = simpleInversions' <$> pentaChords tetra3
    in  (concat (one ++ two ++ three ++ four))
 
-allOkinawan' :: [[Integer]]
-allOkinawan' = 
+allOkina' :: [[Integer]]
+allOkina' = 
   let one   = simpleInversions' <$> pentaChords oktet0
       two   = simpleInversions' <$> pentaChords oktet1
       three = simpleInversions' <$> pentaChords oktet2
@@ -117,23 +137,37 @@ allIwato' =
       five  = simpleInversions' <$> pentaChords iwtet4
    in  (concat (one ++ two ++ three ++ four ++ five))
 
+allKumoi' :: [[Integer]]
+allKumoi' = 
+  let one   = simpleInversions' <$> pentaChords kutet0
+      two   = simpleInversions' <$> pentaChords kutet1
+      three = simpleInversions' <$> pentaChords kutet2
+      four  = simpleInversions' <$> pentaChords kutet3
+      five  = simpleInversions' <$> pentaChords kutet4
+   in  (concat (one ++ two ++ three ++ four ++ five))
+
 allPenta  :: (Num a, Integral a) => [[a]]
 allPenta   =
   let f xs = (sequence ((+) <$> xs)) <$> [0..11]
    in filter (\xs -> length xs >= 5) (unique $ i' . pcSet <$> concat (f <$> allPenta'))
 
-allOkinawan  :: (Num a, Integral a) => [[a]]
-allOkinawan   =
+allOkina  :: (Num a, Integral a) => [[a]]
+allOkina   =
   let f xs = (sequence ((+) <$> xs)) <$> [0..11]
-   in filter (\xs -> length xs >= 5) (unique $ i' . pcSet <$> concat (f <$> allOkinawan'))
+   in filter (\xs -> length xs >= 5) (unique $ i' . pcSet <$> concat (f <$> allOkina'))
 
 allIwato  :: (Num a, Integral a) => [[a]]
 allIwato   =
   let f xs = (sequence ((+) <$> xs)) <$> [0..11]
    in filter (\xs -> length xs >= 5) (unique $ i' . pcSet <$> concat (f <$> allIwato'))
 
+allKumoi  :: (Num a, Integral a) => [[a]]
+allKumoi   =
+  let f xs = (sequence ((+) <$> xs)) <$> [0..11]
+   in filter (\xs -> length xs >= 5) (unique $ i' . pcSet <$> concat (f <$> allKumoi'))
+
 pVocab  :: (Num a, Integral a) => [[a]]
-pVocab = allPenta ++ allOkinawan ++ allIwato 
+pVocab = allPenta ++ allOkina ++ allIwato ++ allKumoi
 
 (<?) :: (Integral a, Num a) => [a] -> [a] -> Bool
 (<?) k p
@@ -209,7 +243,7 @@ prog3 n1 n2 k = take k $ sorted
                                                                    (fst dz))) tsns 
 
 pentaPatterns xs = 
-  let patterns   = filter (xs ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan ++ allIwato))
+  let patterns   = filter (xs ?>) (unique (i' . zeroForm <$> allPenta ++ allOkina ++ allIwato ++ allKumoi))
       sorted     = List.sort <$> (List.sortBy (compare `on` (\xs -> dissonanceLevel xs)) patterns)
    in zip (dissonanceLevel <$> sorted) (intervalVector <$> sorted) 
 
@@ -231,18 +265,9 @@ type Analysis = [((Integer, Integer, Integer),
 prog3ecbc = sorted
   where
     vocab     = unique $
-                  (List.sort <$> allPenta ++ allOkinawan ++ allIwato)
-                  -- filter (t1 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan ++ allIwato)) ++ 
-                  -- filter (t2 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan ++ allIwato)) ++ 
-                  -- filter (t3 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan ++ allIwato)) ++ 
-                  -- filter (t4 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan ++ allIwato)) ++ 
-                  -- filter (t5 ?>) (unique (i' . zeroForm <$> allPenta ++ allOkinawan ++ allIwato))
-                  -- filter (t1 ?>) (allPenta ++ allOkinawan) ++ 
-                  -- filter (t2 ?>) (allPenta ++ allOkinawan) ++
-                  -- filter (t3 ?>) (allPenta ++ allOkinawan) ++ 
-                  -- filter (t4 ?>) (allPenta ++ allOkinawan) ++ 
-                  -- filter (t5 ?>) (allPenta ++ allOkinawan)
-
+                  -- (List.sort <$> allPenta ++ allOkina ++ allIwato ++ allKumoi)
+                  -- (List.sort <$> allPenta ++ allKumoi)
+                  (List.sort <$> allPentaChr)
     dsls      = dissonanceLevel <$> (List.sort <$> vocab) 
     tsns      =  unique [ ((fst xs, fst ys, fst zs), (snd xs, snd ys, snd zs),
                     (intervalVector $ snd xs, intervalVector $ snd ys, intervalVector $ snd zs),
@@ -379,10 +404,41 @@ generateScales = normalised
     filtered = filter (\xs -> (length xs /= 0)) (generateScale <$> sets)
     normalised = i' <$> unique (normalForm <$> filtered)
 
-vocab'' = i' <$> concat (inversions <$> generateScales)
+vocab'' = unique $ i' <$> concat (inversions <$> generateScales)
+pVocab'' = unique (i' <$> concat (inversions <$> (i' . zeroForm <$> choose 5 [1..11])))
 
 chrCluster xs' = not (chrClusters xs') -- filter chrClusters xs
   where
-    chrClusters xs = any (`List.isSubsequenceOf` xs) ([0,10,11]:[0,1,11]:(sequence ((+) <$> [0,1,2]) <$> [0..9]))
+    chrClusters xs = any (`List.isSubsequenceOf` xs) ([0,10,11] : [0,1,11] : (sequence ((+) <$> [0,1,2]) <$> [0..9]))
 
-allModes = filter chrCluster vocab''
+allModes = unique $ filter chrCluster vocab''
+allPenta'' chr = List.sort (filter (\xs -> length (filter (\x -> x == 1) (last <$> (i' . zeroForm <$> (choose 2 xs)))) == chr) (unique $ filter chrCluster (i' . normalForm <$> pVocab'')))
+
+allPentaChr :: (Num a, Integral a) => [[a]]
+allPentaChr =
+  let f xs  = (sequence ((+) <$> xs)) <$> [0..11]
+   in filter ((\xs -> (length xs >= 5))) (unique $ i' . pcSet <$> concat (f <$> (allPenta'' 0 ++ allPenta'' 1)))
+
+-- chrCluster' xs' = not (chrClusters xs') -- filter chrClusters xs
+--   where
+--     chrClusters xs = any (`List.isSubsequenceOf` xs) ([0,10,11] : [0,1,11] : (sequence ((+) <$> [0,1,2]) <$> [0..9]))
+--     intervals xs   = 
+
+-- toPenta :: Integral a => [a] -> [String]
+-- toPenta pcs  = 
+--   unique ((\x -> 
+--   if any (x `List.isInfixOf`) allPenta'
+--     then ((show (flat $ pc (head x))) ++ "_major," ++
+--       show ((flat . pc) <$> ((+(head x)) <$> (i' . zeroForm $ x))))
+--     else if any (x `List.isInfixOf`) allOkina'
+--       then ((show (flat $ pc (head x))) ++ "_okina," ++
+--         show ((flat . pc) <$> ((+(head x)) <$> (i' . zeroForm $ x))))
+--       else if any (x `List.isInfixOf`) allIwato'
+--         then ((show (flat $ pc (head x))) ++ "_iwato," ++
+--           show ((flat . pc) <$> ((+(head x)) <$> (i' . zeroForm $ x))))
+--         else if any (x `List.isInfixOf`) allKumoi'
+--           then ((show (flat $ pc (head x))) ++ "_kumoi," ++
+--             show ((flat . pc) <$> ((+(head x)) <$> (i' . zeroForm $ x))))
+--           else ("n/a," ++
+--             show ((flat . pc) <$> ((+(head x)) <$> (i' . zeroForm $ x))))
+--   ) <$> pcs : [])
