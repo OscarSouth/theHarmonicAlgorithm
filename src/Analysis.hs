@@ -2,6 +2,7 @@ module Analysis where
 
 import           Utility
 import           MusicData
+import           Overtone
 
 import           Data.Function (on)
 import qualified Data.List     as List (sortBy, sort, intersect, isSubsequenceOf, isInfixOf, concat)
@@ -264,10 +265,12 @@ type Analysis = [((Integer, Integer, Integer),
 -- prog3ecbc t1 t2 t3 t4 t5 = sorted
 prog3ecbc = sorted
   where
+    tA   = parseOvertones "G D F A"
+    tB   = parseOvertones "G D F Bb"
     vocab     = unique $
-                  -- (List.sort <$> allPenta ++ allOkina ++ allIwato ++ allKumoi)
+                  (List.sort <$> allPenta ++ allOkina ++ allIwato ++ allKumoi)
                   -- (List.sort <$> allPenta ++ allKumoi)
-                  (List.sort <$> allPentaChr)
+                  -- (List.sort <$> allPentaChr)
     dsls      = dissonanceLevel <$> (List.sort <$> vocab) 
     tsns      =  unique [ ((fst xs, fst ys, fst zs), (snd xs, snd ys, snd zs),
                     (intervalVector $ snd xs, intervalVector $ snd ys, intervalVector $ snd zs),
@@ -311,6 +314,11 @@ prog3ecbc = sorted
                       (pcSet (List.sort $ snd xs ++ snd ys) /= pcSet (List.sort $ snd ys ++ snd zs)) && 
                       (pcSet (List.sort $ snd ys ++ snd zs) /= pcSet (List.sort $ snd zs ++ snd xs)) && 
                       (pcSet (List.sort $ snd zs ++ snd xs) /= pcSet (List.sort $ snd xs ++ snd ys))
+                    ) &&
+                    (
+                      ((snd xs ?> tA) || (snd xs ?> tB)) && 
+                      ((snd ys ?> tA) || (snd ys ?> tB)) && 
+                      ((snd zs ?> tA) || (snd zs ?> tB))
                     )
                   )
                   ]

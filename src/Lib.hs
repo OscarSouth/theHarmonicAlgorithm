@@ -48,6 +48,7 @@ allModes,
 majorPentaChr,
 okinaPentaChr,
 iwatoPentaChr,
+(?>),(<?),
 -----------
 -- |Markov
 MarkovMap,

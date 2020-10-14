@@ -35,6 +35,7 @@ main = do
   let intervalVector123 = (\(_,_,_,_,(_,x),_) -> show x) <$> analysis
   let pentatonicSet1 = (\(_,(x,_,_),_,_,_,_) -> (show x) ++ "\n" ++ (show (flat . pc <$> x))) <$> analysis
   let dissonanceLevel1 = (\((x,_,_),_,_,_,_,_) -> show x) <$> analysis
+  let tunings1 = (\(_,(x,_,_),_,_,_,_) -> show (if x ?> parseOvertones "G D F A" then "DGDGA" else "N/A", if x ?> parseOvertones "G D F Bb" then "DGDABb" else "N/A")) <$> analysis
   let intervalVector1 = (\(_,_,(x,_,_),_,_,_) -> show x) <$> analysis
   let dissonanceLevel1 = (\((x,_,_),_,_,_,_,_) -> show x) <$> analysis
   let basePentas1 = (\(_,(x,_,_),_,_,_,_) -> filter (not . (`elem` "()")) $ unlines (basePenta x)) <$> analysis
@@ -44,6 +45,7 @@ main = do
   let intervalVector12 = (\(_,_,_,_,_,(x,_,_)) -> show $ intervalVector x) <$> analysis
   let pentatonicSet2 = (\(_,(_,x,_),_,_,_,_) -> (show x) ++ "\n" ++ (show (flat . pc <$> x))) <$> analysis
   let dissonanceLevel2 = (\((_,x,_),_,_,_,_,_) -> show x) <$> analysis
+  let tunings2 = (\(_,(_,x,_),_,_,_,_) -> show (if x ?> parseOvertones "G D F A" then "DGDGA" else "N/A", if x ?> parseOvertones "G D F Bb" then "DGDABb" else "N/A")) <$> analysis
   let intervalVector2 = (\(_,_,(_,x,_),_,_,_) -> show x) <$> analysis
   let dissonanceLevel2 = (\((_,x,_),_,_,_,_,_) -> show x) <$> analysis
   let basePentas2 = (\(_,(_,x,_),_,_,_,_) -> filter (not . (`elem` "()")) $ unlines (basePenta x)) <$> analysis
@@ -53,6 +55,7 @@ main = do
   let intervalVector23 = (\(_,_,_,_,_,(_,x,_)) -> show $ intervalVector x) <$> analysis
   let pentatonicSet3 = (\(_,(_,_,x),_,_,_,_) -> (show x) ++ "\n" ++ (show (flat . pc <$> x))) <$> analysis
   let dissonanceLevel3 = (\((_,_,x),_,_,_,_,_) -> show x) <$> analysis
+  let tunings3 = (\(_,(_,_,x),_,_,_,_) -> show (if x ?> parseOvertones "G D F A" then "DGDGA" else "N/A", if x ?> parseOvertones "G D F Bb" then "DGDABb" else "N/A")) <$> analysis
   let intervalVector3 = (\(_,_,(_,_,x),_,_,_) -> show x) <$> analysis
   let dissonanceLevel3 = (\((_,_,x),_,_,_,_,_) -> show x) <$> analysis
   let basePentas3 = (\(_,(_,_,x),_,_,_,_) -> filter (not . (`elem` "()")) $ unlines (basePenta x)) <$> analysis
@@ -70,6 +73,7 @@ main = do
   mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n" ++ pentatonicSet1title)) (zip (show <$> [1..]) contents)
   mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- pentatonic set 1\n" ++ xs)) (zip (show <$> [1..]) pentatonicSet1)
   mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- dissonance level 1\n" ++ xs)) (zip (show <$> [1..]) dissonanceLevel1)
+  mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- tunings 1\n" ++ xs)) (zip (show <$> [1..]) tunings1)
   mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- interval vector 1\n" ++ xs)) (zip (show <$> [1..]) intervalVector1)
   mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- related pentatonic scales (through substitution of one note)\n" ++ xs)) (zip (show <$> [1..]) basePentas1)
   mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- available triads (name, pitches, dissonance level, pitchclasses, interval vector\n" ++ xs)) (zip (show <$> [1..]) availableTriads1)
@@ -80,6 +84,7 @@ main = do
   mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n" ++ pentatonicSet2title)) (zip (show <$> [1..]) contents)
   mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- pentatonic set 2\n" ++ xs)) (zip (show <$> [1..]) pentatonicSet2)
   mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- dissonance level 2\n" ++ xs)) (zip (show <$> [1..]) dissonanceLevel2)
+  mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- tunings 2\n" ++ xs)) (zip (show <$> [1..]) tunings2)
   mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- interval vector 2\n" ++ xs)) (zip (show <$> [1..]) intervalVector2)
   mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- related pentatonic scales (through substitution of one note)\n" ++ xs)) (zip (show <$> [1..]) basePentas2)
   mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- available triads (name, pitches, dissonance level, pitchclasses, interval vector\n" ++ xs)) (zip (show <$> [1..]) availableTriads2)
@@ -90,6 +95,7 @@ main = do
   mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n" ++ pentatonicSet3title)) (zip (show <$> [1..]) contents)
   mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- pentatonic set 3\n" ++ xs)) (zip (show <$> [1..]) pentatonicSet3)
   mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- dissonance level 3\n" ++ xs)) (zip (show <$> [1..]) dissonanceLevel3)
+  mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- tunings 3\n" ++ xs)) (zip (show <$> [1..]) tunings3)
   mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- interval vector 3\n" ++ xs)) (zip (show <$> [1..]) intervalVector3)
   mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- related pentatonic scales (through substitution of one note)\n" ++ xs)) (zip (show <$> [1..]) basePentas3)
   mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- available triads (name, pitches, dissonance level, pitchclasses, interval vector\n" ++ xs)) (zip (show <$> [1..]) availableTriads3)
