@@ -179,11 +179,11 @@ parseKey = parseKey' 3
 parseFunds :: (Num a, Integral a) => String -> [a]
 parseFunds = parseFunds' 3
 
--- |shortcut to generalised parsing function which 3 overtones pre-defined
+-- |shortcut to generalised parsing function with 3 overtones pre-defined
 parseOvertones :: (Num a, Integral a) => String -> [a]
 parseOvertones = parseOvertones' 3
 
--- |shortcut to generalised parsing function which 3 notes pre-defined
+-- |shortcut to generalised parsing function with 1 notes pre-defined
 parseNotes :: (Num a, Integral a) => String -> [a]
 parseNotes = parseOvertones' 1
 

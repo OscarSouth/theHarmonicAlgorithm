@@ -311,14 +311,22 @@ prog3ecbc = sorted
                         ((snd zs ++ snd xs) /= (snd xs ++ snd ys)))
                     ) &&
                     (
-                      (pcSet (List.sort $ snd xs ++ snd ys) /= pcSet (List.sort $ snd ys ++ snd zs)) && 
-                      (pcSet (List.sort $ snd ys ++ snd zs) /= pcSet (List.sort $ snd zs ++ snd xs)) && 
+                      -- (pcSet (List.sort $ snd xs ++ snd ys) /= pcSet (List.sort $ snd ys ++ snd zs)) && 
+                    --   (pcSet (List.sort $ snd ys ++ snd zs) /= pcSet (List.sort $ snd zs ++ snd xs)) && 
                       (pcSet (List.sort $ snd zs ++ snd xs) /= pcSet (List.sort $ snd xs ++ snd ys))
                     ) &&
                     (
-                      ((snd xs ?> tA) || (snd xs ?> tB)) && 
-                      ((snd ys ?> tA) || (snd ys ?> tB)) && 
-                      ((snd zs ?> tA) || (snd zs ?> tB))
+                      (any (?> tA) (choose 4 (snd xs)) || any (?> tB) (choose 4 (snd xs))) && 
+                      (any (?> tA) (choose 4 (snd ys)) || any (?> tB) (choose 4 (snd ys))) && 
+                      (any (?> tA) (choose 4 (snd zs)) || any (?> tB) (choose 4 (snd zs)))
+                    ) &&
+                    (
+                      ((pitchClass <$> [D,F,A]) ?> pcSet (snd xs ++ snd ys ++ snd zs)) ||
+                      ((pitchClass <$> [D,F,Bb]) ?> pcSet (snd xs ++ snd ys ++ snd zs))
+                    ) &&
+                    (
+                      (any (?> tA) (snd <$> [xs,ys,zs])) &&
+                      (any (?> tB) (snd <$> [xs,ys,zs]))
                     )
                   )
                   ]
