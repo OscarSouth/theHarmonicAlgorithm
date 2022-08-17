@@ -49,7 +49,7 @@ extra-deps:
 # - archive: https://github.com/tidalcycles/Tidal/archive/master.zip`
 # - tidal-1.5.2
 # - tidal-1.6.1
-- tidal-1.7.8
+- tidal-1.8.0
 - inline-r-0.10.4
 #- vector-0.12.0.1
 #- hosc-0.17
