@@ -202,7 +202,7 @@ B_Locrian_nat.6,[B,C,D,E,F,Ab,A]
 91
 
 -- tunings 3
-("N/A","N/A")
+("N/A","n/a")
 
 -- interval vector 3
 [1,1,4,1,1,2]

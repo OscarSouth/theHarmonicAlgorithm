@@ -203,7 +203,7 @@ B_Locrian_bb7,[B,C,D,E,F,G,Ab]
 71
 
 -- tunings 3
-("N/A","N/A")
+("N/A","n/a")
 
 -- interval vector 3
 [1,2,2,3,1,1]

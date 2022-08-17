@@ -5,22 +5,22 @@
 
 packages:
 - completed:
-    hackage: tidal-1.6.1@sha256:673c49f4e7554db11724b783c324dd05349c47f22bb4bca821fd4736e893e729,3994
+    hackage: tidal-1.7.8@sha256:a17fe71112f97b412457a0ed8c2d9bd93fe4bcabe62c30493320191557b005ee,4017
     pantry-tree:
-      size: 2942
-      sha256: 3322a18dea452d70bb9d1dd7bc71390dcdbf124572263d19c80eeb6a2c0b07b8
+      size: 3225
+      sha256: 3e372c5a0d857e0407197ae97465a22372c8c56d242428c7a0cf1b4257f4671f
   original:
-    hackage: tidal-1.6.1
+    hackage: tidal-1.7.8
 - completed:
-    hackage: inline-r-0.10.3@sha256:d2a4faddf4b3226c05ce4a0dd0cb4876758ba45632048b9ba04accb97c1f145f,7934
+    hackage: inline-r-0.10.4@sha256:a0497f326b48e1446b29a865348de4ded9950ed3621f8ce68703b84db3a64171,7934
     pantry-tree:
       size: 4455
-      sha256: 5648f04a76c2481114935f7216bb00c57e4ea386dc91a6b6fad61275d99fb9fe
+      sha256: 2beaf71508edf64ef5047302b23161054ed4e7d6dbaf87200c4807a2554db274
   original:
-    hackage: inline-r-0.10.3
+    hackage: inline-r-0.10.4
 snapshots:
 - completed:
-    size: 531707
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/16/5.yaml
-    sha256: 9751e25e0af5713a53ddcfcc79564b082c71b1b357fadef0d85672a5b5ba3703
-  original: lts-16.5
+    size: 586268
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/18/13.yaml
+    sha256: d9e658a22cfe8d87a64fdf219885f942fef5fe2bcb156a9800174911c5da2443
+  original: lts-18.13

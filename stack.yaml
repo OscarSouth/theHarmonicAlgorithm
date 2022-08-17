@@ -22,7 +22,8 @@
 # resolver: lts-12.26
 # resolver: lts-14.0
 # resolver: lts-14.11
-resolver: lts-16.5
+# resolver: lts-16.5
+resolver: lts-18.13
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -47,8 +48,9 @@ packages:
 extra-deps:
 # - archive: https://github.com/tidalcycles/Tidal/archive/master.zip`
 # - tidal-1.5.2
-- tidal-1.6.1
-- inline-r-0.10.3
+# - tidal-1.6.1
+- tidal-1.7.8
+- inline-r-0.10.4
 #- vector-0.12.0.1
 #- hosc-0.17
 

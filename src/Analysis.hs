@@ -262,11 +262,11 @@ type Analysis = [((Integer, Integer, Integer),
                  ((Integer, [Integer]), [Integer]),
                  ([Integer], [Integer], [Integer]))]
 
--- prog3ecbc t1 t2 t3 t4 t5 = sorted
 prog3ecbc = sorted
   where
     tA   = parseOvertones "G D F A"
     tB   = parseOvertones "G D F Bb"
+    tC   = [0..11]
     vocab     = unique $
                   (List.sort <$> allPenta ++ allOkina ++ allIwato ++ allKumoi)
                   -- (List.sort <$> allPenta ++ allKumoi)
@@ -311,22 +311,24 @@ prog3ecbc = sorted
                         ((snd zs ++ snd xs) /= (snd xs ++ snd ys)))
                     ) &&
                     (
-                      -- (pcSet (List.sort $ snd xs ++ snd ys) /= pcSet (List.sort $ snd ys ++ snd zs)) && 
-                    --   (pcSet (List.sort $ snd ys ++ snd zs) /= pcSet (List.sort $ snd zs ++ snd xs)) && 
+                      (pcSet (List.sort $ snd xs ++ snd ys) /= pcSet (List.sort $ snd ys ++ snd zs)) && 
+                      (pcSet (List.sort $ snd ys ++ snd zs) /= pcSet (List.sort $ snd zs ++ snd xs)) && 
                       (pcSet (List.sort $ snd zs ++ snd xs) /= pcSet (List.sort $ snd xs ++ snd ys))
                     ) &&
                     (
-                      (any (?> tA) (choose 4 (snd xs)) || any (?> tB) (choose 4 (snd xs))) && 
+                      (any (?> tA) (choose 5 (snd xs)) || any (?> tB) (choose 5 (snd xs))) && 
                       (any (?> tA) (choose 4 (snd ys)) || any (?> tB) (choose 4 (snd ys))) && 
-                      (any (?> tA) (choose 4 (snd zs)) || any (?> tB) (choose 4 (snd zs)))
+                      (any (?> tA) (choose 3 (snd zs)) || any (?> tB) (choose 3 (snd zs)))
                     ) &&
                     (
-                      ((pitchClass <$> [D,F,A]) ?> pcSet (snd xs ++ snd ys ++ snd zs)) ||
-                      ((pitchClass <$> [D,F,Bb]) ?> pcSet (snd xs ++ snd ys ++ snd zs))
+                      ((pitchClass <$> [D,F,A]) ?> pcSet (snd xs ++ snd ys ++ snd zs)) &&
+                      ((pitchClass <$> [A,C,E]) ?> pcSet (snd xs ++ snd ys ++ snd zs))
                     ) &&
                     (
-                      (any (?> tA) (snd <$> [xs,ys,zs])) &&
-                      (any (?> tB) (snd <$> [xs,ys,zs]))
+                      (any (?> tA) (snd <$> [xs,ys])) &&
+                      (any (?> tB) (snd <$> [xs,ys])) 
+                      -- (any ([6] ?>) (snd <$> [xs,ys,zs])) &&
+                      -- (any ([1] ?>) (snd <$> [xs,ys,zs]))
                     )
                   )
                   ]
@@ -337,13 +339,6 @@ prog3ecbc = sorted
         (\(_,(xs,ys,zs),_,_,_,_) -> ((ys ++ xs) `notElem` sets) && ((zs ++ ys) `notElem` sets)) analysis
     filtered  = filter rmDups tsns
     sorted    = List.sortBy (compare `on` (\((x,y,z),_,_,_,_,_) -> x+y+z)) filtered 
-
--- sets+dissonanceLevels, intervalVectors, tone count+omitted
-
--- mapM_ (putStrLn . show) $ filter (\(x,_,_) -> (fst (dissonanceLevel x)) <= 9) (zip3 (triadSets [0,3,7,8,10]) (fmap (flat . pc) <$> triadSets [0,3,7,8,10]) (flatTriad <$> triadSets [0,3,7,8,10]))
--- mapM_ (putStrLn . show) (zip4 (flatTriad <$> triadSets [0,3,7,8,10]) (dissonanceLevel <$> triadSets [0,3,7,8,10]) (fmap (flat . pc) <$> triadSets [0,3,7,8,10]) (intervalVector <$> triadSets [0,3,7,8,10]))
-
--- analyse = 
 
 fullSet3title :: String
 fullSet3title =
@@ -434,27 +429,3 @@ allPentaChr :: (Num a, Integral a) => [[a]]
 allPentaChr =
   let f xs  = (sequence ((+) <$> xs)) <$> [0..11]
    in filter ((\xs -> (length xs >= 5))) (unique $ i' . pcSet <$> concat (f <$> (allPenta'' 0 ++ allPenta'' 1)))
-
--- chrCluster' xs' = not (chrClusters xs') -- filter chrClusters xs
---   where
---     chrClusters xs = any (`List.isSubsequenceOf` xs) ([0,10,11] : [0,1,11] : (sequence ((+) <$> [0,1,2]) <$> [0..9]))
---     intervals xs   = 
-
--- toPenta :: Integral a => [a] -> [String]
--- toPenta pcs  = 
---   unique ((\x -> 
---   if any (x `List.isInfixOf`) allPenta'
---     then ((show (flat $ pc (head x))) ++ "_major," ++
---       show ((flat . pc) <$> ((+(head x)) <$> (i' . zeroForm $ x))))
---     else if any (x `List.isInfixOf`) allOkina'
---       then ((show (flat $ pc (head x))) ++ "_okina," ++
---         show ((flat . pc) <$> ((+(head x)) <$> (i' . zeroForm $ x))))
---       else if any (x `List.isInfixOf`) allIwato'
---         then ((show (flat $ pc (head x))) ++ "_iwato," ++
---           show ((flat . pc) <$> ((+(head x)) <$> (i' . zeroForm $ x))))
---         else if any (x `List.isInfixOf`) allKumoi'
---           then ((show (flat $ pc (head x))) ++ "_kumoi," ++
---             show ((flat . pc) <$> ((+(head x)) <$> (i' . zeroForm $ x))))
---           else ("n/a," ++
---             show ((flat . pc) <$> ((+(head x)) <$> (i' . zeroForm $ x))))
---   ) <$> pcs : [])

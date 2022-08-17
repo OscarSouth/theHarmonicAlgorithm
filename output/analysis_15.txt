@@ -117,7 +117,7 @@ B_Locrian_nat.6,[B,C,D,E,F,Ab,A]
 71
 
 -- tunings 2
-("N/A","N/A")
+("N/A","n/a")
 
 -- interval vector 2
 [1,2,2,3,1,1]
@@ -203,7 +203,7 @@ B_Locrian_bb7,[B,C,D,E,F,G,Ab]
 72
 
 -- tunings 3
-("DGDGA","N/A")
+("DGDGA","n/a")
 
 -- interval vector 3
 [1,2,3,1,2,1]
