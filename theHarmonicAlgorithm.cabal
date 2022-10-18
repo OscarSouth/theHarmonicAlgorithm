@@ -1,10 +1,10 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.33.0.
+-- This file has been generated from package.yaml by hpack version 0.35.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 5cdb94629f48420d546ff6f4e44f15a204278366b9750aff92e1789c9e8f57bb
+-- hash: 1237307943d219a1086c4332d52fc1395d65084ae8732aa36adb6b4860fa91d4
 
 name:           theHarmonicAlgorithm
 version:        1.0.1.0
@@ -55,9 +55,12 @@ executable theHarmonicAlgorithm-exe
   build-depends:
       base >=4.8 && <5
     , containers
+    , data-default
+    , hasbolt
     , inline-r
     , mtl
     , split
+    , text
     , theHarmonicAlgorithm
     , tidal
   default-language: Haskell2010

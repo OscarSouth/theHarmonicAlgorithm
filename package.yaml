@@ -53,6 +53,9 @@ executables:
     - inline-r
     - split
     - tidal
+    - hasbolt
+    - text
+    - data-default
 
 tests:
   theHarmonicAlgorithm-test:

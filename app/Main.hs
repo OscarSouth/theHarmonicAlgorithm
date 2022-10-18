@@ -1,4 +1,5 @@
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Main where
 
@@ -19,6 +20,17 @@ import qualified Data.Map             as Map (fromList, lookup)
 import           Data.Maybe           (fromMaybe)
 import           Text.Read            (readMaybe)
 import           Data.List.Split      (chunksOf)
+
+-- GraphDB stuff --
+
+import Database.Bolt
+
+import Data.Default
+import qualified Data.Text as Text
+import Control.Monad
+import Control.Monad.Except
+
+--               --
 
 -- import           sound.tidal.context
 

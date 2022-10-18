@@ -23,6 +23,7 @@
 # resolver: lts-14.0
 # resolver: lts-14.11
 resolver: lts-16.5
+# resolver: lts-18.13
 
 # User packages to be built.
 # Various formats can be used as shown in the example below.
@@ -48,11 +49,14 @@ extra-deps:
 # - archive: https://github.com/tidalcycles/Tidal/archive/master.zip`
 # - tidal-1.5.2
 - tidal-1.6.1
-- inline-r-0.10.3
+# - tidal-1.8.0
+- inline-r-0.10.4
 #- vector-0.12.0.1
 #- hosc-0.17
-# - hasbolt-0.1.6.2
 
+# - Cabal-3.6.3.0@sha256:ff97c442b0c679c1c9876acd15f73ac4f602b973c45bde42b43ec28265ee48f4,12459
+# - ghc-lib-parser-9.2.2.20220307@sha256:384755a514a42fe1615862ff6ef5c995a9ed71904360b4b212f9526f80fb214c,12705
+# - ghc-lib-parser-ex-9.2.0.3@sha256:a90c3a6aa85f59848d9f8c3928ab7203299a4b560db6f300976d9b1f7da127ee,3655
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
