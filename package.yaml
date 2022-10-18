@@ -54,8 +54,11 @@ executables:
     - split
     - tidal
     - hasbolt
+    - hasbolt-extras
     - text
     - data-default
+    - aeson
+    - bytestring
 
 tests:
   theHarmonicAlgorithm-test:

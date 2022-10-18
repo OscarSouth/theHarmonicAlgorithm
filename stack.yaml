@@ -49,10 +49,9 @@ extra-deps:
 # - tidal-1.5.2
 - tidal-1.6.1
 - inline-r-0.10.3
+- hasbolt-extras-0.0.1.6
 #- vector-0.12.0.1
 #- hosc-0.17
-# - hasbolt-0.1.6.2
-
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

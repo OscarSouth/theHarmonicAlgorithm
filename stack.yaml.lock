@@ -18,6 +18,13 @@ packages:
       size: 4455
   original:
     hackage: inline-r-0.10.3
+- completed:
+    hackage: hasbolt-extras-0.0.1.6@sha256:b13f0d00aa552b8c9ac1fdc4e2db48d92c32d86824fe9201797e991ef7733af1,3837
+    pantry-tree:
+      sha256: ecf89ebc5bf2be877b93b16d540ae81df25dd445b48ba682c2d146aa583faa6a
+      size: 2497
+  original:
+    hackage: hasbolt-extras-0.0.1.6
 snapshots:
 - completed:
     sha256: 9751e25e0af5713a53ddcfcc79564b082c71b1b357fadef0d85672a5b5ba3703
