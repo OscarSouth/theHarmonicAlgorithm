@@ -54,7 +54,7 @@ executables:
     - split
     - tidal
     - hasbolt
-    - hasbolt-extras
+    # - hasbolt-extras
     - text
     - data-default
     - aeson

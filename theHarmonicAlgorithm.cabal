@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 2b3e0da0633cd906e813debf9aed23bbb4533ac1a347dc06f4d4f28d2d604e81
+-- hash: 28524af37ca8cc14fd564c553b52b0e306c153d779cc80878ddde7c026e55538
 
 name:           theHarmonicAlgorithm
 version:        1.0.1.0
@@ -59,7 +59,6 @@ executable theHarmonicAlgorithm-exe
     , containers
     , data-default
     , hasbolt
-    , hasbolt-extras
     , inline-r
     , mtl
     , split
