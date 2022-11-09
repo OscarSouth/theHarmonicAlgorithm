@@ -41,21 +41,24 @@ import Control.Monad.IO.Class
 
 -- Simple request can be done by using 'query' function. It returns a list of 'Record's which
 -- are special dictionaries from 'Text' to any serializable 'Value'. You can extract this values by key using 'at' function.
-nineties :: BoltActionT IO [Text.Text]
-nineties = do records <- query "MATCH (n:testNode) RETURN n.param"
-              forM records $ \record -> record `at` "n.param"
+createNode :: BoltActionT IO ()
+createNode = do 
+  query "CREATE (n:testNode{param: 'createdInHs'})"
+  return ()
 
-
+getNodes :: BoltActionT IO [Text.Text]
+getNodes = do 
+  records <- query "MATCH (n:testNode) RETURN n.param"
+  forM records $ \record -> record `at` "n.param" 
 
 main :: IO ()
-main = do pipe <- connect $ def { user = "neo4j", password = "0980", version = 3}
-          titles <- run pipe nineties
-          forM_ titles print
-          close pipe
-          return ()
-
-
-
+main = do 
+  pipe <- connect $ def { version = 3 }
+  run pipe createNode
+  titles <- run pipe getNodes
+  forM_ titles print
+  close pipe
+  return ()
 
 -- GRAPH TESTING --
 
