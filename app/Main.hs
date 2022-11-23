@@ -65,37 +65,50 @@ import Lib (deconstructCadence, constructCadence)
 --   forM_ titles print
 --   close pipe
 --   return ()
--- GRAPH TESTING --
 
-cadenceToGraph :: (String, String, String) -> BoltActionT IO ()
-cadenceToGraph (f,m,c) = do
+-- cadenceToNode :: (String, String, String) -> BoltActionT IO ()
+-- cadenceToNode (f,m,c) = do
+--   query $ Text.pack ("CREATE (n:Cadence{functionality: '"++ f ++"', movement: '"++ m ++"' , chord: '"++ c ++"'})")
+--   return ()
+
+-- cadenceFromNode :: BoltActionT IO (String, String, String)
+-- cadenceFromNode = do 
+--   records <- query $ Text.pack ("MATCH (n:Cadence) RETURN n.functionality, n.movement, n.chord")
+--   f <- forM [head records] $ \record -> record `at` "n.functionality"
+--   m <- forM [head records] $ \record -> record `at` "n.movement"
+--   c <- forM [head records] $ \record -> record `at` "n.chord"
+--   let results = (Text.unpack $ head f, Text.unpack $ head m, Text.unpack $ head c)
+--   return results
+
+-- main :: IO ()
+-- main = do 
+--   initR -- load R libraries & settings, initialise R log, print info to stout
+--   model <- choraleData -- bind trained model
+--   let cadence = deconstructCadence (head $ Map.keys model)
+--   pipe <- connect $ def { version = 3 }
+--   run pipe $ cadenceToNode cadence
+--   r <- run pipe cadenceFromNode
+--   let rCadence = constructCadence r
+--   print rCadence
+--   close pipe
+--   return ()
+
+cadenceToNode :: Cadence -> BoltActionT IO ()
+cadenceToNode cadence = do
+  let (f,m,c) = deconstructCadence cadence
   query $ Text.pack ("CREATE (n:Cadence{functionality: '"++ f ++"', movement: '"++ m ++"' , chord: '"++ c ++"'})")
   return ()
 
-cadenceFromGraph :: BoltActionT IO (String, String, String)
-cadenceFromGraph = do 
-  records <- query $ Text.pack ("MATCH (n:Cadence) RETURN n.functionality, n.movement, n.chord")
-  f <- forM [head records] $ \record -> record `at` "n.functionality"
-  m <- forM [head records] $ \record -> record `at` "n.movement"
-  c <- forM [head records] $ \record -> record `at` "n.chord"
-  let results = (Text.unpack $ head f, Text.unpack $ head m, Text.unpack $ head c)
-  return results
-
-                              -- (record `at` "n.movement"), 
-                              -- (record `at` "n.chord")
-
-main :: IO ()
-main = do 
+main = R.withEmbeddedR R.defaultConfig $ do
   initR -- load R libraries & settings, initialise R log, print info to stout
   model <- choraleData -- bind trained model
-  let cadence = deconstructCadence (head $ Map.keys model)
   pipe <- connect $ def { version = 3 }
-  run pipe $ cadenceToGraph cadence
-  r <- run pipe cadenceFromGraph
-  let rCadence = constructCadence r
-  print rCadence
-  close pipe
+  forM_ (Map.keys model) (\cadence -> run pipe $ cadenceToNode cadence)
   return ()
+
+
+  
+-- GRAPH TESTING --
 
 -- main = R.withEmbeddedR R.defaultConfig $ do
 --   initR -- load R libraries & settings, initialise R log, print info to stout
