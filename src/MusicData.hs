@@ -515,11 +515,11 @@ data Movement = Asc PitchClass | Desc PitchClass | Unison | Tritone | Empty
 -- |displays musical interval in a human readable way
 instance Show Movement where
   show :: Movement -> String
-  show (Asc n)   = "asc " ++ show (i n)
-  show (Desc n)  = "desc " ++ show (i n)
-  show Unison  = "pedal"
-  show Tritone = "tritone"
-  show Empty = "empty"
+  show (Asc n)  = "asc " ++ show (i n)
+  show (Desc n) = "desc " ++ show (i n)
+  show Unison   = "pedal"
+  show Tritone  = "tritone"
+  show Empty    = "empty"
 
 -- |reads show instance of movement
 instance Read Movement where
@@ -532,12 +532,12 @@ instance Read Movement where
     | s == "asc 4"   = [(Asc (P 4), "")]
     | s == "asc 5"   = [(Asc (P 5), "")]
     | s == "tritone" = [(Tritone, "")]
-    | s == "desc 5"   = [(Asc (P 7), "")]
-    | s == "desc 4"   = [(Asc (P 8), "")]
-    | s == "desc 3"   = [(Asc (P 9), "")]
-    | s == "desc 2"   = [(Asc (P 10), "")]
-    | s == "desc 1"   = [(Asc (P 11), "")]
-    | otherwise       = [(Empty, "")]
+    | s == "desc 5"  = [(Asc (P 7), "")]
+    | s == "desc 4"  = [(Asc (P 8), "")]
+    | s == "desc 3"  = [(Asc (P 9), "")]
+    | s == "desc 2"  = [(Asc (P 10), "")]
+    | s == "desc 1"  = [(Asc (P 11), "")]
+    | otherwise      = [(Empty, "")]
 
 -- |mapping from two numeric 'pitchclass' values into a Movement
 toMovement        :: (Integral a, Num a) => a -> a -> Movement

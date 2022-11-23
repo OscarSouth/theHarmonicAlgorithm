@@ -16,7 +16,7 @@ import qualified Data.Char            as Char (isAlphaNum, toLower)
 import           Data.Function        (on)
 import qualified Data.List            as List (sortBy, zip4, zip5, isInfixOf)
 import           Data.Map             (Map)
-import qualified Data.Map             as Map (fromList, lookup, keys, toList)
+import qualified Data.Map             as Map (fromList, lookup, keys, assocs, toList)
 import           Data.Maybe           (fromMaybe)
 import           Text.Read            (readMaybe)
 import           Data.List.Split      (chunksOf)
@@ -93,21 +93,45 @@ import Lib (deconstructCadence, constructCadence)
 --   close pipe
 --   return ()
 
+initGraph :: BoltActionT IO ()
+initGraph = do
+  liftIO $ putStrLn "preparing graph"
+  query "MATCH (n) DETACH DELETE n"
+  liftIO $ putStrLn "dropped nodes and relationships"
+  query "CALL apoc.schema.assert({}, {})"
+  liftIO $ putStrLn "dropped constraints"
+  query "CREATE CONSTRAINT ON (n:Cadence) ASSERT n.show IS UNIQUE"
+  liftIO $ putStrLn "created constraints"
+  return ()
+
 cadenceToNode :: Cadence -> BoltActionT IO ()
 cadenceToNode cadence = do
+  liftIO $ putStrLn ("writing node " ++ show cadence)
   let (f,m,c) = deconstructCadence cadence
-  query $ Text.pack ("CREATE (n:Cadence{functionality: '"++ f ++"', movement: '"++ m ++"' , chord: '"++ c ++"'})")
+  query $ Text.pack ("CREATE (n:Cadence {show: '"++ show cadence ++"',\
+                                        \functionality: '"++ f ++"',\
+                                        \movement: '"++ m ++"' ,\
+                                        \chord: '"++ c ++"'})")
+  return ()
+
+connectNodes :: (Cadence, [(Cadence, Double)]) -> BoltActionT IO ()
+connectNodes (from, relationships) = do
+  liftIO $ putStrLn ("writing relationships for " ++ show from)
+  forM_ relationships (\(to, conf) -> query $ 
+              Text.pack ("MATCH (from: Cadence{show: '"++ show from ++"'})\
+                         \MATCH (to: Cadence{show: '"++ show to ++"'})\
+                         \CREATE (from)-[r: NEXT {confidence: "++ show conf ++" }]->(to) "))
   return ()
 
 main = R.withEmbeddedR R.defaultConfig $ do
   initR -- load R libraries & settings, initialise R log, print info to stout
   model <- choraleData -- bind trained model
   pipe <- connect $ def { version = 3 }
-  forM_ (Map.keys model) (\cadence -> run pipe $ cadenceToNode cadence)
+  run pipe initGraph
+  forM_ (Map.keys model) (\keys -> run pipe $ cadenceToNode keys)
+  forM_ (Map.assocs model) (\assocs -> run pipe $ connectNodes assocs)
   return ()
 
-
-  
 -- GRAPH TESTING --
 
 -- main = R.withEmbeddedR R.defaultConfig $ do
