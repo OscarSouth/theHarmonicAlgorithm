@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE InstanceSigs #-}
 
 module MusicData where
 
@@ -242,8 +243,7 @@ simpleInversions' xs =
   let l = [0 .. length xs - 1] 
       shift n xs = zipWith const (drop n $ cycle xs) xs
       lAppend acc key = acc ++ [shift key xs]
-   in foldl lAppend [] l 
-
+   in foldl lAppend [] l
 
 -- |creates a list of inversions in zero form
 inversions :: (Integral a, Num a) => [a] -> [[PitchClass]]
@@ -509,15 +509,35 @@ instance Show Transition where
     show dist ++ " (" ++ prv ++ " -> " ++ new ++ ")"
 
 -- |concrete representation of movement by a musical interval
-data Movement = Asc PitchClass | Desc PitchClass | Unison | Tritone
+data Movement = Asc PitchClass | Desc PitchClass | Unison | Tritone | Empty
   deriving (Ord, Eq)
 
 -- |displays musical interval in a human readable way
 instance Show Movement where
+  show :: Movement -> String
   show (Asc n)   = "asc " ++ show (i n)
   show (Desc n)  = "desc " ++ show (i n)
-  show (Unison)  = "pedal"
-  show (Tritone) = "tritone"
+  show Unison  = "pedal"
+  show Tritone = "tritone"
+  show Empty = "empty"
+
+-- |reads show instance of movement
+instance Read Movement where
+  readsPrec :: Int -> ReadS Movement
+  readsPrec _ s
+    | s == "pedal"   = [(Unison, "")]
+    | s == "asc 1"   = [(Asc (P 1), "")]
+    | s == "asc 2"   = [(Asc (P 2), "")]
+    | s == "asc 3"   = [(Asc (P 3), "")]
+    | s == "asc 4"   = [(Asc (P 4), "")]
+    | s == "asc 5"   = [(Asc (P 5), "")]
+    | s == "tritone" = [(Tritone, "")]
+    | s == "desc 5"   = [(Asc (P 7), "")]
+    | s == "desc 4"   = [(Asc (P 8), "")]
+    | s == "desc 3"   = [(Asc (P 9), "")]
+    | s == "desc 2"   = [(Asc (P 10), "")]
+    | s == "desc 1"   = [(Asc (P 11), "")]
+    | otherwise       = [(Empty, "")]
 
 -- |mapping from two numeric 'pitchclass' values into a Movement
 toMovement        :: (Integral a, Num a) => a -> a -> Movement
@@ -564,6 +584,18 @@ toCadence ((Chord ((_, _), from@(x:_))), (Chord ((_, new), to@(y:_)))) =
 fromCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord
 fromCadence f root c@(Cadence (_,(_,tones))) =
   (toTriad f) $ i . (+ movementFromCadence c) . (+ root) <$> tones
+
+-- |mapping from serialised format to Cadence
+deconstructCadence :: Cadence -> (String, String, String)
+deconstructCadence (Cadence (f, (m, c))) = (f, show m, show c)
+
+-- |mapping from serialised string format to Cadence
+constructCadence :: (String, String, String) -> Cadence
+constructCadence (f,m,c) =
+  let functionality = f
+      movement = read m
+      chord = read c
+   in Cadence (functionality, (movement, chord))
 
 -- |mapping from prev Cadence and Pitchclass into current Chord with transposition
 transposeCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord

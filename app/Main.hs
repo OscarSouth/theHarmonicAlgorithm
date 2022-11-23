@@ -16,7 +16,7 @@ import qualified Data.Char            as Char (isAlphaNum, toLower)
 import           Data.Function        (on)
 import qualified Data.List            as List (sortBy, zip4, zip5, isInfixOf)
 import           Data.Map             (Map)
-import qualified Data.Map             as Map (fromList, lookup)
+import qualified Data.Map             as Map (fromList, lookup, keys, toList)
 import           Data.Maybe           (fromMaybe)
 import           Text.Read            (readMaybe)
 import           Data.List.Split      (chunksOf)
@@ -35,148 +35,67 @@ import Control.Monad.Except
 -- import           sound.tidal.context
 
 import Control.Monad.IO.Class
+import Lib (deconstructCadence, constructCadence)
 -- import Data.Aeson
 -- import Network.HTTP.Req
 
+-- main = R.withEmbeddedR R.defaultConfig $ do
+--   initR -- load R libraries & settings, initialise R log, print info to stout
+--   model <- choraleData -- bind trained model
+--   print (take 1 (Map.toList model))
+--   return ()
 
--- Simple request can be done by using 'query' function. It returns a list of 'Record's which
--- are special dictionaries from 'Text' to any serializable 'Value'. You can extract this values by key using 'at' function.
-createNode :: BoltActionT IO ()
-createNode = do 
-  query "CREATE (n:testNode{param: 'createdInHs'})"
+
+-- GRAPH TESTING --
+-- createNode :: BoltActionT IO ()
+-- createNode = do 
+--   query "CREATE (n:testNode{param: 'createdInHs'})"
+--   return ()
+
+-- getNodes :: BoltActionT IO [Text.Text]
+-- getNodes = do 
+--   records <- query "MATCH (n:testNode) RETURN n.param"
+--   forM records $ \record -> record `at` "n.param" 
+
+-- main :: IO ()
+-- main = do 
+--   pipe <- connect $ def { version = 3 }
+--   run pipe createNode
+--   titles <- run pipe getNodes
+--   forM_ titles print
+--   close pipe
+--   return ()
+-- GRAPH TESTING --
+
+cadenceToGraph :: (String, String, String) -> BoltActionT IO ()
+cadenceToGraph (f,m,c) = do
+  query $ Text.pack ("CREATE (n:Cadence{functionality: '"++ f ++"', movement: '"++ m ++"' , chord: '"++ c ++"'})")
   return ()
 
-getNodes :: BoltActionT IO [Text.Text]
-getNodes = do 
-  records <- query "MATCH (n:testNode) RETURN n.param"
-  forM records $ \record -> record `at` "n.param" 
+cadenceFromGraph :: BoltActionT IO (String, String, String)
+cadenceFromGraph = do 
+  records <- query $ Text.pack ("MATCH (n:Cadence) RETURN n.functionality, n.movement, n.chord")
+  f <- forM [head records] $ \record -> record `at` "n.functionality"
+  m <- forM [head records] $ \record -> record `at` "n.movement"
+  c <- forM [head records] $ \record -> record `at` "n.chord"
+  let results = (Text.unpack $ head f, Text.unpack $ head m, Text.unpack $ head c)
+  return results
+
+                              -- (record `at` "n.movement"), 
+                              -- (record `at` "n.chord")
 
 main :: IO ()
 main = do 
+  initR -- load R libraries & settings, initialise R log, print info to stout
+  model <- choraleData -- bind trained model
+  let cadence = deconstructCadence (head $ Map.keys model)
   pipe <- connect $ def { version = 3 }
-  run pipe createNode
-  titles <- run pipe getNodes
-  forM_ titles print
+  run pipe $ cadenceToGraph cadence
+  r <- run pipe cadenceFromGraph
+  let rCadence = constructCadence r
+  print rCadence
   close pipe
   return ()
-
--- GRAPH TESTING --
-
--- import Data.Default (Default (..))
-
--- |Default configuration for localhost neo4j server
--- graphConnection :: BoltCfg
--- graphConnection = def { host = "0.0.0.0"
-                    --   , user = "neo4j"
-                    --   , password = "test"
-                    --   , version = 2
-                    --   }
-
--- graphTest :: BoltActionT IO [Text.Text]
--- graphTest = do 
---   -- pipe <- connect defaultConfig
---   records <- query "MATCH (n:testNode) RETURN n.testProperty"
-
---   -- records <- query "MATCH (n:testNode) RETURN n.testProperty" forM records $
---     -- \record -> record `at` "n.testProperty" 
---   return records
---   -- close pipe
-
--- main :: IO ()
--- main = return ()
--- main = do pipe <- connect graphConnection
-        --   records <- run pipe $ query "MATCH (n:testNode) RETURN n.param"
-        --   let first = head records
-        --   testProp <- first `at` "n" >>= exact -- :: IO Node
-        --   print testProp
-        --   close pipe
-        --   return ()
-
-
-
-
--- GRAPH TESTING --
-
-
--- main = do
-  -- return ()
-
-  -- let analysis = prog3ecbc
-  -- let contents = show <$> analysis
-  -- let totalTones123 = (\(_,_,_,(x,_),_,_) -> show x) <$> analysis
-  -- let omittedTones123 = (\(_,_,_,(_,x),_,_) -> (show x) ++ "\n" ++ (show (flat . pc <$> x))) <$> analysis
-  -- let includedTones123 = (\(_,_,_,_,((_,x),_),_) -> (show x) ++ "\n" ++ (show (flat . pc <$> x))) <$> analysis
-  -- let intervalVector123 = (\(_,_,_,_,(_,x),_) -> show x) <$> analysis
-  -- let pentatonicSet1 = (\(_,(x,_,_),_,_,_,_) -> (show x) ++ "\n" ++ (show (flat . pc <$> x))) <$> analysis
-  -- let dissonanceLevel1 = (\((x,_,_),_,_,_,_,_) -> show x) <$> analysis
-  -- let tunings1 = (\(_,(x,_,_),_,_,_,_) -> show (if x ?> parseOvertones "G D F A" then "DGDGA" else "n/a", if x ?> parseOvertones "G D F Bb" then "DGDABb" else "n/a")) <$> analysis
-  -- let intervalVector1 = (\(_,_,(x,_,_),_,_,_) -> show x) <$> analysis
-  -- let dissonanceLevel1 = (\((x,_,_),_,_,_,_,_) -> show x) <$> analysis
-  -- let basePentas1 = (\(_,(x,_,_),_,_,_,_) -> filter (not . (`elem` "()")) $ unlines (basePenta x)) <$> analysis
-  -- let availableTriads1 = (\(_,(x,_,_),_,_,_,_) -> filter (not . (`elem` "()")) $ unlines (filter (not . ("Inv" `List.isInfixOf`)) (show <$> (List.sortBy (compare `on` (\(_,_,(x,_),_) -> x)) $ List.zip4 (flatTriad <$> triadSets x) (fmap (flat . pc) <$> triadSets x) (dissonanceLevel <$> triadSets x) (intervalVector <$> triadSets x))))) <$> analysis
-  -- let availableChords1 = (\(_,(x,_,_),_,_,_,_) -> filter (not . (`elem` "()")) $ unlines (show <$> (List.sortBy (compare `on` (\(_,_,(x,_),_) -> x)) $ List.zip4 (flatChord <$> chordSets x) (fmap (flat . pc) <$> chordSets x) (dissonanceLevel <$> chordSets x) (intervalVector <$> chordSets x)))) <$> analysis
-  -- let diatonicModes12 = (\(_,_,_,_,_,(x,_,_)) -> filter (not . (`elem` "()")) $ unlines (show <$> (zip (toMode flat <$> simpleInversions x) ((fmap (flat . pc)) <$> simpleInversions x)))) <$> analysis
-  -- let intervalVector12 = (\(_,_,_,_,_,(x,_,_)) -> show $ intervalVector x) <$> analysis
-  -- let pentatonicSet2 = (\(_,(_,x,_),_,_,_,_) -> (show x) ++ "\n" ++ (show (flat . pc <$> x))) <$> analysis
-  -- let dissonanceLevel2 = (\((_,x,_),_,_,_,_,_) -> show x) <$> analysis
-  -- let tunings2 = (\(_,(_,x,_),_,_,_,_) -> show (if x ?> parseOvertones "G D F A" then "DGDGA" else "N/A", if x ?> parseOvertones "G D F Bb" then "DGDABb" else "n/a")) <$> analysis
-  -- let intervalVector2 = (\(_,_,(_,x,_),_,_,_) -> show x) <$> analysis
-  -- let dissonanceLevel2 = (\((_,x,_),_,_,_,_,_) -> show x) <$> analysis
-  -- let basePentas2 = (\(_,(_,x,_),_,_,_,_) -> filter (not . (`elem` "()")) $ unlines (basePenta x)) <$> analysis
-  -- let availableTriads2 = (\(_,(_,x,_),_,_,_,_) -> filter (not . (`elem` "()")) $ unlines (filter (not . ("Inv" `List.isInfixOf`)) (show <$> (List.sortBy (compare `on` (\(_,_,(x,_),_) -> x)) $ List.zip4 (flatTriad <$> triadSets x) (fmap (flat . pc) <$> triadSets x) (dissonanceLevel <$> triadSets x) (intervalVector <$> triadSets x))))) <$> analysis
-  -- let availableChords2 = (\(_,(_,x,_),_,_,_,_) -> filter (not . (`elem` "()")) $ unlines (show <$> (List.sortBy (compare `on` (\(_,_,(x,_),_) -> x)) $ List.zip4 (flatChord <$> chordSets x) (fmap (flat . pc) <$> chordSets x) (dissonanceLevel <$> chordSets x) (intervalVector <$> chordSets x)))) <$> analysis
-  -- let diatonicModes23 = (\(_,_,_,_,_,(_,x,_)) -> filter (not . (`elem` "()")) $ unlines (show <$> (zip (toMode flat <$> simpleInversions x) ((fmap (flat . pc)) <$> simpleInversions x)))) <$> analysis
-  -- let intervalVector23 = (\(_,_,_,_,_,(_,x,_)) -> show $ intervalVector x) <$> analysis
-  -- let pentatonicSet3 = (\(_,(_,_,x),_,_,_,_) -> (show x) ++ "\n" ++ (show (flat . pc <$> x))) <$> analysis
-  -- let dissonanceLevel3 = (\((_,_,x),_,_,_,_,_) -> show x) <$> analysis
-  -- let tunings3 = (\(_,(_,_,x),_,_,_,_) -> show (if x ?> parseOvertones "G D F A" then "DGDGA" else "N/A", if x ?> parseOvertones "G D F Bb" then "DGDABb" else "n/a")) <$> analysis
-  -- let intervalVector3 = (\(_,_,(_,_,x),_,_,_) -> show x) <$> analysis
-  -- let dissonanceLevel3 = (\((_,_,x),_,_,_,_,_) -> show x) <$> analysis
-  -- let basePentas3 = (\(_,(_,_,x),_,_,_,_) -> filter (not . (`elem` "()")) $ unlines (basePenta x)) <$> analysis
-  -- let availableTriads3 = (\(_,(_,_,x),_,_,_,_) -> filter (not . (`elem` "()")) $ unlines (filter (not . ("Inv" `List.isInfixOf`)) (show <$> (List.sortBy (compare `on` (\(_,_,(x,_),_) -> x)) $ List.zip4 (flatTriad <$> triadSets x) (fmap (flat . pc) <$> triadSets x) (dissonanceLevel <$> triadSets x) (intervalVector <$> triadSets x))))) <$> analysis
-  -- let availableChords3 = (\(_,(_,_,x),_,_,_,_) -> filter (not . (`elem` "()")) $ unlines (show <$> (List.sortBy (compare `on` (\(_,_,(x,_),_) -> x)) $ List.zip4 (flatChord <$> chordSets x) (fmap (flat . pc) <$> chordSets x) (dissonanceLevel <$> chordSets x) (intervalVector <$> chordSets x)))) <$> analysis
-  -- let diatonicModes31 = (\(_,_,_,_,_,(_,_,x)) -> filter (not . (`elem` "()")) $ unlines (show <$> (zip (toMode flat <$> simpleInversions x) ((fmap (flat . pc)) <$> simpleInversions x)))) <$> analysis
-  -- let intervalVector31 = (\(_,_,_,_,_,(_,_,x)) -> show $ intervalVector x) <$> analysis
-  -- writeFile "output/0ecbc_patternsALL.txt" (unlines (show <$> zip [1..] analysis))
-  -- let filePath = "/home/oscarsouth/.stack/global-project/output/" 
-  -- mapM_ (\(ns,xs) -> writeFile ("output/analysis_" ++ ns ++ ".txt") fullSet3title) (zip (show <$> [1..]) contents)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- total tones 1+2+3\n" ++ xs)) (zip (show <$> [1..]) totalTones123)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- omitted tones 1+2+3\n" ++ xs)) (zip (show <$> [1..]) omittedTones123)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- included tones 1+2+3\n" ++ xs)) (zip (show <$> [1..]) includedTones123)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- interval vector 1+2+3\n" ++ xs)) (zip (show <$> [1..]) intervalVector123)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n" ++ pentatonicSet1title)) (zip (show <$> [1..]) contents)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- pentatonic set 1\n" ++ xs)) (zip (show <$> [1..]) pentatonicSet1)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- dissonance level 1\n" ++ xs)) (zip (show <$> [1..]) dissonanceLevel1)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- tunings 1\n" ++ xs)) (zip (show <$> [1..]) tunings1)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- interval vector 1\n" ++ xs)) (zip (show <$> [1..]) intervalVector1)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- related pentatonic scales (through substitution of one note)\n" ++ xs)) (zip (show <$> [1..]) basePentas1)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- available triads (name, pitches, dissonance level, pitchclasses, interval vector\n" ++ xs)) (zip (show <$> [1..]) availableTriads1)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- available 4 note chords (name, pitches, dissonance level, pitchclasses, interval vector\n" ++ xs)) (zip (show <$> [1..]) availableChords1)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n" ++ diatonicSet12title)) (zip (show <$> [1..]) contents)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- diatonic modes 1+2\n" ++ xs)) (zip (show <$> [1..]) diatonicModes12)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- interval vector 1\n" ++ xs)) (zip (show <$> [1..]) intervalVector12)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n" ++ pentatonicSet2title)) (zip (show <$> [1..]) contents)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- pentatonic set 2\n" ++ xs)) (zip (show <$> [1..]) pentatonicSet2)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- dissonance level 2\n" ++ xs)) (zip (show <$> [1..]) dissonanceLevel2)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- tunings 2\n" ++ xs)) (zip (show <$> [1..]) tunings2)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- interval vector 2\n" ++ xs)) (zip (show <$> [1..]) intervalVector2)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- related pentatonic scales (through substitution of one note)\n" ++ xs)) (zip (show <$> [1..]) basePentas2)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- available triads (name, pitches, dissonance level, pitchclasses, interval vector\n" ++ xs)) (zip (show <$> [1..]) availableTriads2)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- available 4 note chords (name, pitches, dissonance level, pitchclasses, interval vector\n" ++ xs)) (zip (show <$> [1..]) availableChords2)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n" ++ diatonicSet23title)) (zip (show <$> [1..]) contents)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- diatonic modes 2+3\n" ++ xs)) (zip (show <$> [1..]) diatonicModes23)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- interval vector 2\n" ++ xs)) (zip (show <$> [1..]) intervalVector23)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n" ++ pentatonicSet3title)) (zip (show <$> [1..]) contents)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- pentatonic set 3\n" ++ xs)) (zip (show <$> [1..]) pentatonicSet3)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- dissonance level 3\n" ++ xs)) (zip (show <$> [1..]) dissonanceLevel3)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- tunings 3\n" ++ xs)) (zip (show <$> [1..]) tunings3)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- interval vector 3\n" ++ xs)) (zip (show <$> [1..]) intervalVector3)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n\n-- related pentatonic scales (through substitution of one note)\n" ++ xs)) (zip (show <$> [1..]) basePentas3)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- available triads (name, pitches, dissonance level, pitchclasses, interval vector\n" ++ xs)) (zip (show <$> [1..]) availableTriads3)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- available 4 note chords (name, pitches, dissonance level, pitchclasses, interval vector\n" ++ xs)) (zip (show <$> [1..]) availableChords3)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n" ++ diatonicSet31title)) (zip (show <$> [1..]) contents)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- diatonic modes 3+1\n" ++ xs)) (zip (show <$> [1..]) diatonicModes31)
-  -- mapM_ (\(ns,xs) -> appendFile ("output/analysis_" ++ ns ++ ".txt") ("\n-- interval vector 3+1\n" ++ xs)) (zip (show <$> [1..]) intervalVector31)
 
 -- main = R.withEmbeddedR R.defaultConfig $ do
 --   initR -- load R libraries & settings, initialise R log, print info to stout

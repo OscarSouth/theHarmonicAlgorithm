@@ -30,6 +30,12 @@ rootNote,
 toMode,
 basePenta,
 sortPcSet,
+----------
+-- experimental stuff
+-- Movement,
+-- Functionality,
+constructCadence,
+deconstructCadence,
 -----------
 -- |Analysis
 prog3ecbc, pentaPatterns, -- temp
