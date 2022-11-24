@@ -115,7 +115,8 @@ cadenceToNode cadence = do
   return ()
 
 connectNodes :: (Cadence, [(Cadence, Double)]) -> BoltActionT IO ()
-connectNodes (from, relationships) = do
+connectNodes (from, rels) = do
+  let relationships = [ x | x <- rels, snd x > 0]
   liftIO $ putStrLn ("writing relationships for " ++ show from)
   forM_ relationships (\(to, conf) -> query $ 
               Text.pack ("MATCH (from: Cadence{show: '"++ show from ++"'})\
@@ -123,24 +124,24 @@ connectNodes (from, relationships) = do
                          \CREATE (from)-[r: NEXT {confidence: "++ show conf ++" }]->(to) "))
   return ()
 
-main = R.withEmbeddedR R.defaultConfig $ do
-  initR -- load R libraries & settings, initialise R log, print info to stout
-  model <- choraleData -- bind trained model
-  pipe <- connect $ def { version = 3 }
-  run pipe initGraph
-  forM_ (Map.keys model) (\keys -> run pipe $ cadenceToNode keys)
-  forM_ (Map.assocs model) (\assocs -> run pipe $ connectNodes assocs)
-  return ()
-
--- GRAPH TESTING --
-
 -- main = R.withEmbeddedR R.defaultConfig $ do
 --   initR -- load R libraries & settings, initialise R log, print info to stout
 --   model <- choraleData -- bind trained model
---   header -- print main title
---   putStrLn "Welcome to The Harmonic Algorithm!\n"
---   runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
+--   pipe <- connect $ def { version = 3 }
+--   run pipe initGraph
+--   forM_ (Map.keys model) (\keys -> run pipe $ cadenceToNode keys)
+--   forM_ (Map.assocs model) (\assocs -> run pipe $ connectNodes assocs)
 --   return ()
+
+-- GRAPH TESTING --
+
+main = R.withEmbeddedR R.defaultConfig $ do
+  initR -- load R libraries & settings, initialise R log, print info to stout
+  model <- choraleData -- bind trained model
+  header -- print main title
+  putStrLn "Welcome to The Harmonic Algorithm!\n"
+  runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
+  return ()
 
 -- |script directing process of loading & transforming data then training model
 choraleData :: IO MarkovMap
