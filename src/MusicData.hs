@@ -572,6 +572,7 @@ data Cadence = Cadence (Functionality, (Movement, [PitchClass]))
 
 -- |customised Show instance for readability
 instance Show Cadence where
+  show :: Cadence -> String
   show (Cadence (functionality, (dist, ps))) =
     "( " ++ show dist ++ " -> " ++ functionality ++ " )"
 

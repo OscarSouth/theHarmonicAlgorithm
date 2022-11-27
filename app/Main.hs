@@ -14,7 +14,7 @@ import qualified Language.R.QQ        as QQ
 
 import qualified Data.Char            as Char (isAlphaNum, toLower)
 import           Data.Function        (on)
-import qualified Data.List            as List (sortBy, zip4, zip5, isInfixOf)
+import qualified Data.List            as List (sortBy, zip3, zip4, zip5, isInfixOf)
 import           Data.Map             (Map)
 import qualified Data.Map             as Map (toList, fromList, lookup, keys, assocs)
 import           Data.Maybe           (fromMaybe)
@@ -30,68 +30,28 @@ import qualified Data.Text as Text
 import Control.Monad
 import Control.Monad.Except
 
---               --
-
 -- import           sound.tidal.context
 
--- import Control.Monad.IO.Class
--- import Lib (deconstructCadence, constructCadence)
--- import Data.Aeson
--- import Network.HTTP.Req
-
 -- main = R.withEmbeddedR R.defaultConfig $ do
---   initR -- load R libraries & settings, initialise R log, print info to stout
---   model <- choraleData -- bind trained model
---   print (take 1 (Map.toList model))
+  -- initR -- load R libraries & settings, initialise R log, print info to stout
+  -- model <- choraleData -- bind trained model
+  -- pipe <- connect $ def { version = 3 }
+  -- run pipe initGraph
+  -- forM_ (Map.keys model) (\keys -> run pipe $ cadenceToNode keys)
+  -- forM_ (Map.assocs model) (\assocs -> run pipe $ connectNodes assocs)
 --   return ()
 
-
--- GRAPH TESTING --
--- createNode :: BoltActionT IO ()
--- createNode = do 
---   query "CREATE (n:testNode{param: 'createdInHs'})"
---   return ()
-
--- getNodes :: BoltActionT IO [Text.Text]
--- getNodes = do 
---   records <- query "MATCH (n:testNode) RETURN n.param"
---   forM records $ \record -> record `at` "n.param" 
-
--- main :: IO ()
--- main = do 
---   pipe <- connect $ def { version = 3 }
---   run pipe createNode
---   titles <- run pipe getNodes
---   forM_ titles print
---   close pipe
---   return ()
-
--- cadenceToNode :: (String, String, String) -> BoltActionT IO ()
--- cadenceToNode (f,m,c) = do
---   query $ Text.pack ("CREATE (n:Cadence{functionality: '"++ f ++"', movement: '"++ m ++"' , chord: '"++ c ++"'})")
---   return ()
-
--- cadenceFromNode :: BoltActionT IO (String, String, String)
--- cadenceFromNode = do 
---   records <- query $ Text.pack ("MATCH (n:Cadence) RETURN n.functionality, n.movement, n.chord")
---   f <- forM [head records] $ \record -> record `at` "n.functionality"
---   m <- forM [head records] $ \record -> record `at` "n.movement"
---   c <- forM [head records] $ \record -> record `at` "n.chord"
---   let results = (Text.unpack $ head f, Text.unpack $ head m, Text.unpack $ head c)
---   return results
-
--- main :: IO ()
--- main = do 
---   initR -- load R libraries & settings, initialise R log, print info to stout
---   model <- choraleData -- bind trained model
---   let cadence = deconstructCadence (head $ Map.keys model)
---   pipe <- connect $ def { version = 3 }
---   run pipe $ cadenceToNode cadence
---   r <- run pipe cadenceFromNode
---   let rCadence = constructCadence r
---   print rCadence
---   close pipe
---   return ()
+main = R.withEmbeddedR R.defaultConfig $ do
+  initR -- load R libraries & settings, initialise R log, print info to stout
+  -- model <- choraleData -- bind trained model
+  -- model <- modelFromGraph -- retrieve serialised model from graph and bind
+  header -- print main title
+  putStrLn "Welcome to The Harmonic Algorithm!\n"
+  -- runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
+  pipe <- connect $ def { version = 3 }
+  cadences <- run pipe getNodesFrom
+  forM_ cadences print
+  return ()
 
 initGraph :: BoltActionT IO ()
 initGraph = do
@@ -124,24 +84,24 @@ connectNodes (from, rels) = do
                          \CREATE (from)-[r: NEXT {confidence: "++ show conf ++" }]->(to) "))
   return ()
 
--- main = R.withEmbeddedR R.defaultConfig $ do
---   initR -- load R libraries & settings, initialise R log, print info to stout
---   model <- choraleData -- bind trained model
---   pipe <- connect $ def { version = 3 }
---   run pipe initGraph
---   forM_ (Map.keys model) (\keys -> run pipe $ cadenceToNode keys)
---   forM_ (Map.assocs model) (\assocs -> run pipe $ connectNodes assocs)
---   return ()
+getNodesFrom :: BoltActionT IO [Cadence]
+getNodesFrom = do
+  records <- query $ Text.pack ("MATCH (n:Cadence) RETURN n.functionality, n.movement, n.chord")
+  f <- forM records $ \record -> Text.unpack <$> (record `at` "n.functionality")
+  m <- forM records $ \record -> Text.unpack <$> (record `at` "n.movement")
+  c <- forM records $ \record -> Text.unpack <$> (record `at` "n.chord")
+  let cadenceData = zip3 f m c
+  let cadencesFrom = constructCadence <$> cadenceData
+  return cadencesFrom
 
--- GRAPH TESTING --
-
--- main = R.withEmbeddedR R.defaultConfig $ do
---   initR -- load R libraries & settings, initialise R log, print info to stout
---   model <- choraleData -- bind trained model
---   header -- print main title
---   putStrLn "Welcome to The Harmonic Algorithm!\n"
---   runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
---   return ()
+-- getNodesTo :: [Cadence] -> BoltActionT IO [(Cadence)]
+-- getNodesTo = do 
+--   records <- query $ Text.pack ("MATCH (n:Cadence) RETURN n.functionality, n.movement, n.chord")
+--   f <- forM records $ \record -> record `at` "n.functionality"
+--   m <- forM records $ \record -> record `at` "n.movement"
+--   c <- forM records $ \record -> record `at` "n.chord"
+--   let cadencesFrom = constructCadence (Text.unpack $ head f, Text.unpack $ head m, Text.unpack $ head c)
+--   return cadencesFrom
 
 -- |script directing process of loading & transforming data then training model
 choraleData :: IO MarkovMap
@@ -165,6 +125,13 @@ choraleData = do
         [[a,b,c,d,e] | (a,b,c,d,e) <- List.zip5 x1 x2 x3 x4 x5]
         ) -- ^ convert R matrix columns to a list of lists
   return model
+
+-- -- |script directing process of loading & transforming data then training model
+-- modelFromGraph :: IO MarkovMap
+-- modelFromGraph = do
+--   uciRef -- print dataset source reference
+
+--   return model
 
 -- |type synonyms for readability
 type Model a = ReaderT MarkovMap IO a -- representation of trained model
