@@ -16,7 +16,7 @@ import qualified Data.Char            as Char (isAlphaNum, toLower)
 import           Data.Function        (on)
 import qualified Data.List            as List (sortBy, zip4, zip5, isInfixOf)
 import           Data.Map             (Map)
-import qualified Data.Map             as Map (fromList, lookup, keys, assocs, toList)
+import qualified Data.Map             as Map (toList, fromList, lookup, keys, assocs)
 import           Data.Maybe           (fromMaybe)
 import           Text.Read            (readMaybe)
 import           Data.List.Split      (chunksOf)
@@ -34,8 +34,8 @@ import Control.Monad.Except
 
 -- import           sound.tidal.context
 
-import Control.Monad.IO.Class
-import Lib (deconstructCadence, constructCadence)
+-- import Control.Monad.IO.Class
+-- import Lib (deconstructCadence, constructCadence)
 -- import Data.Aeson
 -- import Network.HTTP.Req
 
@@ -135,13 +135,13 @@ connectNodes (from, rels) = do
 
 -- GRAPH TESTING --
 
-main = R.withEmbeddedR R.defaultConfig $ do
-  initR -- load R libraries & settings, initialise R log, print info to stout
-  model <- choraleData -- bind trained model
-  header -- print main title
-  putStrLn "Welcome to The Harmonic Algorithm!\n"
-  runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
-  return ()
+-- main = R.withEmbeddedR R.defaultConfig $ do
+--   initR -- load R libraries & settings, initialise R log, print info to stout
+--   model <- choraleData -- bind trained model
+--   header -- print main title
+--   putStrLn "Welcome to The Harmonic Algorithm!\n"
+--   runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
+--   return ()
 
 -- |script directing process of loading & transforming data then training model
 choraleData :: IO MarkovMap
