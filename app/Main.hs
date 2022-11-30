@@ -33,12 +33,12 @@ import Control.Monad.Except
 -- import           sound.tidal.context
 
 -- main = R.withEmbeddedR R.defaultConfig $ do
-  -- initR -- load R libraries & settings, initialise R log, print info to stout
-  -- model <- choraleData -- bind trained model
-  -- pipe <- connect $ def { version = 3 }
-  -- run pipe initGraph
-  -- forM_ (Map.keys model) (\keys -> run pipe $ cadenceToNode keys)
-  -- forM_ (Map.assocs model) (\assocs -> run pipe $ connectNodes assocs)
+--   initR -- load R libraries & settings, initialise R log, print info to stout
+--   model <- choraleData -- bind trained model
+--   pipe <- connect $ def { version = 3 }
+--   run pipe initGraph
+--   forM_ (Map.keys model) (\keys -> run pipe $ cadenceToNode keys)
+--   forM_ (Map.assocs model) (\assocs -> run pipe $ connectNodes assocs)
 --   return ()
 
 main = R.withEmbeddedR R.defaultConfig $ do
@@ -49,9 +49,23 @@ main = R.withEmbeddedR R.defaultConfig $ do
   putStrLn "Welcome to The Harmonic Algorithm!\n"
   -- runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
   pipe <- connect $ def { version = 3 }
-  cadences <- run pipe getNodesFrom
-  forM_ cadences print
-  return ()
+  cadences <- run pipe getNodesFromGraph
+  cadenceRels <- forM cadences $ \cadence -> run pipe $ getRelsFromGraph cadence
+  -- let cadenceFiller = \cadence -> (cadence, 0 :: Double) <$> cadences
+  -- let markovMapML = Map.fromList $ zip cadences cadenceRels :: MarkovMap
+  -- let mlRels = [fst f | f <- cadenceRels]
+  let markovMap = (\(cadence,mlCadences) -> (cadence, 
+                                  [ filler | 
+
+                                  filler <- cadences, 
+                                  ml <- mlRels
+                                  
+                                  -- ,filler `notElem` ml
+                                  ]
+                               )
+                  ) <$> zip cadences cadenceRels
+  forM_ markovMap print
+  -- return ()
 
 initGraph :: BoltActionT IO ()
 initGraph = do
@@ -77,22 +91,35 @@ cadenceToNode cadence = do
 connectNodes :: (Cadence, [(Cadence, Double)]) -> BoltActionT IO ()
 connectNodes (from, rels) = do
   let relationships = [ x | x <- rels, snd x > 0]
+  -- let relationships = rels
   liftIO $ putStrLn ("writing relationships for " ++ show from)
   forM_ relationships (\(to, conf) -> query $ 
-              Text.pack ("MATCH (from: Cadence{show: '"++ show from ++"'})\
-                         \MATCH (to: Cadence{show: '"++ show to ++"'})\
+              Text.pack ("MATCH (from: Cadence{show: '"++ show from ++"'}) \
+                         \MATCH (to: Cadence{show: '"++ show to ++"'}) \
                          \CREATE (from)-[r: NEXT {confidence: "++ show conf ++" }]->(to) "))
   return ()
 
-getNodesFrom :: BoltActionT IO [Cadence]
-getNodesFrom = do
-  records <- query $ Text.pack ("MATCH (n:Cadence) RETURN n.functionality, n.movement, n.chord")
+getNodesFromGraph :: BoltActionT IO [Cadence]
+getNodesFromGraph = do
+  records <- query "MATCH (n:Cadence) RETURN n.functionality, n.movement, n.chord"
   f <- forM records $ \record -> Text.unpack <$> (record `at` "n.functionality")
   m <- forM records $ \record -> Text.unpack <$> (record `at` "n.movement")
   c <- forM records $ \record -> Text.unpack <$> (record `at` "n.chord")
-  let cadenceData = zip3 f m c
-  let cadencesFrom = constructCadence <$> cadenceData
+  let cadencesFrom = constructCadence <$> zip3 f m c
   return cadencesFrom
+
+getRelsFromGraph :: Cadence -> BoltActionT IO [(Cadence, Double)]
+getRelsFromGraph cadence = do
+  records <- query $ Text.pack ("MATCH (from:Cadence{show:'"++ show cadence ++"'})-[r]->(n) \
+                                \RETURN r.confidence, n.functionality, n.movement, n.chord \
+                                \ORDER BY r.confidence DESC")
+  p <- forM records $ (\record -> record `at` "r.confidence")
+  f <- forM records $ \record -> Text.unpack <$> (record `at` "n.functionality")
+  m <- forM records $ \record -> Text.unpack <$> (record `at` "n.movement")
+  c <- forM records $ \record -> Text.unpack <$> (record `at` "n.chord")
+  let cadencesFrom = constructCadence <$> zip3 f m c
+  let cadencesProportions = zip cadencesFrom p
+  return cadencesProportions
 
 -- getNodesTo :: [Cadence] -> BoltActionT IO [(Cadence)]
 -- getNodesTo = do 
