@@ -43,26 +43,12 @@ import Control.Monad.Except
 
 main = R.withEmbeddedR R.defaultConfig $ do
   initR -- load R libraries & settings, initialise R log, print info to stout
-  -- model <- choraleData -- bind trained model
-  -- model <- modelFromGraph -- retrieve serialised model from graph and bind
+--  model <- choraleData -- bind trained model
+  model <- modelFromGraph -- retrieve serialised model from graph and bind
   header -- print main title
   putStrLn "Welcome to The Harmonic Algorithm!\n"
-  -- runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
-  pipe <- connect $ def { version = 3 }
-  cadences <- run pipe getNodesFromGraph
-  cadenceRels <- forM cadences $ \cadence -> run pipe $ getRelsFromGraph cadence
---  let filterSets = take 10 $ filter (\xs -> (length xs > 5) && (length xs < 10)) (fmap fst <$> cadenceRels)
---  let filterSets = (fmap fst <$> cadenceRels)
-  let fillerSets = (\filters -> zip (cadences List.\\ filters) (repeat 0 :: [Double])) <$> (fmap fst <$> cadenceRels)
-  let markovValues = ((\(ml, fill) -> ml ++ fill) <$> (zip cadenceRels fillerSets))
-  let markovMap = Map.fromList $ zip cadences markovValues :: MarkovMap
---  let cadenceFiller = zip cadences (repeat 0 :: [Double]) :: [(Cadence, Double)]
---  cadenceFiller <- forM cadenceRels $ \cadence -> (cadences, 0 :: Double)
---  let markovMapML = Map.fromList $ zip cadences cadenceRels :: MarkovMap
-  forM_ markovMap print
+  runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
   return ()
-
-
 
 initGraph :: BoltActionT IO ()
 initGraph = do
@@ -118,11 +104,17 @@ getRelsFromGraph cadence = do
   let cadencesProportions = zip cadencesFrom p
   return cadencesProportions
 
-choraleDataGraph :: IO MarkovMap
-choraleDataGraph = do
-
+-- |retrieve static model from graph
+modelFromGraph :: IO MarkovMap
+modelFromGraph = do
+  uciRef -- print dataset source reference
+  pipe <- connect $ def { version = 3 }
+  cadences <- run pipe getNodesFromGraph
+  cadenceRels <- forM cadences $ \cadence -> run pipe $ getRelsFromGraph cadence
+  let fillerSets = (\filters -> zip (cadences List.\\ filters) (repeat 0 :: [Double])) <$> (fmap fst <$> cadenceRels)
+  let markovValues = ((\(ml, fill) -> ml ++ fill) <$> (zip cadenceRels fillerSets))
+  let model = Map.fromList $ zip cadences markovValues :: MarkovMap
   return model
-
 
 -- |script directing process of loading & transforming data then training model
 choraleData :: IO MarkovMap
@@ -146,13 +138,6 @@ choraleData = do
         [[a,b,c,d,e] | (a,b,c,d,e) <- List.zip5 x1 x2 x3 x4 x5]
         ) -- ^ convert R matrix columns to a list of lists
   return model
-
--- -- |script directing process of loading & transforming data then training model
--- modelFromGraph :: IO MarkovMap
--- modelFromGraph = do
---   uciRef -- print dataset source reference
-
---   return model
 
 -- |type synonyms for readability
 type Model a = ReaderT MarkovMap IO a -- representation of trained model
