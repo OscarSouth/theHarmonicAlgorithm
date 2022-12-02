@@ -14,7 +14,7 @@ import qualified Language.R.QQ        as QQ
 
 import qualified Data.Char            as Char (isAlphaNum, toLower)
 import           Data.Function        (on)
-import qualified Data.List            as List (sortBy, zip3, zip4, zip5, isInfixOf)
+import qualified Data.List            as List (sortBy, zip3, zip4, zip5, isInfixOf, (\\))
 import           Data.Map             (Map)
 import qualified Data.Map             as Map (toList, fromList, lookup, keys, assocs)
 import           Data.Maybe           (fromMaybe)
@@ -51,21 +51,18 @@ main = R.withEmbeddedR R.defaultConfig $ do
   pipe <- connect $ def { version = 3 }
   cadences <- run pipe getNodesFromGraph
   cadenceRels <- forM cadences $ \cadence -> run pipe $ getRelsFromGraph cadence
-  -- let cadenceFiller = \cadence -> (cadence, 0 :: Double) <$> cadences
-  -- let markovMapML = Map.fromList $ zip cadences cadenceRels :: MarkovMap
-  -- let mlRels = [fst f | f <- cadenceRels]
-  let markovMap = (\(cadence,mlCadences) -> (cadence, 
-                                  [ filler | 
-
-                                  filler <- cadences, 
-                                  ml <- mlRels
-                                  
-                                  -- ,filler `notElem` ml
-                                  ]
-                               )
-                  ) <$> zip cadences cadenceRels
+--  let filterSets = take 10 $ filter (\xs -> (length xs > 5) && (length xs < 10)) (fmap fst <$> cadenceRels)
+--  let filterSets = (fmap fst <$> cadenceRels)
+  let fillerSets = (\filters -> zip (cadences List.\\ filters) (repeat 0 :: [Double])) <$> (fmap fst <$> cadenceRels)
+  let markovValues = ((\(ml, fill) -> ml ++ fill) <$> (zip cadenceRels fillerSets))
+  let markovMap = Map.fromList $ zip cadences markovValues :: MarkovMap
+--  let cadenceFiller = zip cadences (repeat 0 :: [Double]) :: [(Cadence, Double)]
+--  cadenceFiller <- forM cadenceRels $ \cadence -> (cadences, 0 :: Double)
+--  let markovMapML = Map.fromList $ zip cadences cadenceRels :: MarkovMap
   forM_ markovMap print
-  -- return ()
+  return ()
+
+
 
 initGraph :: BoltActionT IO ()
 initGraph = do
@@ -121,14 +118,11 @@ getRelsFromGraph cadence = do
   let cadencesProportions = zip cadencesFrom p
   return cadencesProportions
 
--- getNodesTo :: [Cadence] -> BoltActionT IO [(Cadence)]
--- getNodesTo = do 
---   records <- query $ Text.pack ("MATCH (n:Cadence) RETURN n.functionality, n.movement, n.chord")
---   f <- forM records $ \record -> record `at` "n.functionality"
---   m <- forM records $ \record -> record `at` "n.movement"
---   c <- forM records $ \record -> record `at` "n.chord"
---   let cadencesFrom = constructCadence (Text.unpack $ head f, Text.unpack $ head m, Text.unpack $ head c)
---   return cadencesFrom
+choraleDataGraph :: IO MarkovMap
+choraleDataGraph = do
+
+  return model
+
 
 -- |script directing process of loading & transforming data then training model
 choraleData :: IO MarkovMap
