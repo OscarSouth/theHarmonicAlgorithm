@@ -41,14 +41,14 @@ import Control.Monad.Except
 --   forM_ (Map.assocs model) (\assocs -> run pipe $ connectNodes assocs)
 --   return ()
 
-main = R.withEmbeddedR R.defaultConfig $ do
-  initR -- load R libraries & settings, initialise R log, print info to stout
---  model <- choraleData -- bind trained model
-  model <- modelFromGraph -- retrieve serialised model from graph and bind
-  header -- print main title
-  putStrLn "Welcome to The Harmonic Algorithm!\n"
-  runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
-  return ()
+--main = R.withEmbeddedR R.defaultConfig $ do
+--  initR -- load R libraries & settings, initialise R log, print info to stout
+----  model <- choraleData -- compute and bind trained model
+--  model <- modelFromGraph -- retrieve serialised model from graph and bind
+--  header -- print main title
+--  putStrLn "Welcome to The Harmonic Algorithm!\n"
+--  runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
+--  return ()
 
 initGraph :: BoltActionT IO ()
 initGraph = do
@@ -114,6 +114,7 @@ modelFromGraph = do
   let fillerSets = (\filters -> zip (cadences List.\\ filters) (repeat 0 :: [Double])) <$> (fmap fst <$> cadenceRels)
   let markovValues = ((\(ml, fill) -> ml ++ fill) <$> (zip cadenceRels fillerSets))
   let model = Map.fromList $ zip cadences markovValues :: MarkovMap
+--  forM_ model print
   return model
 
 -- |script directing process of loading & transforming data then training model
@@ -652,3 +653,46 @@ randomGen n x c = do
       xs = drop 2 rns
       root = pc $ head c
   return (root, start, xs)
+
+-----------------
+-- live coding
+
+getNextFromGraph :: String -> BoltActionT IO Cadence
+getNextFromGraph s = do
+  records <- query $ Text.pack (" \
+  \ match (n:Cadence{show:'"++ s ++"'}) \
+  \ call { \
+  \ with n \
+  \ match (n)-[r]->(to) \
+  \ return r, to \
+  \   order by (r.confidence*rand()) desc \
+  \   limit 3 \
+  \ union all \
+  \ with n \
+  \ match (n)-[r]->(to) \
+  \ return r, to \
+  \   order by r.confidence desc \
+  \   limit 1 \
+  \ } \
+  \ return to.functionality, to.movement, to.chord \
+  \  order by rand() \
+  \  limit 1;")
+  f <- forM records $ \record -> Text.unpack <$> (record `at` "to.functionality")
+  m <- forM records $ \record -> Text.unpack <$> (record `at` "to.movement")
+  c <- forM records $ \record -> Text.unpack <$> (record `at` "to.chord")
+  let cadencesFrom = head (constructCadence <$> zip3 f m c) :: Cadence
+  return cadencesFrom
+
+get4Cadences :: String -> IO [Cadence]
+get4Cadences init = do
+  pipe <- connect $ def { version = 3 }
+  r1 <- run pipe $ getNextFromGraph init
+  r2 <- run pipe $ getNextFromGraph (show r1)
+  r3 <- run pipe $ getNextFromGraph (show r2)
+  r4 <- run pipe $ getNextFromGraph (show r3)
+  return $ r1 : r2 : r3 : r4 : []
+
+main = do
+  r <- get4Cadences "( asc 2 -> maj )"
+  forM_ r print
+  return ()

@@ -388,7 +388,6 @@ data Chord = Chord ((NoteName, Functionality), [Integer]) deriving (Eq, Ord)
 instance Show Chord where
   show (Chord ((a,b),c)) 
     | b == "N/A"   = show "N/A" 
-    -- | length c > 3 = show a ++ " " ++ b
     | otherwise    = show a ++ "_" ++ b
 
 -- |mapping from integer list to tuple of root and chord name
@@ -614,8 +613,6 @@ rootNote (Chord (_,(x:_))) = pc x
 -- |mapping from integer list to tuple of root and chord name
 toChord :: (Integral a, Num a) => (PitchClass -> NoteName) -> [a] -> Chord
 toChord f xs@(fund:tones)
-    -- | (any (True==) $ (xs?>) <$> vocabulary) == False = -- fix with recursion
-    --                   Chord ((C, "N/A"), [])
     | otherwise     = Chord ((f . pc $ head xs, nameFunc zeroForm xs ""),
                       (`mod` 12) . fromIntegral <$> chord)
   where
@@ -653,7 +650,7 @@ toChord f xs@(fund:tones)
           ,if all (`elem` zs) [7,8] then ("b13"++) else (""++)
           ,if all (`notElem` zs) [2,3,4,5] then ("no3"++) else (""++)
           ,if all (`notElem` zs) [6,7,8] then ("no5"++) else (""++)
-          -- ,if all (`elem` zs) [4,8] && not (any (`elem` zs) [1,3,5,7,9,11]) 
+          -- ,if all (`elem` zs) [4,8] && not (any (`elem` zs) [1,3,5,7,9,11])
           --   then ("aug"++) else (""++)
           -- ,if all (`elem` zs) [3,6] then ("dim"++) else (""++)
           ]
