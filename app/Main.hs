@@ -14,7 +14,7 @@ import qualified Language.R.QQ        as QQ
 
 import qualified Data.Char            as Char (isAlphaNum, toLower)
 import           Data.Function        (on)
-import qualified Data.List            as List (sortBy, zip3, zip4, zip5, isInfixOf, (\\))
+import qualified Data.List            as List (sortBy, zip4, zip5, isInfixOf, (\\))
 import           Data.Map             (Map)
 import qualified Data.Map             as Map (toList, fromList, lookup, keys, assocs)
 import           Data.Maybe           (fromMaybe)
@@ -32,18 +32,18 @@ import Control.Monad.Except
 
 -- import           sound.tidal.context
 
--- main = R.withEmbeddedR R.defaultConfig $ do
---   initR -- load R libraries & settings, initialise R log, print info to stout
---   model <- choraleData -- bind trained model
---   pipe <- connect $ def { version = 3 }
---   run pipe initGraph
---   forM_ (Map.keys model) (\keys -> run pipe $ cadenceToNode keys)
---   forM_ (Map.assocs model) (\assocs -> run pipe $ connectNodes assocs)
---   return ()
+main = R.withEmbeddedR R.defaultConfig $ do
+  initR -- load R libraries & settings, initialise R log, print info to stout
+  model <- choraleData -- bind trained model
+  pipe <- connect $ def { version = 3 }
+  run pipe initGraph
+  forM_ (Map.keys model) (\keys -> run pipe $ cadenceToNode keys)
+  forM_ (Map.assocs model) (\assocs -> run pipe $ connectNodes assocs)
+  return ()
 
 --main = R.withEmbeddedR R.defaultConfig $ do
 --  initR -- load R libraries & settings, initialise R log, print info to stout
-----  model <- choraleData -- compute and bind trained model
+--  --  model <- choraleData -- compute and bind trained model
 --  model <- modelFromGraph -- retrieve serialised model from graph and bind
 --  header -- print main title
 --  putStrLn "Welcome to The Harmonic Algorithm!\n"
@@ -64,9 +64,8 @@ initGraph = do
 cadenceToNode :: Cadence -> BoltActionT IO ()
 cadenceToNode cadence = do
   liftIO $ putStrLn ("writing node " ++ show cadence)
-  let (f,m,c) = deconstructCadence cadence
+  let (m,c) = deconstructCadence cadence
   query $ Text.pack ("CREATE (n:Cadence {show: '"++ show cadence ++"',\
-                                        \functionality: '"++ f ++"',\
                                         \movement: '"++ m ++"' ,\
                                         \chord: '"++ c ++"'})")
   return ()
@@ -74,9 +73,9 @@ cadenceToNode cadence = do
 connectNodes :: (Cadence, [(Cadence, Double)]) -> BoltActionT IO ()
 connectNodes (from, rels) = do
   let relationships = [ x | x <- rels, snd x > 0]
-  -- let relationships = rels
+--  let relationships = rels -- write a function to programmatically determine likely cadences
   liftIO $ putStrLn ("writing relationships for " ++ show from)
-  forM_ relationships (\(to, conf) -> query $ 
+  forM_ relationships (\(to, conf) -> query $
               Text.pack ("MATCH (from: Cadence{show: '"++ show from ++"'}) \
                          \MATCH (to: Cadence{show: '"++ show to ++"'}) \
                          \CREATE (from)-[r: NEXT {confidence: "++ show conf ++" }]->(to) "))
@@ -84,23 +83,21 @@ connectNodes (from, rels) = do
 
 getNodesFromGraph :: BoltActionT IO [Cadence]
 getNodesFromGraph = do
-  records <- query "MATCH (n:Cadence) RETURN n.functionality, n.movement, n.chord"
-  f <- forM records $ \record -> Text.unpack <$> (record `at` "n.functionality")
+  records <- query "MATCH (n:Cadence) RETURN n.movement, n.chord"
   m <- forM records $ \record -> Text.unpack <$> (record `at` "n.movement")
   c <- forM records $ \record -> Text.unpack <$> (record `at` "n.chord")
-  let cadencesFrom = constructCadence <$> zip3 f m c
+  let cadencesFrom = constructCadence <$> zip m c
   return cadencesFrom
 
 getRelsFromGraph :: Cadence -> BoltActionT IO [(Cadence, Double)]
 getRelsFromGraph cadence = do
   records <- query $ Text.pack ("MATCH (from:Cadence{show:'"++ show cadence ++"'})-[r]->(n) \
-                                \RETURN r.confidence, n.functionality, n.movement, n.chord \
+                                \RETURN r.confidence, n.movement, n.chord \
                                 \ORDER BY r.confidence DESC")
   p <- forM records $ (\record -> record `at` "r.confidence")
-  f <- forM records $ \record -> Text.unpack <$> (record `at` "n.functionality")
   m <- forM records $ \record -> Text.unpack <$> (record `at` "n.movement")
   c <- forM records $ \record -> Text.unpack <$> (record `at` "n.chord")
-  let cadencesFrom = constructCadence <$> zip3 f m c
+  let cadencesFrom = constructCadence <$> zip m c
   let cadencesProportions = zip cadencesFrom p
   return cadencesProportions
 
@@ -657,42 +654,42 @@ randomGen n x c = do
 -----------------
 -- live coding
 
-getNextFromGraph :: String -> BoltActionT IO Cadence
-getNextFromGraph s = do
-  records <- query $ Text.pack (" \
-  \ match (n:Cadence{show:'"++ s ++"'}) \
-  \ call { \
-  \ with n \
-  \ match (n)-[r]->(to) \
-  \ return r, to \
-  \   order by (r.confidence*rand()) desc \
-  \   limit 3 \
-  \ union all \
-  \ with n \
-  \ match (n)-[r]->(to) \
-  \ return r, to \
-  \   order by r.confidence desc \
-  \   limit 1 \
-  \ } \
-  \ return to.functionality, to.movement, to.chord \
-  \  order by rand() \
-  \  limit 1;")
-  f <- forM records $ \record -> Text.unpack <$> (record `at` "to.functionality")
-  m <- forM records $ \record -> Text.unpack <$> (record `at` "to.movement")
-  c <- forM records $ \record -> Text.unpack <$> (record `at` "to.chord")
-  let cadencesFrom = head (constructCadence <$> zip3 f m c) :: Cadence
-  return cadencesFrom
+--getNextFromGraph :: String -> BoltActionT IO Cadence
+--getNextFromGraph s = do
+--  records <- query $ Text.pack (" \
+--  \ match (n:Cadence{show:'"++ s ++"'}) \
+--  \ call { \
+--  \ with n \
+--  \ match (n)-[r]->(to) \
+--  \ return r, to \
+--  \   order by (r.confidence*rand()) desc \
+--  \   limit 3 \
+--  \ union all \
+--  \ with n \
+--  \ match (n)-[r]->(to) \
+--  \ return r, to \
+--  \   order by r.confidence desc \
+--  \   limit 1 \
+--  \ } \
+--  \ return to.functionality, to.movement, to.chord \
+--  \  order by rand() \
+--  \  limit 1;")
+--  f <- forM records $ \record -> Text.unpack <$> (record `at` "to.functionality")
+--  m <- forM records $ \record -> Text.unpack <$> (record `at` "to.movement")
+--  c <- forM records $ \record -> Text.unpack <$> (record `at` "to.chord")
+--  let cadencesFrom = head (constructCadence <$> zip3 f m c) :: Cadence
+--  return cadencesFrom
 
-get4Cadences :: String -> IO [Cadence]
-get4Cadences init = do
-  pipe <- connect $ def { version = 3 }
-  r1 <- run pipe $ getNextFromGraph init
-  r2 <- run pipe $ getNextFromGraph (show r1)
-  r3 <- run pipe $ getNextFromGraph (show r2)
-  r4 <- run pipe $ getNextFromGraph (show r3)
-  return $ r1 : r2 : r3 : r4 : []
+--get4Cadences :: String -> IO [Cadence]
+--get4Cadences init = do
+--  pipe <- connect $ def { version = 3 }
+--  r1 <- run pipe $ getNextFromGraph init
+--  r2 <- run pipe $ getNextFromGraph (show r1)
+--  r3 <- run pipe $ getNextFromGraph (show r2)
+--  r4 <- run pipe $ getNextFromGraph (show r3)
+--  return $ r1 : r2 : r3 : r4 : []
 
-main = do
-  r <- get4Cadences "( asc 2 -> maj )"
-  forM_ r print
-  return ()
+--main = do
+--  r <- get4Cadences "( asc 2 -> maj )"
+--  forM_ r print
+--  return ()

@@ -52,6 +52,7 @@ extra-deps:
 - tidal-link-1.0.1
 - inline-r-0.10.5
 - singletons-2.7
+#- split-0.2.3.4
 # - hasbolt-extras-0.0.1.6
 #- vector-0.12.0.1
 #- hosc-0.17

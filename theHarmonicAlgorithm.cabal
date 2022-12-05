@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 28524af37ca8cc14fd564c553b52b0e306c153d779cc80878ddde7c026e55538
+-- hash: 0a8e553f8455135d8954e3d3fff3299e302ce5998f581aa68f16afd45047975b
 
 name:           theHarmonicAlgorithm
 version:        1.0.1.0
@@ -39,10 +39,9 @@ library
   hs-source-dirs:
       src
   build-depends:
-      aeson
-    , base >=4.8 && <5
+      base >=4.8 && <5
     , containers
-    , http-client
+    , split
   default-language: Haskell2010
 
 executable theHarmonicAlgorithm-exe

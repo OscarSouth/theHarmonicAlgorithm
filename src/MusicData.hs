@@ -5,11 +5,12 @@ module MusicData where
 
 import           Utility
 
-import           Data.Function (on)
-import           Data.Maybe    (fromMaybe)
-import           Data.Set      (Set)
-import           GHC.Base      (modInt, quotInt, remInt)
-import           GHC.Real      ((%))
+import           Data.Function   (on)
+import           Data.Maybe      (fromMaybe)
+import           Data.Set        (Set)
+import           GHC.Base        (modInt, quotInt, remInt)
+import           GHC.Real        ((%))
+import           Data.List.Split (splitOn)
 
 import qualified Data.Char     as Char (isAlphaNum)
 import qualified Data.List     as List (concat, isInfixOf, reverse, sort,
@@ -586,13 +587,13 @@ fromCadence f root c@(Cadence (_,(_,tones))) =
   (toTriad f) $ i . (+ movementFromCadence c) . (+ root) <$> tones
 
 -- |mapping from serialised format to Cadence
-deconstructCadence :: Cadence -> (String, String, String)
-deconstructCadence (Cadence (f, (m, c))) = (f, show m, show c)
+deconstructCadence :: Cadence -> (String, String)
+deconstructCadence (Cadence (_, (m, c))) = (show m, show c)
 
 -- |mapping from serialised string format to Cadence
-constructCadence :: (String, String, String) -> Cadence
-constructCadence (f,m,c) =
-  let functionality = f
+constructCadence :: (String, String) -> Cadence
+constructCadence (m,c) =
+  let functionality = toFunctionality (read c)
       movement = read m
       chord = read c
    in Cadence (functionality, (movement, chord))
@@ -762,3 +763,6 @@ iwatoPentaChr = (\xs -> head xs : (List.sort $ tail xs)) <$> sets
 kumoiPentaChr :: Integral a => [[a]]
 kumoiPentaChr = (\xs -> head xs : (List.sort $ tail xs)) <$> sets
   where sets = i' . pcSet <$> ((sequence ((+) <$> [0,2,3,7,9])) <$> [0..11])
+
+toFunctionality :: [PitchClass] -> Functionality
+toFunctionality ps = last $ (splitOn "_") . show $ toTriad flat ps

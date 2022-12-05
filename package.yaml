@@ -35,8 +35,8 @@ library:
   - Perform
   dependencies:
   - containers
-  - http-client
-  - aeson
+  - split
+
 
 executables:
   theHarmonicAlgorithm-exe:
@@ -54,7 +54,6 @@ executables:
     - split
     - tidal
     - hasbolt
-    # - hasbolt-extras
     - text
     - data-default
     - aeson
