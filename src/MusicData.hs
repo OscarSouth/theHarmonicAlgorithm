@@ -557,9 +557,20 @@ fromMovement (Desc n)  = 12 - (pc n)
 fromMovement (Unison)  = P 0
 fromMovement (Tritone) = P 6
 
+-- |mapping from Movement data type to int
+fromMovement' :: (Num a, Integral a) => Movement -> a
+fromMovement' (Asc n)   = i n
+fromMovement' (Desc n)  = 0 - (i n)
+fromMovement' (Unison)  = 0
+fromMovement' (Tritone) = (-6)
+
 -- |helper function to extract a Movement value from a Cadence
 movementFromCadence :: Cadence -> PitchClass
 movementFromCadence (Cadence (_,(mvmt,_))) = fromMovement mvmt
+
+-- |helper function to extract a Movement value from a Cadence as an integer
+movementFromCadence' :: (Num a, Integral a) => Cadence -> a
+movementFromCadence' (Cadence (_,(mvmt,_))) = fromMovement' mvmt
 
 -- |mapping from tupled pair of Chords to a representation of transition between
 toTransition :: (Chord, Chord) -> Transition
@@ -585,6 +596,11 @@ toCadence ((Chord ((_, _), from@(x:_))), (Chord ((_, new), to@(y:_)))) =
 fromCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord
 fromCadence f root c@(Cadence (_,(_,tones))) =
   (toTriad f) $ i . (+ movementFromCadence c) . (+ root) <$> tones
+
+-- |mapping from possible Cadence and int into next Chord with transposition
+fromCadence' :: (Num a, Integral a) => a -> Cadence -> [a]
+fromCadence' root c@(Cadence (_,(_,tones))) =
+  (+ movementFromCadence' c) . (+ root) . i <$> tones
 
 -- |mapping from serialised format to Cadence
 deconstructCadence :: Cadence -> (String, String)
@@ -772,7 +788,29 @@ toFunctionality ps = (\(x:xs) -> if (length xs > 1)
 --toFunctionality ps = last $ (splitOn "_") (show $ toTriad flat ps)
 -- wrote this when I was really tired and it can be a lot better
 
+toFunctionality' :: (Integral a, Num a) => [a] -> Functionality
+toFunctionality' = toFunctionality . pcSet
+
 splitAtFirst :: Eq a => a -> [a] -> ([a], [a])
 splitAtFirst x = fmap (drop 1) . break (x ==)
 
+progRoots' :: (Num a, Integral a) => a -> [Cadence] -> [a]
+progRoots' _ [] =  []
+progRoots' p (x:xs) = p : progRoots' (p + (movementFromCadence') x) xs
+
+-- |generalised version of toTriad, applied directly to integers
+toEnhTriad :: (Integral a, Num a) => [a] -> Chord
+toEnhTriad set@(x:xs)
+  | (pc x) `elem` (pcSet [0, 5, 10, 3, 8, 1])
+    && (not $ "F#" `List.isInfixOf` ss && "Inv" `List.isInfixOf` ss)
+    && (not $ "C#" `List.isInfixOf` ss && "Inv" `List.isInfixOf` ss)
+        = toTriad flat set
+  | (pc x) `elem` (pcSet [7, 2, 9, 4, 11, 6]) && True
+    && (not $ "Bb" `List.isInfixOf` sf && "Inv" `List.isInfixOf` sf)
+    && (not $ "Eb" `List.isInfixOf` sf && "Inv" `List.isInfixOf` sf)
+      = toTriad sharp set
+  | otherwise = toTriad flat set
+  where
+    ss = show $ toTriad sharp set
+    sf = show $ toTriad flat set
 

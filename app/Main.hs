@@ -654,45 +654,6 @@ randomGen n x c = do
 -----------------
 -- live coding
 
---getNextFromGraph :: String -> BoltActionT IO Cadence
---getNextFromGraph s = do
---  records <- query $ Text.pack (" \
---  \ match (n:Cadence{show:'"++ s ++"'}) \
---  \ call { \
---  \ with n \
---  \ match (n)-[r]->(to) \
---  \ return r, to \
---  \   order by (r.confidence*rand()) desc \
---  \   limit 3 \
---  \ union all \
---  \ with n \
---  \ match (n)-[r]->(to) \
---  \ return r, to \
---  \   order by r.confidence desc \
---  \   limit 1 \
---  \ } \
---  \ return to.movement, to.chord \
---  \  order by rand() \
---  \  limit 1;")
---  m <- forM records $ \record -> Text.unpack <$> (record `at` "to.movement")
---  c <- forM records $ \record -> Text.unpack <$> (record `at` "to.chord")
---  let cadencesFrom = head (constructCadence <$> zip m c) :: Cadence
---  return cadencesFrom
---
---get4Cadences :: String -> IO [Cadence]
---get4Cadences init = do
---  pipe <- connect $ def { version = 3 }
---  r1 <- run pipe $ getNextFromGraph init
---  r2 <- run pipe $ getNextFromGraph (show r1)
---  r3 <- run pipe $ getNextFromGraph (show r2)
---  r4 <- run pipe $ getNextFromGraph (show r3)
---  return $ r1 : r2 : r3 : r4 : []
-
---main = do
---  r <- get4Cadences "( asc 2 -> maj )"
---  forM_ r print
---  return ()
-
 retrieveSeq4 :: BoltActionT IO [Cadence]
 retrieveSeq4 = do
   records <- query $ Text.pack (" \
@@ -775,29 +736,31 @@ retrieveSeq4 = do
   let cadence3 = head (constructCadence <$> zip m3 c3) :: Cadence
   return $ cadence0 : cadence1 : cadence2 : cadence3 : []
 
+--prog4 :: (Num a, Integral a) => IO [[a]]
+--prog4 = do
+--  pipe <- connect $ def { version = 3 }
+--  cadences <- run pipe retrieveSeq4
+--  forM_ cadences print
+--  let roots = progRoots (P 0) $ cycle cadences
+--  let chords = (\(p,c) -> fromCadence flat p c) <$> zip roots cadences
+----  forM_ chords print
+--  let fromChords = fromChord <$> chords
+--  forM_ (fmap (\i -> (flat . pc) i) <$> fromChords) print
+--  return fromChords
+
+--progRoots :: PitchClass -> [Cadence] -> [PitchClass]
+--progRoots _ [] =  []
+--progRoots p (x:xs) = p : progRoots (p + movementFromCadence x) xs
+
 prog4 :: (Num a, Integral a) => IO [[a]]
 prog4 = do
   pipe <- connect $ def { version = 3 }
   cadences <- run pipe retrieveSeq4
-  let roots = progRoots (P 0) $ cycle cadences
-  let chords = (\(p,c) -> fromCadence flat p c) <$> zip roots cadences
-  forM_ chords print
-  let fromChords = fromChord <$> chords
-  forM_ (fmap (\i -> (flat . pc) i) <$> fromChords) print
-  return fromChords
+  forM_ cadences print
+  let roots = take 4 $ progRoots' 0 $ cycle cadences
+  let chords = (\(p,c) -> fromCadence' p c) <$> zip roots (cycle cadences)
+  let labels = (concat $ zipWith (++) ("|  " : repeat "  |  ") (show . toEnhTriad <$> chords)) ++ "  |"
+  print labels
+  return chords
 
---prog4 = do
---  pipe <- connect $ def { version = 3 }
---  cadences <- run pipe retrieveSeq4
---  let roots = progRoots (P 0) cadences
---  let rootCadences = zip roots (cycle cadences)
---  let chords = (\(p,c) -> fromCadence flat p c) <$> rootCadences
---  forM_ rootCadences print
---  forM_ chords print
---  let fromChords = fmap (\i -> (flat . pc) i) <$> (fromChord <$> chords)
---  forM_ fromChords print
---  return ()
-
-progRoots :: PitchClass -> [Cadence] -> [PitchClass]
-progRoots _ [] =  []
-progRoots p (x:xs) = p : progRoots (p + movementFromCadence x) xs
+  -- [[-1,3,6],[4,7,11],[2,7,11],[0,4,7],[-1,3,6],[4,7,11],[2,7,11],[0,4,7]]
