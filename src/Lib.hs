@@ -30,6 +30,7 @@ rootNote,
 toMode,
 basePenta,
 sortPcSet,
+fromChord,
 ----------
 -- experimental stuff
 -- Movement,

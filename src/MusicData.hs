@@ -532,15 +532,15 @@ instance Read Movement where
     | s == "asc 4"   = [(Asc (P 4), "")]
     | s == "asc 5"   = [(Asc (P 5), "")]
     | s == "tritone" = [(Tritone, "")]
-    | s == "desc 5"  = [(Asc (P 7), "")]
-    | s == "desc 4"  = [(Asc (P 8), "")]
-    | s == "desc 3"  = [(Asc (P 9), "")]
-    | s == "desc 2"  = [(Asc (P 10), "")]
-    | s == "desc 1"  = [(Asc (P 11), "")]
+    | s == "desc 5"  = [(Desc (P 5), "")]
+    | s == "desc 4"  = [(Desc (P 4), "")]
+    | s == "desc 3"  = [(Desc (P 3), "")]
+    | s == "desc 2"  = [(Desc (P 2), "")]
+    | s == "desc 1"  = [(Desc (P 1), "")]
     | otherwise      = [(Empty, "")]
 
 -- |mapping from two numeric 'pitchclass' values into a Movement
-toMovement        :: (Integral a, Num a) => a -> a -> Movement
+toMovement :: (Integral a, Num a) => a -> a -> Movement
 toMovement from to
   | x < y = Asc  x
   | y < x = Desc y
@@ -765,4 +765,14 @@ kumoiPentaChr = (\xs -> head xs : (List.sort $ tail xs)) <$> sets
   where sets = i' . pcSet <$> ((sequence ((+) <$> [0,2,3,7,9])) <$> [0..11])
 
 toFunctionality :: [PitchClass] -> Functionality
-toFunctionality ps = last $ (splitOn "_") . show $ toTriad flat ps
+toFunctionality ps = (\(x:xs) -> if (length xs > 1)
+                                 then (head xs) ++ "_" ++ (last xs)
+                                 else (head xs)) $
+                                 (splitOn "_") . show $ toTriad flat ps
+--toFunctionality ps = last $ (splitOn "_") (show $ toTriad flat ps)
+-- wrote this when I was really tired and it can be a lot better
+
+splitAtFirst :: Eq a => a -> [a] -> ([a], [a])
+splitAtFirst x = fmap (drop 1) . break (x ==)
+
+

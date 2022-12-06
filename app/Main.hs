@@ -32,23 +32,23 @@ import Control.Monad.Except
 
 -- import           sound.tidal.context
 
-main = R.withEmbeddedR R.defaultConfig $ do
-  initR -- load R libraries & settings, initialise R log, print info to stout
-  model <- choraleData -- bind trained model
-  pipe <- connect $ def { version = 3 }
-  run pipe initGraph
-  forM_ (Map.keys model) (\keys -> run pipe $ cadenceToNode keys)
-  forM_ (Map.assocs model) (\assocs -> run pipe $ connectNodes assocs)
-  return ()
-
 --main = R.withEmbeddedR R.defaultConfig $ do
 --  initR -- load R libraries & settings, initialise R log, print info to stout
---  --  model <- choraleData -- compute and bind trained model
---  model <- modelFromGraph -- retrieve serialised model from graph and bind
---  header -- print main title
---  putStrLn "Welcome to The Harmonic Algorithm!\n"
---  runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
+--  model <- choraleData -- bind trained model
+--  pipe <- connect $ def { version = 3 }
+--  run pipe initGraph
+--  forM_ (Map.keys model) (\keys -> run pipe $ cadenceToNode keys)
+--  forM_ (Map.assocs model) (\assocs -> run pipe $ connectNodes assocs)
 --  return ()
+
+main = R.withEmbeddedR R.defaultConfig $ do
+  initR -- load R libraries & settings, initialise R log, print info to stout
+  --  model <- choraleData -- compute and bind trained model
+  model <- modelFromGraph -- retrieve serialised model from graph and bind
+  header -- print main title
+  putStrLn "Welcome to The Harmonic Algorithm!\n"
+  runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
+  return ()
 
 initGraph :: BoltActionT IO ()
 initGraph = do
@@ -671,15 +671,14 @@ randomGen n x c = do
 --  \   order by r.confidence desc \
 --  \   limit 1 \
 --  \ } \
---  \ return to.functionality, to.movement, to.chord \
+--  \ return to.movement, to.chord \
 --  \  order by rand() \
 --  \  limit 1;")
---  f <- forM records $ \record -> Text.unpack <$> (record `at` "to.functionality")
 --  m <- forM records $ \record -> Text.unpack <$> (record `at` "to.movement")
 --  c <- forM records $ \record -> Text.unpack <$> (record `at` "to.chord")
---  let cadencesFrom = head (constructCadence <$> zip3 f m c) :: Cadence
+--  let cadencesFrom = head (constructCadence <$> zip m c) :: Cadence
 --  return cadencesFrom
-
+--
 --get4Cadences :: String -> IO [Cadence]
 --get4Cadences init = do
 --  pipe <- connect $ def { version = 3 }
@@ -693,3 +692,112 @@ randomGen n x c = do
 --  r <- get4Cadences "( asc 2 -> maj )"
 --  forM_ r print
 --  return ()
+
+retrieveSeq4 :: BoltActionT IO [Cadence]
+retrieveSeq4 = do
+  records <- query $ Text.pack (" \
+  \ match (n:Cadence) \
+  \ with apoc.coll.randomItem(COLLECT(n)) AS n_0 \
+  \ call { \
+  \ with n_0 \
+  \ call { \
+  \ with n_0 \
+  \ match (n_0)-[r]->(n_1) \
+  \ return r, n_1 \
+  \   order by (r.confidence*rand()) desc \
+  \   limit 3 \
+  \ union all \
+  \ with n_0 \
+  \ match (n_0)-[r]->(n_1) \
+  \ return r, n_1 \
+  \   order by r.confidence desc \
+  \   limit 1 \
+  \ } \
+  \ return n_1 \
+  \   order by rand() \
+  \   limit 1 \
+  \ } \
+  \ call { \
+  \ with n_1 \
+  \ call { \
+  \ with n_1 \
+  \ match (n_1)-[r]->(n_2) \
+  \ return r, n_2 \
+  \   order by (r.confidence*rand()) desc \
+  \   limit 3 \
+  \ union all \
+  \ with n_1 \
+  \ match (n_1)-[r]->(n_2) \
+  \ return r, n_2 \
+  \   order by r.confidence desc \
+  \   limit 1 \
+  \ } \
+  \ return n_2 \
+  \   order by rand() \
+  \   limit 1 \
+  \ } \
+  \ call { \
+  \ with n_2 \
+  \ call { \
+  \ with n_2 \
+  \ match (n_2)-[r]->(n_3)-->(n0) \
+  \ return r, n_3 \
+  \   order by (r.confidence*rand()) desc \
+  \   limit 3 \
+  \ union all \
+  \ with n_2 \
+  \ match (n_2)-[r]->(n_3)-[r_last]->(n0) \
+  \ return r, n_3 \
+  \   order by r.confidence desc, r_last.confidence desc \
+  \   limit 1 \
+  \ } \
+  \ return n_3 \
+  \   order by rand() \
+  \   limit 1 \
+  \ } \
+  \ return \
+  \   n_0.chord, n_0.movement, \
+  \   n_1.chord, n_1.movement, \
+  \   n_2.chord, n_2.movement, \
+  \   n_3.chord, n_3.movement; \
+  \ ")
+  m0 <- forM records $ \record -> Text.unpack <$> (record `at` "n_0.movement")
+  c0 <- forM records $ \record -> Text.unpack <$> (record `at` "n_0.chord")
+  m1 <- forM records $ \record -> Text.unpack <$> (record `at` "n_1.movement")
+  c1 <- forM records $ \record -> Text.unpack <$> (record `at` "n_1.chord")
+  m2 <- forM records $ \record -> Text.unpack <$> (record `at` "n_2.movement")
+  c2 <- forM records $ \record -> Text.unpack <$> (record `at` "n_2.chord")
+  m3 <- forM records $ \record -> Text.unpack <$> (record `at` "n_3.movement")
+  c3 <- forM records $ \record -> Text.unpack <$> (record `at` "n_3.chord")
+  let cadence0 = head (constructCadence <$> zip m0 c0) :: Cadence
+  let cadence1 = head (constructCadence <$> zip m1 c1) :: Cadence
+  let cadence2 = head (constructCadence <$> zip m2 c2) :: Cadence
+  let cadence3 = head (constructCadence <$> zip m3 c3) :: Cadence
+  return $ cadence0 : cadence1 : cadence2 : cadence3 : []
+
+prog4 :: (Num a, Integral a) => IO [[a]]
+prog4 = do
+  pipe <- connect $ def { version = 3 }
+  cadences <- run pipe retrieveSeq4
+  let roots = progRoots (P 0) $ cycle cadences
+  let chords = (\(p,c) -> fromCadence flat p c) <$> zip roots cadences
+  forM_ chords print
+  let fromChords = fromChord <$> chords
+  forM_ (fmap (\i -> (flat . pc) i) <$> fromChords) print
+  return fromChords
+
+--prog4 = do
+--  pipe <- connect $ def { version = 3 }
+--  cadences <- run pipe retrieveSeq4
+--  let roots = progRoots (P 0) cadences
+--  let rootCadences = zip roots (cycle cadences)
+--  let chords = (\(p,c) -> fromCadence flat p c) <$> rootCadences
+--  forM_ rootCadences print
+--  forM_ chords print
+--  let fromChords = fmap (\i -> (flat . pc) i) <$> (fromChord <$> chords)
+--  forM_ fromChords print
+--  return ()
+
+progRoots :: PitchClass -> [Cadence] -> [PitchClass]
+progRoots _ [] =  []
+progRoots p (x:xs) = p : progRoots (p + movementFromCadence x) xs
