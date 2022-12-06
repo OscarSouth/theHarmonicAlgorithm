@@ -30,7 +30,7 @@ import qualified Data.Text as Text
 import Control.Monad
 import Control.Monad.Except
 
--- import           sound.tidal.context
+import qualified Sound.Tidal.Context as Tidal
 
 --main = R.withEmbeddedR R.defaultConfig $ do
 --  initR -- load R libraries & settings, initialise R log, print info to stout
@@ -756,11 +756,18 @@ prog4 :: (Num a, Integral a) => IO [[a]]
 prog4 = do
   pipe <- connect $ def { version = 3 }
   cadences <- run pipe retrieveSeq4
-  forM_ cadences print
   let roots = take 4 $ progRoots' 0 $ cycle cadences
   let chords = (\(p,c) -> fromCadence' p c) <$> zip roots (cycle cadences)
+--  let labels = (concat $ zipWith (++) ("|  " : repeat "  |  ") (show . toEnhTriad <$> chords)) ++ "  |"
   let labels = (concat $ zipWith (++) ("|  " : repeat "  |  ") (show . toEnhTriad <$> chords)) ++ "  |"
   print labels
   return chords
 
+--(++"|   ") . concat . (`replicate`" ") . ((14-) . length) <$> chords fs
   -- [[-1,3,6],[4,7,11],[2,7,11],[0,4,7],[-1,3,6],[4,7,11],[2,7,11],[0,4,7]]
+
+--stringToPat :: Tidal.ControlPattern
+--stringToPat = do
+--  let s = "[[-1,3,6],[4,7,11],[2,7,11],[0,4,7],[-1,3,6],[4,7,11],[2,7,11],[0,4,7]]"
+--  let pat = Tidal.note s :: Tidal.ControlPattern
+--  return pat
