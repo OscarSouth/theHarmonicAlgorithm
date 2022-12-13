@@ -47,11 +47,12 @@ packages:
 # (e.g., acme-missiles-0.3)
 extra-deps:
 # - archive: https://github.com/tidalcycles/Tidal/archive/master.zip`
-# - tidal-1.5.2
-- tidal-1.9.2
-- tidal-link-1.0.1
-- inline-r-0.10.5
-- singletons-2.7
+- tidal-1.8.1
+# - tidal-1.9.2
+# - tidal-link-1.0.1
+# - inline-r-0.10.5
+- inline-r-1.0.0
+# - singletons-2.7
 #- split-0.2.3.4
 # - hasbolt-extras-0.0.1.6
 #- vector-0.12.0.1

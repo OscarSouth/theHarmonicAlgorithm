@@ -5,33 +5,19 @@
 
 packages:
 - completed:
-    hackage: tidal-1.9.2@sha256:57c5093dbbe95e426dbff33f7cee105c8f652847018fe06b3e515fde840ad0a2,4149
+    hackage: tidal-1.8.1@sha256:fdf7d757177042094d9b5253e0a85987c76731e250cf95297e4cb86e7da0dd56,4344
     pantry-tree:
-      sha256: 56a1ace2bb03e691580cc1ad9b94177d0e6b951b44fa7882e619c2d30dd07f3a
-      size: 3364
+      sha256: 6d0f293199125ef8ea3419bd6396d2b14e586d6c064378c727bcb51836090556
+      size: 3429
   original:
-    hackage: tidal-1.9.2
+    hackage: tidal-1.8.1
 - completed:
-    hackage: tidal-link-1.0.1@sha256:64406d547b886a07443c4df46c8942a0c02c0a93f7542d16bdf2079b5ef481cc,1910
+    hackage: inline-r-1.0.0@sha256:b475cfec476d50ad54118f36936a9a7e684e16cea6bceef8c408cb438d7c9e43,8712
     pantry-tree:
-      sha256: 0e2211eb5ddec9aea0ca7e59c9b1a3140e01356db308002d1360281798b0dfd5
-      size: 78472
+      sha256: 678260a1e860175b7c8ff52972bd4077b2c545a1f0c870fc6862d10806f7f502
+      size: 4506
   original:
-    hackage: tidal-link-1.0.1
-- completed:
-    hackage: inline-r-0.10.5@sha256:131e4302ce660bd33be73bd236caeb490c5782dc3d064f2374abf2437d15b7dc,7941
-    pantry-tree:
-      sha256: f69b7efcb9f0934809f65183ad9854bf71fd3c43b9d1a210301df58444ae87e5
-      size: 4455
-  original:
-    hackage: inline-r-0.10.5
-- completed:
-    hackage: singletons-2.7@sha256:a265105b00628462c2aef7dab1ef7d2a460ddba415d8a935d4c4035d6abe292b,7614
-    pantry-tree:
-      sha256: 6d35bf96c8a17d95d856f17a56a8e5faa47efb8fecffe80b02061a8ee030918f
-      size: 25263
-  original:
-    hackage: singletons-2.7
+    hackage: inline-r-1.0.0
 snapshots:
 - completed:
     sha256: 428ec8d5ce932190d3cbe266b9eb3c175cd81e984babf876b64019e2cbe4ea68

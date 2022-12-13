@@ -32,7 +32,7 @@ import Control.Monad.Except
 
 import qualified Sound.Tidal.Context as Tidal
 
---main = R.withEmbeddedR R.defaultConfig $ do
+-- main = R.withEmbeddedR R.defaultConfig $ do
 --  initR -- load R libraries & settings, initialise R log, print info to stout
 --  model <- choraleData -- bind trained model
 --  pipe <- connect $ def { version = 3 }
