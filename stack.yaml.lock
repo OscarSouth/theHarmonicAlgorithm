@@ -12,6 +12,13 @@ packages:
   original:
     hackage: tidal-1.8.1
 - completed:
+    hackage: hosc-0.19@sha256:fb479b50a66b259eeffc7dbdfdaa9f966dc9d34f6b4299af571cee029b2e38d1,1958
+    pantry-tree:
+      sha256: 5ee1f3ce3a5c9cb1f22d50fd7e43a22c3599a4a329be0b236f26eb03e48bb787
+      size: 1371
+  original:
+    hackage: hosc-0.19
+- completed:
     hackage: inline-r-1.0.0@sha256:b475cfec476d50ad54118f36936a9a7e684e16cea6bceef8c408cb438d7c9e43,8712
     pantry-tree:
       sha256: 678260a1e860175b7c8ff52972bd4077b2c545a1f0c870fc6862d10806f7f502

@@ -23,7 +23,7 @@ import           Data.List.Split      (chunksOf)
 
 -- GraphDB stuff --
 
-import Database.Bolt
+import qualified Database.Bolt as Bolt
 
 import Data.Default
 import qualified Data.Text as Text
@@ -32,71 +32,71 @@ import Control.Monad.Except
 
 import qualified Sound.Tidal.Context as Tidal
 
--- main = R.withEmbeddedR R.defaultConfig $ do
---  initR -- load R libraries & settings, initialise R log, print info to stout
---  model <- choraleData -- bind trained model
---  pipe <- connect $ def { version = 3 }
---  run pipe initGraph
---  forM_ (Map.keys model) (\keys -> run pipe $ cadenceToNode keys)
---  forM_ (Map.assocs model) (\assocs -> run pipe $ connectNodes assocs)
---  return ()
-
 main = R.withEmbeddedR R.defaultConfig $ do
   initR -- load R libraries & settings, initialise R log, print info to stout
-  --  model <- choraleData -- compute and bind trained model
-  model <- modelFromGraph -- retrieve serialised model from graph and bind
-  header -- print main title
-  putStrLn "Welcome to The Harmonic Algorithm!\n"
-  runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
+  model <- choraleData -- bind trained model
+  pipe <- Bolt.connect $ def { Bolt.version = 3 }
+  Bolt.run pipe initGraph
+  forM_ (Map.keys model) (\keys -> Bolt.run pipe $ cadenceToNode keys)
+  forM_ (Map.assocs model) (\assocs -> Bolt.run pipe $ connectNodes assocs)
   return ()
 
-initGraph :: BoltActionT IO ()
+-- main = R.withEmbeddedR R.defaultConfig $ do
+--   initR -- load R libraries & settings, initialise R log, print info to stout
+--   --  model <- choraleData -- compute and bind trained model
+--   model <- modelFromGraph -- retrieve serialised model from graph and bind
+--   header -- print main title
+--   putStrLn "Welcome to The Harmonic Algorithm!\n"
+--   runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
+--   return ()
+
+initGraph :: Bolt.BoltActionT IO ()
 initGraph = do
   liftIO $ putStrLn "preparing graph"
-  query "MATCH (n) DETACH DELETE n"
+  Bolt.query "MATCH (n) DETACH DELETE n"
   liftIO $ putStrLn "dropped nodes and relationships"
-  query "CALL apoc.schema.assert({}, {})"
+  Bolt.query "CALL apoc.schema.assert({}, {})"
   liftIO $ putStrLn "dropped constraints"
-  query "CREATE CONSTRAINT ON (n:Cadence) ASSERT n.show IS UNIQUE"
+  Bolt.query "CREATE CONSTRAINT ON (n:Cadence) ASSERT n.show IS UNIQUE"
   liftIO $ putStrLn "created constraints"
   return ()
 
-cadenceToNode :: Cadence -> BoltActionT IO ()
+cadenceToNode :: Cadence -> Bolt.BoltActionT IO ()
 cadenceToNode cadence = do
   liftIO $ putStrLn ("writing node " ++ show cadence)
   let (m,c) = deconstructCadence cadence
-  query $ Text.pack ("CREATE (n:Cadence {show: '"++ show cadence ++"',\
+  Bolt.query $ Text.pack ("CREATE (n:Cadence {show: '"++ show cadence ++"',\
                                         \movement: '"++ m ++"' ,\
                                         \chord: '"++ c ++"'})")
   return ()
 
-connectNodes :: (Cadence, [(Cadence, Double)]) -> BoltActionT IO ()
+connectNodes :: (Cadence, [(Cadence, Double)]) -> Bolt.BoltActionT IO ()
 connectNodes (from, rels) = do
   let relationships = [ x | x <- rels, snd x > 0]
 --  let relationships = rels -- write a function to programmatically determine likely cadences
   liftIO $ putStrLn ("writing relationships for " ++ show from)
-  forM_ relationships (\(to, conf) -> query $
+  forM_ relationships (\(to, conf) -> Bolt.query $
               Text.pack ("MATCH (from: Cadence{show: '"++ show from ++"'}) \
                          \MATCH (to: Cadence{show: '"++ show to ++"'}) \
                          \CREATE (from)-[r: NEXT {confidence: "++ show conf ++" }]->(to) "))
   return ()
 
-getNodesFromGraph :: BoltActionT IO [Cadence]
+getNodesFromGraph :: Bolt.BoltActionT IO [Cadence]
 getNodesFromGraph = do
-  records <- query "MATCH (n:Cadence) RETURN n.movement, n.chord"
-  m <- forM records $ \record -> Text.unpack <$> (record `at` "n.movement")
-  c <- forM records $ \record -> Text.unpack <$> (record `at` "n.chord")
+  records <- Bolt.query "MATCH (n:Cadence) RETURN n.movement, n.chord"
+  m <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n.movement")
+  c <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n.chord")
   let cadencesFrom = constructCadence <$> zip m c
   return cadencesFrom
 
-getRelsFromGraph :: Cadence -> BoltActionT IO [(Cadence, Double)]
+getRelsFromGraph :: Cadence -> Bolt.BoltActionT IO [(Cadence, Double)]
 getRelsFromGraph cadence = do
-  records <- query $ Text.pack ("MATCH (from:Cadence{show:'"++ show cadence ++"'})-[r]->(n) \
+  records <- Bolt.query $ Text.pack ("MATCH (from:Cadence{show:'"++ show cadence ++"'})-[r]->(n) \
                                 \RETURN r.confidence, n.movement, n.chord \
                                 \ORDER BY r.confidence DESC")
-  p <- forM records $ (\record -> record `at` "r.confidence")
-  m <- forM records $ \record -> Text.unpack <$> (record `at` "n.movement")
-  c <- forM records $ \record -> Text.unpack <$> (record `at` "n.chord")
+  p <- forM records $ (\record -> record `Bolt.at` "r.confidence")
+  m <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n.movement")
+  c <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n.chord")
   let cadencesFrom = constructCadence <$> zip m c
   let cadencesProportions = zip cadencesFrom p
   return cadencesProportions
@@ -105,9 +105,9 @@ getRelsFromGraph cadence = do
 modelFromGraph :: IO MarkovMap
 modelFromGraph = do
   uciRef -- print dataset source reference
-  pipe <- connect $ def { version = 3 }
-  cadences <- run pipe getNodesFromGraph
-  cadenceRels <- forM cadences $ \cadence -> run pipe $ getRelsFromGraph cadence
+  pipe <- Bolt.connect $ def { Bolt.version = 3 }
+  cadences <- Bolt.run pipe getNodesFromGraph
+  cadenceRels <- forM cadences $ \cadence -> Bolt.run pipe $ getRelsFromGraph cadence
   let fillerSets = (\filters -> zip (cadences List.\\ filters) (repeat 0 :: [Double])) <$> (fmap fst <$> cadenceRels)
   let markovValues = ((\(ml, fill) -> ml ++ fill) <$> (zip cadenceRels fillerSets))
   let model = Map.fromList $ zip cadences markovValues :: MarkovMap
@@ -230,7 +230,7 @@ harmonicFilters = do
       filters = chordList' 3 roots overtones
   return filters
 
--- |function to retrieve and filter down possibilities based on current state 
+-- |function to retrieve and filter down possibilities based on current state
 recommendations :: Enharmonic -> Root -> Cadence -> Filters -> Int -> Model [Cadence]
 recommendations fs root prev filters n = do
   model <- ask
@@ -251,7 +251,7 @@ recommendations fs root prev filters n = do
 -- |interactive loop in which most of the user interaction takes place
 markovLoop :: Enharmonic -> Root -> Cadence -> Filters -> Int -> Model ()
 markovLoop fs root prev filters n = do
-  nexts <- recommendations fs root prev filters n 
+  nexts <- recommendations fs root prev filters n
   let enharm = enharmMap fs
       choose = ["[       Modify filter       ]",
                 "[      Random sequence      ]",
@@ -261,10 +261,10 @@ markovLoop fs root prev filters n = do
                 else "[ Switch to sharp notation  ]",
                 "[ Select new starting chord ]",
                 "[           Quit            ]"]
-      menu   = (showTriad enharm . fromCadence enharm root <$> 
+      menu   = (showTriad enharm . fromCadence enharm root <$>
                 nexts) ++ choose
-      opts    = zipWith (\n p -> 
-                (if n < 10 then show n ++ " " else show n) ++ " - " ++ p) 
+      opts    = zipWith (\n p ->
+                (if n < 10 then show n ++ " " else show n) ++ " - " ++ p)
                 [1..] menu
   liftIO $ putStrLn $ "\nThe current chord is " ++
            showTriad enharm (transposeCadence enharm root prev) ++
@@ -280,9 +280,9 @@ markovLoop fs root prev filters n = do
       filters' <- harmonicFilters
       markovLoop fs root prev filters' n
       else if index == 1 + length nexts
-        then if length opts == length choose 
+        then if length opts == length choose
           then do
-            liftIO $ putStrLn 
+            liftIO $ putStrLn
               "\nCannot generate from empty set of possibilities.\n\
                \Adjust filters or choose another option:"
             markovLoop fs root prev filters n
@@ -314,7 +314,7 @@ markovLoop fs root prev filters n = do
 getSeqParams :: Enharmonic -> Root -> Cadence -> Filters -> Int -> Model ()
 getSeqParams fs root prev filters n = do
   liftIO $ putStrLn "\nEnter desired length of sequence (default 4, max 16):"
-  len <- do 
+  len <- do
     liftIO prompt
     getLen <- liftIO getLine
     let readLen = fromMaybe 4 (readMaybe getLen :: Maybe Double)
@@ -322,9 +322,9 @@ getSeqParams fs root prev filters n = do
     else if readLen <= 0 then return 4
     else return readLen
   liftIO $ putStrLn "\nChoose entropy level as a number between 1 and 10 (default 2):"
-  entropy <- do 
+  entropy <- do
     liftIO prompt
-    getEntropy <- liftIO getLine 
+    getEntropy <- liftIO getLine
     let readEntropy = fromMaybe 2 (readMaybe getEntropy :: Maybe Double)
     if readEntropy >= 10 then return 1 else return (readEntropy/10)
   randomSeq fs root prev filters n (len, entropy)
@@ -341,29 +341,29 @@ randomSeq fs root prev filters n seqParams = do
       chords fs = showTriad (enharmMap fs) <$> fst cadences
       lines     = (++"|   ") . concat . (`replicate`" ") .
                   ((14-) . length) <$> chords fs
-      fours fs  = concat $ zipWith (++) 
+      fours fs  = concat $ zipWith (++)
                   ["\n1   ||   ", "\n5    |   ", "\n9    |   ", "\n13   |   "]
-                  (init . init . init <$> (fmap concat <$> chunksOf 4 $ 
+                  (init . init . init <$> (fmap concat <$> chunksOf 4 $
                   zipWith (++) (chords fs) lines))
   liftIO $ putStr "\nPress enter to accept, \
-           \specify a bar number, or choose another option: \n" 
+           \specify a bar number, or choose another option: \n"
         >> hFlush stdout
   liftIO $ putStr (fours fs) >> putStrLn "|\n"
-  let menu = ["[      Reject sequence      ]", 
+  let menu = ["[      Reject sequence      ]",
               "[    Regenerate sequence    ]",
               if fs == "sharp" then "[  Show with flat notation  ]"
               else "[ Show with sharp notation  ]"]
-      opts = zipWith (\n p -> 
-                  (if n < 10 then show n ++ " " else show n) ++ " - " ++ p) 
+      opts = zipWith (\n p ->
+                  (if n < 10 then show n ++ " " else show n) ++ " - " ++ p)
                   [1+length (chords fs)..]
       actions ls = do
         num <- liftIO $ mapM_ putStrLn ls >> prompt >> getLine
         let index | num == "" = -1
                   | otherwise = read num - 1 :: Int
         if index == (-1)
-          then markovLoop fs (rootNote $ last $ fst cadences) 
+          then markovLoop fs (rootNote $ last $ fst cadences)
                              (last $ snd cadences) filters n
-          else if notElem num $ 
+          else if notElem num $
                   fmap show [1..chordLen + length ls]
             then do
               liftIO $ putStrLn "\nUnrecognised input, please retry:\n"
@@ -376,20 +376,20 @@ randomSeq fs root prev filters n seqParams = do
                   else if index == 2 + chordLen
                     then do
                     liftIO $ putStrLn "\nUnrecognised input, please retry:"
-                          >> putStr (fours 
-                             (if fs == "flat" then "sharp" else "flat")) 
+                          >> putStr (fours
+                             (if fs == "flat" then "sharp" else "flat"))
                           >> putStrLn "|\n"
-                    actions $ opts ["[      Reject sequence      ]", 
+                    actions $ opts ["[      Reject sequence      ]",
                                     "[    Regenerate sequence    ]"]
                     else do
-                    let root' = rootNote $ fst cadences!!index 
-                        next = snd cadences!!index 
+                    let root' = rootNote $ fst cadences!!index
+                        next = snd cadences!!index
                     markovLoop fs root' next filters n
   actions $ opts menu
   return ()
 
 -- |function to retrieve and return random sequence
-cadenceSeq :: Enharmonic -> Root -> Cadence -> Filters -> [Integer] 
+cadenceSeq :: Enharmonic -> Root -> Cadence -> Filters -> [Integer]
               -> Model ([Chord], [Cadence])
 cadenceSeq _ _ c _ [] = return ([], [])
 cadenceSeq fs root prev filters rns@(x:xs) = do
@@ -639,7 +639,7 @@ gammaGen n x = do
   return (floor <$> rand)
 
 -- |function that returns required data (tupled) for generating random sequences
-randomGen :: (Num a, Integral a) => 
+randomGen :: (Num a, Integral a) =>
              Double -> Double -> [a] -> IO (PitchClass, Cadence, [Integer])
 randomGen n x c = do
   let gamma = gammaGen (n+2) x
@@ -654,9 +654,9 @@ randomGen n x c = do
 -----------------
 -- live coding
 
-retrieveSeq4 :: BoltActionT IO [Cadence]
+retrieveSeq4 :: Bolt.BoltActionT IO [Cadence]
 retrieveSeq4 = do
-  records <- query $ Text.pack (" \
+  records <- Bolt.query $ Text.pack (" \
   \ match (n:Cadence) \
   \ with apoc.coll.randomItem(COLLECT(n)) AS n_0 \
   \ call { \
@@ -722,14 +722,14 @@ retrieveSeq4 = do
   \   n_2.chord, n_2.movement, \
   \   n_3.chord, n_3.movement; \
   \ ")
-  m0 <- forM records $ \record -> Text.unpack <$> (record `at` "n_0.movement")
-  c0 <- forM records $ \record -> Text.unpack <$> (record `at` "n_0.chord")
-  m1 <- forM records $ \record -> Text.unpack <$> (record `at` "n_1.movement")
-  c1 <- forM records $ \record -> Text.unpack <$> (record `at` "n_1.chord")
-  m2 <- forM records $ \record -> Text.unpack <$> (record `at` "n_2.movement")
-  c2 <- forM records $ \record -> Text.unpack <$> (record `at` "n_2.chord")
-  m3 <- forM records $ \record -> Text.unpack <$> (record `at` "n_3.movement")
-  c3 <- forM records $ \record -> Text.unpack <$> (record `at` "n_3.chord")
+  m0 <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n_0.movement")
+  c0 <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n_0.chord")
+  m1 <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n_1.movement")
+  c1 <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n_1.chord")
+  m2 <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n_2.movement")
+  c2 <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n_2.chord")
+  m3 <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n_3.movement")
+  c3 <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n_3.chord")
   let cadence0 = head (constructCadence <$> zip m0 c0) :: Cadence
   let cadence1 = head (constructCadence <$> zip m1 c1) :: Cadence
   let cadence2 = head (constructCadence <$> zip m2 c2) :: Cadence
@@ -738,8 +738,8 @@ retrieveSeq4 = do
 
 --prog4 :: (Num a, Integral a) => IO [[a]]
 --prog4 = do
---  pipe <- connect $ def { version = 3 }
---  cadences <- run pipe retrieveSeq4
+--  pipe <- connect $ def { Bolt.version = 3 }
+--  cadences <- Bolt.run pipe retrieveSeq4
 --  forM_ cadences print
 --  let roots = progRoots (P 0) $ cycle cadences
 --  let chords = (\(p,c) -> fromCadence flat p c) <$> zip roots cadences
@@ -754,8 +754,8 @@ retrieveSeq4 = do
 
 prog4 :: (Show a, Num a, Integral a) => IO [[a]]
 prog4 = do
-  pipe <- connect $ def { version = 3 }
-  cadences <- run pipe retrieveSeq4
+  pipe <- Bolt.connect $ def { Bolt.version = 3 }
+  cadences <- Bolt.run pipe retrieveSeq4
   let roots = take 4 $ progRoots' 0 $ cycle cadences
   let chords = (\(p,c) -> fromCadence' p c) <$> zip roots (cycle cadences)
   let labels = show . toEnhTriad <$> chords
@@ -784,4 +784,3 @@ progToPatIO = do
   let progString = show r
   let ctrlPat = progStringToPat progString
   return ctrlPat
-

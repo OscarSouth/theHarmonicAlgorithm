@@ -19,10 +19,6 @@
 # resolver: ./custom-snapshot.yaml
 # resolver: https://example.com/snapshots/2018-01-01.yaml
 
-# resolver: lts-12.26
-# resolver: lts-14.0
-# resolver: lts-14.11
-# resolver: lts-16.5
 resolver: lts-18.28
 
 # User packages to be built.
@@ -46,9 +42,9 @@ packages:
 # using the same syntax as the packages field.
 # (e.g., acme-missiles-0.3)
 extra-deps:
-# - archive: https://github.com/tidalcycles/Tidal/archive/master.zip`
 - tidal-1.8.1
-# - tidal-1.9.2
+- hosc-0.19
+# - tidal-1.9.3
 # - tidal-link-1.0.1
 # - inline-r-0.10.5
 - inline-r-1.0.0
@@ -56,7 +52,7 @@ extra-deps:
 #- split-0.2.3.4
 # - hasbolt-extras-0.0.1.6
 #- vector-0.12.0.1
-#- hosc-0.17
+# - hosc-0.20
 
 # Override default flag values for local packages and extra-deps
 # flags: {}
