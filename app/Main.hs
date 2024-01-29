@@ -32,43 +32,51 @@ import Control.Monad.Except
 
 import qualified Sound.Tidal.Context as Tidal
 
-main = R.withEmbeddedR R.defaultConfig $ do
-  initR -- load R libraries & settings, initialise R log, print info to stout
-  model <- choraleData -- bind trained model
-  pipe <- Bolt.connect $ def { Bolt.version = 3 }
-  Bolt.run pipe initGraph
-  forM_ (Map.keys model) (\keys -> Bolt.run pipe $ cadenceToNode keys)
-  forM_ (Map.assocs model) (\assocs -> Bolt.run pipe $ connectNodes assocs)
-  return ()
 
 -- main = R.withEmbeddedR R.defaultConfig $ do
 --   initR -- load R libraries & settings, initialise R log, print info to stout
---   --  model <- choraleData -- compute and bind trained model
---   model <- modelFromGraph -- retrieve serialised model from graph and bind
---   header -- print main title
---   putStrLn "Welcome to The Harmonic Algorithm!\n"
---   runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
+--   model <- choraleData -- bind trained model
+--   pipe <- Bolt.connect $ def { Bolt.version = 3 }
+--   Bolt.run pipe initGraph
+--   forM_ (Map.keys model) (\keys -> Bolt.run pipe $ cadenceToNode keys)
+--   forM_ (Map.assocs model) (\assocs -> Bolt.run pipe $ connectNodes assocs)
 --   return ()
 
-initGraph :: Bolt.BoltActionT IO ()
-initGraph = do
-  liftIO $ putStrLn "preparing graph"
-  Bolt.query "MATCH (n) DETACH DELETE n"
-  liftIO $ putStrLn "dropped nodes and relationships"
-  Bolt.query "CALL apoc.schema.assert({}, {})"
-  liftIO $ putStrLn "dropped constraints"
-  Bolt.query "CREATE CONSTRAINT ON (n:Cadence) ASSERT n.show IS UNIQUE"
-  liftIO $ putStrLn "created constraints"
+-- main = do
+  -- return ()
+
+main = R.withEmbeddedR R.defaultConfig $ do
+  initR -- load R libraries & settings, initialise R log, print info to stout
+  --  model <- choraleData -- compute and bind trained model
+  model <- modelFromGraph -- retrieve serialised model from graph and bind
+  header -- print main title
+  putStrLn "Welcome to The Harmonic Algorithm!\n"
+  runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
   return ()
+
+
+-- initGraph :: Bolt.BoltActionT IO ()
+-- initGraph = do
+--   liftIO $ putStrLn "preparing graph"
+--   Bolt.query "MATCH (n) DETACH DELETE n"
+--   liftIO $ putStrLn "dropped nodes and relationships"
+--   Bolt.query "CALL apoc.schema.assert({}, {})"
+--   liftIO $ putStrLn "dropped constraints"
+--   Bolt.query "CREATE CONSTRAINT ON (n:Cadence) ASSERT n.show IS UNIQUE"
+--   liftIO $ putStrLn "created constraints"
+--   return ()
+
 
 cadenceToNode :: Cadence -> Bolt.BoltActionT IO ()
 cadenceToNode cadence = do
   liftIO $ putStrLn ("writing node " ++ show cadence)
   let (m,c) = deconstructCadence cadence
   Bolt.query $ Text.pack ("CREATE (n:Cadence {show: '"++ show cadence ++"',\
-                                        \movement: '"++ m ++"' ,\
-                                        \chord: '"++ c ++"'})")
+                                    \movement: '"++ show m ++"' ,\
+                                    \chord: '"++ show c ++"' ,\
+                                    \dissonance: '"++ (fst $ dissonanceLevel (show (i <$> c))) ++"' })")
   return ()
+
 
 connectNodes :: (Cadence, [(Cadence, Double)]) -> Bolt.BoltActionT IO ()
 connectNodes (from, rels) = do
@@ -81,6 +89,7 @@ connectNodes (from, rels) = do
                          \CREATE (from)-[r: NEXT {confidence: "++ show conf ++" }]->(to) "))
   return ()
 
+
 getNodesFromGraph :: Bolt.BoltActionT IO [Cadence]
 getNodesFromGraph = do
   records <- Bolt.query "MATCH (n:Cadence) RETURN n.movement, n.chord"
@@ -88,6 +97,7 @@ getNodesFromGraph = do
   c <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n.chord")
   let cadencesFrom = constructCadence <$> zip m c
   return cadencesFrom
+
 
 getRelsFromGraph :: Cadence -> Bolt.BoltActionT IO [(Cadence, Double)]
 getRelsFromGraph cadence = do
@@ -101,6 +111,7 @@ getRelsFromGraph cadence = do
   let cadencesProportions = zip cadencesFrom p
   return cadencesProportions
 
+
 -- |retrieve static model from graph
 modelFromGraph :: IO MarkovMap
 modelFromGraph = do
@@ -113,6 +124,7 @@ modelFromGraph = do
   let model = Map.fromList $ zip cadences markovValues :: MarkovMap
 --  forM_ model print
   return model
+
 
 -- |script directing process of loading & transforming data then training model
 choraleData :: IO MarkovMap
@@ -137,11 +149,13 @@ choraleData = do
         ) -- ^ convert R matrix columns to a list of lists
   return model
 
+
 -- |type synonyms for readability
 type Model a = ReaderT MarkovMap IO a -- representation of trained model
 type Enharmonic = String -- representation of enharmonic (♭♯) preference
 type Root = PitchClass -- representation of current root note
 type Filters = ((PitchClass -> NoteName) -> [Chord]) -- partially applied filter results
+
 
 -- |entry to 'interactive' environment for working with the trained model
 loadLoop :: Model ()
@@ -156,6 +170,7 @@ loadLoop = do
   filters <- harmonicFilters
   markovLoop enharmonic root cadence filters 14
   return ()
+
 
 -- |returns a String to be used as a lookup for choosing 'enharmonic' function
 flatSharp :: Model String
@@ -191,6 +206,7 @@ initFundamental k = do
         let index = read num - 1 :: Int
         return (pc index)
 
+
 -- |returns a Chord to designate starting functionality over root
 chooseFunctionality :: String -> PitchClass -> Model Chord
 chooseFunctionality k r = do
@@ -211,6 +227,7 @@ chooseFunctionality k r = do
                     ) -- ^ extract choice from Map
         return chord
 
+
 -- |interactive dialogue for selecting tuning/key/roots filters
 harmonicFilters :: Model Filters
 harmonicFilters = do
@@ -230,6 +247,7 @@ harmonicFilters = do
       filters = chordList' 3 roots overtones
   return filters
 
+
 -- |function to retrieve and filter down possibilities based on current state
 recommendations :: Enharmonic -> Root -> Cadence -> Filters -> Int -> Model [Cadence]
 recommendations fs root prev filters n = do
@@ -247,6 +265,7 @@ recommendations fs root prev filters n = do
               filter (\x -> x `notElem` fmap fst bach) hAlgo
               -- ^ keep elements of Filters list not in markov list
   return nexts
+
 
 -- |interactive loop in which most of the user interaction takes place
 markovLoop :: Enharmonic -> Root -> Cadence -> Filters -> Int -> Model ()
@@ -311,6 +330,7 @@ markovLoop fs root prev filters n = do
                   markovLoop fs root' next filters n
   return ()
 
+
 getSeqParams :: Enharmonic -> Root -> Cadence -> Filters -> Int -> Model ()
 getSeqParams fs root prev filters n = do
   liftIO $ putStrLn "\nEnter desired length of sequence (default 4, max 16):"
@@ -329,6 +349,7 @@ getSeqParams fs root prev filters n = do
     if readEntropy >= 10 then return 1 else return (readEntropy/10)
   randomSeq fs root prev filters n (len, entropy)
   return ()
+
 
 -- |interactive loop for generating random sequences
 randomSeq :: Enharmonic -> Root -> Cadence -> Filters -> Int -> (Double, Double)
@@ -388,6 +409,7 @@ randomSeq fs root prev filters n seqParams = do
   actions $ opts menu
   return ()
 
+
 -- |function to retrieve and return random sequence
 cadenceSeq :: Enharmonic -> Root -> Cadence -> Filters -> [Integer]
               -> Model ([Chord], [Cadence])
@@ -402,11 +424,13 @@ cadenceSeq fs root prev filters rns@(x:xs) = do
   nexts <- cadenceSeq fs root' next filters xs
   return (triad : fst nexts, prev : snd nexts)
 
+
 -- |mapping from string to 'enharmonic' function
 enharmMap :: MusicData a => String -> (a -> NoteName)
 enharmMap key =
   let funcMap = Map.fromList [("flat", flat), ("sharp", sharp)]
    in fromMaybe flat $ Map.lookup key funcMap
+
 
 -- |mapping from string to Integral pitchclass set representation
 initFcMap :: (Integral a, Num a) => Map String [a]
@@ -426,6 +450,7 @@ initFcMap = Map.fromList
   ("7no3",[0,7,10]),
   ("7no5",[0,4,10])]
 
+
 -- |list of options for starting functionality
 initFcList :: [String]
 initFcList =
@@ -444,6 +469,7 @@ initFcList =
   "7no3",
   "7no5"]
 
+
 -- |Initialise R + session log, load libraries/set options & log session info
 initR :: IO ()
 initR = do
@@ -455,6 +481,7 @@ initR = do
   -- rDir >>= putStr
   -- putStrLn "/output/sessionlog.txt\n"
   return ()
+
 
 -- |initialise R session log
 initLogR :: IO ()
@@ -469,11 +496,13 @@ initLogR  = R.runRegion $ do
     |]
   return ()
 
+
 -- |Retrieve R working directory
 rDir :: IO String
 rDir =
   let rData () = R.fromSomeSEXP <$> [QQ.r| getwd() |]
    in R.runRegion $ rData ()
+
 
 -- |print out main title
 header :: IO ()
@@ -491,6 +520,7 @@ header  = do
   putStrLn "\n\n\n"
   return ()
 
+
 -- |print out reference to dataset source
 uciRef :: IO ()
 uciRef  = do
@@ -502,12 +532,14 @@ uciRef  = do
     putStrLn "+--------------------------------------------------------------------------+\n"
     return ()
 
+
 -- |print prompt for user input
 prompt :: IO ()
 prompt = do
   putStr "\n>> "
   hFlush stdout
   return ()
+
 
 -- |load R packaged and options
 loadPackages :: IO ()
@@ -516,6 +548,7 @@ loadPackages = R.runRegion $ do
       library("tidyverse")
     |]
   return ()
+
 
 -- |R script to ingest and process raw data to be passed to Haskell
 bachData :: IO ()
@@ -574,17 +607,20 @@ bachFund <<- bach$fund
     |]
   return ()
 
+
 -- |helper function to extract R matrix column from R and deliver to Haskell
 fromRMatrix  :: Double -> IO [Double]
 fromRMatrix x =
   let rData x = R.fromSomeSEXP <$> [QQ.r| bachMatrix[,x_hs] |]
    in R.runRegion $ rData x
 
+
 -- |helper function to extract vector of fundamental notes from R into Haskell
 bachFundamental  :: IO [String]
 bachFundamental =
   let rData () = R.fromSomeSEXP <$> [QQ.r| bachFund |]
    in R.runRegion $ rData ()
+
 
 -- appendLogR :: IO ()
 -- appendLogR  = runRegion $ do
@@ -600,6 +636,7 @@ bachFundamental =
 --               width=4, height=4, scale=2)
 --     |]
 --   return ()
+
 
 -- |string to be printed on app exit
 exitText :: String
@@ -625,11 +662,13 @@ exitText =
   \Oscar\n\
   \"
 
+
 -- |wrapper for the 'rgamma' R function
 gammaDist :: Double -> Double -> IO [Double]
 gammaDist n x =
   let rData () = R.fromSomeSEXP <$> [QQ.r| rgamma(n_hs, x_hs) |]
    in R.runRegion $ rData ()
+
 
 -- |function to deliver 'rgamma' data in integer form with a tailored scale
 gammaGen :: Double -> Double -> IO [Integer]
@@ -637,6 +676,7 @@ gammaGen n x = do
   let entropy | x >=1 = 8 | x <= 0 = 0 | otherwise = (7+x)*x
   rand <- gammaDist n entropy
   return (floor <$> rand)
+
 
 -- |function that returns required data (tupled) for generating random sequences
 randomGen :: (Num a, Integral a) =>
@@ -651,8 +691,75 @@ randomGen n x c = do
       root = pc $ head c
   return (root, start, xs)
 
------------------
--- live coding
+
+---------------------
+-- for live coding
+
+
+-- match (n:Cadence)
+-- with apoc.coll.randomItem(COLLECT(n)) AS n_0
+-- call {
+-- with n_0
+-- call {
+-- with n_0
+-- match (n_0)-[r]->(n_1)
+-- return r, n_1
+--   order by (r.confidence*rand()) desc
+--   limit 3
+-- union all
+-- with n_0
+-- match (n_0)-[r]->(n_1)
+-- return r, n_1
+--   order by r.confidence desc
+--   limit 1
+-- }
+-- return n_1
+--   order by rand()
+--   limit 1
+-- }
+-- call {
+-- with n_1
+-- call {
+-- with n_1
+-- match (n_1)-[r]->(n_2)
+-- return r, n_2
+--   order by (r.confidence*rand()) desc
+--   limit 3
+-- union all
+-- with n_1
+-- match (n_1)-[r]->(n_2)
+-- return r, n_2
+--   order by r.confidence desc
+--   limit 1
+-- }
+-- return n_2
+--   order by rand()
+--   limit 1
+-- }
+-- call {
+-- with n_2
+-- call {
+-- with n_2
+-- match (n_2)-[r]->(n_3)-->(n0)
+-- return r, n_3
+--   order by (r.confidence*rand()) desc
+--   limit 3
+-- union all
+-- with n_2
+-- match (n_2)-[r]->(n_3)-[r_last]->(n0)
+-- return r, n_3
+--   order by r.confidence desc, r_last.confidence desc
+--   limit 1
+-- }
+-- return n_3
+--   order by rand()
+--   limit 1
+-- }
+-- return
+--   n_0.chord, n_0.movement,
+--   n_1.chord, n_1.movement,
+--   n_2.chord, n_2.movement,
+--   n_3.chord, n_3.movement;
 
 retrieveSeq4 :: Bolt.BoltActionT IO [Cadence]
 retrieveSeq4 = do
@@ -736,6 +843,7 @@ retrieveSeq4 = do
   let cadence3 = head (constructCadence <$> zip m3 c3) :: Cadence
   return $ cadence0 : cadence1 : cadence2 : cadence3 : []
 
+
 --prog4 :: (Num a, Integral a) => IO [[a]]
 --prog4 = do
 --  pipe <- connect $ def { Bolt.version = 3 }
@@ -751,6 +859,7 @@ retrieveSeq4 = do
 --progRoots :: PitchClass -> [Cadence] -> [PitchClass]
 --progRoots _ [] =  []
 --progRoots p (x:xs) = p : progRoots (p + movementFromCadence x) xs
+
 
 prog4 :: (Show a, Num a, Integral a) => IO [[a]]
 prog4 = do
@@ -771,12 +880,11 @@ prog4 = do
   return chords
 
 
-
-
 progStringToPat :: String -> Tidal.ControlPattern
 progStringToPat s =
   let pat = Tidal.parseBP_E s
     in Tidal.note pat
+
 
 progToPatIO :: IO Tidal.ControlPattern
 progToPatIO = do

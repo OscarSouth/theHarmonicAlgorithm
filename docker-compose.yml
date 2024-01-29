@@ -16,6 +16,7 @@ services:
       - NEO4J_dbms_security_procedures_allowlist=apoc.coll.*,apoc.load.*,apoc.*
       - NEO4J_dbms_security_procedures_unrestricted=apoc.coll.*,apoc.load.*,apoc.*
       - NEO4J_AUTH=none
+      # - NEO4J_AUTH=neo4j/password
       - NEO4J_dbms_memory_pagecache_size=1G
       - NEO4J_dbms_memory_heap_initial__size=1G
       - NEO4J_dbms_memory_heap_max__size=1G

@@ -44,15 +44,16 @@ packages:
 extra-deps:
 - tidal-1.8.1
 - hosc-0.19
-# - tidal-1.9.3
-# - tidal-link-1.0.1
+# - hosc-0.20
+# - tidal-1.9.4
+# - tidal-link-1.0.2
+- hasbolt-0.1.7.0
 # - inline-r-0.10.5
 - inline-r-1.0.0
 # - singletons-2.7
 #- split-0.2.3.4
 # - hasbolt-extras-0.0.1.6
 #- vector-0.12.0.1
-# - hosc-0.20
 
 # Override default flag values for local packages and extra-deps
 # flags: {}

@@ -19,6 +19,13 @@ packages:
   original:
     hackage: hosc-0.19
 - completed:
+    hackage: hasbolt-0.1.7.0@sha256:48e523eddb921972d58a6ecaa228af27e216b6015442faffb6e5404b12cff21f,4254
+    pantry-tree:
+      sha256: 398a2694abfa196402ac85237d1bc03833af64cefa772541b220b368cb2021ea
+      size: 1332
+  original:
+    hackage: hasbolt-0.1.7.0
+- completed:
     hackage: inline-r-1.0.0@sha256:b475cfec476d50ad54118f36936a9a7e684e16cea6bceef8c408cb438d7c9e43,8712
     pantry-tree:
       sha256: 678260a1e860175b7c8ff52972bd4077b2c545a1f0c870fc6862d10806f7f502

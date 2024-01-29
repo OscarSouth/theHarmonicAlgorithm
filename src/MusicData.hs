@@ -603,8 +603,9 @@ fromCadence' root c@(Cadence (_,(_,tones))) =
   (+ movementFromCadence' c) . (+ root) . i <$> tones
 
 -- |mapping from serialised format to Cadence
-deconstructCadence :: Cadence -> (String, String)
-deconstructCadence (Cadence (_, (m, c))) = (show m, show c)
+-- deconstructCadence :: Cadence -> (String, String)
+deconstructCadence :: Cadence -> (Movement, [PitchClass])
+deconstructCadence (Cadence (_, (m, c))) = (m, c)
 
 -- |mapping from serialised string format to Cadence
 constructCadence :: (String, String) -> Cadence
