@@ -67,15 +67,17 @@ main = R.withEmbeddedR R.defaultConfig $ do
 --   return ()
 
 
-cadenceToNode :: Cadence -> Bolt.BoltActionT IO ()
-cadenceToNode cadence = do
-  liftIO $ putStrLn ("writing node " ++ show cadence)
-  let (m,c) = deconstructCadence cadence
-  Bolt.query $ Text.pack ("CREATE (n:Cadence {show: '"++ show cadence ++"',\
-                                    \movement: '"++ show m ++"' ,\
-                                    \chord: '"++ show c ++"' ,\
-                                    \dissonance: '"++ (fst $ dissonanceLevel (show (i <$> c))) ++"' })")
-  return ()
+-- NEEDS DUBUGGING INIT --
+-- cadenceToNode :: Cadence -> Bolt.BoltActionT IO ()
+-- cadenceToNode cadence = do
+--   liftIO $ putStrLn ("writing node " ++ show cadence)
+--   let (m,c) = deconstructCadence cadence
+--   Bolt.query $ Text.pack ("CREATE (n:Cadence {show: '"++ show cadence ++"',\
+--                                     \movement: '"++ show m ++"' ,\
+--                                     \chord: '"++ show c ++"' ,\
+--                                     \dissonance: '"++ (fst $ dissonanceLevel (show (i <$> c))) ++"' })")
+--   return ()
+-- NEEDS DUBUGGING EXIT --
 
 
 connectNodes :: (Cadence, [(Cadence, Double)]) -> Bolt.BoltActionT IO ()
