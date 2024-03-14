@@ -43,7 +43,7 @@ import qualified Sound.Tidal.Context as Tidal
 --   return ()
 
 -- main = do
-  -- return ()
+--   return ()
 
 main = R.withEmbeddedR R.defaultConfig $ do
   initR -- load R libraries & settings, initialise R log, print info to stout
@@ -55,29 +55,28 @@ main = R.withEmbeddedR R.defaultConfig $ do
   return ()
 
 
--- initGraph :: Bolt.BoltActionT IO ()
--- initGraph = do
---   liftIO $ putStrLn "preparing graph"
---   Bolt.query "MATCH (n) DETACH DELETE n"
---   liftIO $ putStrLn "dropped nodes and relationships"
---   Bolt.query "CALL apoc.schema.assert({}, {})"
---   liftIO $ putStrLn "dropped constraints"
---   Bolt.query "CREATE CONSTRAINT ON (n:Cadence) ASSERT n.show IS UNIQUE"
---   liftIO $ putStrLn "created constraints"
---   return ()
+initGraph :: Bolt.BoltActionT IO ()
+initGraph = do
+  liftIO $ putStrLn "preparing graph"
+  Bolt.query "MATCH (n) DETACH DELETE n"
+  liftIO $ putStrLn "dropped nodes and relationships"
+  Bolt.query "CALL apoc.schema.assert({}, {})"
+  liftIO $ putStrLn "dropped constraints"
+  Bolt.query "CREATE CONSTRAINT ON (n:Cadence) ASSERT n.show IS UNIQUE"
+  liftIO $ putStrLn "created constraints"
+  return ()
 
 
--- NEEDS DUBUGGING INIT --
--- cadenceToNode :: Cadence -> Bolt.BoltActionT IO ()
--- cadenceToNode cadence = do
---   liftIO $ putStrLn ("writing node " ++ show cadence)
---   let (m,c) = deconstructCadence cadence
---   Bolt.query $ Text.pack ("CREATE (n:Cadence {show: '"++ show cadence ++"',\
---                                     \movement: '"++ show m ++"' ,\
---                                     \chord: '"++ show c ++"' ,\
---                                     \dissonance: '"++ (fst $ dissonanceLevel (show (i <$> c))) ++"' })")
---   return ()
--- NEEDS DUBUGGING EXIT --
+cadenceToNode :: Cadence -> Bolt.BoltActionT IO ()
+cadenceToNode cadence = do
+  liftIO $ putStrLn ("writing node " ++ show cadence)
+  let (m,c)      = deconstructCadence cadence
+      dissonance = fst $ dissonanceLevel (i <$> c)
+  Bolt.query $ Text.pack ("CREATE (n:Cadence {show: '"++ show cadence ++"',\
+                                    \movement: '"++ show m ++"' ,\
+                                    \chord: '"++ show c ++"' ,\
+                                    \dissonance: '"++ show dissonance ++"' })")
+  return ()
 
 
 connectNodes :: (Cadence, [(Cadence, Double)]) -> Bolt.BoltActionT IO ()
