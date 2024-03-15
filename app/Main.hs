@@ -33,6 +33,35 @@ import Control.Monad.Except
 import qualified Sound.Tidal.Context as Tidal
 
 
+main = do
+  putStrLn "reload graph? (y/n, default n)"
+  choice <- getLine
+  case choice of
+    "y" -> do
+      putStrLn "reloading"
+      reloadGraph
+      runMain
+    _ -> runMain
+  where
+    reloadGraph = do
+      R.withEmbeddedR R.defaultConfig $ do
+        initR -- load R libraries & settings, initialise R log, print info to stout
+        model <- choraleData -- compute and bind trained model
+        pipe <- Bolt.connect $ def { Bolt.version = 3 }
+        Bolt.run pipe initGraph
+        forM_ (Map.keys model) (\keys -> Bolt.run pipe $ cadenceToNode keys)
+        forM_ (Map.assocs model) (\assocs -> Bolt.run pipe $ connectNodes assocs)
+        return ()
+    runMain = do
+      R.withEmbeddedR R.defaultConfig $ do
+        initR -- load R libraries & settings, initialise R log, print info to stout
+        model <- modelFromGraph -- retrieve serialised model from graph and bind
+        header -- print main title
+        putStrLn "Welcome to The Harmonic Algorithm!\n"
+        runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
+        return ()
+
+
 -- main = R.withEmbeddedR R.defaultConfig $ do
 --   initR -- load R libraries & settings, initialise R log, print info to stout
 --   model <- choraleData -- bind trained model
@@ -45,14 +74,14 @@ import qualified Sound.Tidal.Context as Tidal
 -- main = do
 --   return ()
 
-main = R.withEmbeddedR R.defaultConfig $ do
-  initR -- load R libraries & settings, initialise R log, print info to stout
-  --  model <- choraleData -- compute and bind trained model
-  model <- modelFromGraph -- retrieve serialised model from graph and bind
-  header -- print main title
-  putStrLn "Welcome to The Harmonic Algorithm!\n"
-  runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
-  return ()
+-- main = R.withEmbeddedR R.defaultConfig $ do
+--   initR -- load R libraries & settings, initialise R log, print info to stout
+--   --  model <- choraleData -- compute and bind trained model
+--   model <- modelFromGraph -- retrieve serialised model from graph and bind
+--   header -- print main title
+--   putStrLn "Welcome to The Harmonic Algorithm!\n"
+--   runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
+--   return ()
 
 
 initGraph :: Bolt.BoltActionT IO ()
