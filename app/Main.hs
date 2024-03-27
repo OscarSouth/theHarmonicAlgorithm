@@ -923,4 +923,3 @@ progToPatIO = do
   let ctrlPat = progStringToPat progString
   return ctrlPat
 
- -- more live coding :)

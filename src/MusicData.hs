@@ -758,6 +758,7 @@ basePenta pcs  =
                   ys <- majorPentaChr ++ okinaPentaChr ++ iwatoPentaChr ++ kumoiPentaChr ]
 
 
+isContainedIn :: (Eq a) => [a] -> [a] -> Bool
 isContainedIn ps0 ps1 = all (`elem` ps1) ps0
   -- w [ ((sortPcSet ps, ys), (`List.isInfixOf` ys) xs) | xs <- choose 4 (sortPcSet ps), ys <- majorPentaChr ++ okinaPentaChr ++ iwatoPentaChr ]
 
