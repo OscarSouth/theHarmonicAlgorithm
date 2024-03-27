@@ -4,7 +4,7 @@
 
 ___
 ### Welcome to The Harmonic Algorithm :)
-###### get in touch via issue if you'd like to set this up for youself 
+###### get in touch if you'd like to set this up for youself, it's kind of like an LLM for interacting with Harmony, via the Haskell language, TidalCycles, or command line app
 ___
 
 The Harmonic Algorithm, written in Haskell and R, generates musical domain 
