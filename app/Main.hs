@@ -22,7 +22,6 @@ import           Text.Read            (readMaybe)
 import           Data.List.Split      (chunksOf)
 
 -- GraphDB stuff --
-
 import qualified Database.Bolt as Bolt
 
 import Data.Default
@@ -35,6 +34,8 @@ import qualified Sound.Tidal.Context as Tidal
 
 main = do
   putStrLn "reload graph? (y/n, default n)"
+  putStr ">> "
+  hFlush stdout
   choice <- getLine
   case choice of
     "y" -> do
@@ -84,6 +85,7 @@ main = do
 --   return ()
 
 
+-- |initialise and prepare the graph database for use
 initGraph :: Bolt.BoltActionT IO ()
 initGraph = do
   liftIO $ putStrLn "preparing graph"
@@ -96,6 +98,7 @@ initGraph = do
   return ()
 
 
+-- |create a node representing a cadence in the graph database
 cadenceToNode :: Cadence -> Bolt.BoltActionT IO ()
 cadenceToNode cadence = do
   liftIO $ putStrLn ("writing node " ++ show cadence)
@@ -108,6 +111,7 @@ cadenceToNode cadence = do
   return ()
 
 
+-- |construct links between Cadence nodes in the graph database
 connectNodes :: (Cadence, [(Cadence, Double)]) -> Bolt.BoltActionT IO ()
 connectNodes (from, rels) = do
   let relationships = [ x | x <- rels, snd x > 0]
@@ -120,6 +124,7 @@ connectNodes (from, rels) = do
   return ()
 
 
+-- |retrieve all the Cadence nodes from the graph database
 getNodesFromGraph :: Bolt.BoltActionT IO [Cadence]
 getNodesFromGraph = do
   records <- Bolt.query "MATCH (n:Cadence) RETURN n.movement, n.chord"
@@ -129,6 +134,7 @@ getNodesFromGraph = do
   return cadencesFrom
 
 
+-- |retrieve all the relationships between cadences from the graph database
 getRelsFromGraph :: Cadence -> Bolt.BoltActionT IO [(Cadence, Double)]
 getRelsFromGraph cadence = do
   records <- Bolt.query $ Text.pack ("MATCH (from:Cadence{show:'"++ show cadence ++"'})-[r]->(n) \
