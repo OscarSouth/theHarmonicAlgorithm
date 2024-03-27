@@ -32,18 +32,28 @@ import Control.Monad.Except
 import qualified Sound.Tidal.Context as Tidal
 
 
+-- |entrypoint of the program
+-- ask user if they want to reload the graph,
+-- if "y" reload the graph and then runs the main program,
+-- if anything other than "y" directly run the main program
 main = do
+  -- Prompt the user to reload the graph
   putStrLn "reload graph? (y/n, default n)"
   putStr ">> "
   hFlush stdout
   choice <- getLine
   case choice of
     "y" -> do
+      -- If the user chooses to reload the graph
       putStrLn "reloading"
       reloadGraph
       runMain
     _ -> runMain
   where
+    -- |'reloadGraph' function builds the graph used as a persistance layer
+    -- ot starts an embedded R instance, initializes R, computes and binds the trained model,
+    -- connects to the Bolt database, runs the 'initGraph' function, writes nodes to the database,
+    -- and connects nodes in the database.
     reloadGraph = do
       R.withEmbeddedR R.defaultConfig $ do
         initR -- load R libraries & settings, initialise R log, print info to stout
@@ -53,6 +63,9 @@ main = do
         forM_ (Map.keys model) (\keys -> Bolt.run pipe $ cadenceToNode keys)
         forM_ (Map.assocs model) (\assocs -> Bolt.run pipe $ connectNodes assocs)
         return ()
+    -- |'runMain' function initialises the main program.
+    -- ot starts an embedded R instance, initializes R, retrieves the serialized model from the graph and binds it,
+    -- prints the main title, welcomes the user, and enters the ReaderT (Model) monad with the trained model.
     runMain = do
       R.withEmbeddedR R.defaultConfig $ do
         initR -- load R libraries & settings, initialise R log, print info to stout
@@ -61,28 +74,6 @@ main = do
         putStrLn "Welcome to The Harmonic Algorithm!\n"
         runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
         return ()
-
-
--- main = R.withEmbeddedR R.defaultConfig $ do
---   initR -- load R libraries & settings, initialise R log, print info to stout
---   model <- choraleData -- bind trained model
---   pipe <- Bolt.connect $ def { Bolt.version = 3 }
---   Bolt.run pipe initGraph
---   forM_ (Map.keys model) (\keys -> Bolt.run pipe $ cadenceToNode keys)
---   forM_ (Map.assocs model) (\assocs -> Bolt.run pipe $ connectNodes assocs)
---   return ()
-
--- main = do
---   return ()
-
--- main = R.withEmbeddedR R.defaultConfig $ do
---   initR -- load R libraries & settings, initialise R log, print info to stout
---   --  model <- choraleData -- compute and bind trained model
---   model <- modelFromGraph -- retrieve serialised model from graph and bind
---   header -- print main title
---   putStrLn "Welcome to The Harmonic Algorithm!\n"
---   runReaderT loadLoop model -- enter ReaderT (Model) monad with trained model
---   return ()
 
 
 -- |initialise and prepare the graph database for use
