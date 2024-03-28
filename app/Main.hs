@@ -722,75 +722,10 @@ randomGen n x c = do
 ---------------------
 -- for live coding
 
-
--- match (n:Cadence)
--- with apoc.coll.randomItem(COLLECT(n)) AS n_0
--- call {
--- with n_0
--- call {
--- with n_0
--- match (n_0)-[r]->(n_1)
--- return r, n_1
---   order by (r.confidence*rand()) desc
---   limit 3
--- union all
--- with n_0
--- match (n_0)-[r]->(n_1)
--- return r, n_1
---   order by r.confidence desc
---   limit 1
--- }
--- return n_1
---   order by rand()
---   limit 1
--- }
--- call {
--- with n_1
--- call {
--- with n_1
--- match (n_1)-[r]->(n_2)
--- return r, n_2
---   order by (r.confidence*rand()) desc
---   limit 3
--- union all
--- with n_1
--- match (n_1)-[r]->(n_2)
--- return r, n_2
---   order by r.confidence desc
---   limit 1
--- }
--- return n_2
---   order by rand()
---   limit 1
--- }
--- call {
--- with n_2
--- call {
--- with n_2
--- match (n_2)-[r]->(n_3)-->(n0)
--- return r, n_3
---   order by (r.confidence*rand()) desc
---   limit 3
--- union all
--- with n_2
--- match (n_2)-[r]->(n_3)-[r_last]->(n0)
--- return r, n_3
---   order by r.confidence desc, r_last.confidence desc
---   limit 1
--- }
--- return n_3
---   order by rand()
---   limit 1
--- }
--- return
---   n_0.chord, n_0.movement,
---   n_1.chord, n_1.movement,
---   n_2.chord, n_2.movement,
---   n_3.chord, n_3.movement;
-
+-- |retrieve a sequence of 4 Cadences from the graph database
 retrieveSeq4 :: Bolt.BoltActionT IO [Cadence]
 retrieveSeq4 = do
-  records <- Bolt.query $ Text.pack (" \
+  records <- Bolt.query $ Text.pack " \
   \ match (n:Cadence) \
   \ with apoc.coll.randomItem(COLLECT(n)) AS n_0 \
   \ call { \
@@ -855,7 +790,7 @@ retrieveSeq4 = do
   \   n_1.chord, n_1.movement, \
   \   n_2.chord, n_2.movement, \
   \   n_3.chord, n_3.movement; \
-  \ ")
+  \ "
   m0 <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n_0.movement")
   c0 <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n_0.chord")
   m1 <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n_1.movement")
@@ -871,23 +806,43 @@ retrieveSeq4 = do
   return $ cadence0 : cadence1 : cadence2 : cadence3 : []
 
 
---prog4 :: (Num a, Integral a) => IO [[a]]
---prog4 = do
---  pipe <- connect $ def { Bolt.version = 3 }
---  cadences <- Bolt.run pipe retrieveSeq4
---  forM_ cadences print
---  let roots = progRoots (P 0) $ cycle cadences
---  let chords = (\(p,c) -> fromCadence flat p c) <$> zip roots cadences
-----  forM_ chords print
---  let fromChords = fromChord <$> chords
---  forM_ (fmap (\i -> (flat . pc) i) <$> fromChords) print
---  return fromChords
+getNextCadences :: Bolt.BoltActionT IO [Cadence]
+getNextCadences = do
+  records <- Bolt.query $ Text.pack " \
+  \ match (n:Cadence) \
+  \ with apoc.coll.randomItem(COLLECT(n)) AS n_0 \
+  \ call { \
+  \ with n_0 \
+  \ call { \
+  \ with n_0 \
+  \ match (n_0)-[r]->(n_1) \
+  \ return r, n_1 \
+  \   order by (r.confidence*rand()) desc \
+  \   limit 3 \
+  \ union all \
+  \ with n_0 \
+  \ match (n_0)-[r]->(n_1) \
+  \ return r, n_1 \
+  \   order by r.confidence desc \
+  \   limit 1 \
+  \ } \
+  \ return n_1 \
+  \   order by rand() \
+  \   limit 3 \
+  \ } \
+  \ return \
+  \   n_1.movement, n_1.chord; \
+  \ "
+  m1 <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n_1.movement")
+  c1 <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n_1.chord")
+--  let cadence = head (constructCadence <$> zip m1 c1) :: Cadence
+--  return $ cadence : []
 
---progRoots :: PitchClass -> [Cadence] -> [PitchClass]
---progRoots _ [] =  []
---progRoots p (x:xs) = p : progRoots (p + movementFromCadence x) xs
+-- how to deal with multiple rows?
 
 
+
+-- |generate a sequence of Cadences
 prog4 :: (Show a, Num a, Integral a) => IO [[a]]
 prog4 = do
   pipe <- Bolt.connect $ def { Bolt.version = 3 }
@@ -907,6 +862,7 @@ prog4 = do
   return chords
 
 
+-- |converts a string representation of a musical pattern into a Tidal ControlPattern
 progStringToPat :: String -> Tidal.ControlPattern
 progStringToPat s =
   let pat = Tidal.parseBP_E s
