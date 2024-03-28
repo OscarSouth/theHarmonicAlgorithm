@@ -99,5 +99,4 @@ return n_1
   limit 3
 }
 return
-//  n_0.chord, n_0.movement,
   n_1.chord, n_1.movement;

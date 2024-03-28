@@ -11,7 +11,7 @@ WITH n
 MATCH (n)-[r]->(to)
 RETURN to.chord, to.movement, r.confidence
   ORDER BY r.confidence DESC
-  LIMIT 10;
+  LIMIT 20;
 
 
 match (n:Cadence{show:"( pedal -> min )"})
