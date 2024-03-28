@@ -591,6 +591,17 @@ instance Show Cadence where
 toCadence :: (Chord, Chord) -> Cadence
 toCadence ((Chord ((_, _), from@(x:_))), (Chord ((_, new), to@(y:_)))) =
   Cadence (new, (toMovement x y, zeroForm to))
+  
+type CadenceState = (Cadence, PitchClass)
+ 
+-- |interaction friendly interface to initialise a CadenceState
+initCadenceState :: (Integral a, Num a) => a -> String -> [a] -> CadenceState
+initCadenceState movement note quality =
+  let approach = toMovement 0 movement
+      from     = toTriad flat [0]
+      to       = toTriad flat $ (+ fromMovement' approach) <$> zeroForm quality
+      root = readNoteName note
+   in (toCadence (from, to), pitchClass $ root)
 
 -- |mapping from possible Cadence and Pitchclass into next Chord with transposition
 fromCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord

@@ -841,44 +841,21 @@ progToPatIO = do
   return ctrlPat
 
 
-retrieveTest :: Bolt.BoltActionT IO [(String, String)]
+retrieveTest :: Bolt.BoltActionT IO [Cadence]
 retrieveTest = do
   records <- Bolt.query $ Text.pack " \
-  \ match (n:Cadence) \
-  \ with apoc.coll.randomItem(COLLECT(n)) AS n_0 \
-  \ call { \
-  \ with n_0 \
-  \ call { \
-  \ with n_0 \
-  \ match (n_0)-[r]->(n_1) \
-  \ return r, n_1 \
-  \   order by (r.confidence*rand()) desc \
-  \   limit 3 \
-  \ union all \
-  \ with n_0 \
-  \ match (n_0)-[r]->(n_1) \
-  \ return r, n_1 \
-  \   order by r.confidence desc \
-  \   limit 1 \
-  \ } \
-  \ return n_1 \
-  \   order by rand() \
-  \   limit 3 \
-  \ } \
-  \ return \
-  \   n_1.movement, n_1.chord; \
+  \ MATCH (n:Cadence{show:'( pedal -> min )'}) \
+  \ WITH n \
+  \ MATCH (n)-[r]->(to) \
+  \ RETURN to.movement, to.chord \
+  \   ORDER BY r.confidence DESC \
+  \   LIMIT 30; \
   \ "
-  m <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n_1.chord")
-  c <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n_1.movement")
---  let cadences = constructCadence <$> zip m c
-  let cadences = zip m c
+  m <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "to.movement")
+  c <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "to.chord")
+  let cadences = constructCadence <$> zip m c
+--  let cadences = zip m c
   return cadences
-
-
---  m1 <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n_1.movement")
---  c1 <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "n_1.chord")
---  let cadence1 = head (constructCadence <$> zip m1 c1) :: Cadence
---  return $ cadence1 : []
 
 
 --progTest :: (Show a, Num a, Integral a) => IO [[a]]
@@ -904,3 +881,31 @@ progTest = do
   pipe <- Bolt.connect $ def { Bolt.version = 3 }
   r <- Bolt.run pipe retrieveTest
   return r
+
+
+
+---- |representation of a Cadence as a transition to a stucture by an interval
+--data Cadence = Cadence (Functionality, (Movement, [PitchClass]))
+--  deriving (Eq, Ord)
+--
+---- |customised Show instance for readability
+--instance Show Cadence where
+--  show :: Cadence -> String
+--  show (Cadence (functionality, (dist, ps))) =
+--    "( " ++ show dist ++ " -> " ++ functionality ++ " )"
+
+
+-- |initialise a 'cadence state'
+--initCadenceState
+--initCadenceState approach root quality
+
+
+
+-- |recieve a 'cadence state' and return a new 'cadence state'
+--nextCadence
+--nextCadence entropy state
+
+
+-- |generate a sequence of 'cadence states' from an init state
+--chainCadence :: (Show a, Num a, Integral a) => a -> IO [[a]]
+--chainCadence n init
