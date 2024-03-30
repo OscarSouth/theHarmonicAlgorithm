@@ -840,76 +840,12 @@ progToPatIO = do
   return ctrlPat
 
 
---retrieveNext :: String -> Bolt.BoltActionT IO [Cadence]
---retrieveNext showCadence = do
---  let cql = " \
---  \ MATCH (n:Cadence{show:'"++showCadence++"'}) \
---  \ WITH n \
---  \ MATCH (n)-[r]->(to) \
---  \ RETURN to.movement, to.chord \
---  \   ORDER BY r.confidence DESC \
---  \   LIMIT 30; \
---  \ "
-----  putStrLn cql
---  records <- Bolt.query $ Text.pack cql
---  m <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "to.movement")
---  c <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "to.chord")
---  let cadences = constructCadence <$> zip m c
---  return cadences
---
---
---getNext :: CadenceState -> IO [Cadence]
---getNext (cadence, root) = do
---  pipe <- Bolt.connect def { Bolt.version = 3 }
---  let showCadence = show cadence
-----  putStrLn showCadence
---  r <- Bolt.run pipe (retrieveNext showCadence)
---  return r
-
-
---retrieveNext :: String -> Bolt.BoltActionT IO [Cadence]
---retrieveNext (cadence, root) = do
---  let cql = " \
---  \ MATCH (n:Cadence{show:'"++show cadence++"'}) \
---  \ WITH n \
---  \ MATCH (n)-[r]->(to) \
---  \ RETURN to.movement, to.chord \
---  \   ORDER BY r.confidence DESC \
---  \   LIMIT 30; \
---  \ "
---  records <- Bolt.query $ Text.pack cql
---  m <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "to.movement")
---  c <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "to.chord")
---  let cadences = constructCadence <$> zip m c
---  return cadences
-
---getNext :: CadenceState -> IO [Cadence]
---getNext (cadence, root) = do
---  pipe <- Bolt.connect def { Bolt.version = 3 }
---  r <- Bolt.run pipe (retrieveNext cadence)
---  return r
---  where
---    retrieveNext cadence = do
---      let cql = " \
---      \ MATCH (n:Cadence{show:'"++show cadence++"'}) \
---      \ WITH n \
---      \ MATCH (n)-[r]->(to) \
---      \ RETURN to.movement, to.chord \
---      \   ORDER BY r.confidence DESC \
---      \   LIMIT 30; \
---      \ "
---      putStrLn cql
---      records <- Bolt.query $ Text.pack cql
---      m <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "to.movement")
---      c <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "to.chord")
---      let cadences = constructCadence <$> zip m c
---      return cadences
 
 
 
 
-getNext :: CadenceState -> IO [Cadence]
-getNext (cadence, root) = do
+getNextsFromGraph :: Cadence -> IO [(Cadence, Double)]
+getNextsFromGraph cadence = do
   pipe <- Bolt.connect def { Bolt.version = 3 }
   r <- Bolt.run pipe (retrieveNext cadence)
   return r
@@ -919,16 +855,49 @@ getNext (cadence, root) = do
       \ MATCH (n:Cadence{show:'"++show cadence++"'}) \
       \ WITH n \
       \ MATCH (n)-[r]->(to) \
-      \ RETURN to.movement, to.chord \
-      \   ORDER BY r.confidence DESC \
-      \   LIMIT 30; \
-      \ "
---      liftIO $ putStrLn cql
+      \ RETURN to.movement, to.chord, r.confidence \
+      \ ;"
       records <- Bolt.query $ Text.pack cql
       m <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "to.movement")
       c <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "to.chord")
+      p <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "r.confidence")
       let cadences = constructCadence <$> zip m c
-      return cadences
+      let map = zip cadences (read <$> p :: [Double])
+      return map
+
+
+---- |function to retrieve and filter down possibilities based on current state
+----recommendations' :: Enharmonic -> Root -> Cadence -> Filters -> Int -> [Cadence]
+--recommendations' fs root prev filters n = do
+--  let enharm = enharmMap fs -- extract enharmonic 'key' into function
+--      hAlgo = (\xs -> [ toCadence (transposeCadence enharm root prev, nxt)
+--              | nxt <- xs ]) $ -- ^ Convert list of Chords into Cadences from last state
+--              List.sortBy (compare `on` (\(Chord (_,x)) -> -- sort by dissonance level
+--              fst . dissonanceLevel $ x)) $ filters enharm -- get values from Filters
+--      bach  = filter (\(x,_) -> x `elem` hAlgo) $ -- remove elements not in Filters
+--              List.sortBy (compare `on` (\(_,x) -> 1-x)) $ -- sort by markov probability
+--              fromMaybe [(prev, 1.0)] $ -- extract Cadence list from maybe
+--              getNextsFromGraph cadence -- extract current markov state from model
+----              Map.lookup prev model -- extract current markov state from model
+--      nexts = take n $ (fst <$> bach) ++ -- append to markov list and take n
+--              filter (\x -> x `notElem` fmap fst bach) hAlgo
+--              -- ^ keep elements of Filters list not in markov list
+--  return nexts
+
+recommendations' :: String -> PitchClass -> Cadence -> Filters -> Int -> IO [Cadence]
+recommendations' fs root prev filters n = do
+  let enharm = enharmMap fs -- extract enharmonic 'key' into function
+      hAlgo = (\xs -> [ toCadence (transposeCadence enharm root prev, nxt)
+              | nxt <- xs ]) $ -- ^ Convert list of Chords into Cadences from last state
+              List.sortBy (compare `on` (\(Chord (_,x)) -> -- sort by dissonance level
+              fst . dissonanceLevel $ x)) $ filters enharm -- get values from Filters
+  bachFromGraph <- liftIO $ getNextsFromGraph prev -- extract current markov state from model
+  let bach  = filter (\(x,_) -> x `elem` hAlgo) $ -- remove elements not in Filters
+              List.sortBy (compare `on` (\(_,x) -> 1-x)) bachFromGraph
+      nexts = take n $ (fst <$> bach) ++ -- append to markov list and take n
+              filter (\x -> x `notElem` fmap fst bach) hAlgo
+              -- ^ keep elements of Filters list not in markov list
+  return nexts
 
 
 
