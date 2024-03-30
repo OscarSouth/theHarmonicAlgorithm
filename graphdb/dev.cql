@@ -31,3 +31,8 @@ return r, to
 return to.functionality, to.movement, to.chord
   order by rand()
   limit 1;
+
+
+
+
+MATCH (n:Cadence{show:'( asc 3 -> dim_2ndInv )'})  WITH n  MATCH (n)-[r]->(to)  RETURN to.movement, to.chord    ORDER BY r.confidence DESC    LIMIT 30;

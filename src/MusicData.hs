@@ -298,13 +298,6 @@ primeForm xs      = fromInteger <$> is xs
     prime xs      = head $ List.sortBy (compare `on` sum) xs
     cmpt xs       = i <$> normalForm xs
 
--- -- primeForm        :: (Integral a, Num a) => [a] -> [PitchClass]
--- pForm xs      =   (cmpt $ (`subtract` 12) <$> cmpt xs) : [] --fromInteger <$> is xs
---   where
---     is xs         = prime $ cmpt xs : (cmpt $ (`subtract` 12) <$> cmpt xs) : []
---     prime xs      = head $ List.sortBy (compare `on` sum) xs
---     cmpt xs       = i <$> normalForm xs
-
 -- |'prime' version for work with MusicData typeclass
 primeForm' :: MusicData a => [a] -> [PitchClass]
 primeForm' xs = primeForm $ i <$> xs
@@ -591,9 +584,9 @@ instance Show Cadence where
 toCadence :: (Chord, Chord) -> Cadence
 toCadence ((Chord ((_, _), from@(x:_))), (Chord ((_, new), to@(y:_)))) =
   Cadence (new, (toMovement x y, zeroForm to))
-  
+
 type CadenceState = (Cadence, PitchClass)
- 
+
 -- |interaction friendly interface to initialise a CadenceState
 initCadenceState :: (Integral a, Num a) => a -> String -> [a] -> CadenceState
 initCadenceState movement note quality =
