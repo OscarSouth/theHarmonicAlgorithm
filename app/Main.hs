@@ -884,22 +884,39 @@ getNextsFromGraph cadence = do
 --              -- ^ keep elements of Filters list not in markov list
 --  return nexts
 
-recommendations' :: String -> PitchClass -> Cadence -> Filters -> Int -> IO [Cadence]
-recommendations' fs root prev filters n = do
-  let enharm = enharmMap fs -- extract enharmonic 'key' into function
-      hAlgo = (\xs -> [ toCadence (transposeCadence enharm root prev, nxt)
+getCadenceOptions :: CadenceState -> Filters -> (PitchClass -> NoteName) -> IO [Cadence]
+getCadenceOptions (prev, root) filters enharm = do
+  let  hAlgo = (\xs -> [ toCadence (transposeCadence enharm root prev, nxt)
               | nxt <- xs ]) $ -- ^ Convert list of Chords into Cadences from last state
               List.sortBy (compare `on` (\(Chord (_,x)) -> -- sort by dissonance level
               fst . dissonanceLevel $ x)) $ filters enharm -- get values from Filters
   bachFromGraph <- liftIO $ getNextsFromGraph prev -- extract current markov state from model
   let bach  = filter (\(x,_) -> x `elem` hAlgo) $ -- remove elements not in Filters
               List.sortBy (compare `on` (\(_,x) -> 1-x)) bachFromGraph
-      nexts = take n $ (fst <$> bach) ++ -- append to markov list and take n
+      nexts = take 30 $ (fst <$> bach) ++ -- append to markov list and take n
               filter (\x -> x `notElem` fmap fst bach) hAlgo
               -- ^ keep elements of Filters list not in markov list
   return nexts
 
 
+nextCadence :: Double -> CadenceState -> Filters -> (PitchClass -> NoteName) -> IO ()-- CadenceState
+nextCadence entropy state@(prev, root) context enharm = do
+--  let fromRoot = root + (fromMovement $ fst (deconstructCadence prev))
+  let from = fromCadence (zeroForm $ enharm (P 0) prev)
+--  liftIO $ putStrLn (show prev)
+--  liftIO $ putStrLn (show fromRoot)
+  liftIO $ putStrLn (show from)
+--  nexts <- getCadenceOptions state context enharm
+--  rnd <- gammaGen 1 entropy
+--  let index = fromIntegral $ min 30 $ head rnd
+--  let nextCadence = if index < length nexts then nexts !! index else last nexts
+--  let movement = fromMovement $ fst (deconstructCadence nextCadence)
+--  liftIO $ putStrLn (show nextCadence)
+--  liftIO $ putStrLn (show movement)
+--  let next = fromCadence enharm movement nextCadence
+--  liftIO $ putStrLn (show next)
+--  return (nextCadence, P 0)
+  return ()
 
 
 
