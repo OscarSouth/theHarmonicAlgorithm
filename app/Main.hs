@@ -884,17 +884,15 @@ getNextsFromGraph cadence = do
 --              filter (\x -> x `notElem` fmap fst bach) hAlgo
 --              -- ^ keep elements of Filters list not in markov list
 --  return nexts
-
-
+--
+--
 ----nextCadence :: Double -> CadenceState -> Filters -> (PitchClass -> NoteName) -> IO CadenceState
 --nextCadence entropy state@(prev, root) context enharm = do
---  liftIO $ putStrLn $ show ""
-----  let fromRoot = root + (fromMovement $ fst (deconstructCadence prev))
---  let from = fromCadence enharm root prev
---  liftIO $ putStrLn (show from)
+--  let fromRoot = head $ fromCadenceState enharm state
+--  liftIO $ putStrLn (show fromRoot)
 --  rnd <- gammaGen 1 entropy
 --  let index = fromIntegral $ min 30 $ head rnd
---  liftIO $ putStrLn (show index)
+----  liftIO $ putStrLn (show index)
 --  nextOptions <- getCadenceOptions state context enharm
 ----  liftIO $ putStrLn $ show $ take 5 nextOptions
 --  let nextCadence = if index < length nextOptions then nextOptions !! index else last nextOptions

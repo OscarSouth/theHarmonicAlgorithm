@@ -585,7 +585,34 @@ toCadence :: (Chord, Chord) -> Cadence
 toCadence ((Chord ((_, _), from@(x:_))), (Chord ((_, new), to@(y:_)))) =
   Cadence (new, (toMovement x y, zeroForm to))
 
-type CadenceState = (Cadence, PitchClass)
+---- |absolute representation of a point in a harmonic chain
+--type CadenceState = (Cadence, PitchClass)
+--
+---- |interaction friendly interface to initialise a CadenceState
+--initCadenceState :: (Integral a, Num a) => a -> String -> [a] -> CadenceState
+--initCadenceState movement note quality =
+--  let approach = toMovement 0 movement
+--      from     = toTriad flat [0]
+--      to       = toTriad flat $ (+ fromMovement' approach) <$> zeroForm quality
+--      root = readNoteName note
+--   in (toCadence (from, to), pitchClass $ root)
+--
+---- |print CadenceState in a user readable way
+--showCadenceState :: (PitchClass -> NoteName) -> CadenceState -> String
+--showCadenceState f state@(c, root) =
+--    "( "
+--      ++ show (toMovement 0 $ movementFromCadence' c) ++
+--    " -> "
+--      ++ show (fromCadenceState f state) ++
+--    " )"
+
+---- |mapping from CadenceState into Chord
+--fromCadenceState :: (PitchClass -> NoteName) -> CadenceState -> Chord
+--fromCadenceState f (c@(Cadence (_,(_,tones))), root) =
+--  (toTriad f) $ i . (+ root) <$> tones
+
+-- |absolute representation of a point in a harmonic chain
+type CadenceState = (Cadence, NoteName)
 
 -- |interaction friendly interface to initialise a CadenceState
 initCadenceState :: (Integral a, Num a) => a -> String -> [a] -> CadenceState
@@ -594,29 +621,21 @@ initCadenceState movement note quality =
       from     = toTriad flat [0]
       to       = toTriad flat $ (+ fromMovement' approach) <$> zeroForm quality
       root = readNoteName note
-   in (toCadence (from, to), pitchClass $ root)
+   in (toCadence (from, to), root)
 
--- |print CadenceState in a user readable way 
-showCadenceState :: (PitchClass -> NoteName) -> CadenceState -> String
-showCadenceState f state@(c, root) =
+-- |print CadenceState in a user readable way
+showCadenceState :: CadenceState -> String
+showCadenceState state@(c, root) =
     "( "
       ++ show (toMovement 0 $ movementFromCadence' c) ++
     " -> "
-      ++ show (fromCadenceState f state) ++
+      ++ show root ++
     " )"
-
---data CadenceState = CadenceState Cadence PitchClass
---
---instance Show CadenceState where
---  show (CadenceState c p) = show $ fromCadence flat p c
---
---initCadenceState :: (Integral a, Num a) => a -> String -> [a] -> CadenceState
---initCadenceState movement note quality =
---  let approach = toMovement 0 movement
---      from     = toTriad flat [0]
---      to       = toTriad flat $ (+ fromMovement' approach) <$> zeroForm quality
---      root = readNoteName note
---   in CadenceState (toCadence (from, to)) (pitchClass $ root)
+    
+-- |mapping from CadenceState into Chord
+fromCadenceState :: (PitchClass -> NoteName) -> CadenceState -> Chord
+fromCadenceState f (c@(Cadence (_,(_,tones))), root) =
+  (toTriad f) $ i . (+ (pitchClass root)) <$> tones
 
 -- |mapping from possible Cadence and Pitchclass into next Chord with transposition
 fromCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord
@@ -627,11 +646,6 @@ fromCadence f root c@(Cadence (_,(_,tones))) =
 fromCadence' :: (Num a, Integral a) => a -> Cadence -> [a]
 fromCadence' root c@(Cadence (_,(_,tones))) =
   (+ movementFromCadence' c) . (+ root) . i <$> tones
-
--- |mapping from CadenceState into Chord
-fromCadenceState :: (PitchClass -> NoteName) -> CadenceState -> Chord
-fromCadenceState f (c@(Cadence (_,(_,tones))), root) =
-  (toTriad f) $ i . (+ root) <$> tones
 
 -- |mapping from serialised format to Cadence
 -- deconstructCadence :: Cadence -> (String, String)
@@ -713,8 +727,12 @@ flatChord = toChord flat
 sharpChord :: (Integral a, Num a) => [a] -> Chord
 sharpChord = toChord sharp
 
+-- |mapping from Chord object to it's interger representation
 fromChord :: (Integral a, Num a) => Chord -> [a]
 fromChord (Chord (_,xs)) = fromIntegral . toInteger <$> xs
+
+noteNameFromChord :: Chord -> NoteName
+noteNameFromChord (Chord ((n,_),_)) = n
 
 -- |mapping from integer list to tuple of mode and chord name
 toMode :: (Integral a, Num a) => (PitchClass -> NoteName) -> [a] -> Chord
