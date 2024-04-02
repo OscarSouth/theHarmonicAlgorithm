@@ -164,6 +164,27 @@ instance MusicData NoteName where
   a <+> b       = pitchClass a + fromInteger b
   a <-> b       = pitchClass a + fromInteger b
 
+-- |helper function for mapping NoteName to enharmonic function
+enharmFromNoteName :: NoteName -> (PitchClass -> NoteName)
+enharmFromNoteName n = case n of
+  C  -> flat
+  C' -> sharp
+  Db -> flat
+  D  -> sharp
+  D' -> sharp
+  Eb -> flat
+  E  -> sharp
+  F  -> flat
+  F' -> sharp
+  Gb -> flat
+  G  -> sharp
+  G' -> sharp
+  Ab -> flat
+  A  -> sharp
+  A' -> sharp
+  Bb -> flat
+  B  -> sharp
+
 -- | MusicData instance for PitchClass
 instance MusicData PitchClass where
   pitchClass  = id
@@ -629,13 +650,18 @@ showCadenceState state@(c, root) =
     "( "
       ++ show (toMovement 0 $ movementFromCadence' c) ++
     " -> "
-      ++ show root ++
+      ++ show (fromCadenceState state) ++
     " )"
-    
+
 -- |mapping from CadenceState into Chord
-fromCadenceState :: (PitchClass -> NoteName) -> CadenceState -> Chord
-fromCadenceState f (c@(Cadence (_,(_,tones))), root) =
-  (toTriad f) $ i . (+ (pitchClass root)) <$> tones
+fromCadenceState :: CadenceState -> Chord
+fromCadenceState (c@(Cadence (_,(_,tones))), root) =
+  let enharm = enharmFromNoteName root
+   in (toTriad enharm) $ i . (+ (pitchClass root)) <$> tones
+
+-- |mapping from CadenceState into another CadenceState with different enharmonic
+cadenceStateEnharmonic :: (PitchClass -> NoteName) -> CadenceState -> CadenceState
+cadenceStateEnharmonic f (c, root) = (c, f $ pitchClass root)
 
 -- |mapping from possible Cadence and Pitchclass into next Chord with transposition
 fromCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord

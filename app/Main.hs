@@ -884,8 +884,8 @@ getNextsFromGraph cadence = do
 --              filter (\x -> x `notElem` fmap fst bach) hAlgo
 --              -- ^ keep elements of Filters list not in markov list
 --  return nexts
---
---
+
+
 ----nextCadence :: Double -> CadenceState -> Filters -> (PitchClass -> NoteName) -> IO CadenceState
 --nextCadence entropy state@(prev, root) context enharm = do
 --  let fromRoot = head $ fromCadenceState enharm state
