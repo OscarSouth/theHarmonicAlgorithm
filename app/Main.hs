@@ -856,7 +856,6 @@ getNextsFromGraph cadence = do
       \ WITH n \
       \ MATCH (n)-[r]->(to) \
       \ RETURN to.movement, to.chord, toString(r.confidence) AS confidence \
-      \ ORDER BY r.confidence DESC \
       \ ;"
 --      liftIO $ putStrLn cql
       records <- Bolt.query $ Text.pack cql
@@ -864,10 +863,10 @@ getNextsFromGraph cadence = do
       c <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "to.chord")
       p <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "confidence")
       let cadences = constructCadence <$> zip m c
-      let map = zip cadences (read <$> p :: [Double])
+      let cadence_map = zip cadences (read <$> p :: [Double])
 --      liftIO $ putStrLn $ "map: " ++ show (take 5 map)
 --      liftIO $ putStrLn $ "length map: " ++ show (length map)
-      return map
+      return cadence_map
 
 
 
@@ -913,14 +912,14 @@ getCadenceOptions (prev, root) filters enharm = do
 nextCadence entropy state@(prev, root) context enharm = do
   liftIO $ putStrLn $ show ""
 --  let fromRoot = root + (fromMovement $ fst (deconstructCadence prev))
-  let from = fromCadence enharm (root) prev
+  let from = fromCadence enharm root prev
   liftIO $ putStrLn (show from)
   rnd <- gammaGen 1 entropy
   let index = fromIntegral $ min 30 $ head rnd
   liftIO $ putStrLn (show index)
-  nexts <- getCadenceOptions state context enharm
---  liftIO $ putStrLn $ show $ take 5 nexts
-  let nextCadence = if index < length nexts then nexts !! index else last nexts
+  nextOptions <- getCadenceOptions state context enharm
+--  liftIO $ putStrLn $ show $ take 5 nextOptions
+  let nextCadence = if index < length nextOptions then nextOptions !! index else last nextOptions
   let movement = fromMovement $ fst (deconstructCadence nextCadence)
 --  liftIO $ putStrLn (show nextCadence)
 --  liftIO $ putStrLn (show movement)

@@ -587,6 +587,10 @@ toCadence ((Chord ((_, _), from@(x:_))), (Chord ((_, new), to@(y:_)))) =
 
 type CadenceState = (Cadence, PitchClass)
 
+-- |print CadenceState in a user readable way
+showCadenceState :: CadenceState -> (PitchClass -> NoteName) -> String
+showCadenceState (c, p) fs = show $ fromCadence fs p c
+
 -- |interaction friendly interface to initialise a CadenceState
 initCadenceState :: (Integral a, Num a) => a -> String -> [a] -> CadenceState
 initCadenceState movement note quality =
