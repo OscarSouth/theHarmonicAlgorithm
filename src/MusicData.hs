@@ -607,7 +607,7 @@ toCadence ((Chord ((_, _), from@(x:_))), (Chord ((_, new), to@(y:_)))) =
   Cadence (new, (toMovement x y, zeroForm to))
 
 ---- |absolute representation of a point in a harmonic chain
---type CadenceState = (Cadence, PitchClass)
+--type CadenceState = (Cadence, NoteName)
 --
 ---- |interaction friendly interface to initialise a CadenceState
 --initCadenceState :: (Integral a, Num a) => a -> String -> [a] -> CadenceState
@@ -616,24 +616,46 @@ toCadence ((Chord ((_, _), from@(x:_))), (Chord ((_, new), to@(y:_)))) =
 --      from     = toTriad flat [0]
 --      to       = toTriad flat $ (+ fromMovement' approach) <$> zeroForm quality
 --      root = readNoteName note
---   in (toCadence (from, to), pitchClass $ root)
+--   in (toCadence (from, to), root)
 --
 ---- |print CadenceState in a user readable way
---showCadenceState :: (PitchClass -> NoteName) -> CadenceState -> String
---showCadenceState f state@(c, root) =
+--showCadenceState :: CadenceState -> String
+--showCadenceState state@(c, root) =
 --    "( "
 --      ++ show (toMovement 0 $ movementFromCadence' c) ++
 --    " -> "
---      ++ show (fromCadenceState f state) ++
+--      ++ show (fromCadenceState state) ++
 --    " )"
-
+--
 ---- |mapping from CadenceState into Chord
---fromCadenceState :: (PitchClass -> NoteName) -> CadenceState -> Chord
---fromCadenceState f (c@(Cadence (_,(_,tones))), root) =
---  (toTriad f) $ i . (+ root) <$> tones
+--fromCadenceState :: CadenceState -> Chord
+--fromCadenceState (c@(Cadence (_,(_,tones))), root) =
+--  let enharm = enharmFromNoteName root
+--   in (toTriad enharm) $ i . (+ (pitchClass root)) <$> tones
+--
+---- |mapping from CadenceState into another CadenceState with different enharmonic
+--cadenceStateEnharmonic :: (PitchClass -> NoteName) -> CadenceState -> CadenceState
+--cadenceStateEnharmonic f (c, root) = (c, f $ pitchClass root)
 
 -- |absolute representation of a point in a harmonic chain
-type CadenceState = (Cadence, NoteName)
+newtype CadenceState = CadenceState (Cadence, NoteName)
+
+-- |mapping from CadenceState into Chord
+fromCadenceState :: CadenceState -> Chord
+fromCadenceState (CadenceState (cadence, root)) =
+  let enharm = enharmFromNoteName root
+  in (toTriad enharm) $ i . (+ (pitchClass root)) <$> tones
+  where
+    Cadence (_, (_, tones)) = cadence
+
+-- |Show instance for CadenceState
+instance Show CadenceState where
+  show (CadenceState (c, root)) =
+    "( "
+      ++ show (toMovement 0 $ movementFromCadence' c) ++
+    " -> "
+      ++ show (fromCadenceState (CadenceState (c, root))) ++
+    " )"
 
 -- |interaction friendly interface to initialise a CadenceState
 initCadenceState :: (Integral a, Num a) => a -> String -> [a] -> CadenceState
@@ -642,26 +664,11 @@ initCadenceState movement note quality =
       from     = toTriad flat [0]
       to       = toTriad flat $ (+ fromMovement' approach) <$> zeroForm quality
       root = readNoteName note
-   in (toCadence (from, to), root)
-
--- |print CadenceState in a user readable way
-showCadenceState :: CadenceState -> String
-showCadenceState state@(c, root) =
-    "( "
-      ++ show (toMovement 0 $ movementFromCadence' c) ++
-    " -> "
-      ++ show (fromCadenceState state) ++
-    " )"
-
--- |mapping from CadenceState into Chord
-fromCadenceState :: CadenceState -> Chord
-fromCadenceState (c@(Cadence (_,(_,tones))), root) =
-  let enharm = enharmFromNoteName root
-   in (toTriad enharm) $ i . (+ (pitchClass root)) <$> tones
-
+   in CadenceState (toCadence (from, to), root)
+   
 -- |mapping from CadenceState into another CadenceState with different enharmonic
-cadenceStateEnharmonic :: (PitchClass -> NoteName) -> CadenceState -> CadenceState
-cadenceStateEnharmonic f (c, root) = (c, f $ pitchClass root)
+cadenceStateEnharm :: (PitchClass -> NoteName) -> CadenceState -> CadenceState
+cadenceStateEnharm f (CadenceState (c, root)) = CadenceState (c, f $ pitchClass root)
 
 -- |mapping from possible Cadence and Pitchclass into next Chord with transposition
 fromCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord
