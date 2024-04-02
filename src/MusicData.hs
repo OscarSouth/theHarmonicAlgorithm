@@ -587,10 +587,6 @@ toCadence ((Chord ((_, _), from@(x:_))), (Chord ((_, new), to@(y:_)))) =
 
 type CadenceState = (Cadence, PitchClass)
 
--- |print CadenceState in a user readable way
-showCadenceState :: CadenceState -> (PitchClass -> NoteName) -> String
-showCadenceState (c, p) fs = show $ fromCadence fs p c
-
 -- |interaction friendly interface to initialise a CadenceState
 initCadenceState :: (Integral a, Num a) => a -> String -> [a] -> CadenceState
 initCadenceState movement note quality =
@@ -599,6 +595,28 @@ initCadenceState movement note quality =
       to       = toTriad flat $ (+ fromMovement' approach) <$> zeroForm quality
       root = readNoteName note
    in (toCadence (from, to), pitchClass $ root)
+
+-- |print CadenceState in a user readable way 
+showCadenceState :: (PitchClass -> NoteName) -> CadenceState -> String
+showCadenceState f state@(c, root) =
+    "( "
+      ++ show (toMovement 0 $ movementFromCadence' c) ++
+    " -> "
+      ++ show (fromCadenceState f state) ++
+    " )"
+
+--data CadenceState = CadenceState Cadence PitchClass
+--
+--instance Show CadenceState where
+--  show (CadenceState c p) = show $ fromCadence flat p c
+--
+--initCadenceState :: (Integral a, Num a) => a -> String -> [a] -> CadenceState
+--initCadenceState movement note quality =
+--  let approach = toMovement 0 movement
+--      from     = toTriad flat [0]
+--      to       = toTriad flat $ (+ fromMovement' approach) <$> zeroForm quality
+--      root = readNoteName note
+--   in CadenceState (toCadence (from, to)) (pitchClass $ root)
 
 -- |mapping from possible Cadence and Pitchclass into next Chord with transposition
 fromCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord
@@ -609,6 +627,11 @@ fromCadence f root c@(Cadence (_,(_,tones))) =
 fromCadence' :: (Num a, Integral a) => a -> Cadence -> [a]
 fromCadence' root c@(Cadence (_,(_,tones))) =
   (+ movementFromCadence' c) . (+ root) . i <$> tones
+
+-- |mapping from CadenceState into Chord
+fromCadenceState :: (PitchClass -> NoteName) -> CadenceState -> Chord
+fromCadenceState f (c@(Cadence (_,(_,tones))), root) =
+  (toTriad f) $ i . (+ root) <$> tones
 
 -- |mapping from serialised format to Cadence
 -- deconstructCadence :: Cadence -> (String, String)
