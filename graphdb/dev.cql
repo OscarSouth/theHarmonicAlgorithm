@@ -35,4 +35,4 @@ return to.functionality, to.movement, to.chord
 
 
 
-MATCH (n:Cadence{show:'( asc 3 -> dim_2ndInv )'})  WITH n  MATCH (n)-[r]->(to)  RETURN to.movement, to.chord    ORDER BY r.confidence DESC    LIMIT 30;
+MATCH (n:Cadence{show:'( asc 2 -> maj )'})  WITH n  MATCH (n)-[r]->(to)  RETURN to.movement, to.chord, r.confidence  ORDER BY r.confidence DESC  ;
