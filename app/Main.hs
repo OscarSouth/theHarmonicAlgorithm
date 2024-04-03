@@ -409,7 +409,7 @@ randomSeq fs root prev filters n seqParams = do
         let index | num == "" = -1
                   | otherwise = read num - 1 :: Int
         if index == (-1)
-          then markovLoop fs (rootNote $ last $ fst cadences)
+          then markovLoop fs (rootNote' $ last $ fst cadences)
                              (last $ snd cadences) filters n
           else if notElem num $
                   fmap show [1..chordLen + length ls]
@@ -430,7 +430,7 @@ randomSeq fs root prev filters n seqParams = do
                     actions $ opts ["[      Reject sequence      ]",
                                     "[    Regenerate sequence    ]"]
                     else do
-                    let root' = rootNote $ fst cadences!!index
+                    let root' = rootNote' $ fst cadences!!index
                         next = snd cadences!!index
                     markovLoop fs root' next filters n
   actions $ opts menu
@@ -871,50 +871,41 @@ getNextsFromGraph cadence = do
 
 
 
---getCadenceOptions :: CadenceState -> Filters -> (PitchClass -> NoteName) -> IO [Cadence]
---getCadenceOptions (prev, root) filters enharm = do
---  let  hAlgo = (\xs -> [ toCadence (transposeCadence enharm root prev, nxt)
---              | nxt <- xs ]) $ -- ^ Convert list of Chords into Cadences from last state
---              List.sortBy (compare `on` (\(Chord (_,x)) -> -- sort by dissonance level
---              fst . dissonanceLevel $ x)) $ filters enharm -- get values from Filters
---  bachFromGraph <- liftIO $ getNextsFromGraph prev -- extract current markov state from graph
---  let bach  = filter (\(x,_) -> x `elem` hAlgo) $ -- remove elements not in Filters
---              List.sortBy (compare `on` (\(_,x) -> 1-x)) bachFromGraph
---      nexts = take 30 $ (fst <$> bach) ++ -- append to markov list and take n
---              filter (\x -> x `notElem` fmap fst bach) hAlgo
---              -- ^ keep elements of Filters list not in markov list
---  return nexts
+getCadenceOptions :: CadenceState -> Filters -> (PitchClass -> NoteName) -> IO [Cadence]
+getCadenceOptions (CadenceState (prev, root)) filters enharm = do
+  let  hAlgo = (\xs -> [ toCadence (transposeCadence enharm (pitchClass root) prev, nxt)
+              | nxt <- xs ]) $ -- ^ Convert list of Chords into Cadences from last state
+              List.sortBy (compare `on` (\(Chord (_,x)) -> -- sort by dissonance level
+              fst . dissonanceLevel $ x)) $ filters enharm -- get values from Filters
+  bachFromGraph <- liftIO $ getNextsFromGraph prev -- extract current markov state from graph
+  let bach  = filter (\(x,_) -> x `elem` hAlgo) $ -- remove elements not in Filters
+              List.sortBy (compare `on` (\(_,x) -> 1-x)) bachFromGraph
+      nexts = take 30 $ (fst <$> bach) ++ -- append to markov list and take n
+              filter (\x -> x `notElem` fmap fst bach) hAlgo
+              -- ^ keep elements of Filters list not in markov list
+  return nexts
 
 
-----nextCadence :: Double -> CadenceState -> Filters -> (PitchClass -> NoteName) -> IO CadenceState
---nextCadence entropy state@(prev, root) context enharm = do
---  let fromRoot = head $ fromCadenceState enharm state
+nextCadence :: Double -> CadenceState -> Filters -> (PitchClass -> NoteName) -> IO CadenceState
+nextCadence entropy state@(CadenceState (prev, root)) context enharm = do
+  let fromRoot = rootNote' $ fromCadenceState state
+--  liftIO $ putStrLn (show state)
 --  liftIO $ putStrLn (show fromRoot)
---  rnd <- gammaGen 1 entropy
---  let index = fromIntegral $ min 30 $ head rnd
-----  liftIO $ putStrLn (show index)
---  nextOptions <- getCadenceOptions state context enharm
-----  liftIO $ putStrLn $ show $ take 5 nextOptions
---  let nextCadence = if index < length nextOptions then nextOptions !! index else last nextOptions
---  let movement = fromMovement $ fst (deconstructCadence nextCadence)
-----  liftIO $ putStrLn (show nextCadence)
-----  liftIO $ putStrLn (show movement)
---  let next = fromCadence enharm movement nextCadence
-----  liftIO $ putStrLn (show next)
---  return (nextCadence, P 0)
-----  return nexts
+  rnd <- gammaGen 1 entropy
+  let index = fromIntegral $ min 30 $ head rnd
+--  liftIO $ putStrLn (show index)
+  nextOptions <- getCadenceOptions state context enharm
+  nextCadenceStates <- forM nextOptions $ \next -> do
+    let movement = fromMovement $ fst (deconstructCadence next)
+    let nextRoot = enharm $ fromRoot + movement
+    return (CadenceState (next, nextRoot))
+--  liftIO $ putStrLn $ show (take 5 nextCadenceStates)
+  let next = if index < length nextCadenceStates
+             then nextCadenceStates !! index
+             else last nextCadenceStates
+  return next
 
 
-
----- |representation of a Cadence as a transition to a stucture by an interval
---data Cadence = Cadence (Functionality, (Movement, [PitchClass]))
---  deriving (Eq, Ord)
---
----- |customised Show instance for readability
---instance Show Cadence where
---  show :: Cadence -> String
---  show (Cadence (functionality, (dist, ps))) =
---    "( " ++ show dist ++ " -> " ++ functionality ++ " )"
 
 
 -- |initialise a 'cadence state'

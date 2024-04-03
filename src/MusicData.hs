@@ -699,8 +699,13 @@ transposeCadence f root (Cadence (_,(_,tones))) =
   (toTriad f) $ i . (+ root) <$> tones
 
 -- |mapping from Chord the root note of that chord
-rootNote :: Chord -> PitchClass
-rootNote (Chord (_,(x:_))) = pc x
+rootNote :: Chord -> NoteName
+rootNote (Chord ((x, _),_)) = x
+
+-- |mapping from Chord the root note of that chord
+rootNote' :: Chord -> PitchClass
+rootNote' (Chord (_,(x:_))) = pc x
+
 
 ---------------------------
 -- #### ADDITIONS #### ----
