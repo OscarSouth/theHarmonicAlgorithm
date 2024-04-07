@@ -84,7 +84,7 @@ parseNotes,
 parseTuning,
 parseKey,
 parseFunds,
-generateFilters,
+harmonicContext,
 ------------
 -- |Utility
 unique,

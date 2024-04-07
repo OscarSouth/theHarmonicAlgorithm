@@ -203,8 +203,8 @@ chordList' n roots overtones f =
    in toTriad f <$> integralSets
 
 -- |helper to generate the 'chordList' function in the interpreter
-generateFilters :: String -> String -> String -> ((PitchClass -> NoteName) -> [Chord])
-generateFilters tuning key funds =
+harmonicContext :: String -> String -> String -> ((PitchClass -> NoteName) -> [Chord])
+harmonicContext tuning key funds =
   let overtones = parseNotes tuning
       structures = filter (\x -> x `elem` parseKey key) overtones
       roots = parseFunds funds
