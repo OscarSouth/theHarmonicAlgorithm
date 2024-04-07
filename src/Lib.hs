@@ -84,6 +84,7 @@ parseNotes,
 parseTuning,
 parseKey,
 parseFunds,
+generateFilters,
 ------------
 -- |Utility
 unique,

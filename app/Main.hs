@@ -840,10 +840,6 @@ progToPatIO = do
   return ctrlPat
 
 
-
-
-
-
 getNextsFromGraph :: Cadence -> IO [(Cadence, Double)]
 getNextsFromGraph cadence = do
   pipe <- Bolt.connect def { Bolt.version = 3 }
@@ -857,23 +853,18 @@ getNextsFromGraph cadence = do
       \ MATCH (n)-[r]->(to) \
       \ RETURN to.movement, to.chord, toString(r.confidence) AS confidence \
       \ ;"
---      liftIO $ putStrLn cql
       records <- Bolt.query $ Text.pack cql
       m <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "to.movement")
       c <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "to.chord")
       p <- forM records $ \record -> Text.unpack <$> (record `Bolt.at` "confidence")
       let cadences = constructCadence <$> zip m c
       let cadence_map = zip cadences (read <$> p :: [Double])
---      liftIO $ putStrLn $ "map: " ++ show (take 5 map)
---      liftIO $ putStrLn $ "length map: " ++ show (length map)
       return cadence_map
-
-
 
 
 getCadenceOptions :: CadenceState -> Filters -> (PitchClass -> NoteName) -> IO [Cadence]
 getCadenceOptions (CadenceState (prev, root)) filters enharm = do
-  let  hAlgo = (\xs -> [ toCadence (transposeCadence enharm (pitchClass root) prev, nxt)
+  let  hAlgo = take 30 $ (\xs -> [ toCadence (transposeCadence enharm (pitchClass root) prev, nxt)
               | nxt <- xs ]) $ -- ^ Convert list of Chords into Cadences from last state
               List.sortBy (compare `on` (\(Chord (_,x)) -> -- sort by dissonance level
               fst . dissonanceLevel $ x)) $ filters enharm -- get values from Filters
@@ -886,56 +877,65 @@ getCadenceOptions (CadenceState (prev, root)) filters enharm = do
   return nexts
 
 
-nextCadence :: Double -> CadenceState -> Filters -> (PitchClass -> NoteName) -> IO CadenceState
-nextCadence entropy state@(CadenceState (prev, root)) context enharm = do
+nextCadence :: (PitchClass -> NoteName) -> CadenceState -> Filters -> Double -> IO CadenceState
+nextCadence enharm state context entropy = do
   let fromRoot = rootNote' $ fromCadenceState state
---  liftIO $ putStrLn (show state)
---  liftIO $ putStrLn (show fromRoot)
+--  liftIO $ putStrLn $ "prev: " ++ show state
   rnd <- gammaGen 1 entropy
   let index = fromIntegral $ min 30 $ head rnd
---  liftIO $ putStrLn (show index)
   nextOptions <- getCadenceOptions state context enharm
   nextCadenceStates <- forM nextOptions $ \next -> do
     let movement = fromMovement $ fst (deconstructCadence next)
     let nextRoot = enharm $ fromRoot + movement
     return (CadenceState (next, nextRoot))
---  liftIO $ putStrLn $ show (take 5 nextCadenceStates)
   let next = if index < length nextCadenceStates
              then nextCadenceStates !! index
              else last nextCadenceStates
+--  liftIO $ putStrLn $ "next: " ++ show next
   return next
 
 
+-- |generate a sequence of CadenceStates from an enharmonic function, init CadenceState, context and entropy
+--chainCadence :: Int -> (PitchClass -> NoteName) -> CadenceState -> Filters -> Double -> IO [CadenceState]
+--chainCadence len enharm init filters entropy = do
 
 
--- |initialise a 'cadence state'
---initCadenceState
---initCadenceState approach root quality
 
---type CadenceState = (Cadence, PitchClass)
--- 
----- |interaction friendly interface to initialise a CadenceState
---initCadenceState :: (Integral a, Num a) => a -> String -> [a] -> CadenceState
---initCadenceState movement note quality =
---  let approach = toMovement 0 movement
---      from     = toTriad flat [0]
---      to       = toTriad flat $ (+ fromMovement' approach) <$> zeroForm quality
---      root = readNoteName note
---   in (toCadence (from, to), pitchClass $ root)
-
--- |recieve a 'cadence state' and return a new 'cadence state'
---nextCadence
---nextCadence entropy state
---
----- | Receive a 'cadence state' and an 'entropy' value, return a new 'cadence state'
---nextCadence :: (Integral a, Num a) => a -> CadenceState -> CadenceState
---nextCadence entropy (cadence, root) =
---  let
---  -- TODO: Implement the logic to generate the next cadence based on the current state and entropy
---  -- For now, we just return the same state
---  return (cadence, root)
+-- |function to retrieve and return random sequence
+cadenceSeq' :: Integral a => (PitchClass -> NoteName) -> CadenceState -> Filters -> [a]
+            -> IO ([Chord], [Cadence])
+cadenceSeq' _ _ _ [] = return ([], [])
+cadenceSeq' enharm state@(CadenceState (prev, root)) context rns@(x:xs) = do
+  let x' = fromIntegral x
+  let rootPitchClass = pitchClass root
+  nexts <- getCadenceOptions state context enharm
+  let next = if x' >= length rns then last nexts else nexts!!x'
+      triad = transposeCadence enharm rootPitchClass prev
+      root' = rootPitchClass + movementFromCadence next
+  let nextState = (CadenceState (next, enharm root'))
+  nextsRecurse <- cadenceSeq' enharm nextState context xs
+  return (triad : fst nextsRecurse, prev : snd nextsRecurse)
 
 
--- |generate a sequence of 'cadence states' from an init state
---chainCadence :: (Show a, Num a, Integral a) => a -> IO [[a]]
---chainCadence n init
+
+-- |generate a sequence of cadence transitions
+--chainCadence :: (PitchClass -> NoteName) -> CadenceState -> Filters -> Double -> Double 
+--             -> IO ()
+chainCadence enharm state context len entropy = do
+  liftIO $ putStr "composing .."
+  rns               <- gammaGen len entropy -- make this max len 16
+  cadences          <- cadenceSeq' enharm state context rns
+  let chordLen      = length $ chords enharm :: Int
+      chords enharm = showTriad enharm <$> fst cadences
+      printPat      = fromChord <$> fst cadences
+      lines         = (++"|   ") . concat . (`replicate`" ") .
+                      ((14-) . length) <$> chords enharm
+      fours enharm  = concat $ zipWith (++)
+                      ["\n1   ||   ", "\n   5    |   ", "\n   9    |   ", "\n   13   |   "]
+                      (init . init . init <$> (fmap concat <$> chunksOf 4 $
+                      zipWith (++) (chords enharm) lines))
+  liftIO $ putStrLn "generated by 'The Harmonic Algorithm' -> https://github.com/OscarSouth/theHarmonicAlgorithm"
+  liftIO $ putStr (fours enharm) >> putStrLn "|\n"
+  return cadences
+
+
