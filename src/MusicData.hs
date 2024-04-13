@@ -769,8 +769,16 @@ sharpChord = toChord sharp
 fromChord :: (Integral a, Num a) => Chord -> [a]
 fromChord (Chord (_,xs)) = fromIntegral . toInteger <$> xs
 
-noteNameFromChord :: Chord -> NoteName
-noteNameFromChord (Chord ((n,_),_)) = n
+-- |extract root note from a chord
+rootNoteFromChord :: Chord -> NoteName
+rootNoteFromChord (Chord ((n,_),_)) = n
+  
+-- |extract bass note from a chord
+--bassNoteFromChord :: (Integral a, Num a) => Chord -> a
+bassNoteFromChord (Chord ((_,_),xs)) = head xs
+
+
+--bassNoteFromChord (Chord ((n,_),_)) = n
 
 -- |mapping from integer list to tuple of mode and chord name
 toMode :: (Integral a, Num a) => (PitchClass -> NoteName) -> [a] -> Chord

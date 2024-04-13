@@ -949,10 +949,13 @@ harmony progression = do
   chords <- fromChord <$> fst progression
   return chords
 
+--cadence :: Int  -> ([Chord], [Cadence]) -> [NoteName]
 cadence bar progression = do
   cadences <- snd progression
---  chords <- fst progression
-  let cadence = cadences (bar+1) -- make it impossible to go over or under?
-  return cadences
+  chords <- fst progression
+  roots <- bassNoteFromChord <$> fst progression
+  return roots
+
+--  let cadence = cadences!!(bar+1) -- make it impossible to go over or under?
 
 -- instance to read CadenceState?

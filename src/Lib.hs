@@ -44,6 +44,8 @@ toMode,
 basePenta,
 sortPcSet,
 fromChord,
+rootNoteFromChord,
+bassNoteFromChord,
 progRoots',
 toEnhTriad,
 ----------
