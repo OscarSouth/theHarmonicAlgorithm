@@ -179,9 +179,10 @@ choraleData = do
 
 -- |type synonyms for readability
 type Model a = ReaderT MarkovMap IO a -- representation of trained model
-type Enharmonic = String -- representation of enharmonic (♭♯) preference
+type Enharmonic = String -- string reference for representation of enharmonic (♭♯) preference
+type EnharmonicFunction = (PitchClass -> NoteName) -- enharmonic (♭♯) preference function
 type Root = PitchClass -- representation of current root note
-type Filters = ((PitchClass -> NoteName) -> [Chord]) -- partially applied filter results
+type Filters = (EnharmonicFunction -> [Chord]) -- partially applied filter results
 
 
 -- |entry to 'interactive' environment for working with the trained model
@@ -831,7 +832,7 @@ progStringToPat s =
   let pat = Tidal.parseBP_E s
     in Tidal.note pat
 
-
+-- |wrapper for 'progStringToPat' that retrieves a progression and returns a ControlPattern
 progToPatIO :: IO Tidal.ControlPattern
 progToPatIO = do
   r <- prog4
@@ -839,7 +840,7 @@ progToPatIO = do
   let ctrlPat = progStringToPat progString
   return ctrlPat
 
-
+-- |interface for retrieving next choices from graph database
 getNextsFromGraph :: Cadence -> IO [(Cadence, Double)]
 getNextsFromGraph cadence = do
   pipe <- Bolt.connect def { Bolt.version = 3 }
@@ -862,7 +863,8 @@ getNextsFromGraph cadence = do
       return cadenceMap
 
 
-getCadenceOptions :: CadenceState -> Filters -> (PitchClass -> NoteName) -> IO [Cadence]
+-- |takes current state, context and filters and returns a list of potential next Cadences
+getCadenceOptions :: CadenceState -> Filters -> EnharmonicFunction -> IO [Cadence]
 getCadenceOptions (CadenceState (prev, root)) filters enharm = do
   let  hAlgo = (\xs -> [ toCadence (transposeCadence enharm (pitchClass root) prev, nxt)
               | nxt <- xs ]) $ -- ^ Convert list of Chords into Cadences from last state
@@ -877,7 +879,8 @@ getCadenceOptions (CadenceState (prev, root)) filters enharm = do
   return nexts
 
 
-nextCadence :: (PitchClass -> NoteName) -> CadenceState -> Filters -> Double -> IO CadenceState
+-- |performance interface for generating ahead a single step of harmony state
+nextCadence :: EnharmonicFunction -> CadenceState -> Filters -> Double -> IO CadenceState
 nextCadence enharm state context entropy = do
   let fromRoot = rootNote' $ fromCadenceState state
 --  liftIO $ putStrLn $ "prev: " ++ show state
@@ -895,46 +898,39 @@ nextCadence enharm state context entropy = do
   return next
 
 
+
 -- |generate a sequence of CadenceStates from an enharmonic function, init CadenceState, context and entropy
---chainCadence :: Int -> (PitchClass -> NoteName) -> CadenceState -> Filters -> Double -> IO [CadenceState]
+--chainCadence :: Int -> EnharmonicFunction -> CadenceState -> Filters -> Double -> IO [CadenceState]
 --chainCadence len enharm init filters entropy = do
 
-
+type Harmony = IO ([Chord], [Cadence]) -- 'vertical' deterministic slice of context sensitive harmony options
+type Progression = IO ([Chord], [Cadence]) -- 'horizontal' deterministic progression of chained Harmony states
 
 -- |function to retrieve and return random sequence
-cadenceSeq' :: Integral a => (PitchClass -> NoteName) -> CadenceState -> Filters -> [a]
-            -> IO ([Chord], [Cadence])
+cadenceSeq' :: Integral a => EnharmonicFunction -> CadenceState -> Filters -> [a]
+            -> Harmony
 cadenceSeq' _ _ _ [] = return ([], [])
 cadenceSeq' enharm state@(CadenceState (prev, root)) context rns@(x:xs) = do
   let x' = fromIntegral x
   let rootPC = pitchClass root
---  liftIO $ print $ "rootPC: " ++ show rootPC
   nexts <- getCadenceOptions state context enharm
---  mapM_ print nexts
   let next = if x' >= length nexts then last nexts else nexts!!x'
---  let next = nexts!!x'
       triad = transposeCadence enharm rootPC prev
       root' = rootPC + movementFromCadence next
---  liftIO $ print $ "x': " ++ show x'
---  liftIO $ print $ "root': " ++ show root'
---  liftIO $ print $ "triad: " ++ show triad
---  liftIO $ print $ "next: " ++ show next
   let nextState = CadenceState (next, enharm root')
---  liftIO $ print $ "nextState: " ++ show nextState
   nextsRecurse <- cadenceSeq' enharm nextState context xs
   return (triad : fst nextsRecurse, prev : snd nextsRecurse)
---  return (triad : fst nextsRecurse, prev : snd nextsRecurse)
 
 ---- |mapping from prev Cadence and Pitchclass into current Chord with transposition
---transposeCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord
+--transposeCadence :: EnharmonicFunction -> PitchClass -> Cadence -> Chord
 --transposeCadence f root (Cadence (_,(_,tones))) =
 --  (toTriad f) $ i . (+ root) <$> tones
 
 -- Progression datatype with show instance?
 
--- |generate a sequence of cadence transitions
-chainCadence :: (PitchClass -> NoteName) -> CadenceState -> Filters -> Double -> Double
-             -> IO ([Chord], [Cadence])
+-- |performance interface for generating a sequence of harmony states
+chainCadence :: EnharmonicFunction -> CadenceState -> Filters -> Double -> Double
+             -> Progression
 chainCadence enharm state context len entropy = do
   liftIO $ putStr "composing .."
   rns               <- gammaGen (max 2 (min 16 len)) entropy
@@ -961,6 +957,7 @@ chainCadence enharm state context len entropy = do
 --                      (init . init . init <$> (fmap concat <$> chunksOf 4 $
 --                      zipWith (++) chordLists listLines))
 --  liftIO $ putStr lists >> putStrLn "|\n"
+
 
 harmony progression = do
   chords <- fromChord <$> fst progression
