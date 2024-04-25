@@ -76,15 +76,15 @@ parseKey' n str = unique $ pitchList n str []
 
 -- |mapping from String to Integral list representing fundamental tones
 parseFunds' :: (Num a, Integral a) => Int -> String -> [a]
-parseFunds' n str = unique $ pitchList n str []
+parseFunds' n string = unique $ pitchList n string []
   where
     pitchList n str =
       let
         xs = words $ Char.toLower <$> str
-        k n = ((`mod`12) . (+n*5 `mod` 12) <$> [0,2,4,5,7,9,11])
-        ys ?? z = if any (`elem` ys) $ xs
-                  then (mappend z)
-                  else (mappend mempty)
+        k transpose = ((`mod`12) . (+transpose*5 `mod` 12) <$> [0,2,4,5,7,9,11])
+        ys ?? z = if any (`elem` ys) xs
+                  then mappend z
+                  else mappend mempty -- make same syntax fixes to other functions
         chain =
           [["*","all","chr"]?? [0..11]
           ,["c","b#","dbb"]?? [0]
@@ -102,8 +102,8 @@ parseFunds' n str = unique $ pitchList n str []
           ,["0b","0#","0"]?? k 0
           ,["1b","11#","###########"]?? k 1
           ,["2b","10#","##########"]?? k 2
-          ,["4b","bbbb","8#","########"]?? k 4
           ,["3b","bbb","9#","#########"]?? k 3
+          ,["4b","bbbb","8#","########"]?? k 4
           ,["5b","bbbbb","7#","#######"]?? k 5
           ,["6b","bbbbbb","6#","######"]?? k 6
           ,["7b","bbbbbbb","5#","#####"]?? k 7
@@ -205,7 +205,7 @@ chordList' n roots overtones f =
 -- |helper to generate the 'chordList' function in the interpreter
 harmonicContext :: String -> String -> String -> ((PitchClass -> NoteName) -> [Chord])
 harmonicContext tuning key funds =
-  let overtones = parseNotes tuning
+  let overtones = parseOvertones tuning
       structures = filter (\x -> x `elem` parseKey key) overtones
       roots = parseFunds funds
    in chordList' 3 roots structures

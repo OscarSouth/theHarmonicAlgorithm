@@ -772,11 +772,10 @@ fromChord (Chord (_,xs)) = fromIntegral . toInteger <$> xs
 -- |extract root note from a chord
 rootNoteFromChord :: Chord -> NoteName
 rootNoteFromChord (Chord ((n,_),_)) = n
-  
+
 -- |extract bass note from a chord
 --bassNoteFromChord :: (Integral a, Num a) => Chord -> a
 bassNoteFromChord (Chord ((_,_),xs)) = head xs
-
 
 --bassNoteFromChord (Chord ((n,_),_)) = n
 

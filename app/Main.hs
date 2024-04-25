@@ -14,7 +14,7 @@ import qualified Language.R.QQ        as QQ
 
 import qualified Data.Char            as Char (isAlphaNum, toLower)
 import           Data.Function        (on)
-import qualified Data.List            as List (sortBy, zip4, zip5, isInfixOf, (\\))
+import qualified Data.List            as List (sort, sortBy, zip4, zip5, isInfixOf, (\\))
 import           Data.Map             (Map)
 import qualified Data.Map             as Map (toList, fromList, lookup, keys, assocs)
 import           Data.Maybe           (fromMaybe)
@@ -898,7 +898,6 @@ nextCadence enharm state context entropy = do
   return next
 
 
-
 -- |generate a sequence of CadenceStates from an enharmonic function, init CadenceState, context and entropy
 --chainCadence :: Int -> EnharmonicFunction -> CadenceState -> Filters -> Double -> IO [CadenceState]
 --chainCadence len enharm init filters entropy = do
@@ -958,18 +957,52 @@ chainCadence enharm state context len entropy = do
 --                      zipWith (++) chordLists listLines))
 --  liftIO $ putStr lists >> putStrLn "|\n"
 
+-- |order the notes of a chord suitable for patterning
+orderChord :: [Int] -> [Int]
+orderChord [] = []
+orderChord (x:xs) = x : List.sort (map (\y -> if y < x then y + 12 else y) xs)
 
+-- |extract and order the harmony from a progression
+--harmony :: ([Chord], [Cadence]) -> IO [[Int]]
+--harmony progression = do
+--  chords <- orderChord . fromChord <$> fst progression
+--  return chords
+
+-- |extract the bass notes from a progression
+--bass :: ([Chord], [Cadence]) -> IO [[Int]]
+--bass progression = do
+--  chords <- (:[]) . head . fromChord <$> fst progression
+--  return chords
+
+harmony :: ([Chord], [Cadence]) -> IO [[Int]]
 harmony progression = do
-  chords <- fromChord <$> fst progression
+  chords <- map (orderChord . fromChord) <$> pure (fst progression)
   return chords
 
+bass :: ([Chord], [Cadence]) -> IO [[Int]]
+bass progression = do
+  chords <- map ((:[]) . head . fromChord) <$> pure (fst progression)
+  return chords
+
+
 --cadence :: Int  -> ([Chord], [Cadence]) -> [NoteName]
-cadence bar progression = do
-  cadences <- snd progression
-  chords <- fst progression
-  roots <- bassNoteFromChord <$> fst progression
-  return roots
+
 
 --  let cadence = cadences!!(bar+1) -- make it impossible to go over or under?
 
 -- instance to read CadenceState?
+
+-- |extract a slice of a cadence between 2 bars (inclusive)
+sliceCadence :: ([Chord], [Cadence]) -> Int -> Int -> ([Chord], [Cadence])
+sliceCadence (chords, cadences) s e =
+  let (start, end) = (s-1, e-1)
+      sliceCadences = take (end - start + 1) $ drop start cadences
+      sliceChords = take (end - start + 1) $ drop start chords
+  in (sliceChords, sliceCadences)
+
+--getCadenceState :: ([Chord], [Cadence]) -> Int -> CadenceState
+--getCadenceState (chords, cadences) index = 
+--  let cadence = cadences !! index
+--      chord = chords !! index
+--      root = rootNote' chord
+--  in CadenceState (cadence, root)
