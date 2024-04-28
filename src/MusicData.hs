@@ -645,6 +645,18 @@ initCadenceState movement note quality =
 cadenceStateEnharm :: (PitchClass -> NoteName) -> CadenceState -> CadenceState
 cadenceStateEnharm f (CadenceState (c, root)) = CadenceState (c, f $ pitchClass root)
 
+-- |extract a cadence state from specified index of a Progression
+getCadenceState :: Progression -> Int -> CadenceState
+getCadenceState (Progression (chords, cadences, enharms)) index =
+  let
+    index' = index - 1
+    cadence = cadences !! index'
+    chord = chords !! index'
+    enharm = enharms !! index'
+    rootPitch = rootNote' chord
+    rootNote = enharm rootPitch
+  in CadenceState (cadence, rootNote)
+
 -- |data type representing a chain of cadences with absolute pitch values
 newtype Progression = Progression ([Chord], [Cadence], [EnharmonicFunction])
 --newtype Progression' = Progression' ((PitchClass -> NoteName), ([Chord], [Cadence]))
@@ -661,25 +673,45 @@ instance Show Progression where
         chordLines        = (++"|   ") . concat . (`replicate`" ") .
                             ((14-) . length) <$> showChords
         fours enharm      = concat $ zipWith (++)
-                            ["\n    1   ||   ", "\n   5    |   ", "\n   9    |   ", "\n   13   |   "]
+                            ["\n    1   ||   ", "\n   5    |   ", "\n   9    |   ", "\n   13   |   "] -- extened to infinite
                             (init . init . init <$> (fmap concat <$> chunksOf 4 $
                             zipWith (++) showChords chordLines))
-                            
-initProgression :: [Cadence] -> EnharmonicFunction -> Progression
-initProgression cadences enharm = Progression (chords, cadences, enharm)
+
+initProgression :: EnharmonicFunction -> ([Chord], [Cadence]) -> Progression
+initProgression enharm (chords, cadences) =
+  let nCadences = length cadences
+      enharms = replicate nCadences enharm
+   in Progression (chords, cadences, enharms)
+
+initProgression' :: ([Chord], [Cadence], [EnharmonicFunction]) -> Progression
+initProgression' (chords, cadences, enharms) = Progression (chords, cadences, enharms)
 
 -- |take a list of multiple Progressions and fuse into single Progression
-progression :: [Progression] -> Progression
-progression ps = Progression (chords, cadences, enharm)
+chainProgression :: [Progression] -> Progression
+chainProgression ps = Progression (chords, cadences, enharms)
   where
     chords     = concat $ (\(Progression (t,_,_)) -> t) <$> ps
     cadences   = concat $ (\(Progression (_,t,_)) -> t) <$> ps
-    enharm     = concat $ (\(Progression (_,_,t)) -> t) <$> ps
+    enharms    = concat $ (\(Progression (_,_,t)) -> t) <$> ps
+
+-- |extract a slice of a cadence between 2 bars (inclusive)
+sliceProgression :: Progression -> Int -> Int -> Progression
+sliceProgression (Progression (chords, cadences, enharm)) s e =
+  let (start, end) = (s-1, e-1)
+      sliceCadences = take (end - start + 1) $ drop start cadences
+      sliceChords = take (end - start + 1) $ drop start chords
+      sliceEnharm = take (end - start + 1) $ drop start enharm
+  in initProgression' (sliceChords, sliceCadences, sliceEnharm)
+
+-- |order the notes of a chord suitable for patterning
+orderVoicing :: [Int] -> [Int]
+orderVoicing [] = []
+orderVoicing (x:xs) = x : List.sort (map (\y -> if y < x then y + 12 else y) xs)
 
 -- |mapping from possible Cadence and Pitchclass into next Chord with transposition
-fromCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord
+fromCadence :: EnharmonicFunction -> PitchClass -> Cadence -> Chord
 fromCadence f root c@(Cadence (_,(_,tones))) =
-  (toTriad f) $ i . (+ movementFromCadence c) . (+ root) <$> tones
+  toTriad f $ i . (+ movementFromCadence c) . (+ root) <$> tones
 
 -- |mapping from possible Cadence and int into next Chord with transposition
 fromCadence' :: (Num a, Integral a) => a -> Cadence -> [a]
@@ -860,7 +892,8 @@ basePenta pcs  =
 
 isContainedIn :: (Eq a) => [a] -> [a] -> Bool
 isContainedIn ps0 ps1 = all (`elem` ps1) ps0
-  -- w [ ((sortPcSet ps, ys), (`List.isInfixOf` ys) xs) | xs <- choose 4 (sortPcSet ps), ys <- majorPentaChr ++ okinaPentaChr ++ iwatoPentaChr ]
+  -- w [ ((sortPcSet ps, ys), (`List.isInfixOf` ys) xs) | xs <- choose 4 (sortPcSet ps),
+  -- ys <- majorPentaChr ++ okinaPentaChr ++ iwatoPentaChr ]
 
 sortPcSet :: (Num a, Integral a) => [a] -> [a]
 sortPcSet pcs = head ps : (List.sort $ tail ps)
