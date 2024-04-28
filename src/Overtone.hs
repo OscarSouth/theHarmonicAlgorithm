@@ -206,6 +206,7 @@ chordList' n roots overtones f =
 harmonicContext :: String -> String -> String -> ((PitchClass -> NoteName) -> [Chord])
 harmonicContext tuning key funds =
   let overtones = parseOvertones tuning
-      structures = filter (\x -> x `elem` parseKey key) overtones
+--      structures = filter (\x -> x `elem` parseKey key) overtones
+      structures = filter (\x -> x `elem` parseFunds key) overtones
       roots = parseFunds funds
    in chordList' 3 roots structures

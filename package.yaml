@@ -1,10 +1,10 @@
 name:                theHarmonicAlgorithm
-version:             1.0.1.0
+version:             2.0.0
 github:              "OscarSouth/theHarmonicAlgorithm"
 license:             BSD3
 author:              "Oscar South"
 maintainer:          "info@oscarsouth.com"
-copyright:           "2018 (c) Oscar South"
+copyright:           "2024 (c) Oscar South"
 
 extra-source-files:
 - README.md

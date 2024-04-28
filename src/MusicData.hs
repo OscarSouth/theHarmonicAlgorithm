@@ -10,12 +10,13 @@ import           Data.Maybe      (fromMaybe)
 import           Data.Set        (Set)
 import           GHC.Base        (modInt, quotInt, remInt)
 import           GHC.Real        ((%))
-import           Data.List.Split (splitOn)
+import           Data.List.Split (splitOn, chunksOf)
 
 import qualified Data.Char     as Char (isAlphaNum)
 import qualified Data.List     as List (concat, isInfixOf, reverse, sort,
                                         sortBy, intersect)
 import qualified Data.Set      as Set (fromList, toList)
+
 
 -- |newtype defining PitchClass
 newtype PitchClass = P Int deriving (Ord, Eq, Show, Read)
@@ -122,6 +123,9 @@ instance Show NoteName where
   show A' = "A#"
   show Bb = "Bb"
   show B  = "B"
+
+-- |enharmonic (♭♯) preference function
+type EnharmonicFunction = (PitchClass -> NoteName)
 
 -- |helper function for reading in NoteName data
 readNoteName  :: String -> NoteName
@@ -522,6 +526,8 @@ instance Show Transition where
   show (Transition ((prv, new), (dist, ps))) =
     show dist ++ " (" ++ prv ++ " -> " ++ new ++ ")"
 
+-- generate a secondary transition graph?
+
 -- |concrete representation of movement by a musical interval
 data Movement = Asc PitchClass | Desc PitchClass | Unison | Tritone | Empty
   deriving (Ord, Eq)
@@ -606,37 +612,6 @@ toCadence :: (Chord, Chord) -> Cadence
 toCadence ((Chord ((_, _), from@(x:_))), (Chord ((_, new), to@(y:_)))) =
   Cadence (new, (toMovement x y, zeroForm to))
 
----- |absolute representation of a point in a harmonic chain
---type CadenceState = (Cadence, NoteName)
---
----- |interaction friendly interface to initialise a CadenceState
---initCadenceState :: (Integral a, Num a) => a -> String -> [a] -> CadenceState
---initCadenceState movement note quality =
---  let approach = toMovement 0 movement
---      from     = toTriad flat [0]
---      to       = toTriad flat $ (+ fromMovement' approach) <$> zeroForm quality
---      root = readNoteName note
---   in (toCadence (from, to), root)
---
----- |print CadenceState in a user readable way
---showCadenceState :: CadenceState -> String
---showCadenceState state@(c, root) =
---    "( "
---      ++ show (toMovement 0 $ movementFromCadence' c) ++
---    " -> "
---      ++ show (fromCadenceState state) ++
---    " )"
---
----- |mapping from CadenceState into Chord
---fromCadenceState :: CadenceState -> Chord
---fromCadenceState (c@(Cadence (_,(_,tones))), root) =
---  let enharm = enharmFromNoteName root
---   in (toTriad enharm) $ i . (+ (pitchClass root)) <$> tones
---
----- |mapping from CadenceState into another CadenceState with different enharmonic
---cadenceStateEnharmonic :: (PitchClass -> NoteName) -> CadenceState -> CadenceState
---cadenceStateEnharmonic f (c, root) = (c, f $ pitchClass root)
-
 -- |absolute representation of a point in a harmonic chain
 newtype CadenceState = CadenceState (Cadence, NoteName)
 
@@ -669,6 +644,37 @@ initCadenceState movement note quality =
 -- |mapping from CadenceState into another CadenceState with different enharmonic
 cadenceStateEnharm :: (PitchClass -> NoteName) -> CadenceState -> CadenceState
 cadenceStateEnharm f (CadenceState (c, root)) = CadenceState (c, f $ pitchClass root)
+
+-- |data type representing a chain of cadences with absolute pitch values
+newtype Progression = Progression ([Chord], [Cadence], [EnharmonicFunction])
+--newtype Progression' = Progression' ((PitchClass -> NoteName), ([Chord], [Cadence]))
+
+-- |Show instance for Progression
+instance Show Progression where
+  show (Progression (chords, cadences, enharm)) =
+    fours enharm ++ "|"
+      where
+--        showChords enharm = showTriad enharm <$> chords
+--        chordLen          = length $ showChords enharm :: Int
+        showChords        = zipWith showTriad enharm chords
+        chordLen          = length showChords :: Int
+        chordLines        = (++"|   ") . concat . (`replicate`" ") .
+                            ((14-) . length) <$> showChords
+        fours enharm      = concat $ zipWith (++)
+                            ["\n    1   ||   ", "\n   5    |   ", "\n   9    |   ", "\n   13   |   "]
+                            (init . init . init <$> (fmap concat <$> chunksOf 4 $
+                            zipWith (++) showChords chordLines))
+                            
+initProgression :: [Cadence] -> EnharmonicFunction -> Progression
+initProgression cadences enharm = Progression (chords, cadences, enharm)
+
+-- |take a list of multiple Progressions and fuse into single Progression
+progression :: [Progression] -> Progression
+progression ps = Progression (chords, cadences, enharm)
+  where
+    chords     = concat $ (\(Progression (t,_,_)) -> t) <$> ps
+    cadences   = concat $ (\(Progression (_,t,_)) -> t) <$> ps
+    enharm     = concat $ (\(Progression (_,_,t)) -> t) <$> ps
 
 -- |mapping from possible Cadence and Pitchclass into next Chord with transposition
 fromCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord

@@ -1,19 +1,19 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.35.0.
+-- This file has been generated from package.yaml by hpack version 0.36.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0a8e553f8455135d8954e3d3fff3299e302ce5998f581aa68f16afd45047975b
+-- hash: a034e38c2f23afb0f18f44e2be29179ad46f5499e8248145cf52905fe1819b22
 
 name:           theHarmonicAlgorithm
-version:        1.0.1.0
+version:        2.0.0
 description:    Please see the README on GitHub at <https://github.com/OscarSouth/theHarmonicAlgorithm#readme>
 homepage:       https://github.com/OscarSouth/theHarmonicAlgorithm#readme
 bug-reports:    https://github.com/OscarSouth/theHarmonicAlgorithm/issues
 author:         Oscar South
 maintainer:     info@oscarsouth.com
-copyright:      2018 (c) Oscar South
+copyright:      2024 (c) Oscar South
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
