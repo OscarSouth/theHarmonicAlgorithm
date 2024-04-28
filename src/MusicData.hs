@@ -661,22 +661,40 @@ getCadenceState (Progression (chords, cadences, enharms)) index =
 newtype Progression = Progression ([Chord], [Cadence], [EnharmonicFunction])
 --newtype Progression' = Progression' ((PitchClass -> NoteName), ([Chord], [Cadence]))
 
+---- |Show instance for Progression
+--instance Show Progression where
+--  show (Progression (chords, cadences, enharm)) =
+--    fours enharm ++ "|"
+--      where
+----        showChords enharm = showTriad enharm <$> chords
+----        chordLen          = length $ showChords enharm :: Int
+--        showChords        = zipWith showTriad enharm chords
+--        chordLen          = length showChords :: Int
+--        chordLines        = (++"|   ") . concat . (`replicate`" ") .
+--                            ((14-) . length) <$> showChords
+--        fours enharm      = concat $ zipWith (++)
+--                            ["\n    1   ||   ", "\n   5    |   ", "\n   9    |   ", "\n   13   |   "] -- extened to infinite
+--                            (init . init . init <$> (fmap concat <$> chunksOf 4 $
+--                            zipWith (++) showChords chordLines))
+
 -- |Show instance for Progression
 instance Show Progression where
   show (Progression (chords, cadences, enharm)) =
-    fours enharm ++ "|"
-      where
---        showChords enharm = showTriad enharm <$> chords
---        chordLen          = length $ showChords enharm :: Int
-        showChords        = zipWith showTriad enharm chords
-        chordLen          = length showChords :: Int
-        chordLines        = (++"|   ") . concat . (`replicate`" ") .
-                            ((14-) . length) <$> showChords
-        fours enharm      = concat $ zipWith (++)
-                            ["\n    1   ||   ", "\n   5    |   ", "\n   9    |   ", "\n   13   |   "] -- extened to infinite
-                            (init . init . init <$> (fmap concat <$> chunksOf 4 $
-                            zipWith (++) showChords chordLines))
+    let
+      showChords        = zipWith showTriad enharm chords
+      chordLen          = length showChords :: Int
+      chordLines        = (++"|   ") . concat . (`replicate`" ") .
+                          ((14-) . length) <$> showChords
+      fours enharm      = concat $ zipWith (++)
+                          ["\n    1   ||   ", "\n   5    |   ", "\n   9    |   ", "\n   13   |   ",
+                           "\n   17   |   ", "\n   21   |   ", "\n   25   |   ", "\n   29   |   ",
+                           "\n   33   |   ", "\n   37   |   ", "\n   41   |   ", "\n   45   |   ",
+                           "\n   49   |   ", "\n   53   |   ", "\n   57   |   ", "\n   61   |   "]
+                          (init . init . init <$> (fmap concat <$> chunksOf 4 $
+                          zipWith (++) showChords chordLines))
+     in fours enharm ++ "|"
 
+-- |instantiate a Progression from a list of Chords and Cadences and as single enharmonic function
 initProgression :: EnharmonicFunction -> ([Chord], [Cadence]) -> Progression
 initProgression enharm (chords, cadences) =
   let nCadences = length cadences
@@ -703,10 +721,32 @@ sliceProgression (Progression (chords, cadences, enharm)) s e =
       sliceEnharm = take (end - start + 1) $ drop start enharm
   in initProgression' (sliceChords, sliceCadences, sliceEnharm)
 
+-- |smoothBass is a function which takes a stucture such as [[8,12,15],[1,5,8],[0,5,8],[10,15,19]]
+--  nd makes the distance between `mod` 12 of the first element as the shortest distance from
+-- the first element of the previous list by subtracting or adding 12 to every item in the list
+smoothBass :: (Integral a, Num a) => [[a]] -> [[a]]
+smoothBass xs = foldl (\acc x -> acc ++ [smoothBass' (last acc) x]) [xs!!0] (tail xs)
+  where
+    smoothBass' prev x
+      | x!!0 - (head prev) > 6 = fmap (\y -> y - 12) x
+      | x!!0 - (head prev) < -6 = fmap (\y -> y + 12) x
+      | otherwise = x
+
+-- | function which subtracts 12 from all elements of all lists if the first element of the first list is >= 6
+normaliseRegister :: (Integral a, Num a) => [[a]] -> [[a]]
+normaliseRegister xs
+  | xs!!0!!0 >= 6 = fmap (\x -> fmap (\y -> y - 12) x) xs
+  | otherwise = xs
+
 -- |order the notes of a chord suitable for patterning
-orderVoicing :: [Int] -> [Int]
+orderVoicing :: (Integral a, Num a) => [a] -> [a]
 orderVoicing [] = []
 orderVoicing (x:xs) = x : List.sort (map (\y -> if y < x then y + 12 else y) xs)
+
+-- |extract the harmony from a Progression suitable for applying to patterns with `toScale`
+harmony :: (Integral a, Num a) => Progression -> [[a]]
+--harmony (Progression (chords,_,_)) = normaliseRegister $ smoothBass $ (orderVoicing . fromChord <$> chords)
+harmony (Progression (chords,_,_)) = (orderVoicing . fromChord <$> chords)
 
 -- |mapping from possible Cadence and Pitchclass into next Chord with transposition
 fromCadence :: EnharmonicFunction -> PitchClass -> Cadence -> Chord
@@ -732,7 +772,7 @@ constructCadence (m,c) =
    in Cadence (functionality, (movement, chord))
 
 -- |mapping from prev Cadence and Pitchclass into current Chord with transposition
-transposeCadence :: (PitchClass -> NoteName) -> PitchClass -> Cadence -> Chord
+transposeCadence :: EnharmonicFunction -> PitchClass -> Cadence -> Chord
 transposeCadence f root (Cadence (_,(_,tones))) =
   (toTriad f) $ i . (+ root) <$> tones
 
@@ -743,7 +783,6 @@ rootNote (Chord ((x, _),_)) = x
 -- |mapping from Chord the root note of that chord
 rootNote' :: Chord -> PitchClass
 rootNote' (Chord (_,(x:_))) = pc x
-
 
 ---------------------------
 -- #### ADDITIONS #### ----
