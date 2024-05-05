@@ -14,7 +14,8 @@ import           Data.List.Split (splitOn, chunksOf)
 
 import qualified Data.Char     as Char (isAlphaNum)
 import qualified Data.List     as List (concat, isInfixOf, reverse, sort,
-                                        sortBy, intersect)
+                                        sortBy, intersect, nub, unzip3,
+                                        drop, cycle, zip3, zip, elemIndex)
 import qualified Data.Set      as Set (fromList, toList)
 
 
@@ -659,23 +660,6 @@ getCadenceState (Progression (chords, cadences, enharms)) index =
 
 -- |data type representing a chain of cadences with absolute pitch values
 newtype Progression = Progression ([Chord], [Cadence], [EnharmonicFunction])
---newtype Progression' = Progression' ((PitchClass -> NoteName), ([Chord], [Cadence]))
-
----- |Show instance for Progression
---instance Show Progression where
---  show (Progression (chords, cadences, enharm)) =
---    fours enharm ++ "|"
---      where
-----        showChords enharm = showTriad enharm <$> chords
-----        chordLen          = length $ showChords enharm :: Int
---        showChords        = zipWith showTriad enharm chords
---        chordLen          = length showChords :: Int
---        chordLines        = (++"|   ") . concat . (`replicate`" ") .
---                            ((14-) . length) <$> showChords
---        fours enharm      = concat $ zipWith (++)
---                            ["\n    1   ||   ", "\n   5    |   ", "\n   9    |   ", "\n   13   |   "] -- extened to infinite
---                            (init . init . init <$> (fmap concat <$> chunksOf 4 $
---                            zipWith (++) showChords chordLines))
 
 -- |Show instance for Progression
 instance Show Progression where
@@ -721,16 +705,32 @@ sliceProgression (Progression (chords, cadences, enharm)) s e =
       sliceEnharm = take (end - start + 1) $ drop start enharm
   in initProgression' (sliceChords, sliceCadences, sliceEnharm)
 
+-- |take a single CadenceStates and convert it into a Progression
+toProgression :: CadenceState -> Progression
+toProgression (CadenceState (c, root)) =
+  Progression ([fromCadenceState (CadenceState (c, root))], [c], [enharmFromNoteName root])
+
+-- |rotate a Progression by a specified amount
+rotateProgression :: Int -> Progression -> Progression
+rotateProgression n (Progression (chords, cadences, enharm)) =
+  let n' = (length chords) - n `mod` (length chords)
+      (startChords, endChords) = splitAt n' chords
+      (startCadences, endCadences) = splitAt n' cadences
+      (startEnharm, endEnharm) = splitAt n' enharm
+   in Progression (endChords ++ startChords,
+                   endCadences ++ startCadences,
+                   endEnharm ++ startEnharm)
+
 -- |smoothBass is a function which takes a stucture such as [[8,12,15],[1,5,8],[0,5,8],[10,15,19]]
---  nd makes the distance between `mod` 12 of the first element as the shortest distance from
+-- and makes the distance between `mod` 12 of the first element as the shortest distance from
 -- the first element of the previous list by subtracting or adding 12 to every item in the list
 smoothBass :: (Integral a, Num a) => [[a]] -> [[a]]
 smoothBass xs = foldl (\acc x -> acc ++ [smoothBass' (last acc) x]) [xs!!0] (tail xs)
   where
-    smoothBass' prev x
-      | x!!0 - (head prev) > 6 = fmap (\y -> y - 12) x
-      | x!!0 - (head prev) < -6 = fmap (\y -> y + 12) x
-      | otherwise = x
+    smoothBass' prev xs'
+      | xs'!!0 - (head prev) > 6 = fmap (\x -> x - 12) xs'
+      | xs'!!0 - (head prev) < -6 = fmap (\x -> x + 12) xs'
+      | otherwise = xs'
 
 -- | function which subtracts 12 from all elements of all lists if the first element of the first list is >= 6
 normaliseRegister :: (Integral a, Num a) => [[a]] -> [[a]]
@@ -743,10 +743,32 @@ orderVoicing :: (Integral a, Num a) => [a] -> [a]
 orderVoicing [] = []
 orderVoicing (x:xs) = x : List.sort (map (\y -> if y < x then y + 12 else y) xs)
 
+-- |extracts the version of the chord with the smallest distance between upper and lower pitches
+compactForm   :: (Integral a, Num a) => [a] -> [a]
+compactForm xs =
+  let inversions = normaliseRegister $ smoothBass $ (orderVoicing <$> simpleInversions' xs)
+      distances  = (\x -> (last x) - (head x)) <$> inversions
+      minDist    = minimum distances
+      index      = fromMaybe 0 $ List.elemIndex minDist distances
+    in inversions !! index
+
+-- |orders the notes of the chords in the normal form (closest configuration)
+closeVoicing :: (Integral a, Num a) => Progression -> [[a]]
+closeVoicing (Progression (chords,_,_)) =
+  normaliseRegister $ smoothBass $ fmap compactForm $ fromChord <$> chords
+
 -- |extract the harmony from a Progression suitable for applying to patterns with `toScale`
 harmony :: (Integral a, Num a) => Progression -> [[a]]
---harmony (Progression (chords,_,_)) = normaliseRegister $ smoothBass $ (orderVoicing . fromChord <$> chords)
-harmony (Progression (chords,_,_)) = (orderVoicing . fromChord <$> chords)
+harmony (Progression (chords,_,_)) =
+  normaliseRegister $ smoothBass $ (orderVoicing . fromChord <$> chords)
+
+-- |extract the composite scale from a Progression suitable for applying to patterns with `toScale`
+chordScale :: (Integral a, Num a) => Progression -> [a]
+chordScale (Progression (chords,_,_)) = List.sort $ List.nub $ concat $ fromChord <$> chords
+
+-- |mapping from sets of fundamentals and overtones into viable composite sets
+scaleSets     :: (Integral a, Num a) => [a] -> [[a]]
+scaleSets ps = [ j | j <- List.sort <$> (choose $ 7) ps]
 
 -- |mapping from possible Cadence and Pitchclass into next Chord with transposition
 fromCadence :: EnharmonicFunction -> PitchClass -> Cadence -> Chord
