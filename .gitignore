@@ -2,4 +2,5 @@
 .stack-work
 .vscode
 out/
+data/
 theHarmonicAlgorithm.iml

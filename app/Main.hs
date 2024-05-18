@@ -608,29 +608,68 @@ bachData = R.runRegion $ do
                  )
                )
 
-bach <-
-  bach %>%
-    select(seq, event, fund, acc, label) %>%
-    add_column(pitch = bach %>%
-                 select(`0`:`11`) %>%
-                 t() %>%
-                 as.data.frame() %>%
-                 unname() %>%
-                 map(function(x) str_which(x, "YES")-1)
-              )
+    bach <-
+      bach %>%
+        select(seq, event, fund, acc, label) %>%
+        add_column(pitch = bach %>%
+                     select(`0`:`11`) %>%
+                     t() %>%
+                     as.data.frame() %>%
+                     unname() %>%
+                     map(function(x) str_which(x, "YES")-1)
+                  )
 
-bachMatrix <<-
-  reduce(bach$pitch,
-         rbind,
-           matrix(,0,bach$pitch %>%
-                     map(length) %>%
-                     rapply(c) %>%
-                     max()
-                 )
-         ) %>%
-  unname()
+    bachMatrix <<-
+      reduce(bach$pitch,
+             rbind,
+               matrix(,0,bach$pitch %>%
+                         map(length) %>%
+                         rapply(c) %>%
+                         max()
+                     )
+             ) %>%
+      unname()
 
-bachFund <<- bach$fund
+    bachFund <<- bach$fund
+
+    |]
+  return ()
+
+-- |R script to ingest and process raw data to be passed to Haskell
+pitchData :: IO ()
+pitchData = R.runRegion $ do
+  [QQ.r|
+
+    pitchMatrix <- 
+      unname(
+        as.matrix(
+          read.csv("/home/oscarsouth/.stack/global-project/data/pitchMatrix.csv")
+        )
+      )
+
+    fund <- read.csv("/home/oscarsouth/.stack/global-project/data/fund.csv")
+    
+    pitchMatrix <<- unname(pitchMatrix) # 6215684
+
+    fund <<- unname(fund) # 6215684
+
+    |]
+  return ()
+  
+-- |R script to remove unneeded data from memory
+pitchData :: IO ()
+pitchData = R.runRegion $ do
+  [QQ.r|
+
+    if (exists("pitchMatrix", envir = .GlobalEnv)) {
+      rm(pitchMatrix, envir = .GlobalEnv)
+    }
+    
+    if (exists("fund", envir = .GlobalEnv)) {
+      rm(fund, envir = .GlobalEnv)
+    }
+    
+    gc()
 
     |]
   return ()
