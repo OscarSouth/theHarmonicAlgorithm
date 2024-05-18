@@ -58,6 +58,7 @@ main = do
       R.withEmbeddedR R.defaultConfig $ do
         initR -- load R libraries & settings, initialise R log, print info to stout
         model <- choraleData -- compute and bind trained model
+        cleanEnvironmentR -- remove unneeded data from R environment
         pipe <- Bolt.connect $ def { Bolt.version = 3 }
         Bolt.run pipe initGraph
         forM_ (Map.keys model) (\keys -> Bolt.run pipe $ cadenceToNode keys)
@@ -153,17 +154,49 @@ modelFromGraph = do
   return model
 
 
+---- |script directing process of loading & transforming data then training model
+--choraleData :: IO MarkovMap
+--choraleData = do
+--  uciRef -- print dataset source reference
+----  bachData -- execute R script to preprocess data
+--  pitchData -- execute R script to load extended dataset
+--  chFunds <- bachFundamental -- retrieve and bind R column of fundamental notes
+--  x1 <- fromRMatrix 1 -- retrieve and bind columns from R matrix
+--  x2 <- fromRMatrix 2 -- |
+--  x3 <- fromRMatrix 3 -- |
+--  x4 <- fromRMatrix 4 -- |
+--  x5 <- fromRMatrix 5 -- V
+--  let model = markovMap $ -- call Markov module to train model
+--        fmap toCadence <$> -- map bigram sets into Cadence data types
+--        bigrams $ -- combine chords into sequential bigrams
+--        flatTriad . -- convert to 'Chord' data type
+--        mostConsonant . possibleTriads'' <$> -- derive most suitable triad
+--        filter (\(_, ys) -> length ys >= 3) ( -- remove sets of less than 3
+--        zip chFunds $ -- zip with fundamentals R column
+--        fmap round . unique <$> -- remove duplicate elems . convert to Integer
+--        [[a,b,c,d,e] | (a,b,c,d,e) <- List.zip5 x1 x2 x3 x4 x5]
+--        ) -- ^ convert R matrix columns to a list of lists
+--  return model
+
+
 -- |script directing process of loading & transforming data then training model
 choraleData :: IO MarkovMap
 choraleData = do
   uciRef -- print dataset source reference
-  bachData -- execute R script to preprocess data
+  pitchData -- execute R script to load extended dataset
   chFunds <- bachFundamental -- retrieve and bind R column of fundamental notes
   x1 <- fromRMatrix 1 -- retrieve and bind columns from R matrix
-  x2 <- fromRMatrix 2 -- |
-  x3 <- fromRMatrix 3 -- |
-  x4 <- fromRMatrix 4 -- |
-  x5 <- fromRMatrix 5 -- V
+  x2 <- fromRMatrix 2
+  x3 <- fromRMatrix 3
+  x4 <- fromRMatrix 4
+  x5 <- fromRMatrix 5
+  x6 <- fromRMatrix 6
+  x7 <- fromRMatrix 7
+  x8 <- fromRMatrix 8
+  x9 <- fromRMatrix 9
+  x10 <- fromRMatrix 10
+  x11 <- fromRMatrix 11
+  x12 <- fromRMatrix 12
   let model = markovMap $ -- call Markov module to train model
         fmap toCadence <$> -- map bigram sets into Cadence data types
         bigrams $ -- combine chords into sequential bigrams
@@ -172,7 +205,7 @@ choraleData = do
         filter (\(_, ys) -> length ys >= 3) ( -- remove sets of less than 3
         zip chFunds $ -- zip with fundamentals R column
         fmap round . unique <$> -- remove duplicate elems . convert to Integer
-        [[a,b,c,d,e] | (a,b,c,d,e) <- List.zip5 x1 x2 x3 x4 x5]
+        [[a,b,c,d,e,f,g,h,i,j,k,l] | (a,b,c,d,e,f,g,h,i,j,k,l) <- zip12 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12]
         ) -- ^ convert R matrix columns to a list of lists
   return model
 
@@ -619,7 +652,7 @@ bachData = R.runRegion $ do
                      map(function(x) str_which(x, "YES")-1)
                   )
 
-    bachMatrix <<-
+    pitchMatrix <<-
       reduce(bach$pitch,
              rbind,
                matrix(,0,bach$pitch %>%
@@ -630,7 +663,7 @@ bachData = R.runRegion $ do
              ) %>%
       unname()
 
-    bachFund <<- bach$fund
+    fund <<- bach$fund
 
     |]
   return ()
@@ -640,7 +673,7 @@ pitchData :: IO ()
 pitchData = R.runRegion $ do
   [QQ.r|
 
-    pitchMatrix <- 
+    pitchMatrix <-
       unname(
         as.matrix(
           read.csv("/home/oscarsouth/.stack/global-project/data/pitchMatrix.csv")
@@ -648,27 +681,27 @@ pitchData = R.runRegion $ do
       )
 
     fund <- read.csv("/home/oscarsouth/.stack/global-project/data/fund.csv")
-    
+
     pitchMatrix <<- unname(pitchMatrix) # 6215684
 
     fund <<- unname(fund) # 6215684
 
     |]
   return ()
-  
+
 -- |R script to remove unneeded data from memory
-pitchData :: IO ()
-pitchData = R.runRegion $ do
+cleanEnvironmentR :: IO ()
+cleanEnvironmentR = R.runRegion $ do
   [QQ.r|
 
     if (exists("pitchMatrix", envir = .GlobalEnv)) {
       rm(pitchMatrix, envir = .GlobalEnv)
     }
-    
+
     if (exists("fund", envir = .GlobalEnv)) {
       rm(fund, envir = .GlobalEnv)
     }
-    
+
     gc()
 
     |]
@@ -678,14 +711,14 @@ pitchData = R.runRegion $ do
 -- |helper function to extract R matrix column from R and deliver to Haskell
 fromRMatrix  :: Double -> IO [Double]
 fromRMatrix x =
-  let rData x = R.fromSomeSEXP <$> [QQ.r| bachMatrix[,x_hs] |]
+  let rData x = R.fromSomeSEXP <$> [QQ.r| pitchMatrix[,x_hs] |]
    in R.runRegion $ rData x
 
 
 -- |helper function to extract vector of fundamental notes from R into Haskell
 bachFundamental  :: IO [String]
 bachFundamental =
-  let rData () = R.fromSomeSEXP <$> [QQ.r| bachFund |]
+  let rData () = R.fromSomeSEXP <$> [QQ.r| fund |]
    in R.runRegion $ rData ()
 
 

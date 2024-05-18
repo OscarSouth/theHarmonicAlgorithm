@@ -104,6 +104,7 @@ harmonicContext,
 ------------
 -- |Utility
 unique,
+zip12
 -- uniqueAnalysis,
 -- |GraphDB
 -- testFunc,

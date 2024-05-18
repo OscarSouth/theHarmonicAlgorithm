@@ -49,6 +49,11 @@ countElem xs x = (length . filter (== x)) xs
 frequency :: (Ord a) => [a] -> [(a, Int)]
 frequency xs = toList (fromListWith (+) [(x, 1) | x <- xs])
 
+-- |definition for zip12
+zip12 :: [a] -> [b] -> [c] -> [d] -> [e] -> [f] -> [g] -> [h] -> [i] -> [j] -> [k] -> [l] -> [(a, b, c, d, e, f, g, h, i, j, k, l)]
+zip12 (a:as) (b:bs) (c:cs) (d:ds) (e:es) (f:fs) (g:gs) (h:hs) (i:is) (j:js) (k:ks) (l:ls) = (a, b, c, d, e, f, g, h, i, j, k, l) : zip12 as bs cs ds es fs gs hs is js ks ls
+zip12 _ _ _ _ _ _ _ _ _ _ _ _ = []
+
 -- uniqueAnalysis :: Analysis -> Analysis
 -- uniqueAnalysis analysis =  analysis
 --   where
