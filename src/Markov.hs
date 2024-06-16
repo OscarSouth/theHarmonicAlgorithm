@@ -16,6 +16,10 @@ import qualified Data.Map.Strict       as Map' (difference, elems, empty,
 import qualified Data.Maybe            as Maybe (fromMaybe)
 import qualified Data.Set              as Set (fromList, size, toList)
 
+import Control.Parallel.Strategies (parMap, rseq)
+import qualified Data.Map.Strict as StrictMap
+import qualified Data.Set as Set
+
 -- |representation of bigrams and containing deterministic cadence sequences
 type Bigram  = (Cadence, Cadence)
 
@@ -57,22 +61,29 @@ cadenceCounts xs      =
   let mInsert acc key = Map'.insertWith (+) key 1 acc
    in foldl mInsert Map'.empty $ bigrams xs
 
--- |mapping from input to counts of cadences, including 'stationary' movements
-transitionCounts       :: [Cadence] -> TransitionCounts
-transitionCounts xs     = mergeMaps (foldl mInsert cadences (Map'.keys diff)) zeros
-  where diff            = Map'.difference zeros cadences
-        zeros           = zeroCounts xs
-        cadences        = cadenceCounts xs
-        mergeMaps m1 m2 = Map'.merge Map'.preserveMissing Map'.preserveMissing
-                          (Map'.zipWithMatched (\k x y -> x)) m1 m2
-        keys k          = [ (fst k, nxt) | nxt <- unique xs ]
-        newKey k        = (fst k, fst k)
-        member k        = sequenceA [ f ks | f <- [Map'.member], ks <- keys k ] (cadences)
-        mInsert acc key
-          | all (\x -> x == False) (member key) == True =
-              Map'.insert (newKey key) 1 acc
-          | otherwise   =
-              Map'.insert key (Maybe.fromMaybe 0 $ Map'.lookup key $ cadences) acc
+---- |mapping from input to counts of cadences, including 'stationary' movements
+--transitionCounts       :: [Cadence] -> TransitionCounts
+--transitionCounts xs     = mergeMaps (foldl mInsert cadences (Map'.keys diff)) zeros
+--  where diff            = Map'.difference zeros cadences
+--        zeros           = zeroCounts xs
+--        cadences        = cadenceCounts xs
+--        mergeMaps m1 m2 = Map'.merge Map'.preserveMissing Map'.preserveMissing
+--                          (Map'.zipWithMatched (\k x y -> x)) m1 m2
+--        keys k          = [ (fst k, nxt) | nxt <- unique xs ]
+--        newKey k        = (fst k, fst k)
+--        member k        = sequenceA [ f ks | f <- [Map'.member], ks <- keys k ] (cadences)
+--        mInsert acc key
+--          | all (\x -> x == False) (member key) == True =
+--              Map'.insert (newKey key) 1 acc
+--          | otherwise   =
+--              Map'.insert key (Maybe.fromMaybe 0 $ Map'.lookup key $ cadences) acc
+
+transitionCounts :: [Cadence] -> TransitionCounts
+transitionCounts xs =
+  let bigrams = parMap rseq (\x -> (x, 1)) $ Markov.bigrams xs
+      bigramMap = StrictMap.fromListWith (+) bigrams
+      zeroCounts = StrictMap.fromList $ zip (pairs xs) (repeat 0)
+  in StrictMap.unionWith (+) bigramMap zeroCounts
 
 -- |helper function for probabilityList which generates probability sublists
 transitionProbs      :: [Cadence] -> [Double] -> [[Double]]

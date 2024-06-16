@@ -4,7 +4,7 @@ cabal-version: 1.12
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: a034e38c2f23afb0f18f44e2be29179ad46f5499e8248145cf52905fe1819b22
+-- hash: b43959fd143e7a806c2802886582320c3aa70548fe522b5591b06ef50f18645e
 
 name:           theHarmonicAlgorithm
 version:        2.0.0
@@ -41,6 +41,7 @@ library
   build-depends:
       base >=4.8 && <5
     , containers
+    , parallel
     , split
   default-language: Haskell2010
 
@@ -60,6 +61,7 @@ executable theHarmonicAlgorithm-exe
     , hasbolt
     , inline-r
     , mtl
+    , parallel
     , split
     , text
     , theHarmonicAlgorithm
@@ -78,5 +80,6 @@ test-suite theHarmonicAlgorithm-test
       QuickCheck
     , base >=4.8 && <5
     , hspec
+    , parallel
     , theHarmonicAlgorithm
   default-language: Haskell2010

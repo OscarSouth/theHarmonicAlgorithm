@@ -376,10 +376,16 @@ possibleTriads' rs ps =
   let fund = (\x -> [x]) . i . readNoteName <$> rs
    in zipWith (overtoneSets 3) fund ps
 
+---- |mapping from tuple of fundamental and overtones into list of viable triads
+--possibleTriads''     :: (Integral a, Num a) => (String, [a]) -> [[a]]
+--possibleTriads'' (r, ps) =
+--  let fund = (\x -> [x]) . i . readNoteName $ r
+--   in overtoneSets 3 fund ps
+
 -- |mapping from tuple of fundamental and overtones into list of viable triads
-possibleTriads''     :: (Integral a, Num a) => (String, [a]) -> [[a]]
+possibleTriads''     :: (Integral a, Num a) => (a, [a]) -> [[a]]
 possibleTriads'' (r, ps) =
-  let fund = (\x -> [x]) . i . readNoteName $ r
+  let fund = (\x -> [x]) . fromIntegral $ r
    in overtoneSets 3 fund ps
 
 -- |mapping of integral set to tuple containing degree of dissonance and original input 

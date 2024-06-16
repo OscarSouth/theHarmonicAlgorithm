@@ -14,12 +14,16 @@ import qualified Language.R.QQ        as QQ
 
 import qualified Data.Char            as Char (isAlphaNum, toLower)
 import           Data.Function        (on)
-import qualified Data.List            as List (sort, sortBy, zip4, zip5, isInfixOf, (\\))
+import qualified Data.List            as List (sort, sortBy, zip4, zip5, zip7, isInfixOf, (\\))
 import           Data.Map             (Map)
 import qualified Data.Map             as Map (toList, fromList, lookup, keys, assocs)
 import           Data.Maybe           (fromMaybe)
 import           Text.Read            (readMaybe)
 import           Data.List.Split      (chunksOf)
+
+---- |copilot suggestions
+--import Control.Parallel.Strategies (parMap, rseq)
+--import qualified Data.Set as Set
 
 -- GraphDB stuff --
 import qualified Database.Bolt as Bolt
@@ -47,8 +51,9 @@ main = do
       -- If the user chooses to reload the graph
       putStrLn "reloading"
       reloadGraph
-      runMain
-    _ -> runMain
+      putStrLn "complete"
+--      runMain
+--    _ -> runMain
   where
     -- |'reloadGraph' function builds the graph used as a persistance layer
     -- ot starts an embedded R instance, initializes R, computes and binds the trained model,
@@ -57,11 +62,16 @@ main = do
     reloadGraph = do
       R.withEmbeddedR R.defaultConfig $ do
         initR -- load R libraries & settings, initialise R log, print info to stout
+        putStrLn "binding model"
         model <- choraleData -- compute and bind trained model
+        putStrLn "cleaning R environment"
         cleanEnvironmentR -- remove unneeded data from R environment
+        putStrLn "initialising graph"
         pipe <- Bolt.connect $ def { Bolt.version = 3 }
         Bolt.run pipe initGraph
+        putStrLn "generating nodes"
         forM_ (Map.keys model) (\keys -> Bolt.run pipe $ cadenceToNode keys)
+        putStrLn "generating relationships"
         forM_ (Map.assocs model) (\assocs -> Bolt.run pipe $ connectNodes assocs)
         return ()
     -- |'runMain' function initialises the main program.
@@ -182,30 +192,30 @@ modelFromGraph = do
 -- |script directing process of loading & transforming data then training model
 choraleData :: IO MarkovMap
 choraleData = do
-  uciRef -- print dataset source reference
+--  uciRef -- print dataset source reference
   pitchData -- execute R script to load extended dataset
-  chFunds <- bachFundamental -- retrieve and bind R column of fundamental notes
-  x1 <- fromRMatrix 1 -- retrieve and bind columns from R matrix
-  x2 <- fromRMatrix 2
-  x3 <- fromRMatrix 3
-  x4 <- fromRMatrix 4
-  x5 <- fromRMatrix 5
-  x6 <- fromRMatrix 6
-  x7 <- fromRMatrix 7
-  x8 <- fromRMatrix 8
-  x9 <- fromRMatrix 9
-  x10 <- fromRMatrix 10
-  x11 <- fromRMatrix 11
-  x12 <- fromRMatrix 12
+  x1 <- fromRMatrix 1 -- retrieve and bind columns from R matrix __
+  x2 <- fromRMatrix 2 --                                           |
+  x3 <- fromRMatrix 3 --                                           |
+  x4 <- fromRMatrix 4 --                                           |
+  x5 <- fromRMatrix 5 --                                           |
+  x6 <- fromRMatrix 6 --                                           |
+  x7 <- fromRMatrix 7 --                                           |
+--  x8 <- fromRMatrix 8 --                                           |
+--  x9 <- fromRMatrix 9 --                                           |
+--  x10 <- fromRMatrix 10 --                                         |
+--  x11 <- fromRMatrix 11 --                                         |
+--  x12 <- fromRMatrix 12 --                                         v
   let model = markovMap $ -- call Markov module to train model
         fmap toCadence <$> -- map bigram sets into Cadence data types
         bigrams $ -- combine chords into sequential bigrams
         flatTriad . -- convert to 'Chord' data type
         mostConsonant . possibleTriads'' <$> -- derive most suitable triad
         filter (\(_, ys) -> length ys >= 3) ( -- remove sets of less than 3
-        zip chFunds $ -- zip with fundamentals R column
+        zip (round <$> x1) $ -- zip with fundamentals
         fmap round . unique <$> -- remove duplicate elems . convert to Integer
-        [[a,b,c,d,e,f,g,h,i,j,k,l] | (a,b,c,d,e,f,g,h,i,j,k,l) <- zip12 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12]
+--        [[a,b,c,d,e,f,g,h,i,j,k,l] | (a,b,c,d,e,f,g,h,i,j,k,l) <- zip12 x1 x2 x3 x4 x5 x6 x7 x8 x9 x10 x11 x12]
+        [[a,b,c,d,e,f,g] | (a,b,c,d,e,f,g) <- List.zip7 x1 x2 x3 x4 x5 x6 x7]
         ) -- ^ convert R matrix columns to a list of lists
   return model
 
@@ -673,18 +683,9 @@ pitchData :: IO ()
 pitchData = R.runRegion $ do
   [QQ.r|
 
-    pitchMatrix <-
-      unname(
-        as.matrix(
-          read.csv("/home/oscarsouth/.stack/global-project/data/pitchMatrix.csv")
-        )
-      )
+    load("/home/oscarsouth/.stack/global-project/data/pitchMatrix.R")
 
-    fund <- read.csv("/home/oscarsouth/.stack/global-project/data/fund.csv")
-
-    pitchMatrix <<- unname(pitchMatrix) # 6215684
-
-    fund <<- unname(fund) # 6215684
+    pitchMatrix <<- pitchMatrix
 
     |]
   return ()
@@ -696,10 +697,6 @@ cleanEnvironmentR = R.runRegion $ do
 
     if (exists("pitchMatrix", envir = .GlobalEnv)) {
       rm(pitchMatrix, envir = .GlobalEnv)
-    }
-
-    if (exists("fund", envir = .GlobalEnv)) {
-      rm(fund, envir = .GlobalEnv)
     }
 
     gc()
@@ -715,11 +712,11 @@ fromRMatrix x =
    in R.runRegion $ rData x
 
 
--- |helper function to extract vector of fundamental notes from R into Haskell
-bachFundamental  :: IO [String]
-bachFundamental =
-  let rData () = R.fromSomeSEXP <$> [QQ.r| fund |]
-   in R.runRegion $ rData ()
+---- |helper function to extract vector of fundamental notes from R into Haskell
+--bachFundamental  :: IO [Double]
+--bachFundamental =
+--  let rData () = R.fromSomeSEXP <$> [QQ.r| pitchMatrix[,1] |]
+--   in R.runRegion $ rData ()
 
 
 -- appendLogR :: IO ()
@@ -934,6 +931,19 @@ getNextsFromGraph cadence = do
       let cadenceMap = zip cadences (read <$> p :: [Double])
       return cadenceMap
 
+---- | copilot offered this randomly -- does it work?
+--getCadenceOptions :: CadenceState -> Filters -> EnharmonicFunction -> IO [Cadence]
+--getCadenceOptions (CadenceState (prev, root)) filters enharm = do
+--  let hAlgo = parMap rseq (\xs -> toCadence (transposeCadence enharm (pitchClass root) prev, head xs)) $ 
+--              List.sortBy (compare `on` (\(Chord (_,x)) -> fst . dissonanceLevel $ x)) $ filters enharm
+--  bachFromGraph <- liftIO $ getNextsFromGraph prev
+--  let bachSet = Set.fromList hAlgo
+--      bach  = filter (\(x,_) -> x `Set.member` bachSet) $ 
+--              List.sortBy (compare `on` (\(_,x) -> 1-x)) bachFromGraph
+--      nexts = take 30 $ (fst <$> bach) ++ 
+--              filter (\x -> x `notElem` fmap fst bach) hAlgo
+--  return nexts
+  
 
 -- |takes current state, context and filters and returns a list of potential next Cadences
 getCadenceOptions :: CadenceState -> Filters -> EnharmonicFunction -> IO [Cadence]

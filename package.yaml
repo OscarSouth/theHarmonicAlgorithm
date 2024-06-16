@@ -21,6 +21,7 @@ description:         Please see the README on GitHub at <https://github.com/Osca
 
 dependencies:
 - base >= 4.8 && < 5
+- parallel
 
 library:
   exposed-modules:       Lib
