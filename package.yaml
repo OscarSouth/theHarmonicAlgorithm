@@ -33,7 +33,7 @@ library:
   - Analysis
   - Utility
   - GraphDB
-  - Perform
+  - Arranger
   dependencies:
   - containers
   - split

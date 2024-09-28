@@ -28,9 +28,6 @@ initCadenceState,
 cadenceStateEnharm,
 fromCadenceState,
 getCadenceState,
-initProgression,
-initProgression',
-sliceProgression,
 orderVoicing,
 harmony,
 smoothBass,
@@ -68,6 +65,25 @@ toEnhTriad,
 -- Functionality,
 constructCadence,
 deconstructCadence,
+------------
+-- |Arranger
+initProgression,
+initProgression',
+sliceProgression,
+toProgression,
+fuseProgression,
+fuse,
+rotateProgression,
+rotate,
+insertProgression,
+insert,
+cloneProgression,
+clone,
+switchProgression,
+switch,
+extractProgression,
+extract,
+reverseProgression,
 -----------
 -- |Analysis
 prog3ecbc, pentaPatterns, -- temp
@@ -117,4 +133,4 @@ import           Analysis -- ad hoc analysis functionality for composing
 import           Overtone -- mainly parsing functions for generating lists of MusicData
 import           Utility -- various 'misc' helper functions
 import           GraphDB -- functions to populate and access markov graph database (Neo4j)
-import           Perform -- functions related to performance with TidalCycles
+import           Arranger -- functions related to live performance with The Harmonic Algorithm

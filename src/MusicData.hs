@@ -648,7 +648,7 @@ initCadenceState movement note quality =
       to       = toTriad flat $ (+ fromMovement' approach) <$> zeroForm quality
       root = readNoteName note
    in CadenceState (toCadence (from, to), root)
-   
+
 -- |mapping from CadenceState into another CadenceState with different enharmonic
 cadenceStateEnharm :: (PitchClass -> NoteName) -> CadenceState -> CadenceState
 cadenceStateEnharm f (CadenceState (c, root)) = CadenceState (c, f $ pitchClass root)
@@ -664,69 +664,6 @@ getCadenceState (Progression (chords, cadences, enharms)) index =
     rootPitch = rootNote' chord
     rootNote = enharm rootPitch
   in CadenceState (cadence, rootNote)
-
--- |data type representing a chain of cadences with absolute pitch values
-newtype Progression = Progression ([Chord], [Cadence], [EnharmonicFunction])
-
--- |Show instance for Progression
-instance Show Progression where
-  show (Progression (chords, cadences, enharm)) =
-    let
-      showChords        = zipWith showTriad enharm chords
-      chordLen          = length showChords :: Int
-      chordLines        = (++"|   ") . concat . (`replicate`" ") .
-                          ((14-) . length) <$> showChords
-      fours enharm      = concat $ zipWith (++)
-                          ["\n    1   ||   ", "\n   5    |   ", "\n   9    |   ", "\n   13   |   ",
-                           "\n   17   |   ", "\n   21   |   ", "\n   25   |   ", "\n   29   |   ",
-                           "\n   33   |   ", "\n   37   |   ", "\n   41   |   ", "\n   45   |   ",
-                           "\n   49   |   ", "\n   53   |   ", "\n   57   |   ", "\n   61   |   "]
-                          (init . init . init <$> (fmap concat <$> chunksOf 4 $
-                          zipWith (++) showChords chordLines))
-     in fours enharm ++ "|"
-
--- |instantiate a Progression from a list of Chords and Cadences and as single enharmonic function
-initProgression :: EnharmonicFunction -> ([Chord], [Cadence]) -> Progression
-initProgression enharm (chords, cadences) =
-  let nCadences = length cadences
-      enharms = replicate nCadences enharm
-   in Progression (chords, cadences, enharms)
-
-initProgression' :: ([Chord], [Cadence], [EnharmonicFunction]) -> Progression
-initProgression' (chords, cadences, enharms) = Progression (chords, cadences, enharms)
-
--- |take a list of multiple Progressions and fuse into single Progression
-chainProgression :: [Progression] -> Progression
-chainProgression ps = Progression (chords, cadences, enharms)
-  where
-    chords     = concat $ (\(Progression (t,_,_)) -> t) <$> ps
-    cadences   = concat $ (\(Progression (_,t,_)) -> t) <$> ps
-    enharms    = concat $ (\(Progression (_,_,t)) -> t) <$> ps
-
--- |extract a slice of a cadence between 2 bars (inclusive)
-sliceProgression :: Progression -> Int -> Int -> Progression
-sliceProgression (Progression (chords, cadences, enharm)) s e =
-  let (start, end) = (s-1, e-1)
-      sliceCadences = take (end - start + 1) $ drop start cadences
-      sliceChords = take (end - start + 1) $ drop start chords
-      sliceEnharm = take (end - start + 1) $ drop start enharm
-  in initProgression' (sliceChords, sliceCadences, sliceEnharm)
-
--- |take a single CadenceStates and convert it into a Progression
-toProgression :: CadenceState -> Progression
-toProgression (CadenceState (c, root)) =
-  Progression ([fromCadenceState (CadenceState (c, root))], [c], [enharmFromNoteName root])
-
--- |rotate a Progression by a specified amount
-rotateProgression :: Int -> Progression -> Progression
-rotateProgression n (Progression (chords, cadences, enharm)) =
-  let n' = (length chords) - n `mod` (length chords)
-      (startChords, endChords) = splitAt n' chords
-      (startCadences, endCadences) = splitAt n' cadences
-      (startEnharm, endEnharm) = splitAt n' enharm
-   in Progression (endChords ++ startChords,
-                   endCadences ++ startCadences,
-                   endEnharm ++ startEnharm)
 
 -- |smoothBass is a function which takes a stucture such as [[8,12,15],[1,5,8],[0,5,8],[10,15,19]]
 -- and makes the distance between `mod` 12 of the first element as the shortest distance from
@@ -773,14 +710,31 @@ ecbcHarmony (Progression (chords,_,_)) =
             ) $ List.nub xs
       in map processList xss
 
+-- |data type representing a chain of cadences with absolute pitch values
+newtype Progression = Progression ([Chord], [Cadence], [EnharmonicFunction])
+
+-- |Show instance for Progression
+instance Show Progression where
+  show (Progression (chords, cadences, enharm)) =
+    let
+      showChords        = zipWith showTriad enharm chords
+      chordLen          = length showChords :: Int
+      chordLines        = (++"|   ") . concat . (`replicate`" ") .
+                          ((14-) . length) <$> showChords
+      fours enharm      = concat $ zipWith (++)
+                          ["\n    1   ||   ", "\n   5    |   ", "\n   9    |   ", "\n   13   |   ",
+                           "\n   17   |   ", "\n   21   |   ", "\n   25   |   ", "\n   29   |   ",
+                           "\n   33   |   ", "\n   37   |   ", "\n   41   |   ", "\n   45   |   ",
+                           "\n   49   |   ", "\n   53   |   ", "\n   57   |   ", "\n   61   |   "]
+                          (init . init . init <$> (fmap concat <$> chunksOf 4 $
+                          zipWith (++) showChords chordLines))
+     in fours enharm ++ "|"
 
 --ecbc prog len pat =
 --  slow (4*len) (cat $ midinote <$>
 --  (`toScale` (fast (4*len) pat)) <$>
 --    fmap fromInteger <$> ecbcHarmony prog
 --  )
-
-
 
 -- |order the notes of a chord suitable for patterning
 orderVoicing :: (Integral a, Num a) => [a] -> [a]
