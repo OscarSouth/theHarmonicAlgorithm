@@ -8,6 +8,7 @@ import           Utility
 import           Data.Function   (on)
 import           Data.Maybe      (fromMaybe)
 import           Data.Set        (Set)
+import           Data.Map        (Map)
 import           GHC.Base        (modInt, quotInt, remInt)
 import           GHC.Real        ((%))
 import           Data.List.Split (splitOn, chunksOf)
@@ -17,7 +18,7 @@ import qualified Data.List     as List (concat, isInfixOf, reverse, sort,
                                         sortBy, intersect, nub, unzip3,
                                         drop, cycle, zip3, zip, elemIndex)
 import qualified Data.Set      as Set (fromList, toList)
-
+import qualified Data.Map      as Map (fromList, lookup, fromListWith, findWithDefault)
 
 -- |newtype defining PitchClass
 newtype PitchClass = P Int deriving (Ord, Eq, Show, Read)
@@ -744,6 +745,43 @@ normaliseRegister xs
   | xs!!0!!0 >= 6 = fmap (\x -> fmap (\y -> y - 12) x) xs
   | otherwise = xs
 
+
+
+---- | takes a list lists of midinotes and produces output for performance by harmAlgo
+--ecbcMap :: (Integral a, Num a) => [[a]] -> [[a]]
+--ecbcMap xss = 
+--  let modMapping = [(9, 57), (4, 64), (9, 69), (1, 73), 
+--                   (4, 64), (11, 71), (4, 76), (8, 80), 
+--                   (7, 67), (2, 74), (7, 79), (11, 83), 
+--                   (11, 71), (6, 78), (11, 83), (3, 87)]
+--      modMap = Map.fromListWith (++) [(k, [v]) | (k, v) <- modMapping]
+--      processList xs = List.sort . List.nub . concatMap (\x -> Map.findWithDefault [] (x `mod` 12) modMap) $ List.nub xs
+--  in map processList xss
+
+ecbcHarmony :: (Integral a, Num a) => Progression -> [[a]]
+ecbcHarmony (Progression (chords,_,_)) =
+  ecbcMap $ (orderVoicing . fromChord <$> chords)
+  where
+    ecbcMap xss = 
+      let modMapping = [(9, 57), (4, 64), (9, 69), (1, 73), 
+                       (4, 64), (11, 71), (4, 76), (8, 80), 
+                       (7, 67), (2, 74), (7, 79), (11, 83), 
+                       (11, 71), (6, 78), (11, 83), (3, 87)]
+          modMap = Map.fromListWith (++) [(k, [v]) | (k, v) <- modMapping]
+          processList xs = List.sort . List.nub . concatMap (
+            \x -> Map.findWithDefault [] (x `mod` 12) modMap
+            ) $ List.nub xs
+      in map processList xss
+
+
+--ecbc prog len pat =
+--  slow (4*len) (cat $ midinote <$>
+--  (`toScale` (fast (4*len) pat)) <$>
+--    fmap fromInteger <$> ecbcHarmony prog
+--  )
+
+
+
 -- |order the notes of a chord suitable for patterning
 orderVoicing :: (Integral a, Num a) => [a] -> [a]
 orderVoicing [] = []
@@ -811,6 +849,24 @@ rootNote (Chord ((x, _),_)) = x
 -- |mapping from Chord the root note of that chord
 rootNote' :: Chord -> PitchClass
 rootNote' (Chord (_,(x:_))) = pc x
+
+ecbcAllowedInts :: Num a => [a]
+ecbcAllowedInts = [57, 64, 69, 73, 64, 71, 76, 80, 67, 74, 79, 83, 71, 78, 83, 87]
+
+ecbcReplacementMap :: (Ord k, Enum k, Num k, Num a) => Map k a
+ecbcReplacementMap = Map.fromList $
+  concatMap (\(k, v) -> [(k + 12 * n, v) | n <- [0..16]]) -- covering 0 to 200
+    [(9, 69), (1, 73), (4, 76), (8, 80), (2, 74), (7, 79), (6, 78), (11, 83), (3, 87)]
+
+filterHarmonic :: (Num a, Ord a, Enum a) => a -> a
+filterHarmonic x =
+  let f y =
+        if y `elem` ecbcAllowedInts then Just y
+        else Map.lookup y ecbcReplacementMap
+  in fromMaybe (-999) (f x)
+
+filterHarmonicPat :: (Functor f, Num b, Ord b, Enum b) => f b -> f b
+filterHarmonicPat p = fmap filterHarmonic p
 
 ---------------------------
 -- #### ADDITIONS #### ----
@@ -1015,4 +1071,5 @@ toEnhTriad set@(x:xs)
   where
     ss = show $ toTriad sharp set
     sf = show $ toTriad flat set
+
 

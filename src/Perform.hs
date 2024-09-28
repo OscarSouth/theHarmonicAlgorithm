@@ -1,3 +1,3 @@
 module Perform where
 
--- theHarmonicAlgorithm
+-- insert replaces a duration of a progression
