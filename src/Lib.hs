@@ -69,7 +69,7 @@ deconstructCadence,
 -- |Arranger
 initProgression,
 initProgression',
-sliceProgression,
+--sliceProgression,
 toProgression,
 fuseProgression,
 fuse,
@@ -84,6 +84,7 @@ switch,
 extractProgression,
 extract,
 reverseProgression,
+showProgression,
 -----------
 -- |Analysis
 prog3ecbc, pentaPatterns, -- temp

@@ -39,8 +39,10 @@ unique = rmdups' Set.empty where
 --   => [((a0, [[a1]]), b0, c0, d0, ((a2, b1), b2), f0)] 
 --   -> [((a0, [[a1]]), b0, c0, d0, ((a2, b1), b2), f0)]
 
+-- |function to produce sequence of pairs from a list
+seqPairs :: [a] -> [(a, a)]
+seqPairs xs = zip xs (tail xs)
 
-    
 -- |function to count elements in a list
 countElem     :: Eq a => [a] -> a -> Int
 countElem xs x = (length . filter (== x)) xs
