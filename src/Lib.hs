@@ -67,6 +67,7 @@ constructCadence,
 deconstructCadence,
 ------------
 -- |Arranger
+extractCadenceState,
 initProgression,
 initProgression',
 --sliceProgression,

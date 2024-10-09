@@ -1,10 +1,8 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.36.0.
+-- This file has been generated from package.yaml by hpack version 0.37.0.
 --
 -- see: https://github.com/sol/hpack
---
--- hash: b43959fd143e7a806c2802886582320c3aa70548fe522b5591b06ef50f18645e
 
 name:           theHarmonicAlgorithm
 version:        2.0.0
@@ -35,7 +33,7 @@ library
       Analysis
       Utility
       GraphDB
-      Arrange
+      Arranger
   hs-source-dirs:
       src
   build-depends:

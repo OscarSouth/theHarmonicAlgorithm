@@ -31,7 +31,7 @@ fromChords chords =
 --      sliceEnharm = take (end - start + 1) $ drop start enharm
 --  in initProgression' (sliceChords, sliceCadences, sliceEnharm)
 
--- |take a single CadenceStates and convert it into a Progression
+-- |take a single CadenceState and convert it into a Progression
 toProgression :: CadenceState -> Progression
 toProgression (CadenceState (c, root)) =
   Progression ([fromCadenceState (CadenceState (c, root))], [c], [enharmFromNoteName root])
@@ -56,7 +56,7 @@ extractCadenceState n (Progression (chords, cadences, enharm)) =
   let chord = chords !! (n-1)
       cadence = cadences !! (n-1)
       enharm' = enharm !! (n-1)
-   in CadenceState (cadence, rootNoteFromChord chord)
+   in CadenceState (cadence, sharp . pc . bassNoteFromChord $ chord)
 
 -- |performance version of extractCadenceState
 extract' = extractCadenceState
@@ -74,8 +74,8 @@ extract' = extractCadenceState
 --      newCadences' = (head newCadences) : (fromChords sliceChords)
 --   in Progression (newChords, newCadences', newEnharms)
  
-insertProgression :: Int -> CadenceState -> Progression -> Progression
-insertProgression n (CadenceState (c, root)) (Progression (chords, cadences, enharm)) =
+insertProgression :: CadenceState -> Int -> Progression -> Progression
+insertProgression (CadenceState (c, root)) n (Progression (chords, cadences, enharm)) =
   let (startChords, _:endChords) = splitAt (n-1) chords
       (startCadences, _:endCadences) = splitAt (n-1) cadences
       (startEnharm, _:endEnharm) = splitAt (n-1) enharm
@@ -93,14 +93,31 @@ insert = insertProgression
 
 -- clone replaces a specified cadence state with a specified cadence state from within the same progression
 -- |overwrite a specified cadence state with a different specified cadence state from within the same progression
+-- cloneProgression :: Int -> Int -> Progression -> Progression
+-- cloneProgression m n (Progression (chords, cadences, enharm)) =
+--   let (startChords, _:endChords) = splitAt (n-1) chords
+--       (startCadences, _:endCadences) = splitAt (n-1) cadences
+--       (startEnharm, _:endEnharm) = splitAt (n-1) enharm
+--    in Progression (startChords ++ [chords !! (m-1)] ++ endChords,
+--                    startCadences ++ [cadences !! (m-1)] ++ endCadences,
+--                    startEnharm ++ [enharm !! (m-1)] ++ endEnharm)
+
 cloneProgression :: Int -> Int -> Progression -> Progression
-cloneProgression m n (Progression (chords, cadences, enharm)) =
-  let (startChords, _:endChords) = splitAt (n-1) chords
+cloneProgression m n progression@(Progression (chords, cadences, enharm)) =
+  let CadenceState (c, root) = extractCadenceState m progression
+      (startChords, _:endChords) = splitAt (n-1) chords
       (startCadences, _:endCadences) = splitAt (n-1) cadences
       (startEnharm, _:endEnharm) = splitAt (n-1) enharm
-   in Progression (startChords ++ [chords !! (m-1)] ++ endChords,
-                   startCadences ++ [cadences !! (m-1)] ++ endCadences,
-                   startEnharm ++ [enharm !! (m-1)] ++ endEnharm)
+      newChords = startChords ++ [fromCadenceState (CadenceState (c, root))] ++ endChords
+      newCadences = startCadences ++ [c] ++ endCadences
+      newEnharms = startEnharm ++ [enharmFromNoteName root] ++ endEnharm
+      sliceChords = startChords ++ [fromCadenceState (CadenceState (c, root))] ++ endChords
+      newCadences' = head newCadences : fromChords sliceChords
+  in Progression (newChords, newCadences', newEnharms)
+
+  --  in Progression (startChords ++ [chords !! (m-1)] ++ endChords,
+  --                  startCadences ++ [cadences !! (m-1)] ++ endCadences,
+  --                  startEnharm ++ [enharm !! (m-1)] ++ endEnharm)
 
 -- |performance version of cloneProgression
 clone = cloneProgression
@@ -131,35 +148,60 @@ switch = switchProgression
 fuseProgression :: [Progression] -> Progression
 fuseProgression ps = Progression (chords, cadences, enharms)
   where
-    chords     = concat $ (\(Progression (t,_,_)) -> t) <$> ps
-    cadences   = concat $ (\(Progression (_,t,_)) -> t) <$> ps
-    enharms    = concat $ (\(Progression (_,_,t)) -> t) <$> ps
+    chords         = concat $ (\(Progression (t,_,_)) -> t) <$> ps
+    initCadence    = head . head $ (\(Progression (_,t,_)) -> t) <$> ps
+    cadences       = initCadence : fromChords (concat $ (\(Progression (t,_,_)) -> t) <$> ps)
+    enharms        = concat $ (\(Progression (_,_,t)) -> t) <$> ps
 
 -- |performance version of fuseProgression
 fuse = fuseProgression
 
+-- -- rotate shifts the 'phase' of the progression round by the amount specified
+-- -- |rotate a Progression by a specified amount
+-- rotateProgression :: Int -> Progression -> Progression
+-- rotateProgression n (Progression (chords, cadences, enharm)) =
+--   let n' = (length chords) - n `mod` (length chords)
+--       (startChords, endChords) = splitAt n' chords
+--       (startCadences, endCadences) = splitAt n' cadences
+--       (startEnharm, endEnharm) = splitAt n' enharm
+--    in Progression (endChords ++ startChords,
+--                    endCadences ++ startCadences,
+--                    endEnharm ++ startEnharm)
+
 -- rotate shifts the 'phase' of the progression round by the amount specified
 -- |rotate a Progression by a specified amount
-rotateProgression :: Int -> Progression -> Progression
-rotateProgression n (Progression (chords, cadences, enharm)) =
+rotateProgression :: Progression -> Int -> Progression
+rotateProgression (Progression (chords, cadences, enharm)) n =
   let n' = (length chords) - n `mod` (length chords)
       (startChords, endChords) = splitAt n' chords
       (startCadences, endCadences) = splitAt n' cadences
       (startEnharm, endEnharm) = splitAt n' enharm
-   in Progression (endChords ++ startChords,
-                   endCadences ++ startCadences,
-                   endEnharm ++ startEnharm)
+      rotatedChords = endChords ++ startChords
+      rotatedEnharm = endEnharm ++ startEnharm
+      newCadences = fromChords rotatedChords
+      rotatedCadences = (endCadences ++ startCadences) !! 0 : newCadences
+   in Progression (rotatedChords, rotatedCadences, rotatedEnharm)
 
 -- |performance version of rotateProgression
 rotate = rotateProgression
+
+-- -- reverseProgression takes a progression and reverses it
+-- -- |reverseProgression a Progression
+-- reverseProgression :: Progression -> Progression
+-- reverseProgression (Progression (chords, cadences, enharm)) =
+--   let chords' = reverse chords
+--       cadences' = reverse cadences
+--       enharm' = reverse enharm
+--    in Progression (chords', cadences', enharm')
 
 -- reverseProgression takes a progression and reverses it
 -- |reverseProgression a Progression
 reverseProgression :: Progression -> Progression
 reverseProgression (Progression (chords, cadences, enharm)) =
   let chords' = reverse chords
-      cadences' = reverse cadences
       enharm' = reverse enharm
+      newCadences = fromChords chords'
+      cadences' = head (reverse cadences) : newCadences
    in Progression (chords', cadences', enharm')
 
 -- |print out the contents of a Progression

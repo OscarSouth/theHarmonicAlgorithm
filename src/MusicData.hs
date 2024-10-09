@@ -884,7 +884,7 @@ sharpChord = toChord sharp
 fromChord :: (Integral a, Num a) => Chord -> [a]
 fromChord (Chord (_,xs)) = fromIntegral . toInteger <$> xs
 
--- |extract root note from a chord
+-- |extract root note from a chord -- CAN'T HANDLE INVERSIONS
 rootNoteFromChord :: Chord -> NoteName
 rootNoteFromChord (Chord ((n,_),_)) = n
 
