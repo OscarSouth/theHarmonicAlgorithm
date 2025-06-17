@@ -1,9 +1,8 @@
-version: '3.8'
 services:
   neo4j:
     container_name: neo4j
     image: neo4j:4.4.13
-    restart: unless-stopped
+    restart: no
     ports:
       - 7474:7474
       - 7687:7687

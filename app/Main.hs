@@ -683,7 +683,7 @@ pitchData :: IO ()
 pitchData = R.runRegion $ do
   [QQ.r|
 
-    load("/home/oscarsouth/.stack/global-project/data/pitchMatrix.R")
+    load("/home/os/.stack/global-project/data/pitchMatrix.R")
 
     pitchMatrix <<- pitchMatrix
 
@@ -931,19 +931,6 @@ getNextsFromGraph cadence = do
       let cadenceMap = zip cadences (read <$> p :: [Double])
       return cadenceMap
 
----- | copilot offered this randomly -- does it work?
---getCadenceOptions :: CadenceState -> Filters -> EnharmonicFunction -> IO [Cadence]
---getCadenceOptions (CadenceState (prev, root)) filters enharm = do
---  let hAlgo = parMap rseq (\xs -> toCadence (transposeCadence enharm (pitchClass root) prev, head xs)) $ 
---              List.sortBy (compare `on` (\(Chord (_,x)) -> fst . dissonanceLevel $ x)) $ filters enharm
---  bachFromGraph <- liftIO $ getNextsFromGraph prev
---  let bachSet = Set.fromList hAlgo
---      bach  = filter (\(x,_) -> x `Set.member` bachSet) $ 
---              List.sortBy (compare `on` (\(_,x) -> 1-x)) bachFromGraph
---      nexts = take 30 $ (fst <$> bach) ++ 
---              filter (\x -> x `notElem` fmap fst bach) hAlgo
---  return nexts
-  
 
 -- |takes current state, context and filters and returns a list of potential next Cadences
 getCadenceOptions :: CadenceState -> Filters -> EnharmonicFunction -> IO [Cadence]
