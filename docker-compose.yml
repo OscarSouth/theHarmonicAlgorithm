@@ -2,7 +2,7 @@ services:
   neo4j:
     container_name: neo4j
     image: neo4j:4.4.13
-    restart: no
+    restart: unless-stopped
     ports:
       - 7474:7474
       - 7687:7687

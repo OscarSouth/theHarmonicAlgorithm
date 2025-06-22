@@ -1,10 +1,12 @@
+{-# LANGUAGE BangPatterns #-}
+
 module Arranger where
 
 import           MusicData
 import           Utility
 
 
--- |instantiate a Progression from a list of Chords and Cadences and as single enharmonic function
+-- |instantiate a Progression from a list of Chords and Cadences and a single enharmonic function
 initProgression :: EnharmonicFunction -> ([Chord], [Cadence]) -> Progression
 initProgression enharm (chords, cadences) =
   let nCadences = length cadences
@@ -22,24 +24,28 @@ fromChords chords =
       cadences = fmap (\(x, y) -> toCadence (x, y)) chordPairs
   in cadences
 
----- |extract a slice of a cadence between 2 bars (inclusive)
---sliceProgression :: Progression -> Int -> Int -> Progression
---sliceProgression (Progression (chords, cadences, enharm)) s e =
+-- -- |extract a slice of a cadence between 2 bars (inclusive)
+-- excerptProgression :: Int -> Int -> Progression -> Progression
+-- excerptProgression s e (Progression (chords, cadences, enharm)) =
 --  let (start, end) = (s-1, e-1)
 --      sliceCadences = take (end - start + 1) $ drop start cadences
 --      sliceChords = take (end - start + 1) $ drop start chords
 --      sliceEnharm = take (end - start + 1) $ drop start enharm
 --  in initProgression' (sliceChords, sliceCadences, sliceEnharm)
 
+-- |performance version of excerptProgression
+excerpt :: Int -> Int -> Progression -> Progression
+excerpt = excerptProgression
+
 -- |take a single CadenceState and convert it into a Progression
 toProgression :: CadenceState -> Progression
 toProgression (CadenceState (c, root)) =
   Progression ([fromCadenceState (CadenceState (c, root))], [c], [enharmFromNoteName root])
 
--- extract discards the beginning and end of a sequence outside a range
--- |extract a range of CadenceStates from a Progression as a new progression
-extractProgression :: Int -> Int -> Progression -> Progression
-extractProgression s e (Progression (chords, cadences, enharm)) =
+-- excerpt discards the beginning and end of a sequence outside a range
+-- |excerpt a range of CadenceStates from a Progression as a new progression
+excerptProgression :: Int -> Int -> Progression -> Progression
+excerptProgression s e (Progression (chords, cadences, enharm)) =
   let (start, end) = (s-1, e-1)
       sliceChords = take (end - start + 1) $ drop start chords
       sliceEnharm = take (end - start + 1) $ drop start enharm
@@ -47,8 +53,9 @@ extractProgression s e (Progression (chords, cadences, enharm)) =
       sliceCadences = (cadences !! start) : newCadences
   in initProgression' (sliceChords, sliceCadences, sliceEnharm)
 
--- |performance version of extractProgression
-extract = extractProgression
+-- |performance version of excerptProgression
+excerpt :: Int -> Int -> Progression -> Progression
+excerpt = excerptProgression
 
 -- |extract a single CadenceState from a specified index of a Progression
 extractCadenceState :: Int -> Progression -> CadenceState
@@ -59,7 +66,7 @@ extractCadenceState n (Progression (chords, cadences, enharm)) =
    in CadenceState (cadence, sharp . pc . bassNoteFromChord $ chord)
 
 -- |performance version of extractCadenceState
-extract' = extractCadenceState
+extract = extractCadenceState
 
 -- insert replaces a specified cadence state with a given new cadence state
 -- |overwrite a specified cadence state with a given new cadence state
@@ -211,6 +218,39 @@ showProgression (Progression (chords, cadences, enharm)) =
       showCadences = concat $ map ("  " ++) (show <$> cadences)
    in "|| Chords:" ++ showChords ++ " | Cadences:" ++ showCadences ++ " ||"
 
+
+-- |transpose a Progression by a specified number of semitones
+transposeProgression :: Int -> Progression -> Progression
+transposeProgression semitones (Progression (chords, cadences, enharmFuncs)) =
+  let
+    transposeChord enharm (Chord ((root, func), pitches)) =
+      let transposedRootPc = pitchClass root + fromIntegral semitones
+          newRootName = enharm transposedRootPc
+          transposedPitches = fmap (+(fromIntegral semitones)) pitches
+      in Chord ((newRootName, func), transposedPitches)
+    transposedChords = zipWith transposeChord enharmFuncs chords
+    newCadences = cadences
+    transposedEnharms = fmap (enharmFromNoteName . sharp . pc . bassNoteFromChord) transposedChords
+  in initProgression' (transposedChords, newCadences, transposedEnharms)
+
+-- |performance version of transposeProgression
+transpose :: Int -> Progression -> Progression
+transpose = transposeProgression
+
+-- ----------|
+-- review    v
+
+-- | Extract the last CadenceState in a Progression.
+lastCadence :: Progression -> CadenceState
+lastCadence (Progression (chords, cadences, _)) =
+  let
+    -- Get the last chord and cadence from their respective lists.
+    lastChord   = last chords
+    lastCadence = last cadences
+  in
+    -- Construct the CadenceState using the same logic as extractCadenceState.
+    -- This uses the 'sharp' enharmonic function, just like the provided example.
+    CadenceState (lastCadence, sharp . pc . bassNoteFromChord $ lastChord)
 
 
 
