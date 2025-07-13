@@ -1,0 +1,67 @@
+hush
+
+-- ch n = (s "thru" #midichan (n-1))
+
+once $ bpm 64
+
+p10 d = d10 $ id
+  -- $ jux (fast 2)
+  -- $ sometimes (slow 2)
+  $ stack [ silence
+  -- , midinote "[~ 2]/2" |+ vel 0.3 |+ humanise 0.1
+  -- , midinote "[~ 8]/2" |+ vel 0.3 |+ humanise 0.1
+  , midinote "[4]/2" |+ vel 0.8 |+ humanise 0.1
+  -- , midinote "[~ ~ ~ 4?]/2?" |+ vel 0.1 |+ humanise 0.1
+  -- , midinote "[4]" |+ vel 0.2 |+ humanise 0.1
+  -- , midinote "[~ 6]" |+ vel 0.1 |+ humanise 0.1
+  ] # ch 10
+    |+ note 36
+    -- |+ note 60
+    |= sustain 0.01
+    |+ humanise 0.1
+    |* vel d
+
+state <- gammaGen 1 0.2 >>= \rns ->
+  chainCadence sharp
+  (initCadenceState (head rns) "F" [0,6,7]) -- init state
+  -- (extractCadenceState 4 trb1 -- state
+  (harmonicContext
+    "*" -- overtone series
+    -- "D D F A D F" -- tonality
+    "A A C E A C" -- tonality
+    "*" -- roots
+  )
+  4 -- len
+  1.0 -- entropy
+
+
+-- SUB
+p12 s r d = d12 $ do
+  id $
+     progression s r (
+      stack [ "~"
+      ,"[0 ~@3]/8"
+      -- ,"[0]*2" |+ "[0 0 0 0]/32"
+      -- ,0.25 <~ "[0(3,8)]/8"
+      -- ,"[0 1 2 1]/8"
+      -- ,"[0@3 1@5 2@3 1@5]/8"
+      -- ,"[3 2 3 4]/16"
+      -- ,"[0 ~@3]"
+      -- ,"[0,2,4]"
+      ]) |* vel d #ch 12
+         |- oct 2
+         |+ legato 0.25
+
+ -- ARCO STRINGS
+p16 s r d = d16 $ do
+  id $
+    progression s r (
+      stack [ "~"
+      -- ,"[0,1,2]/8"
+      -- ,"[0]/8"
+      ,"[3 2 3 4]"
+      -- ,"[2 ~@3]"
+      -- ,"[0,2,4]"
+      ]) |* vel d #ch 16
+         -- |- oct 1
+         -- |+ legato 0.9

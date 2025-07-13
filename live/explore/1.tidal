@@ -1,0 +1,106 @@
+hush
+
+-- ch n = (s "thru" #midichan (n-1))
+
+once $ bpm 182
+
+p10 d = d10 $ id
+  $ stack [ silence
+  , midinote "0" |+ vel 0.4
+  -- , midinote "[~ 6]" |+ vel "0.7"
+  , midinote "[~ 1]/2" |+ vel "0.3"
+  -- , midinote "[2 2 3 2]" |+ vel (fast 1 $ lfo tri 0.2 0.8) |* vel 0.3
+  , midinote "[~ 2]" |+ vel 0.6 |* vel 0.3
+  ] # ch 10
+    -- |- note 36
+    -- |+ note 60
+    |= sustain 0.1
+    |* vel d
+
+state <- gammaGen 1 0.2 >>= \rns ->
+  chainCadence sharp
+  (initCadenceState (head rns) "E" [0,5,7]) -- init state
+  -- (extractCadenceState 4 trb1 -- state
+  (harmonicContext
+    "*" -- overtone series
+    -- "D A D F A Ab" -- tonality
+    "*" -- tonality
+    "##" -- roots
+  )
+  8 -- len
+  1.7 -- entropy
+
+vS
+vA
+vT
+vB
+
+  -- FLUTE
+p01 s r d = d01 $ do
+  id $
+    progression s r (
+      stack [ "~"
+      -- ,"[[0 -1]*8 ~]/2"
+      ,"0/4"
+      -- ,"[0 0 1 2]" |+ "[-0]"
+      -- ,"[0 <1 2>]/8" |+ "[-0]"
+      ]) |* vel d #ch 01
+         -- |* vel (slow 16 $ lfo tri 0.7 0.9)
+         -- |+ oct 2
+         -- |+ legato 0.1
+
+  -- OBOE
+p02 s r d = d02 $ do
+  id $
+    progression s r (
+      stack [ "~"
+      -- ,"[1 2 3 4 3 2]/2" + "[1 4]/2"
+      ,"[1 2 3 [2 0] 1 [0 2]]/6" |+ "[-1]"
+      ]) |* vel d #ch 03
+         -- |* vel (slow 16 $ lfo tri 0.7 0.9)
+         -- |- oct 1
+         -- |+ legato 0.1
+
+  -- M32
+p09 s r d = d09 $ do
+  id $
+    stut 2 0.5 1 $
+    progression s r (
+      stack [ "~"
+      ,"[0 1 2 3]/2" |+ "[0 4 [8 5] [3 2]]/8"
+      -- ,"[0 0 1 2]" |+ "[-0]"
+      -- ,"[0 <1 2>]/8" |+ "[-0]"
+      ]) |* vel d #ch 09
+         -- |* vel (slow 16 $ lfo tri 0.7 0.9)
+         |- oct 1
+         -- |+ legato 0.1
+
+ -- ARCO STRINGS
+p16 s r d = d16 $ do
+  id $
+    progression s r (
+      stack [ "~"
+      ,"[0]/8"
+      -- ,"[3 2 3 4]/16"
+      ,"[2 ~@3]"
+      -- ,"[0,2,4]"
+      ]) |* vel d #ch 16
+         |- oct 1
+         -- |+ legato 0.9
+
+:t midi
+
+hush
+
+d16 $ note "[-24,<-12 -9>]/4" #ch 16 |* vel 0.5
+
+
+progression :: Progression -> Pattern Time -> Pattern Int -> Pattern ValueMap
+progression prog len pat =
+  slow (4*len) (cat $ note <$>
+  (`toScale` (fast (4*len) pat)) <$>
+    fmap fromInteger <$> harmony prog
+  )
+
+
+  hush

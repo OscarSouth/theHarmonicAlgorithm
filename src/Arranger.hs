@@ -33,9 +33,8 @@ fromChords chords =
 --      sliceEnharm = take (end - start + 1) $ drop start enharm
 --  in initProgression' (sliceChords, sliceCadences, sliceEnharm)
 
--- |performance version of excerptProgression
-excerpt :: Int -> Int -> Progression -> Progression
-excerpt = excerptProgression
+-- -- |performance version of excerptProgression
+-- excerpt = excerptProgression
 
 -- |take a single CadenceState and convert it into a Progression
 toProgression :: CadenceState -> Progression
@@ -253,12 +252,263 @@ lastCadence (Progression (chords, cadences, _)) =
     CadenceState (lastCadence, sharp . pc . bassNoteFromChord $ lastChord)
 
 
+-- | Create a new Progression where each chord contains pitches from neighboring chords
+-- | within the specified number of steps in both directions.
+overlapProgression :: Int -> Progression -> Progression
+overlapProgression range (Progression (chords, cadences, enharms)) =
+  let
+    -- Create a cyclic version of the chord list for wrapping
+    cyclic = cycle chords
+    -- Drop elements to align with the original list
+    offsetChords n = take (length chords) $ drop (length chords - (n `mod` length chords)) cyclic
+    
+    -- Get all relevant chord fragments for each position
+    overlappedChords = 
+      [extractOverlappingPitches $ take (2*range + 1) $ drop (i - range) 
+      (chords ++ take range (offsetChords range)) | i <- [0..length chords - 1]]
+    
+    -- Extract pitch information from each chord
+    extractOverlappingPitches chordGroup = 
+      let
+        -- Extract the root and function information from the center chord
+        centerChord = chordGroup !! min range (length chordGroup `div` 2)
+        Chord ((root, func), _) = centerChord
+        -- Collect all pitches from the chord group
+        allPitches = concatMap (\(Chord (_, pitches)) -> pitches) chordGroup
+        -- Remove duplicates from the pitch collection
+        uniquePitches = Utility.unique allPitches
+      in
+        -- Create a new chord with the same root/functionality but all overlapping pitches
+        Chord ((root, func), uniquePitches)
+    
+  in
+    -- Use the same cadences and enharmonic functions, but with overlapped chords
+    Progression (overlappedChords, cadences, enharms)
+
+-- |performance version of overlapProgression
+overlap :: Int -> Progression -> Progression
+overlap = overlapProgression
+
+-- | Create a new Progression where each chord contains pitches from forward neighboring chords
+-- | within the specified number of steps (only forward looking)
+overlapProgressionForward :: Int -> Progression -> Progression
+overlapProgressionForward range (Progression (chords, cadences, enharms)) =
+  let
+    -- Create a cyclic version of the chord list for wrapping at the end
+    cyclic = cycle chords
+    
+    -- Get all relevant chord fragments for each position (forward only)
+    overlappedChords = 
+      [extractOverlappingPitches i $ take (range + 1) $ drop i 
+      (chords ++ take range cyclic) | i <- [0..length chords - 1]]
+    
+    -- Extract pitch information from each chord, using only the current and forward chords
+    extractOverlappingPitches pos chordGroup = 
+      let
+        -- Extract the root and function from the current chord (first in group)
+        Chord ((root, func), _) = head chordGroup
+        -- Collect all pitches from the chord group
+        allPitches = concatMap (\(Chord (_, pitches)) -> pitches) chordGroup
+        -- Remove duplicates from the pitch collection
+        uniquePitches = Utility.unique allPitches
+      in
+        -- Create a new chord with the same root/functionality but all overlapping pitches
+        Chord ((root, func), uniquePitches)
+    
+  in
+    -- Use the same cadences and enharmonic functions, but with overlapped chords
+    Progression (overlappedChords, cadences, enharms)
+
+-- |performance version of overlapProgressionForward
+overlapF :: Int -> Progression -> Progression
+overlapF = overlapProgressionForward
+
+-- | Create a new Progression where each chord contains pitches from backward neighboring chords
+-- | within the specified number of steps (only backward looking)
+overlapProgressionBackward :: Int -> Progression -> Progression
+overlapProgressionBackward range (Progression (chords, cadences, enharms)) =
+  let
+    -- Create a cyclic version of the chord list for wrapping at the beginning
+    cyclic = cycle chords
+    -- Get offset for wrapping at the beginning
+    offsetChords = take (length chords) $ drop (length chords - range) cyclic
+    
+    -- Get all relevant chord fragments for each position (backward only)
+    overlappedChords = 
+      [extractOverlappingPitches $ take (range + 1) $ drop (max 0 (i - range)) 
+      (offsetChords ++ chords) | i <- [0..length chords - 1]]
+    
+    -- Extract pitch information from each chord, using the current and backward chords
+    extractOverlappingPitches chordGroup = 
+      let
+        -- Extract the root and function from the last chord in the group (the current chord)
+        Chord ((root, func), _) = last chordGroup
+        -- Collect all pitches from the chord group
+        allPitches = concatMap (\(Chord (_, pitches)) -> pitches) chordGroup
+        -- Remove duplicates from the pitch collection
+        uniquePitches = Utility.unique allPitches
+      in
+        -- Create a new chord with the same root/functionality but all overlapping pitches
+        Chord ((root, func), uniquePitches)
+    
+  in
+    -- Use the same cadences and enharmonic functions, but with overlapped chords
+    Progression (overlappedChords, cadences, enharms)
+
+-- |performance version of overlapProgressionBackward
+overlapB :: Int -> Progression -> Progression
+overlapB = overlapProgressionBackward
+
+-- | Expands a Progression by repeating each cadence state N times
+-- | This creates a new progression where each chord and its harmonic context
+-- | is repeated the specified number of times
+expandProgression :: Int -> Progression -> Progression -- CHANGE ARGUMENT ORDER
+expandProgression n (Progression (chords, cadences, enharms))
+  | n <= 0    = Progression ([], [], []) -- Return empty progression for invalid input
+  | n == 1    = Progression (chords, cadences, enharms) -- No change needed
+  | otherwise =
+    let
+      -- Repeat each chord n times
+      expandedChords = concatMap (replicate n) chords
+      
+      -- Generate new cadences for the expanded chord sequence
+      -- We use fromChords which calculates cadences between adjacent chords
+      expandedCadences = head cadences : fromChords expandedChords
+      
+      -- Repeat each enharmonic function n times
+      expandedEnharms = concatMap (replicate n) enharms
+    in
+      Progression (expandedChords, expandedCadences, expandedEnharms)
+
+-- |performance version of expandProgression
+expand :: Int -> Progression -> Progression
+expand = expandProgression
+
+-- | Create a Progression where every N+1 bars alternate between original and overlapped chords
+-- | First bar is original, followed by N bars of overlapped chords, then repeat
+overlapPassingProgression :: Progression -> Int -> Progression
+overlapPassingProgression prog@(Progression (chords, cadences, enharms)) passingBars 
+  | passingBars <= 0 = prog -- Return original if invalid input
+  | otherwise =
+    let
+      -- Create a bidirectionally overlapped version of the progression using overlap 1
+      Progression (overlappedChords, _, _) = overlapProgression 1 prog
+      
+      -- Calculate the new sequence length based on cycle pattern (1 original + N overlapped)
+      cycleLength = 1 + passingBars
+      numCycles = length chords `div` cycleLength
+      remainder = length chords `mod` cycleLength
+      
+      -- Create the new chord sequence by applying the alternating pattern
+      newChords = concat 
+        [ let start = i * cycleLength
+              resetChord = chords !! start
+              passingPositions = [start + j | j <- [1..min passingBars (length chords - start - 1)]]
+              passingChords = map (overlappedChords !!) passingPositions
+          in resetChord : passingChords
+        | i <- [0..numCycles-1]
+        ] 
+        ++ (if remainder > 0 
+              then let start = numCycles * cycleLength
+                       resetChord = chords !! start
+                       passingPositions = [start + j | j <- [1..remainder-1]]
+                       passingChords = map (overlappedChords !!) passingPositions
+                   in resetChord : passingChords
+              else [])
+      
+      -- Generate cadences for the new chord sequence
+      newCadences = head cadences : fromChords newChords
+    in
+      Progression (newChords, newCadences, enharms)
+
+-- | Create a Progression where every N+1 bars alternate between original and forward-overlapped chords
+-- | First bar is original, followed by N bars of forward-overlapped chords, then repeat
+overlapPassingForwardProgression :: Progression -> Int -> Progression
+overlapPassingForwardProgression prog@(Progression (chords, cadences, enharms)) passingBars 
+  | passingBars <= 0 = prog -- Return original if invalid input
+  | otherwise =
+    let
+      -- Create a forward overlapped version of the progression using overlap 1
+      Progression (overlappedChords, _, _) = overlapProgressionForward 1 prog
+      
+      -- Calculate the new sequence length based on cycle pattern (1 original + N overlapped)
+      cycleLength = 1 + passingBars
+      numCycles = length chords `div` cycleLength
+      remainder = length chords `mod` cycleLength
+      
+      -- Create the new chord sequence by applying the alternating pattern
+      newChords = concat 
+        [ let start = i * cycleLength
+              resetChord = chords !! start
+              passingPositions = [start + j | j <- [1..min passingBars (length chords - start - 1)]]
+              passingChords = map (overlappedChords !!) passingPositions
+          in resetChord : passingChords
+        | i <- [0..numCycles-1]
+        ] 
+        ++ (if remainder > 0 
+              then let start = numCycles * cycleLength
+                       resetChord = chords !! start
+                       passingPositions = [start + j | j <- [1..remainder-1]]
+                       passingChords = map (overlappedChords !!) passingPositions
+                   in resetChord : passingChords
+              else [])
+      
+      -- Generate cadences for the new chord sequence
+      newCadences = head cadences : fromChords newChords
+    in
+      Progression (newChords, newCadences, enharms)
+
+-- | Create a Progression where every N+1 bars alternate between original and backward-overlapped chords
+-- | First bar is original, followed by N bars of backward-overlapped chords, then repeat
+overlapPassingBackwardProgression :: Progression -> Int -> Progression
+overlapPassingBackwardProgression prog@(Progression (chords, cadences, enharms)) passingBars 
+  | passingBars <= 0 = prog -- Return original if invalid input
+  | otherwise =
+    let
+      -- Create a backward overlapped version of the progression using overlap 1
+      Progression (overlappedChords, _, _) = overlapProgressionBackward 1 prog
+      
+      -- Calculate the new sequence length based on cycle pattern (1 original + N overlapped)
+      cycleLength = 1 + passingBars
+      numCycles = length chords `div` cycleLength
+      remainder = length chords `mod` cycleLength
+      
+      -- Create the new chord sequence by applying the alternating pattern
+      newChords = concat 
+        [ let start = i * cycleLength
+              resetChord = chords !! start
+              passingPositions = [start + j | j <- [1..min passingBars (length chords - start - 1)]]
+              passingChords = map (overlappedChords !!) passingPositions
+          in resetChord : passingChords
+        | i <- [0..numCycles-1]
+        ] 
+        ++ (if remainder > 0 
+              then let start = numCycles * cycleLength
+                       resetChord = chords !! start
+                       passingPositions = [start + j | j <- [1..remainder-1]]
+                       passingChords = map (overlappedChords !!) passingPositions
+                   in resetChord : passingChords
+              else [])
+      
+      -- Generate cadences for the new chord sequence
+      newCadences = head cadences : fromChords newChords
+    in
+      Progression (newChords, newCadences, enharms)
+
+-- |performance version of overlapPassingProgression
+overlapPassing :: Progression -> Int -> Progression
+overlapPassing = overlapPassingProgression
+
+-- |performance version of overlapPassingForwardProgression
+overlapPassingF :: Progression -> Int -> Progression
+overlapPassingF = overlapPassingForwardProgression
+
+-- |performance version of overlapPassingBackwardProgression
+overlapPassingB :: Progression -> Int -> Progression
+overlapPassingB = overlapPassingBackwardProgression
 
 -- --------- |
 -- song mode v
-
-
-
 
 -- -------------------------- |
 -- negative harmony functions v

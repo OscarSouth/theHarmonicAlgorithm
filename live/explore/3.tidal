@@ -1,0 +1,184 @@
+hush
+
+p "visual" $
+  slow 16
+  $ stack [silence
+    -- ,hydra 0 $ #segment 60 $ lfo tri 0 0.4 -- >> silence
+    ,hydra 0 $ "1 0@15" -- >> silence
+    -- ,hydra 1 $ (lfo tri 0.4 0.6) + (slow 2 $ lfo sine 0.1 0.2) -- >> silence
+  ]
+
+-- bespoke synth
+
+-- were rnns all we needed, article
+
+hushVis
+
+-- struct (binary 16)
+
+once $ bpm 118
+
+(binaryN 6 3)
+
+-- drum machine, count
+-- DFAM steptrig
+-- DFAM OSC1 pitch + trig
+-- DFAM OSC2 pitch + M32 gate
+-- M32 MIDI + assigncc
+
+gammaGen 10 0.2
+
+ -- CADENCE STATE
+state <- gammaGen 1 0.2 >>= \rns ->
+  chainCadence sharp
+  (initCadenceState (head rns) "D" [0,3,7]) -- init state
+  -- (extractCadenceState 2 state)
+  (harmonicContext
+    "*" -- overtone series
+    "*" -- tonality
+    "*" -- roots
+  )
+  8 -- len
+  0.3 -- entropy
+  -- ["bach*3 Stravinsky"]
+
+  Hector Durham
+  #hector.durham@gmail.com
+
+
+once $ bpm 95
+
+ -- DRUM MACHINE
+p10 f d = d10 $ id
+  $ f
+  $ stack [ silence
+  -- , midinote "[0]/4" |+ vel 1 |+ humanise 0.1
+  , midinote "[0]" |+ vel 0.2 |+ humanise 0.1
+  -- , midinote "[[~!7 1] ~ ~ ~]/8" |+ vel 0.1 |+ humanise 0.1
+  -- , midinote "[~ 1]/2" |+ vel "[0.3]" |+ humanise 0.1
+  -- , midinote "[~ 2]" |+ vel 0.5 |+ humanise 0.1
+  -- , midinote "[2 2 2 2]" |+ vel (lfo tri 0.1 0.3) |+ humanise 0.1
+  -- , midinote "[2 2 3 2]" |+ vel (lfo tri 0.1 0.4) |+ humanise 0.1
+  --
+  -- , midinote "[0]/4" |+ vel 0.99 |+ humanise 0.1
+  -- , slow 4 $ midinote (struct (ascii "asd") "[2]") |+ vel (lfo tri 0.1 0.2) |+ humanise 0.1
+  -- , midinote (struct (slow 2 $ binary 3) "[1?]?") |+vel (rev $ lfo saw 0.1 0.3) |+ humanise 0.1
+  -- , midinote "[~ ~ 3 ~]" |+ vel 0.99 |+ humanise 0.1
+  ] # ch 10
+    |= sustain 0.05
+    |+ humanise 0.1
+    |* vel d
+
+ -- TONAL STATE
+p01 s r = d01 $ do
+  id $
+    (<~) 0.5 $
+    progression s r (
+      stack [ "~"
+      , "[0,1,2]"
+      ]) #ch "02"
+
+ -- DFAM STEPTRIG
+p11 f = d11 $ id
+  $ f
+  $ stack [ silence
+  , steptrig "[1 2 3 4 5 6 7 8]/2"
+  ] # ch "11"
+
+  --  -- DFAM OSC1pitch+gate
+  -- p12 f s r d = d12 $ do
+  --   id $
+  --     f $
+  --     trunc 0.5 $
+  --     stut 3 2 0.5 $
+  --     progression s r (
+  --       stack [ "~"
+  --       -- , (struct (fast 0.5 $ binaryN 8 1234 "0") |+ "[[0 2 4 6 5 4 3 2] ~]/8"
+  --       -- , "[[0 ~] ~!8]/4"
+  --       ]) |* vel d #ch "[12,2]"
+  --          |- oct 1
+  --          -- |+ legato 0.25
+
+
+ -- DFAM OSC1pitch+gate
+p12 f s r d = d12 $ do
+  id $
+    f $
+    -- trunc 0.95 $
+    -- stut 2 0.5 0.5 $
+    -- striate 4 $
+    progression s r (
+      stack [ "~"
+      -- ,"[[0 3] 0 [1 . 2 3] -1]/4"
+      ,"[~ [1,2,3]]/2"
+      -- , "[0 2 3 1]/4" +| "[0 2]"
+      -- , "[-3 <-4 -5>]/2"
+      -- , (struct (fast 0.5 $ binaryN 8 123) "[[0 2 4 6 5 4 3 2] ~]/4") |+ "[0 0 1 2 3 3 4 5]/64"
+      -- , "[[~!7 ~] ~ ~ ~]/8"
+      -- , "[[0 ~] ~!8]/4"
+      -- , "[[0 1 2 3] [6 4 -1 0] . ~ ]/4"
+      , "[[0 1 2 3] [6 4 -1 [0,4]] . ~ ]/4"
+      ]) |* vel d #ch "12"
+         -- |+ oct 1
+         -- |+ legato 1.25
+
+ -- DFAM OSC2pitch+gate
+p13 f s r d = d13 $ do
+  id $
+    f $
+    progression s r (
+      stack [ "~"
+      -- ,"[0@3 1@3 -1@2]/2"
+      ,slow 4 $ struct (binary 87) "[0 1 2 3]"
+      -- , "[1,2,3,0]/2"
+      -- , "[3 2 1 0]/8" |- "3"
+      -- ,"[0@4 ~]/4"
+      ]) |* vel d #ch "13"
+         -- |- oct 2
+         |+ oct 1
+         -- |+ legato 0.25
+
+ -- M32pitch+vel
+p14 f s r d = d14 $ do
+  id $
+    f $
+    -- mono $
+    -- slow 4 $ trunc 0.35 $ fast 4 $
+    progression s r (
+      stack [ "~"
+        -- ,fast 2 $ "[-6 -3*2 . 7]/4"
+        -- ,fast "2" $ "[[-3 . -1 0 . ~ -3 . -1 0]*2]/8"
+        ,"[-3*8]/4"
+        -- ,"[-3 ~@3]/4"
+        -- ,rev $ slow 4 "[3 2 1 0]" |+ "[6 4 2 [0@3 ~]]14" |- 10
+        -- ,0.5 ~> slow 4 "[3 2 1 0]" |+ "[6 4 2 [0@3 ~]]14" |- 8
+        -- ,0.5 <~ (struct (slow 2 $ binary 48974) "0") |+ "[{0@3 2@3 4@3}%8]/4" |+ "[0,<2 4>]/2"
+      ]) |* vel d #ch "14"
+         |+ vel 0.1
+         |- oct 1
+         -- |+ legato 0.01
+
+
+ -- M32pitch+vel
+p14 f s r d = d14 $ do
+  id $
+    f $
+    mono $
+    -- slow 4 $ trunc 0.25 $ fast 4 $
+    progression s r (
+      stack [ "~"
+        -- ,fast 2 $ "[-6 -3*2 . 7]/4"
+        ,fast 2 $ "[-3*4]/4" |+ "[0]"
+        -- ,rev $ slow 4 "[3 2 1 0]" |+ "[6 4 2 [0@3 ~]]14" |- 10
+        -- ,0.5 ~> slow 4 "[3 2 1 0]" |+ "[6 4 2 [0@3 ~]]14" |- 8
+        ,0.5 <~ (struct (slow 2 $ binary 48974) "0") |+ "[{0@3 2@3 4@3}%8]/4" |+ "[0,<2 4>]/2"
+      ]) |* vel d #ch "14"
+         |+ vel 0.1
+         |- oct 1
+         -- |+ legato 0.01
+
+hush''
+
+cc n val = control (ccScale val) #io n where io n = (midicmd "control" #ctlNum n)
+
+hush''

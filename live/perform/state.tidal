@@ -1,0 +1,61 @@
+hush
+
+ -- CADENCE STATE
+state <- gammaGen 1 0.2
+  >>= \rns ->
+  chainCadence sharp
+  (initCadenceState (head rns) "C" [0,4,7]) -- init state
+  -- (extractCadenceState 2 state)
+  (harmonicContext
+  -- overtones
+    "*"
+  -- tonality
+    "*"
+  -- roots
+    "C"
+  )
+  4 -- len
+  2.5 -- entropy
+
+do
+  let
+    dyn = 0.8
+    rep = 1
+    -- f = composition
+    t = bpm 107
+    s = state
+    f = swingBy 0.04 2
+    k = keySig -- s 1 4
+    (d,r) = ((*dyn),rep)
+  putStrLn . show $ s
+  mapM_ id [hush,p"t"t
+    -- ,count s rep
+    -- ,p01 s r
+    -- ,p10 f   $d 0.99
+    -- ,p11 f
+    -- ,p12 f s r $d 0.5
+    -- ,p13 f s r $d 0.9
+    -- ,p14 f s r $d 0.5
+    -- ,p15 f s r $d 0.5
+    ]
+
+hush
+
+ -- TRANSPORT
+mapM_ id [p "transport"
+  $ do
+  let
+    out = 999999
+  --
+  seqP
+    $ sync out ++ [runSeq
+  --
+    ]
+  --
+  ,resetCycles
+  ,hush
+  ,allNotesOff
+  ,setcps (107/60)
+  ]
+
+hush''
