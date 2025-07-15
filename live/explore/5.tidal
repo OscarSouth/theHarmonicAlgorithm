@@ -2,18 +2,19 @@
 p10 f d = d10 $ id
   $ f
   $ stack [ silence
-  , (2/4) <~ midinote "0(3,16)/4" |* vel 0.9 |+ humanise 0.1
+  -- , (2/4) <~ midinote "0(3,16)/4" |* vel 0.9 |+ humanise 0.1
+  , midinote "0" |* vel 0.9 |+ humanise 0.1
   -- , midinote "[5 4]" |* vel 0.5 |+ humanise 0.1
   -- , degradeBy 0.9 $ (1/4) <~ midinote "0" |* vel 0.1 |+ humanise 0.1
   , midinote "[2]*2" |+ vel (lfo tri 0.01 0.7) |+ humanise 0.1
-  , degrade $ (1/4) <~ midinote "[2?]?*2" |+ vel (lfo tri 0.01 0.67) |+ humanise 0.8
-  , midinote "[4]*2" |+ vel (slow 2 $ lfo tri 0.05 0.2) |+ humanise 0.1
+  -- , degrade $ (1/4) <~ midinote "[2?]?*2" |+ vel (lfo tri 0.01 0.67) |+ humanise 0.8
+  -- , (2/4) <~ (slow 2 $ midinote "[4]*2" |+ vel (slow 2 $ lfo tri 0.05 0.2) |+ humanise 0.1)
   -- , midinote "[2 2 3 2]" |+ vel (lfo tri 0.3 0.7) |+ humanise 0.1
   -- , midinote "[~ 1]/2" |+ vel 0.5 |+ humanise 0.1
-  , midinote "[~ 7]/2" |+ vel 0.99 |+ humanise 0.1
+  -- , midinote "[~ 7]/2" |+ vel 0.99 |+ humanise 0.1
   -- , struct (binary 10) $ degradeBy 0.5 $ sometimes (rev) $ stut 3 2 0.25 $ midinote "[6(5,8)?]?/2" |* vel (0.25 <~ (slow 2 $ lfo sine 0.1 0.5)) |* vel (lfo tri 0.1 0.7) |+ humanise 0.4
-  , degradeBy 0.1 $ midinote "[6(3,8)]/2" |* vel (0.5 <~ (slow 2 $ lfo sine 0.2 0.6)) |* vel (lfo tri 0.2 0.8) |+ humanise 0.4
-  -- , struct (binary 12) $ slow 2 $ rev $ stut 3 1 0.3 $ midinote "7*8" |* vel (lfo tri 0.1 0.7) |+ humanise 0.2
+  -- , degradeBy 0.1 $ midinote "[6(3,8)]/2" |* vel (0.5 <~ (slow 2 $ lfo sine 0.2 0.6)) |* vel (lfo tri 0.2 0.8) |+ humanise 0.4
+  -- , slow 2 $ struct (binary 12) $ slow 2 $ rev $ stut 3 1 0.3 $ midinote "7*8" |* vel (lfo tri 0.1 0.7) |+ humanise 0.2
   -- , degradeBy 0.4 $ stut 6 2 0.2 $ midinote "7(9,16)?/2" |* vel (0.1 <~ (slow 3 $ lfo tri 0.1 0.7)) |+ humanise 0.3
   -- , midinote "[~ ~ ~ 0? . ~ ~ ~ 0?]/2?" |+ vel (slow 2 $ lfo saw 1 0.1) |+ humanise 0.1
   -- , degradeBy 0.7 $ midinote "7(5,8)" |* vel (0.2 <~ (slow 4 $ lfo sine 0.2 0.8)) |+ humanise 0.4
@@ -43,9 +44,12 @@ p11 f = d11 $ id
   $ f
   -- $ rev
   $ stack [ silence
-  -- , steptrig "[1 2 3 4 5 6 7 8]/2"
+  -- , steptrig "[1 2 3 4 5 6 7 8]"
+  -- , rev $ steptrig $ "[1 2 3 4]"
+  -- , slow 2 $ steptrig $ "0(3,8)" |+ "1 2 1"
+  -- , slow 2 $ steptrig $ "[~ 0]*2" |+ "[4 3 2 1]/2"
   , iter 4 $ steptrig $ "[1 2 3 4 5 6 7 8]/2" |* 2
-  -- , steptrig "[1 2]/4"
+  -- , steptrig $ run 8
   ] # ch "11"
 
  -- DFAM OSC1pitch+gate
@@ -55,9 +59,9 @@ p12 f s r d = d12 $ do
     -- trunc 0.95 $
     -- stut 2 0.5 0.5 $
     -- striate 4 $
-    applyProg s r (
-      stack [ "~"
-      -- ,"0"
+    arrange flow s r (-9,9) [ "~"
+      ,"2"
+      -- ,"[0 1 2 3]"
       -- ,"[[0 3] 0 [1 . 2 3] -1]/4"
       -- ,"[~ [1,2,3]]/2"
       -- , "[0 2 3 1]/4" +| "[0 2]"
@@ -67,27 +71,21 @@ p12 f s r d = d12 $ do
       -- , "[[0 ~] ~!8]/4"
       -- , "[[0 1 2 3] [6 4 -1 0] . ~ ]/4"
       -- , "[[0 1 2 3] [6 4 -1 [0,4]] . ~ ]/4"
-      ]) |* vel d #ch "12"
-         -- |- oct 2
+      ] |* vel d #ch "12"
+         |- oct 1
          -- |+ legato 1.25
-
-p12 f s r d = d12 $ do
-  id $
-    f $
-      arrange s r (-9,9) ["~"
-        -- ,iter 4 "[3 2 1 0]/4"
-        ,slow 4 $ iter 4 $ "[0 1 2 3]/4" |+ 2
-      ]# ch 12
-      |* vel d
 
 p13 f s r d = d13 $ do
   id $
     f $
-      arrange s r (-9,9) ["~"
+      arrange flow s r (-9,9) ["~"
         -- ,palindrome $ iter 4 $ slow "[4 2 1 2]" $ "[0 1 2 3]"
-        ,slow 8 $ "[0 1 2 3]" |+ 3
+        -- ,slow 8 $ "[0 1 2 3]" |+ 3
+        -- ,"[0 1 2 3]" |+ "[0 1 2 3]/4" |- 3
+        ,"[1]"
       ]# ch 13
       |* vel d
+      -- |- oct 1
 
   -- S-1
 p15 f s r d = d15 $ do
@@ -116,11 +114,14 @@ p14 f s r d = d14 $ do
   id $
     f $
       mono $
-      -- rotL 1 $
+      rotL 1 $
       slow 4 $ trunc 0.75 $ fast 4 $
-      arrange s r (-9,9) ["~"
-        , "[<0 -3>  <-1 -2>]/2" |+ "[-6]"
+      stack [n "~"
+          -- --
+        ,arrange flow s r (-9,9) ["~"
+        -- , "[<0 -3>  <-1 -2>]/2" |+ "[-6]"
         -- , "[0*2]" |+ "[-6]"
+        , "[0!4]" |+ "[-9 -6!3]" |- "[0 1]"
         -- , "[0 ~ ~ 0 ~ ~ ~ ~]/4" |+ "[-6]"
         -- , "[0 ~@2 0 ~@3 0 . ~ 0 ~ [2 6?]?]/4" |+ "[-9 -6@3]/4"
         -- , "[0 ~ 0 ~ [~ 0] ~ ~ [2 ~]]/4" |+ "[-9 -5]/4"
@@ -129,6 +130,8 @@ p14 f s r d = d14 $ do
         -- , "[0 0 0 0 2 2 2 2]/4" |+ "[-9 -4]"
         -- , "[0 2 -1 2 0 3 -2 1]/4" |+ "[-9 -5]"
         -- , rotL 2 $ "[0 0 2 0 0 2 0 0]/4" |+ "[-9 -5]"
+      ]
+      -- , cc 1 "1 0"
       ]# ch 14
       |* vel d
       |= legato 0.06

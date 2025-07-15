@@ -1,1 +1,14 @@
+hush
+
 -- MOTIFS
+
+
+-- DRUM MACHINE
+p10 f d = d10 $ id
+  $ f
+  $ stack [ silence
+    ,kick "1"
+    -- ,slow 8 $ kick $ ascii "hi"
+    -- ,hatcl "[~ 1]"
+    ] |* vel d
+      |+ humanise 0.1

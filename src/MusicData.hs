@@ -760,6 +760,17 @@ harmony :: (Integral a, Num a) => Progression -> [[a]]
 harmony (Progression (chords,_,_)) =
   normaliseRegister $ smoothBass $ (orderVoicing . fromChord <$> chords)
 
+flow :: Progression -> [[Integer]]
+flow = harmony
+
+slim :: Progression -> [[Integer]]
+slim = closeVoicing
+
+-- wide
+-- rise
+-- fall
+-- line
+
 type VoiceFunction = Progression -> [[Integer]]
 
 -- |extract the composite scale from a Progression suitable for applying to patterns with `toScale`

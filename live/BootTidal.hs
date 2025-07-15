@@ -450,8 +450,8 @@ perc bars pat = do
                 ]
    in ur bars pat ps fs
 
-sidestick pat = midinote (pat |= 37) #ch 10
-tamb pat = midinote (pat |= 54) #ch 10
+-- sidestick pat = midinote (pat |= 37) #ch 10
+-- tamb pat = midinote (pat |= 54) #ch 10
 
 :}
 
@@ -563,39 +563,16 @@ bossa32 =
       ] #ch 09
 :}
 
-syncStart = (0, 1, silence)
-out = 4
-startTransport = bar 0 0 (setCC' 6 50 127)
-startTransport' = setCC' 6 00 127
-stopTransport out = bar (out+1) (out+1) (setCC' 6 50 0)
-stopTransport' = setCC' 6 50 0
+-- syncStart = (0, 1, silence)
+-- out = 4
+-- startTransport = bar 0 0 (setCC' 6 50 127)
+-- startTransport' = setCC' 6 00 127
+-- stopTransport out = bar (out+1) (out+1) (setCC' 6 50 0)
+-- stopTransport' = setCC' 6 50 0
 
 bossa23 = 0.5 <~ bossa32
 
 :{
-
-progression :: Progression -> Pattern Time -> Pattern Int -> Pattern ValueMap
-progression prog len pat =
-  slow (4*len) (cat $ note <$>
-  (`toScale` (fast (4*len) pat)) <$>
-    fmap fromInteger <$> harmony prog
-  )
-
-range :: (Int, Int) -> Pattern Int -> Pattern Int
-range (lo,hi) = filterEvents (\e -> value e >= lo && value e <= hi)
-
-arrange :: Progression -> Pattern Time -> (Int, Int) -> [Pattern Int] -> Pattern ValueMap
-arrange prog len register pats =
-  let pat = stack pats
-      rangedPattern = range register pat
-   in progression prog len rangedPattern
-
-progression' :: Progression -> Pattern Time -> Pattern Int -> Pattern ValueMap
-progression' prog len pat =
-  slow (4*len) (cat $ note <$>
-  (`toScale` (fast (4*len) pat)) <$>
-    fmap fromInteger <$> closeVoicing prog
-  )
 
 ecbc prog len pat =
   slow (4*len) (cat $ midinote <$>
@@ -605,7 +582,36 @@ ecbc prog len pat =
     ))
   )
 
+applyProg :: VoiceFunction -> Progression -> Pattern Time -> Pattern Int -> Pattern ValueMap
+applyProg voiceFunc prog len pat =
+  slow (4*len) (cat $ note <$>
+  (`toScale` (fast (4*len) pat)) <$>
+    fmap fromInteger <$> voiceFunc prog
+  )
+
+voiceRange :: (Int, Int) -> Pattern Int -> Pattern Int
+voiceRange (lo,hi) = filterEvents (\e -> value e >= lo && value e <= hi)
+
+arrange :: VoiceFunction -> Progression -> Pattern Time -> (Int, Int) -> [Pattern Int] -> Pattern ValueMap
+arrange voiceFunc prog rep register pats =
+  let pat = stack pats
+      rangedPattern = voiceRange register pat
+      applyProg voiceFunc prog len pat =
+        slow (4*len) (cat $ note <$>
+          (`toScale` (fast (4*len) pat)) <$>
+          fmap fromInteger <$> voiceFunc prog
+          )
+   in applyProg voiceFunc prog rep rangedPattern
 
 :}
+
+kick pat = struct pat $ midinote "0" #ch 10 |= sustain 0.05
+snap pat = struct pat $ midinote "1" #ch 10 |= sustain 0.05
+hatcl pat = struct pat $ midinote "2" #ch 10 |= sustain 0.05
+hatop pat = struct pat $ midinote "3" #ch 10 |= sustain 0.05
+ride pat = struct pat $ midinote "4" #ch 10 |= sustain 0.05
+crash pat = struct pat $ midinote "5" #ch 10 |= sustain 0.05
+click pat = struct pat $ midinote "6" #ch 10 |= sustain 0.05
+snare pat = struct pat $ midinote "7" #ch 10 |= sustain 0.05
 
 :set prompt "tidal> "
