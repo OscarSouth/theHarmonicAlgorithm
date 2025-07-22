@@ -6,10 +6,10 @@ import qualified Data.Set as Set (fromList, toList, empty, member, insert)
 import qualified Data.List as List (sort, concat)
 
 -- |nCr utility function
-choose         :: (Num a, Eq a) => a -> [b] -> [[b]]
-choose 0 _      = [[]]
-choose k []     = []
-choose k (x:xs) = map (x:) (choose (k-1) xs) ++ choose k xs
+nCr         :: (Num a, Eq a) => a -> [b] -> [[b]]
+nCr 0 _      = [[]]
+nCr k []     = []
+nCr k (x:xs) = map (x:) (nCr (k-1) xs) ++ nCr k xs
 
 -- |helper function to replace
 begins                           :: Eq a => [a] -> [a] -> Maybe [a]

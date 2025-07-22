@@ -316,9 +316,9 @@ prog3ecbc = sorted
                       (pcSet (List.sort $ snd zs ++ snd xs) /= pcSet (List.sort $ snd xs ++ snd ys))
                     ) &&
                     (
-                      (any (?> tA) (choose 5 (snd xs)) || any (?> tB) (choose 5 (snd xs))) && 
-                      (any (?> tA) (choose 4 (snd ys)) || any (?> tB) (choose 4 (snd ys))) && 
-                      (any (?> tA) (choose 3 (snd zs)) || any (?> tB) (choose 3 (snd zs)))
+                      (any (?> tA) (nCr 5 (snd xs)) || any (?> tB) (nCr 5 (snd xs))) && 
+                      (any (?> tA) (nCr 4 (snd ys)) || any (?> tB) (nCr 4 (snd ys))) && 
+                      (any (?> tA) (nCr 3 (snd zs)) || any (?> tB) (nCr 3 (snd zs)))
                     ) &&
                     (
                       ((pitchClass <$> [D,F,A]) ?> pcSet (snd xs ++ snd ys ++ snd zs)) &&
@@ -416,14 +416,14 @@ generateScales = normalised
     normalised = i' <$> unique (normalForm <$> filtered)
 
 vocab'' = unique $ i' <$> concat (inversions <$> generateScales)
-pVocab'' = unique (i' <$> concat (inversions <$> (i' . zeroForm <$> choose 5 [1..11])))
+pVocab'' = unique (i' <$> concat (inversions <$> (i' . zeroForm <$> nCr 5 [1..11])))
 
 chrCluster xs' = not (chrClusters xs') -- filter chrClusters xs
   where
     chrClusters xs = any (`List.isSubsequenceOf` xs) ([0,10,11] : [0,1,11] : (sequence ((+) <$> [0,1,2]) <$> [0..9]))
 
 allModes = unique $ filter chrCluster vocab''
-allPenta'' chr = List.sort (filter (\xs -> length (filter (\x -> x == 1) (last <$> (i' . zeroForm <$> (choose 2 xs)))) == chr) (unique $ filter chrCluster (i' . normalForm <$> pVocab'')))
+allPenta'' chr = List.sort (filter (\xs -> length (filter (\x -> x == 1) (last <$> (i' . zeroForm <$> (nCr 2 xs)))) == chr) (unique $ filter chrCluster (i' . normalForm <$> pVocab'')))
 
 allPentaChr :: (Num a, Integral a) => [[a]]
 allPentaChr =

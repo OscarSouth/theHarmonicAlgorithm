@@ -38,6 +38,8 @@ p10 f d = d10 $ id
     |+ humanise 0.1
     |* vel d
 
+steptrig p = midinote (toScale [-1, 0, 2, 4, 5, 7, 9, 10] $ (((1+p) `mod` 8)-1)) |= vel 1
+
  -- DFAM STEPTRIG
 p11 f = d11 $ id
   $ mono

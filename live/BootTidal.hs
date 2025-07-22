@@ -66,9 +66,9 @@ let p = streamReplace tidal
     d16 = p 16
 :}
 
--- hush = mapM_ ($ silence) [p "count",d1,d2,d3,d4,d5,d6,d7,d8,d9, d01,d02,d03,d04,d05,d06,d07,d08,d09,d10,d11,d12,d13,d14,d15,d16]
+-- hush = mapM_ ($ silence) [p "count", p "riser",d1,d2,d3,d4,d5,d6,d7,d8,d9, d01,d02,d03,d04,d05,d06,d07,d08,d09,d10,d11,d12,d13,d14,d15,d16]
 
-hush = mapM_ ($ silence) [p "count", d01,d02,d03,d04,d05,d06,d07,d08,d09,d10,d11,d12,d13,d14,d15,d16]
+hush = mapM_ ($ silence) [p "count", p "riser", d01,d02,d03,d04,d05,d06,d07,d08,d09,d10,d11,d12,d13,d14,d15,d16]
 
 hushVis = mapM_ ($ silence) [p "visual"]
 
@@ -102,18 +102,7 @@ master = 0.99
 runWith f = resetCycles >> f
 hydra n p = cc (n) p #ch 1
 
-steptrig p = midinote (toScale [-1, 0, 2, 4, 5, 7, 9, 10] p) |= vel 1
-
-:{
-count s rep =
-  let progLen (Progression (chords, _, _)) = length chords
-      len = pure $ fromIntegral (progLen s)
-      bars = run (pure $ progLen s) |+ 8
-      pattern = slow (4 * len * fromIntegral rep)
-              $ midinote (fromIntegral <$> bars) |= vel 1
-   in p "count" $ pattern # ch 10
-:}
-
+steptrig p = midinote (toScale [-1, 0, 2, 4, 5, 7, 9, 10] $ (((p-1) `mod` 8)+1)) |= vel 1
 oct n = note (12*n)
 out = 4
 bar b1 b2 p = ((b1+2)*4, (b2+3)*4, p)
@@ -605,13 +594,77 @@ arrange voiceFunc prog rep register pats =
 
 :}
 
-kick pat = struct pat $ midinote "0" #ch 10 |= sustain 0.05
-snap pat = struct pat $ midinote "1" #ch 10 |= sustain 0.05
-hatcl pat = struct pat $ midinote "2" #ch 10 |= sustain 0.05
-hatop pat = struct pat $ midinote "3" #ch 10 |= sustain 0.05
-ride pat = struct pat $ midinote "4" #ch 10 |= sustain 0.05
-crash pat = struct pat $ midinote "5" #ch 10 |= sustain 0.05
-click pat = struct pat $ midinote "6" #ch 10 |= sustain 0.05
-snare pat = struct pat $ midinote "7" #ch 10 |= sustain 0.05
+kick pat = struct pat $ midinote "0" #ch 10 #sustain 0.05
+snap pat = struct pat $ midinote "1" #ch 10 #sustain 0.05
+hhcl pat = struct pat $ midinote "2" #ch 10 #sustain 0.05
+hhop pat = struct pat $ midinote "3" #ch 10 #sustain 0.05
+ride pat = struct pat $ midinote "4" #ch 10 #sustain 0.05
+crash pat = struct pat $ midinote "5" #ch 10 #sustain 0.05
+click pat = struct pat $ midinote "6" #ch 10 #sustain 0.05
+snare pat = struct pat $ midinote "7" #ch 10 #sustain 0.05
+
+:{
+
+hh pat = do
+  let bars = 1
+      ps = [("c", midinote 2 #ch 10 #sustain 0.05 #vel 0.5),
+            ("o", midinote 3 #ch 10 #sustain 0.05 #vel 0.5)
+            ]
+      mult = fromList [(fromIntegral . ceiling) bars] :: Pattern Time
+      fs   = (timeFuncs mult) ++ [
+                ("ffff", (#vel 1)),
+                ("fff", (#vel 0.9)),
+                ("ff", (#vel 0.75)),
+                ("f", (#vel 0.65)),
+                ("mf", (#vel 0.55)),
+                ("mp", (#vel 0.45)),
+                ("p", (#vel 0.35)),
+                ("pp", (#vel 0.35)),
+                ("ppp", (#vel 0.30)),
+                ("pppp", (#vel 0.25))
+                ]
+   in ur bars pat ps fs
+
+:}
+
+:{
+-- DFAM STEPTRIG
+p11 f = d11 $ id
+ $ mono
+ $ f
+ $ stack [ silence
+ , steptrig $ "[1 2 3 4 5 6 7 8]/2"
+ ] #ch "11"
+
+count s rep =
+  let progLen (Progression (chords, _, _)) = length chords
+      len = pure $ fromIntegral (progLen s)
+      bars = run (pure $ progLen s) |+ 8
+      pattern = slow (4 * len * fromIntegral rep)
+              $ midinote (fromIntegral <$> bars) |= vel 1
+   in p "count" $ pattern # ch 10
+
+riser s r d = d09 $ do
+  id $
+    slow 128 $
+      stack [n "~"
+          -- --
+        ,arrange flow s r (-9,9) ["~"
+        ,"[0]/2"
+        ] |* vel 0.99
+          -- --
+        ,segment 256 $ cc 1 $ fastcat [ 0
+          -- ,rev $ lfo saw 1 0
+          ,0
+          ,lfo saw 0 0.1
+          ,lfo saw 0.1 0.3
+          ,lfo saw 0.4 1
+          ]
+          -- --
+      ]# ch 09
+      |* vel d
+
+:}
+
 
 :set prompt "tidal> "

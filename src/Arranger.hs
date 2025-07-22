@@ -16,6 +16,21 @@ initProgression enharm (chords, cadences) =
 initProgression' :: ([Chord], [Cadence], [EnharmonicFunction]) -> Progression
 initProgression' (chords, cadences, enharms) = Progression (chords, cadences, enharms)
 
+-- |instantiate a Progression from an enharm functions and list of lists of ints
+-- cadences are generated from the chords
+-- the initial cadence is the first chord to itself
+prog :: EnharmonicFunction -> [[Integer]] -> Progression
+prog enharm chords =
+  let chordList = toChord enharm <$> chords
+      cadences = head (fromChords chordList) : fromChords chordList
+   in initProgression enharm (chordList, cadences)
+
+triadProg :: EnharmonicFunction -> [[Integer]] -> Progression
+triadProg enharm chords =
+  let triadList = toTriad enharm <$> chords
+      cadences = head (fromChords triadList) : fromChords triadList
+   in initProgression enharm (triadList, cadences)
+
 -- function which will take a list of chords and produce a list of cadences which match the progression
 -- |produce a corresponding list of Cadences from a list of Chords
 fromChords :: [Chord] -> [Cadence]
@@ -512,3 +527,22 @@ overlapPassingB = overlapPassingBackwardProgression
 
 -- -------------------------- |
 -- negative harmony functions v
+
+
+-- ----------------------------- |
+-- vertical structure functions  v
+
+-- -- |directly extracts the chords from a Progression without any transformation
+-- -- ie. || E sus4 | E min/G | A 6sus2no5 | A 7sus2no5 || -> [[4,9,11],[7,11,4],[9,11,6],[9,11,7]]
+-- extractChords :: Progression -> [[Integer]]
+-- extractChords (Progression (chords,_,_)) = 
+--   let extractChord (Chord ((_, _), pitches)) = pitches
+--    in extractChord <$> chords
+
+-- -- |transforms extracted chords with minimal transformation to make them suitable for performance
+-- -- ie. [[4,9,11],[7,11,4],[9,11,6],[9,11,7]] -> [[-8,9,11],[-5,11,4],[-3,11,6],[-3,11,7]]
+-- -- #1 root pitches (index 0) transposed down 1 octave so that they are always below upper structures
+-- literalHarmony :: Progression -> [[Integer]]
+-- literalHarmony prog = 
+--   let extractedChords = extractChords prog
+--    in (\(x:xs) -> (x - 12):xs) <$> extractedChords

@@ -1,14 +1,14 @@
 hush
 
  -- CADENCE STATE
-state' <- gammaGen 1 0.2
+nextState <- gammaGen 1 0.2
   >>= \rns ->
   chainCadence sharp
-  (initCadenceState (head rns) "E" [0,5,7]) -- init state
+  (initCadenceState (head rns) "C" [0,3,7]) -- init state
   -- (lastCadence state)
   (harmonicContext
   -- overtones
-    "*"
+    "C Eb G"
   -- tonality
     "*"
   -- roots
@@ -17,28 +17,30 @@ state' <- gammaGen 1 0.2
   8 -- len
   3.5 -- entropy
 
-state = state'
+state = nextState
 
 do
   let
-    dyn = 0.7
+    dyn = slow 128 (lfo saw 0.3 0.7)
     rep = 0.5
-    t = bpm 118
-    s = transpose (0) state
-    -- ped =
+    t = bpm 80
+    s = excerpt 1 16 $ transpose (0) state
     f = (swingBy 0.07 2)
     -- k = keySig -- s 1 4
     (d,r) = ((*dyn),rep)
   putStrLn . show $ s
   mapM_ id [hush,p"t"t
     -- ,count s rep
-    ,p10 f   $d 0.8
+    ,riser s r $d 0.99
+    -- ,p08 f s r $d 0.99
+    -- ,p09 f s r $d 0.99
+    ,p10 f   $d 1
     ,p11 f
-    ,p12 f s r $d 0.7
+    -- ,p12 f s r $d 0.7
     ,p13 f s r $d 0.7
     ,p14 f s r $d 0.5
-    -- ,p15 f s r $d 0.6
-    , p "cc1" $ cc 1 (slow 4 $ lfo saw 0 1) #ch 14
+    ,p15 f s r $d 0.6
+    -- ,p16 f s r $d 0.6
     ]
 
 hush
@@ -57,7 +59,7 @@ mapM_ id [p "transport"
   ,resetCycles
   ,hush
   ,allNotesOff
-  ,setcps (107/60)
+  -- ,setcps (80/60)
   ]
 
 hush''

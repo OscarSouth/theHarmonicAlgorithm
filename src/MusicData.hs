@@ -362,7 +362,7 @@ intervalVector xs       = toInteger . vectCounts <$> [1..6]
 -- |mapping from sets of fundamentals and overtones into viable composite sets
 overtoneSets        :: (Num a, Eq a, Eq b, Ord b) => a -> [b] -> [b] -> [[b]]
 overtoneSets n rs ps = [ i:j | i <- rs,
-                       j <- List.sort <$> (choose $ n-1) ps,
+                       j <- List.sort <$> (nCr $ n-1) ps,
                        not $ i `elem` j]
 
 -- |mapping from sets of fundamental and overtones into list of viable triads
@@ -413,9 +413,9 @@ data Chord = Chord ((NoteName, Functionality), [Integer]) deriving (Eq, Ord)
 
 -- |hides underlying Chord data and presents in a human readable way
 instance Show Chord where
-  show (Chord ((a,b),c)) 
-    | b == "N/A"   = show "N/A" 
-    | otherwise    = show a ++ "_" ++ b
+  show (Chord ((noteName,functionality),_)) 
+    | functionality == "N/A"   = show "N/A" 
+    | otherwise    = show noteName ++ "_" ++ functionality
 
 -- |mapping from integer list to tuple of root and chord name
 toTriad :: (Integral a, Num a) => (PitchClass -> NoteName) -> [a] -> Chord
@@ -480,6 +480,16 @@ toTriad f ps@(fund:tones)
           ,if all (`elem` zs) [3,6] then ("dim"++) else (""++)
           ,if all (`elem` zs) [4,8] then ("aug"++) else (""++)]
        in foldr (.) id chain
+
+-- |function to un-invert a triad, i.e. return the chord in root position
+unInvertTriad :: Chord -> Chord
+unInvertTriad (Chord ((noteName,functionality),pitches)) =
+  let
+    rootPC = fromIntegral $ toInteger $ pitchClass noteName
+    pcValues = map (`mod` 12) pitches
+    newPitches = rootPC : filter (/= rootPC) pcValues
+  in
+    flatTriad newPitches
 
 -- |shortcut version of toTriad with flat partially applied
 flatTriad :: (Integral a, Num a) => [a] -> Chord
@@ -676,13 +686,14 @@ smoothBass xs = foldl (\acc x -> acc ++ [smoothBass' (last acc) x]) [xs!!0] (tai
       | xs'!!0 - (head prev) < -6 = fmap (\x -> x + 12) xs'
       | otherwise = xs'
 
--- | function which subtracts 12 from all elements of all lists if the first element of the first list is >= 6
+-- | function which adjusts the register of all notes:
+-- - subtracts 12 from all elements if the first element of the first list is >= 6
+-- - adds 12 to all elements if the first element of the first list is < (-6)
 normaliseRegister :: (Integral a, Num a) => [[a]] -> [[a]]
 normaliseRegister xs
   | xs!!0!!0 >= 6 = fmap (\x -> fmap (\y -> y - 12) x) xs
+  | xs!!0!!0 < (-6) = fmap (\x -> fmap (\y -> y + 12) x) xs
   | otherwise = xs
-
-
 
 ---- | takes a list lists of midinotes and produces output for performance by harmAlgo
 --ecbcMap :: (Integral a, Num a) => [[a]] -> [[a]]
@@ -709,6 +720,22 @@ ecbcHarmony (Progression (chords,_,_)) =
             \x -> Map.findWithDefault [] (x `mod` 12) modMap
             ) $ List.nub xs
       in map processList xss
+
+
+-- overtoneMap :: Map Integer (Integer, Double)
+-- overtoneMap = Map.fromList
+--       [ (1,  (60, 0))        -- Unison
+--       , (2,  (72, 0))        -- Octave
+--       , (3,  (79, 0.01))     -- Perfect fifth +2c
+--       , (4,  (84, 0))        -- Two octaves
+--       , (5,  (88, -0.07))    -- Major third -14c
+--       , (6,  (91, 0.01))     -- Fifth again +2c
+--       , (7,  (94, -0.155))   -- b7 -31c
+--       , (8,  (96, 0))        -- Three octaves
+--       , (9,  (98, 0.02))     -- Second +4c
+--       ]
+
+
 
 -- |data type representing a chain of cadences with absolute pitch values
 newtype Progression = Progression ([Chord], [Cadence], [EnharmonicFunction])
@@ -737,13 +764,13 @@ instance Show Progression where
 --  )
 
 -- |order the notes of a chord suitable for patterning
-orderVoicing :: (Integral a, Num a) => [a] -> [a]
-orderVoicing [] = []
+orderVoicing       :: (Integral a, Num a) => [a] -> [a]
+orderVoicing []     = []
 orderVoicing (x:xs) = x : List.sort (map (\y -> if y < x then y + 12 else y) xs)
 
 -- |extracts the version of the chord with the smallest distance between upper and lower pitches
-compactForm   :: (Integral a, Num a) => [a] -> [a]
-compactForm xs =
+compactForm     :: (Integral a, Num a) => [a] -> [a]
+compactForm xs   =
   let inversions = normaliseRegister $ smoothBass $ (orderVoicing <$> simpleInversions' xs)
       distances  = (\x -> (last x) - (head x)) <$> inversions
       minDist    = minimum distances
@@ -755,18 +782,42 @@ closeVoicing :: (Integral a, Num a) => Progression -> [[a]]
 closeVoicing (Progression (chords,_,_)) =
   normaliseRegister $ smoothBass $ fmap compactForm $ fromChord <$> chords
 
+slim :: Progression -> [[Integer]]
+slim = closeVoicing
+
+-- |creates the widest possible voicing of each chord by inverting the compact form
+-- If slim/closeVoicing is the most compact arrangement, this creates the most
+-- dispersed arrangement by crossing the lowest and highest notes to opposite octaves
+wideVoicing :: (Integral a, Num a) => Progression -> [[a]]
+wideVoicing prog = widenChord <$> closeVoiced
+  where
+    closeVoiced = closeVoicing prog
+    widenChord chord = 
+      let lowest = (chord!!2) - 12
+          middle = (chord!!1)
+          highest = (chord!!0) + 12
+      in lowest : middle : highest : []
+
+wide :: Progression -> [[Integer]]
+wide = wideVoicing
+
 -- |extract the harmony from a Progression suitable for applying to patterns with `toScale`
 harmony :: (Integral a, Num a) => Progression -> [[a]]
 harmony (Progression (chords,_,_)) =
-  normaliseRegister $ smoothBass $ (orderVoicing . fromChord <$> chords)
+  normaliseRegister $ smoothBass (orderVoicing . fromChord <$> chords)
 
 flow :: Progression -> [[Integer]]
 flow = harmony
 
-slim :: Progression -> [[Integer]]
-slim = closeVoicing
+-- |extract the harmony from a Progression where inversions are ignored and the bass note is always the root
+unInverted :: (Integral a, Num a) => Progression -> [[a]]
+unInverted (Progression (chords,_,_)) = 
+  let unInvertedChords = unInvertTriad <$> chords
+   in normaliseRegister $ smoothBass (orderVoicing . fromChord <$> unInvertedChords)
 
--- wide
+root :: Progression -> [[Integer]]
+root = unInverted  
+
 -- rise
 -- fall
 -- line
@@ -779,7 +830,7 @@ chordScale (Progression (chords,_,_)) = List.sort $ List.nub $ concat $ fromChor
 
 -- |mapping from sets of fundamentals and overtones into viable composite sets
 scaleSets     :: (Integral a, Num a) => [a] -> [[a]]
-scaleSets ps = [ j | j <- List.sort <$> (choose $ 7) ps]
+scaleSets ps = [ j | j <- List.sort <$> (nCr $ 7) ps]
 
 -- |mapping from possible Cadence and Pitchclass into next Chord with transposition
 fromCadence :: EnharmonicFunction -> PitchClass -> Cadence -> Chord
@@ -809,11 +860,11 @@ transposeCadence :: EnharmonicFunction -> PitchClass -> Cadence -> Chord
 transposeCadence f root (Cadence (_,(_,tones))) =
   (toTriad f) $ i . (+ root) <$> tones
 
--- |mapping from Chord the root note of that chord
+-- |mapping from Chord to the root note of that chord
 rootNote :: Chord -> NoteName
 rootNote (Chord ((x, _),_)) = x
 
--- |mapping from Chord the root note of that chord
+-- |mapping from Chord to the root note of that chord
 rootNote' :: Chord -> PitchClass
 rootNote' (Chord (_,(x:_))) = pc x
 
@@ -977,13 +1028,13 @@ basePenta pcs  =
     ps = fromIntegral <$> pcs
     filtered = fst <$> filter (\(_,x) -> x==True) results
     results  = [ ((sortPcSet ps, ys), (`isContainedIn` ys) xs) | 
-                  xs <- choose 4 (sortPcSet ps), 
+                  xs <- nCr 4 (sortPcSet ps), 
                   ys <- majorPentaChr ++ okinaPentaChr ++ iwatoPentaChr ++ kumoiPentaChr ]
 
 
 isContainedIn :: (Eq a) => [a] -> [a] -> Bool
 isContainedIn ps0 ps1 = all (`elem` ps1) ps0
-  -- w [ ((sortPcSet ps, ys), (`List.isInfixOf` ys) xs) | xs <- choose 4 (sortPcSet ps),
+  -- w [ ((sortPcSet ps, ys), (`List.isInfixOf` ys) xs) | xs <- nCr 4 (sortPcSet ps),
   -- ys <- majorPentaChr ++ okinaPentaChr ++ iwatoPentaChr ]
 
 sortPcSet :: (Num a, Integral a) => [a] -> [a]
