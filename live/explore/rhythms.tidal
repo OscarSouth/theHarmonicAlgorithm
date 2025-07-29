@@ -1,0 +1,70 @@
+tempo = 80
+clave = rumba32
+bellpat = bellpat32
+
+ -- A
+p10 f d = d10 $ id
+  $ f
+  $ stack [ silence
+    ,ride "[1 . 1 1]" #vel (lfo tri 0.08 0.4) |+ humanise 0.2
+    ,hh "[~ 1]"
+    ,click "[~ 1]/2"
+    ,kick "[1]/2" # vel 0.3
+    ,degradeBy 0.9 $ kick (slow 4 $ binary (128 |+ irand 128)) |+ vel (lfo saw 0.4 0.1)
+    ,degradeBy 0.7 $ click (slow 2 $ binary 156) |+ vel 0.15
+    ] |* vel d
+
+
+ -- B
+p10 f d = d10 $ id
+  $ f
+  -- $ stut 2 0.5 (4/1)
+  $ stack [ silence
+    ,kick "1"
+    ,hh bellpat |* vel 0.5
+    -- ,click clave |* vel 0.9
+    -- ,click "[~ 1]/2"
+    ,snare "[~ 1]/2"
+    -- ,kick "[1]/2" # vel 0.3
+    ,degradeBy 0.9 $ (1) <~ kick (slow 4 $ binary (128 |+ irand 128)) |+ vel (lfo saw 0.4 0.1)
+    ,degrade $ snare "[1 . ~ [1?]? . [1?]? [1?]? . ~]/2" |+ vel 0.2
+    ,hh "[0 2]"
+    -- ,hh "[x x o x]"
+    -- ,hh "[0 1]"
+    -- ,ride "[1 . 1 1]" #vel (lfo tri 0.08 0.4) |+ humanise 0.2
+    -- ,ride "[0 . 1]" #vel (lfo tri 0.08 0.4) |+ humanise 0.2
+    ] |* vel d
+
+ -- JAZZ 80bpm
+p10 f d = d10 $ id
+  $ f
+  $ stack [ silence
+    ,kick "1"
+    -- ,snare "[0 1]/2"
+    ,click "[0 1]/2"
+    -- ,hh "0 1"
+    ,hh "[1 1 2 1]*1"
+    -- ,kick "[1]/2" #vel 0.1
+    -- ,ride "1 . 1 1" #vel (lfo tri 0.1 0.3)
+    -- ,degradeBy 0.7 $ click (slow 2 $ binary 156) #vel 0.15
+    -- ,degradeBy 0.9 $ kick (slow 4 . binary $ 128 |+ irand 128) #vel (lfo saw 0.4 0.1)
+    ] |* vel d
+
+
+-- 10000000 = +128
+-- 01000000 = +64
+-- 00100000 = +32
+-- 00010000 = +16
+-- 00001000 = +8
+-- 00000100 = +4
+-- 00000010 = +2
+-- 00000001 = +1
+
+p01 f s r d = d01 $ do
+  id $
+    f $
+      arrange flow s r (-9,9) ["~"
+        ,"[-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9]"
+      ]# ch 01
+      -- |= legato 1
+      |* vel d

@@ -66,9 +66,9 @@ let p = streamReplace tidal
     d16 = p 16
 :}
 
--- hush = mapM_ ($ silence) [p "count", p "riser",d1,d2,d3,d4,d5,d6,d7,d8,d9, d01,d02,d03,d04,d05,d06,d07,d08,d09,d10,d11,d12,d13,d14,d15,d16]
+-- hush = mapM_ ($ silence) [p "click, "p "count", p "riser",d1,d2,d3,d4,d5,d6,d7,d8,d9, d01,d02,d03,d04,d05,d06,d07,d08,d09,d10,d11,d12,d13,d14,d15,d16]
 
-hush = mapM_ ($ silence) [p "count", p "riser", d01,d02,d03,d04,d05,d06,d07,d08,d09,d10,d11,d12,d13,d14,d15,d16]
+hush = mapM_ ($ silence) [p "click", p "count", p "riser", d01,d02,d03,d04,d05,d06,d07,d08,d09,d10,d11,d12,d13,d14,d15,d16]
 
 hushVis = mapM_ ($ silence) [p "visual"]
 
@@ -496,72 +496,20 @@ let setI = streamSetI tidal
 :}
 
 :{
-adagio = do
-    setCC 6 51 127
-    setcps (71/60/4)
-
-andante = do
-    setCC 6 52 127
-    setcps (85/60/4)
-
-moderato = do
-    setCC 6 53 127
-    setcps (110/60/4)
-
-allegro = do
-    setCC 6 54 127
-    setcps (135/60/4)
-:}
-
-:{
-metronome =
-    stack[silence
-      ,n "0*4" #midinote 66
-      ,cc 87 "2.8 0 . 0 0 . 0 2.8"
-      ] #ch 09
-
-:}
-
-click val = setCC 9 90 (val*127)
-
-:{
-son32 =
-    stack[silence
-      ,n "0(3,8) . ~ 0 0 ~" #midinote "66"
-      ,cc 87 0
-      ] #ch 09
-:}
-
-son23 = 0.5 <~ son32
-
-:{
-rumba32 =
-    stack[silence
-      ,n "0 [~ 0] ~ [~ 0] . ~ 0 0 ~" #midinote "66"
-      ,cc 87 0
-      ] #ch 09
-:}
-
-rumba23 = 0.5 <~ rumba32
-
-:{
-bossa32 =
-    stack[silence
-      ,n "0(3,8) . ~ 0 [~ 0] ~" #midinote "66"
-      ,cc 87 0
-      ] #ch 09
-:}
-
--- syncStart = (0, 1, silence)
--- out = 4
--- startTransport = bar 0 0 (setCC' 6 50 127)
--- startTransport' = setCC' 6 00 127
--- stopTransport out = bar (out+1) (out+1) (setCC' 6 50 0)
--- stopTransport' = setCC' 6 50 0
-
-bossa23 = 0.5 <~ bossa32
-
-:{
+adagio = 71
+andante = 85
+moderato = 110
+allegro = 135
+metronome d = p "click" $ click "1" |= vel "[0.8 0.4!3]/4"
+son32 = "[1 [0 1] 0 1 . 0 1 1 0]/4"
+son23 = 2 <~ son32
+rumba32 ="[1 [0 1] 0 1 . 0 1 1 0]/4"
+rumba23 = 2 <~ rumba32
+bossa32 = "[1 [0 1] 0 [0 1] . 0 1 [0 1] 0]/4"
+bossa23 = 2 <~ bossa32
+bellpat32 = "[1 1 [1 1] [0 1] [1 0] [1 1] [0 1] [0 1]]/4"
+bellpat23 = 2 <~ bellpat32
+:
 
 ecbc prog len pat =
   slow (4*len) (cat $ midinote <$>
@@ -607,8 +555,11 @@ snare pat = struct pat $ midinote "7" #ch 10 #sustain 0.05
 
 hh pat = do
   let bars = 1
-      ps = [("c", midinote 2 #ch 10 #sustain 0.05 #vel 0.5),
-            ("o", midinote 3 #ch 10 #sustain 0.05 #vel 0.5)
+      ps = [
+            ("x", midinote 2 #ch 10 #sustain 0.05 #vel 0.5),
+            ("1", midinote 2 #ch 10 #sustain 0.05 #vel 0.5),
+            ("o", midinote 3 #ch 10 #sustain 0.05 #vel 0.5),
+            ("2", midinote 3 #ch 10 #sustain 0.05 #vel 0.5)
             ]
       mult = fromList [(fromIntegral . ceiling) bars] :: Pattern Time
       fs   = (timeFuncs mult) ++ [
@@ -628,13 +579,8 @@ hh pat = do
 :}
 
 :{
--- DFAM STEPTRIG
-p11 f = d11 $ id
- $ mono
- $ f
- $ stack [ silence
- , steptrig $ "[1 2 3 4 5 6 7 8]/2"
- ] #ch "11"
+
+tempo = 120
 
 count s rep =
   let progLen (Progression (chords, _, _)) = length chords
@@ -663,6 +609,71 @@ riser s r d = d09 $ do
           -- --
       ]# ch 09
       |* vel d
+
+ -- DRUM MACHINE INIT
+p10 f d = d10 $ id
+  $ f
+  $ stack [ silence
+    ,kick "1" #vel 0.3
+    ] |* vel d
+
+ -- DFAM STEPTRIG INIT
+p11 f = d11 $ id
+  $ mono
+  $ f
+  $ 0.036 <~ stack [ silence
+    ,(steptrig $ "[1 2 3 4 5 6 7 8]/2")
+  ] # ch 11
+
+ -- DFAM OSC 1 INIT
+p12 f s r d = d12 $ do
+  id $
+    f $
+      arrange flow s r (-9,9) ["~"
+        ,"[0]"
+      ]# ch 12
+      |- oct 1
+      |* vel d
+
+ -- DFAM OSC 2 INIT
+p13 f s r d = d13 $ do
+  id $
+    f $
+      arrange flow s r (-9,9) ["~"
+        ,"[0]"
+      ]# ch 13
+      |- oct 1
+      |* vel d
+
+ -- M32 INIT
+p14 f s r d = d14 $ do
+  id $
+    f $
+      arrange flow s r (-9,9) ["~"
+        ,"[0*4]/2"
+      ]# ch 14
+      |* vel d
+
+ -- S-1 INIT
+p15 f s r d = d15 $ do
+  id $
+    f $
+      arrange root s r (-9,9) ["~"
+        ,"[-1,0,1]/4"
+      ]# ch 15
+      -- |= legato 0.95
+      |* vel d
+
+ -- SYNHARP INIT
+p16 f s r d = d16 $ do
+  id $
+    f $
+      arrange root s r (-9,9) ["~"
+        ,"[-1,0,1]/4"
+      ]# ch 16
+      |* vel d
+
+state = prog flat $ take 4 $ cycle [[0,7,10]]
 
 :}
 

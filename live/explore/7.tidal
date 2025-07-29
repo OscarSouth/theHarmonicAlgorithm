@@ -1,0 +1,104 @@
+tempo = 120
+
+p14 f s r d = d14 $ do
+  id $
+    f $
+      -- slowstripe 2 $
+      slow (choose [1,2,4]) $ mask (binary 151) $
+      scramble 4 $
+      arrange flow (overlapF 0 s) r (-9,9) ["~"
+        -- ,"[0 0 2 0 1 2 3 4]"
+        ,slow 4 $ run 8 |- 1
+      ] |= vel ((segment 4 $ rand) |+ (slow 2 $ lfo saw 0 1))
+      -- |* vel (choose [0.2, 1])
+      |- oct 1
+      |= ch 14
+      |* vel d
+
+p15 f s r d = d15 $ do
+  id $
+    f $
+    slow 4 $ trunc 0.5 $ fast 4 $
+    struct (slow 2 $ binary $ 128 + 64) $
+      arrange flow s r (-9,9) ["~"
+        ,"[-1,0,1]/8"
+      ]# ch 15
+      |* vel d
+
+p12 f s r d = d12 $ do
+  id $
+    f $
+      arrange flow s r (-9,9) ["~"
+        ,"[0 1 . 2]" |- 3
+      ]# ch 12
+      |* vel d
+
+-- apply rep f = (slow rep) . f . (fast rep)
+
+-- truncL rep loc = (slow rep) . (trunc loc) . (fast rep)
+
+-- truncL rep loc = (slow rep) $ (trunc loc) $ (fast rep)
+
+ -- DFAM STEPTRIG
+p11 f = d11 $ id
+  $ mono
+  $ f
+  $ degradeBy 0.1
+  $ struct (binary $ 128 |+ irand 128)
+  $ 0.036 <~ stack [ silence
+  , steptrig $ "[1 2 3*2 4 5*2 6 7*4 8*2]/2"
+  ]# ch 11
+
+p12 f s r d = d12 $ do
+  id $
+    f $
+    -- scramble 4 $
+      0.036 <~ arrange flow s r (-9,9) ["~"
+        -- ,run 4
+        ,-3
+      ]# ch 12
+      |* vel d
+
+p13 f s r d = d13 $ do
+  id $
+    f $
+    -- struct (binary 255) $
+    -- scramble 2 $
+    -- slowstripe (choose [2,4]) $
+      0.036 <~ arrange flow s r (-9,9) ["~"
+        ,run 4
+      ]# ch 13
+      -- |+ oct 1
+      |* vel d
+
+p14 f s r d = d14 $ do
+  id $
+    f $
+      arrange flow s r (-9,9) ["~"
+        ,"[-6]"
+      ]# ch 14
+      |* vel d
+
+p16 f s r d = d16 $ do
+  id $
+    -- within ( )
+    slow 2 $ someCyclesBy 0.8 (struct (binary $ 128 + 32 + 16)) $
+    slow 4 $
+    stripe (choose [2,3,4]) $
+    scramble 4 $
+    f $
+      arrange flow (overlapF 1 s) r (-9,9) ["~"
+        ,"0 3" |+ irand 2
+        -- ,"0 1 2 3 5 6 7 8"
+        -- ,run 8
+      ]# ch 16
+      |+ oct 1
+      |* vel d
+
+ -- RHYTHM
+p10 f d = d10 $ id
+  $ f
+  $ stack [ silence
+    ,kick "1"
+    ,hh "0 1"
+    ] |* vel d

@@ -7,18 +7,18 @@ p10 f d = d10 $ id
   -- , midinote "[5 4]" |* vel 0.5 |+ humanise 0.1
   -- , degradeBy 0.9 $ (1/4) <~ midinote "0" |* vel 0.1 |+ humanise 0.1
   , midinote "[2]*2" |+ vel (lfo tri 0.01 0.7) |+ humanise 0.1
-  -- , degrade $ (1/4) <~ midinote "[2?]?*2" |+ vel (lfo tri 0.01 0.67) |+ humanise 0.8
+  , degrade $ (1/4) <~ midinote "[2?]?*2" |+ vel (lfo tri 0.01 0.67) |+ humanise 0.8
   -- , (2/4) <~ (slow 2 $ midinote "[4]*2" |+ vel (slow 2 $ lfo tri 0.05 0.2) |+ humanise 0.1)
   -- , midinote "[2 2 3 2]" |+ vel (lfo tri 0.3 0.7) |+ humanise 0.1
   -- , midinote "[~ 1]/2" |+ vel 0.5 |+ humanise 0.1
   -- , midinote "[~ 7]/2" |+ vel 0.99 |+ humanise 0.1
-  -- , struct (binary 10) $ degradeBy 0.5 $ sometimes (rev) $ stut 3 2 0.25 $ midinote "[6(5,8)?]?/2" |* vel (0.25 <~ (slow 2 $ lfo sine 0.1 0.5)) |* vel (lfo tri 0.1 0.7) |+ humanise 0.4
+  , struct (binary 10) $ degradeBy 0.5 $ sometimes (rev) $ stut 3 2 0.25 $ midinote "[6(5,8)?]?/2" |* vel (0.25 <~ (slow 2 $ lfo sine 0.1 0.5)) |* vel (lfo tri 0.1 0.7) |+ humanise 0.4
   -- , degradeBy 0.1 $ midinote "[6(3,8)]/2" |* vel (0.5 <~ (slow 2 $ lfo sine 0.2 0.6)) |* vel (lfo tri 0.2 0.8) |+ humanise 0.4
   -- , slow 2 $ struct (binary 12) $ slow 2 $ rev $ stut 3 1 0.3 $ midinote "7*8" |* vel (lfo tri 0.1 0.7) |+ humanise 0.2
   -- , degradeBy 0.4 $ stut 6 2 0.2 $ midinote "7(9,16)?/2" |* vel (0.1 <~ (slow 3 $ lfo tri 0.1 0.7)) |+ humanise 0.3
   -- , midinote "[~ ~ ~ 0? . ~ ~ ~ 0?]/2?" |+ vel (slow 2 $ lfo saw 1 0.1) |+ humanise 0.1
   -- , degradeBy 0.7 $ midinote "7(5,8)" |* vel (0.2 <~ (slow 4 $ lfo sine 0.2 0.8)) |+ humanise 0.4
-  -- , degradeBy 0.5 $ stut 3 2 0.25 $ midinote "[7(3,8)?]/2" |* vel (0.25 <~ (slow 2 $ lfo sine 0.1 0.5)) |* vel (lfo tri 0.1 0.7) |+ humanise 0.4
+  , degradeBy 0.5 $ stut 3 2 0.25 $ midinote "[7(3,8)?]/2" |* vel (0.25 <~ (slow 2 $ lfo sine 0.1 0.5)) |* vel (lfo tri 0.1 0.7) |+ humanise 0.4
   -- , midinote "[0]/4" |+ vel 0.99 |+ humanise 0.1
   -- , degradeBy 0.5 $ stut 4 2 0.25 $ midinote "[7(3,8)?]?/2" |* vel (slow 3 $ sine) |+ humanise 0.4
   -- , slow 4 $ rev $ stut 5 2 0.25 $ midinote "7(7,16)" |* vel (slow 2 $ lfo tri 0.1 0.7) |+ humanise 0.25
@@ -32,7 +32,7 @@ p10 f d = d10 $ id
   -- , midinote "0(3,16)?/2" |+ vel (slow 2 $ sine) |+ humanise 0.2
   -- , sometimesBy 0.5 (rev) $ midinote "[0 ~ 0 ~ ~ ~ ~ ~]/2" |+ vel "[0.6 0.4]" |+ humanise 0.2
   -- , midinote "0(2,16)?/2" |+ vel 0.7 |+ humanise 0.15
-  -- , degradeBy 0.7 $ midinote "0(3,16)?/2" |+ vel (lfo tri 0.1 0.3) |+ humanise 0.2
+  , degradeBy 0.7 $ midinote "0(3,16)?/2" |+ vel (lfo tri 0.1 0.3) |+ humanise 0.2
     ] # ch 10
     |= sustain 0.05
     |+ humanise 0.1
