@@ -66,9 +66,9 @@ let p = streamReplace tidal
     d16 = p 16
 :}
 
--- hush = mapM_ ($ silence) [p "click, "p "count", p "riser",d1,d2,d3,d4,d5,d6,d7,d8,d9, d01,d02,d03,d04,d05,d06,d07,d08,d09,d10,d11,d12,d13,d14,d15,d16]
-
 hush = mapM_ ($ silence) [p "click", p "count", p "riser", d01,d02,d03,d04,d05,d06,d07,d08,d09,d10,d11,d12,d13,d14,d15,d16]
+
+setbpm tempo = p "t" $ bpm tempo
 
 hushVis = mapM_ ($ silence) [p "visual"]
 
@@ -98,9 +98,6 @@ pullBy = (<~)
 pushBy = (~>)
 (|=) = (#)
 resetCycles = streamResetCycles tidal
-master = 0.99
-runWith f = resetCycles >> f
-hydra n p = cc (n) p #ch 1
 
 steptrig p = midinote (toScale [-1, 0, 2, 4, 5, 7, 9, 10] $ (((p-1) `mod` 8)+1)) |= vel 1
 oct n = note (12*n)
@@ -111,7 +108,6 @@ rh = phrase
 runSeq = (0, 1, silence)
 midiClock out = bar 0 out $ midicmd "midiClock*24" #midi -- #din
 initSync = bar 0 0 $ midicmd "stop" #midi -- #din
--- startSync = bar 1 1 $ midicmd "start" #midi -- #din
 startSync = bar 6 6 $ midicmd "start" #midi
 stopSync out = bar (out+1) (out+1) $ midicmd "stop" #midi -- #din
 inKey k b p = note (slow b $ k p)
@@ -130,103 +126,38 @@ minim = 1/2
 
 :{
 
-mMaj :: Num a => [a]
 mMaj = [0,2,4,5,7,9,11]
-
-mMin :: Num a => [a]
 mMin = [0,2,3,5,7,9,11]
-
-hMin :: Num a => [a]
 hMaj = [0,2,3,5,7,8,11]
-
-hMaj :: Num a => [a]
 hMin = [0,2,4,5,7,8,11]
-
-ionian :: Num a => [a]
 ionian = [0,2,4,5,7,9,11]
-
-dorian :: Num a => [a]
 dorian = [0,2,3,5,7,9,10]
-
-phrygian :: Num a => [a]
 phrygian = [0,1,3,5,7,8,10]
-
-lydian :: Num a => [a]
 lydian = [0,2,4,6,7,9,11]
-
-mixolydian :: Num a => [a]
 mixolydian = [0,2,4,5,7,9,10]
-
-aeolian :: Num a => [a]
 aeolian = [0,2,3,5,7,8,10]
-
-locrian :: Num a => [a]
 locrian = [0,1,3,5,6,8,10]
-
-melMin :: Num a => [a]
 melMin = [0,2,3,5,7,9,11]
-
-melMin2 :: Num a => [a]
 melMin2 = [0,1,3,5,7,9,10]
-
-melMin3 :: Num a => [a]
 melMin3 = [0,2,4,6,8,9,11]
-
-melMin4 :: Num a => [a]
 melMin4 = [0,2,4,6,7,9,10]
-
-melMin5 :: Num a => [a]
 melMin5 = [0,2,4,5,7,8,10]
-
-melMin6 :: Num a => [a]
 melMin6 = [0,2,3,5,6,8,10]
-
-melMin7 :: Num a => [a]
 melMin7 = [0,1,3,4,6,8,10]
-
-harmMin :: Num a => [a]
 harmMin = [0,2,3,5,7,8,11]
-
-harmMin2 :: Num a => [a]
 harmMin2 = [0,1,3,5,6,9,10]
-
-harmMin3 :: Num a => [a]
 harmMin3 = [0,2,4,5,8,9,11]
-
-harmMin4 :: Num a => [a]
 harmMin4 = [0,2,3,6,7,9,10]
-
-harmMin5 :: Num a => [a]
 harmMin5 = [0,1,4,5,7,8,10]
-
-harmMin6 :: Num a => [a]
 harmMin6 = [0,3,4,6,7,9,11]
-
-harmMin7 :: Num a => [a]
 harmMin7 = [0,1,3,4,6,8,9]
-
-penta :: Num a => [a]
 penta = [0,2,4,7,9]
-
-penta2 :: Num a => [a]
 penta2 = [0,2,5,7,10]
-
-penta3 :: Num a => [a]
 penta3 = [0,3,5,8,10]
-
-penta4 :: Num a => [a]
 penta4 = [0,2,5,7,9]
-
-penta5 :: Num a => [a]
 penta5 = [0,3,5,7,10]
-
-dimWhole :: Num a => [a]
 dimWhole = [0,2,3,5,6,8,9,11]
-
-dimHalf :: Num a => [a]
 dimHalf = [0,1,3,4,6,7,9,10]
-
-wholeTone :: Num a => [a]
 wholeTone = [0,2,4,6,8,10]
 
 mode m key pat = key (pat |+ m)
@@ -488,19 +419,50 @@ on4 = within (0.75,1)
 up4 = within (0.825,1)
 
 :{
+
 let setI = streamSetI tidal
     setF = streamSetF tidal
     setS = streamSetS tidal
     setR = streamSetI tidal
     setB = streamSetB tidal
+
 :}
 
+
 :{
+
+qlink1 = cF 0 "100"
+qlink2 = cF 0 "101"
+qlink3 = cF 0 "102"
+qlink4 = cF 0 "103"
+
+over ctrl xs =
+  let step = 1 / fromIntegral (length xs)
+   in fmap (\x -> xs !! floor (min (fromIntegral (length xs - 1)) (x / step))) ctrl
+
+(-->) ctrl xs = over ctrl xs
+
+(<--) pat ctrlMap = pat |+ segment 128 ctrlMap
+
+:}
+
+kick pat = struct pat $ midinote "0" #ch 10 #sustain 0.05
+snap pat = struct pat $ midinote "1" #ch 10 #sustain 0.05
+hhcl pat = struct pat $ midinote "2" #ch 10 #sustain 0.05
+hhop pat = struct pat $ midinote "3" #ch 10 #sustain 0.05
+ride pat = struct pat $ midinote "4" #ch 10 #sustain 0.05
+crash pat = struct pat $ midinote "5" #ch 10 #sustain 0.05
+click pat = struct pat $ midinote "6" #ch 10 #sustain 0.05
+snare pat = struct pat $ midinote "7" #ch 10 #sustain 0.05
+rimshot pat = struct pat $ midinote "[6,7]" #ch 10 #sustain 0.05
+
+:{
+
 adagio = 71
 andante = 85
 moderato = 110
 allegro = 135
-metronome d = p "click" $ click "1" |= vel "[0.8 0.4!3]/4"
+metronome d = p "click" $ click "1" |= vel "[0.8 0.4!3]/4" |* vel d
 son32 = "[1 [0 1] 0 1 . 0 1 1 0]/4"
 son23 = 2 <~ son32
 rumba32 ="[1 [0 1] 0 1 . 0 1 1 0]/4"
@@ -509,7 +471,6 @@ bossa32 = "[1 [0 1] 0 [0 1] . 0 1 [0 1] 0]/4"
 bossa23 = 2 <~ bossa32
 bellpat32 = "[1 1 [1 1] [0 1] [1 0] [1 1] [0 1] [0 1]]/4"
 bellpat23 = 2 <~ bellpat32
-:
 
 ecbc prog len pat =
   slow (4*len) (cat $ midinote <$>
@@ -541,15 +502,6 @@ arrange voiceFunc prog rep register pats =
    in applyProg voiceFunc prog rep rangedPattern
 
 :}
-
-kick pat = struct pat $ midinote "0" #ch 10 #sustain 0.05
-snap pat = struct pat $ midinote "1" #ch 10 #sustain 0.05
-hhcl pat = struct pat $ midinote "2" #ch 10 #sustain 0.05
-hhop pat = struct pat $ midinote "3" #ch 10 #sustain 0.05
-ride pat = struct pat $ midinote "4" #ch 10 #sustain 0.05
-crash pat = struct pat $ midinote "5" #ch 10 #sustain 0.05
-click pat = struct pat $ midinote "6" #ch 10 #sustain 0.05
-snare pat = struct pat $ midinote "7" #ch 10 #sustain 0.05
 
 :{
 
@@ -590,9 +542,9 @@ count s rep =
               $ midinote (fromIntegral <$> bars) |= vel 1
    in p "count" $ pattern # ch 10
 
-riser s r d = d09 $ do
+riser len s r d = d09 $ do
   id $
-    slow 128 $
+    slow (len*4) $
       stack [n "~"
           -- --
         ,arrange flow s r (-9,9) ["~"
@@ -600,11 +552,11 @@ riser s r d = d09 $ do
         ] |* vel 0.99
           -- --
         ,segment 256 $ cc 1 $ fastcat [ 0
-          -- ,rev $ lfo saw 1 0
           ,0
           ,lfo saw 0 0.1
-          ,lfo saw 0.1 0.3
-          ,lfo saw 0.4 1
+          ,lfo saw 0.1 0.4
+          ,lfo saw 0.4 0.7
+          ,lfo saw 0.7 1
           ]
           -- --
       ]# ch 09

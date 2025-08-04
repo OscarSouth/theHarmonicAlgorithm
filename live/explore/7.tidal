@@ -102,3 +102,103 @@ p10 f d = d10 $ id
     ,kick "1"
     ,hh "0 1"
     ] |* vel d
+
+p16 f s r d = d16 $ do
+  let p1 = qlink2 --> [-2..8]
+  let p2 = slow 4 $ (segment 128 $ lfo sine 0 1) --> [8..(-2)]
+  id $
+    f $
+      slow p2 $
+      stack [n "~"
+          -- --
+        ,arrange flow (overlapF 1 s) r (-12,12) ["~"
+        ,3 +| "[0 1 2 3]" <-- p1
+        -- ,"[0 1 2 3]" |+ segment 128 (qlink2 --> [-2..6])
+        ,"[-6?]*2"
+        ] |* vel 0.99 |= ch 16 |- oct 1
+          -- --
+        ,kick "[1?]*2" |= vel 0.2
+        -- ,crash "[1]*2" |= vel 1
+          -- --
+      ] |* vel d
+
+let (<--) ctrl xs pat = pat |+ segment 128 (over ctrl xs)
+
+qlink2 over [1,2,3]
+
+state = prog flat [[2,5,9],[2,5,7],[0,5,7],[0,7,10]]
+
+initCadenceState (head rns) "C" [0,5,7])
+
+extract 1 state
+
+
+let overP ctrl pat =
+      let xs = words pat
+          step = 1 / fromIntegral (length xs)
+      in fmap (\x -> xs !! floor (min (fromIntegral (length xs - 1)) (x / step))) ctrl
+
+
+-- Over by explicit segmentation length
+overBy :: Int -> Pattern Double -> [a] -> Pattern a
+overBy n ctrl vals = segment n $ fmap select idxs
+  where
+    idxs = fmap (\x -> floor (x * fromIntegral n)) ctrl
+    select i = vals !! (min (length vals - 1) i)
+
+-- Syntactic sugar
+over :: Pattern Double -> [a] -> Pattern a
+over = overBy <$> length
+
+riser len s r d = d09 $ do
+  id $
+    slow (len*4) $
+      stack [n "~"
+          -- --
+        ,arrange flow s r (-9,9) ["~"
+        ,"[0]/2"
+        ] |* vel 0.99
+          -- --
+        ,segment 256 $ cc 1 $ fastcat [ 0
+          ,0
+          ,lfo saw 0 0.1
+          ,lfo saw 0.1 0.3
+          ,lfo saw 0.3 0.6
+          ,lfo saw 0.6 1
+          ]
+          -- --
+      ]# ch 09
+      |* vel d
+
+metronome d = p "click" $ click "1" |= vel "[0.8 0.4!3]/4" |* vel d
+
+
+p16 f s r d = d16 $ do
+  let p1 = qlink2 --> [-2..8]
+  let p2 = slow 4 $ lfo tri qlink3 1 --> [-2..8]
+  id $
+    f $
+      -- slow p1 $
+      slow p2 $
+      stack [n "~"
+          -- --
+        ,arrange flow (overlapF 1 s) r (-12,12) ["~"
+        ,3 +| "[0 1 2 3]" <-- p1
+        -- ,"[0 1 2 3]" |+ segment 128 (qlink2 --> [-2..6])
+        ,"[-9]*2" <-- p2
+        ] |* vel 0.99 |= ch 16 |- oct 1
+          -- --
+        -- ,kick "[1?]*2" |= vel 0.2
+        -- ,crash "[1]*2" |= vel 1
+          -- --
+      ] |* vel d
+
+-- worked at the end of the session -- XTypeSynonymInstances or XFlexibleContexts?
+
+over ctrl xs =
+  let step = 1 / fromIntegral (length xs)
+   in fmap (\x -> xs !! floor (min (fromIntegral (length xs - 1)) (x / step))) ctrl
+
+(-->) ctrl xs = over ctrl xs
+
+(<--) pat ctrlMap = pat |+ segment 128 ctrlMap

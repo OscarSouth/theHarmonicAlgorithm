@@ -4,7 +4,7 @@ hush''
 next <- gammaGen 1 0.3
   >>= \rns ->
   chainCadence sharp
-  (initCadenceState (head rns) "C" [0,5,7])
+  (initCadenceState (head rns) "C" [0,3,7])
   -- (lastCadence state)
   (harmonicContext
   -- overtones
@@ -21,28 +21,27 @@ state = next
 
 do
   let
-    dyn = slow 128 (lfo saw 0.8 0.9)
+    dyn = 0.1 + qlink4
     rep = 2
-    t = bpm tempo
-    s = excerpt 1 16 $ transpose (0) state
+    s = transpose (0) state
     f = (swingBy 0.07 2)
     -- k = keySig -- s 1 4
     (d,r) = ((*dyn),rep)
   putStrLn . show $ s
-  mapM_ id [hush,p"t"t
-    -- ,metronome $d 0.9
+  mapM_ id [hush, setbpm tempo
+    -- ,metronome $d 0.2
     ,count s rep
-    -- ,riser s r $d 0.99
+    ,riser 32 s r $d 0.99
     -- ,p01 f s r $d 0.99
     -- ,p08 f s r $d 0.99
     -- ,p09 f s r $d 0.99
     ,p10 f   $d 0.6
-    ,p11 f
+    -- ,p11 f
     -- ,p12 f s r $d 0.7
     -- ,p13 f s r $d 0.7
-    -- ,p14 f s r $d 0.2
-    -- ,p15 f s r $d 0.2
-    -- ,p16 f s r $d 0.3
+    -- ,p14 f s r $d 0.7
+    -- ,p15 f s r $d 0.4
+    ,p16 f s r $d 0.8
     ]
 
  -- TRANSPORT

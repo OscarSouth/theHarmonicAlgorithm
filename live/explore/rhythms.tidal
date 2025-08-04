@@ -3,17 +3,19 @@ clave = rumba32
 bellpat = bellpat32
 
  -- A
-p10 f d = d10 $ id
+p10 f d = d10 $ do
+  let p1 = qlink1 --> [0..1]
+  id
   $ f
   $ stack [ silence
-    ,ride "[1 . 1 1]" #vel (lfo tri 0.08 0.4) |+ humanise 0.2
-    ,hh "[~ 1]"
-    ,click "[~ 1]/2"
-    ,kick "[1]/2" # vel 0.3
+    ,ride "[1 . 1 1]"  #vel (1-p1) |* vel (lfo tri 0.08 0.5) |+ humanise 0.2
+    ,hh "[~ 1]" #vel p1
+    -- ,click "[~ 1]/2"
+    -- ,kick "[1]/2" # vel 0.3
+    ,kick "1" #vel p1
     ,degradeBy 0.9 $ kick (slow 4 $ binary (128 |+ irand 128)) |+ vel (lfo saw 0.4 0.1)
     ,degradeBy 0.7 $ click (slow 2 $ binary 156) |+ vel 0.15
     ] |* vel d
-
 
  -- B
 p10 f d = d10 $ id
@@ -21,12 +23,12 @@ p10 f d = d10 $ id
   -- $ stut 2 0.5 (4/1)
   $ stack [ silence
     ,kick "1"
-    ,hh bellpat |* vel 0.5
+    -- ,hh bellpat |* vel 0.5
     -- ,click clave |* vel 0.9
     -- ,click "[~ 1]/2"
     ,snare "[~ 1]/2"
     -- ,kick "[1]/2" # vel 0.3
-    ,degradeBy 0.9 $ (1) <~ kick (slow 4 $ binary (128 |+ irand 128)) |+ vel (lfo saw 0.4 0.1)
+    -- ,degradeBy 0.9 $ (1) <~ kick (slow 4 $ binary (128 |+ irand 128)) |+ vel (lfo saw 0.4 0.1)
     ,degrade $ snare "[1 . ~ [1?]? . [1?]? [1?]? . ~]/2" |+ vel 0.2
     ,hh "[0 2]"
     -- ,hh "[x x o x]"
@@ -67,4 +69,37 @@ p01 f s r d = d01 $ do
         ,"[-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9]"
       ]# ch 01
       -- |= legato 1
+      |* vel d
+
+p14 f s r d = d14 $ do
+  id $
+    f $
+      arrange flow s r (-9,9) ["~"
+        ,"[-6]"
+      ]# ch 14
+      |* vel d
+
+p15 f s r d = d15 $ do
+  id $
+    f $
+      stack [n "~"
+          -- --
+        ,arrange flow s r (-9,9) ["~"
+        ,"[-1,0,1,3,2]"
+        ] |* vel 0.99
+          -- --
+        -- ,segment 128 $ cc 74 $qlink1
+        -- ,slow 8 $ cc 74 $ lfo tri 0.3 0.7
+          -- --
+      ]# ch 15
+      |* vel d
+
+qlink = d1 $ cc 74 qlink1 #ch 15
+
+p14 f s r d = d14 $ do
+  id $
+    f $
+      arrange flow s r (-9,9) ["~"
+        ,"[0 1 2 3]"
+      ]# ch 14
       |* vel d
