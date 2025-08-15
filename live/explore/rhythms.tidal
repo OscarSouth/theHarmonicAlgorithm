@@ -2,17 +2,22 @@ tempo = 80
 clave = rumba32
 bellpat = bellpat32
 
+p1 = qlink1 --> [0..1]
+
+t1 = tgl1 --> [0,1]
+
+o1 = slow (32*4) $ lfo saw 0 1 --> [1,0]
+
  -- A
 p10 f d = d10 $ do
-  let p1 = qlink1 --> [0..1]
   id
   $ f
   $ stack [ silence
-    ,ride "[1 . 1 1]"  #vel (1-p1) |* vel (lfo tri 0.08 0.5) |+ humanise 0.2
-    ,hh "[~ 1]" #vel p1
+    ,ride "[1 . 1 1]"  #vel (1-t1) |* vel (lfo tri 0.08 0.5) |+ humanise 0.2
+    ,hh "[~ 1]" #vel t1
     -- ,click "[~ 1]/2"
     -- ,kick "[1]/2" # vel 0.3
-    ,kick "1" #vel p1
+    ,kick "1" #vel t1
     ,degradeBy 0.9 $ kick (slow 4 $ binary (128 |+ irand 128)) |+ vel (lfo saw 0.4 0.1)
     ,degradeBy 0.7 $ click (slow 2 $ binary 156) |+ vel 0.15
     ] |* vel d

@@ -1,0 +1,31 @@
+ -- JAZZ PIANO
+jazz f s r d = d03 $ do f
+  $ stack [ silence
+     -- --
+    ,arrange flow (overlapF 1 s) r (-9,9) ["~"
+      -- ,"[0 1 2 3 6 4 2 1]/4"
+      ,"[0,2,4]/4"
+      ,"[-9@3 -6@5]/4"
+    ]# ch 03
+     -- --
+    ,wonky 0
+     -- --
+  ] |* vel d
+
+do
+  let
+    dyn = 0.9
+    rep = 1
+    -- s = state
+    -- s = prog flat [[9,0,4],[9,0,2],[10,0,2],[10,0,4]]
+    s = prog sharp [[4,7,11],[4,7,2],[2,4,7],[1,4,9]]
+    f = (swingBy 0.07 2)
+    (d,r) = ((*dyn),rep)
+  putStrLn . show $ s
+  mapM_ id [hush, setbpm 100
+    ,metronome $d 0.2
+    ,count s r $d 0.1
+    ,rise 8 s r $d 0.99
+    ,jazz f s r $d 0.9
+    -- ,sine f s r $d 0.9
+    ]

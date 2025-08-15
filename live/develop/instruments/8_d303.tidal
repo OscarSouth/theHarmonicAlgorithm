@@ -1,0 +1,45 @@
+ -- 303
+t303 f s r d = d08 $ do f
+  $ stack [ silence
+     -- --
+    ,mono $ sometimes palindrome $ arrange flow (overlapF 1 s) r (-9,9) ["~"
+      ,mask (slow 4 $ binary 210) $ "[0 1 2 3 6 4 2 1]/2" |+ "[-3 0]/2"
+      -- ,"[-3]*2"
+    ]# ch 08
+     -- --
+    ,slope (slow 24 $ lfo tri 0.4 0.6)
+    ,bright (slow 32 $ lfo tri 0 0.2)
+    ,reso (slow 48 $ lfo tri 0.6 0.7)
+    ,contour (slow 72 $ lfo tri 0.85 0.98)
+    ,waveform "[0 1]/16" # ch 8
+     -- --
+  ] |* vel d
+
+-- todo: glide
+
+slope v = cc 100 v #ch 8
+bright v = cc 101 v #ch 8
+reso v = cc 102 v #ch 8
+contour v = cc 103 v #ch 8
+waveform v = let v' = v --> [0.34, 0.67] in cc 104 v' #ch 8
+
+do
+  let
+    dyn = 0.99
+    rep = 1
+    -- s = state
+    -- s = prog flat [[9,0,4],[9,0,2],[10,0,2],[10,0,4]]
+    s = prog sharp [[4,7,11],[4,7,2],[2,4,7],[1,4,9]]
+    f = (swingBy 0.07 2)
+    (d,r) = ((*dyn),rep)
+  putStrLn . show $ s
+  mapM_ id [hush, setbpm 100
+    ,metronome $d 0.2
+    ,count s r $d 0.1
+    ,rise 8 s r $d 0.99
+    ,t303 f s r $d 0.9
+    ,sine f s r $d 0.1
+    ,k909 f     $d 0.99
+    ]
+
+o1 = (slow 8 $ lfo tri 0 1) --> [1..128]

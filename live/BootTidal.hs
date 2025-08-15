@@ -66,9 +66,26 @@ let p = streamReplace tidal
     d16 = p 16
 :}
 
-hush = mapM_ ($ silence) [p "click", p "count", p "riser", d01,d02,d03,d04,d05,d06,d07,d08,d09,d10,d11,d12,d13,d14,d15,d16]
+:{
 
-setbpm tempo = p "t" $ bpm tempo
+hush = mapM_ ($ silence) [
+  p "click", p "count", p "rise",
+  d01,d02,d03,d04,d05,d06,d07,d08,d09,d10,d11,d12,d13,d14,d15,d16,
+  p "sinewave",
+  p "piano",
+  p "boeingdrone",
+  p "boeingimpact",
+  p "bassovertones",
+  p "tubeblip",
+  p "sampled909",
+  p "mpckit",
+  p "moogDFAM",
+  p "moogMother32",
+  p "sh101",
+  p "juno"
+  ]
+
+:}
 
 hushVis = mapM_ ($ silence) [p "visual"]
 
@@ -99,7 +116,7 @@ pushBy = (~>)
 (|=) = (#)
 resetCycles = streamResetCycles tidal
 
-steptrig p = midinote (toScale [-1, 0, 2, 4, 5, 7, 9, 10] $ (((p-1) `mod` 8)+1)) |= vel 1
+steptrig p = mono $ 0.036 <~ midinote (toScale [-1, 0, 2, 4, 5, 7, 9, 10] $ (((p-1) `mod` 8)+1)) |= vel 1
 oct n = note (12*n)
 out = 4
 bar b1 b2 p = ((b1+2)*4, (b2+3)*4, p)
@@ -113,7 +130,9 @@ stopSync out = bar (out+1) (out+1) $ midicmd "stop" #midi -- #din
 inKey k b p = note (slow b $ k p)
 sync out = [midiClock out, initSync, startSync, stopSync out]
 bpm t = cps (t/60)
+setbpm tempo = p "t" $ bpm tempo
 meter t m s = cps (t/((m/s)*60))
+binaryrange min max = (binary $ min |+ irand max-min)
 
 n \\\ s = toScale $ fromIntegral . (+ i n) . toInteger <$> s
 
@@ -168,29 +187,7 @@ program' prog bank = stack [
   pushBy 0.001 $ control bank #midicmd "control" #ctlNum 0
   ]
 
-program prog = midicmd "program" #progNum prog
-
-assignable prog = midicmd "program" #progNum (prog+70) #ch 12
-m32seq pat bank = midicmd "program" #progNum (pat+((bank-1)*8)) #ch 12
-m32seq' absPat = midicmd "program" #progNum absPat #ch 12
-perpetuate v = cc 64 v #ch 12
-portamento i v = cc 65 i #cc 5 v #ch 12
-assignaccent = assignable 1
-assignclock0 = assignable 2
-assignclock2 = assignable 3
-assignclock4 = assignable 4
-assignramp = assignable 5
-assignsaw = assignable 6
-assigntri = assignable 7
-assignrandom = assignable 8
-assigntrigger = assignable 9
-assignvel = assignable 10
-assignpressure = assignable 11
-assignbend = assignable 12
-assigncc1 = assignable 13
-assigncc2 = assignable 14
-assigncc4 = assignable 15
-assigncc7 = assignable 16
+program prog = midicmd "program" #progNum prog #ch 14
 
 type Section = ((Pattern Int, Pattern Double),(Pattern Int, Pattern Double), Int)
 
@@ -436,12 +433,22 @@ qlink2 = cF 0 "101"
 qlink3 = cF 0 "102"
 qlink4 = cF 0 "103"
 
+tgl1 = cF 0 "104"
+tgl2 = cF 0 "105"
+tgl3 = cF 0 "106"
+tgl4 = cF 0 "107"
+tgl5 = cF 0 "108"
+
+xyX = cF 0 "109"
+xyY = cF 0 "110"
+
+over :: Pattern Double -> [a] -> Pattern a
+over ctrl [] = silence
 over ctrl xs =
   let step = 1 / fromIntegral (length xs)
-   in fmap (\x -> xs !! floor (min (fromIntegral (length xs - 1)) (x / step))) ctrl
+  in fmap (\x -> xs !! floor (min (fromIntegral (length xs - 1)) (x / step))) ctrl
 
 (-->) ctrl xs = over ctrl xs
-
 (<--) pat ctrlMap = pat |+ segment 128 ctrlMap
 
 :}
@@ -530,36 +537,145 @@ hh pat = do
 
 :}
 
+assignable prog = midicmd "program" #progNum (prog+70) #ch 14
+m32seq pat bank = midicmd "program" #progNum (pat+((bank-1)*8)) #ch 14
+m32seq' absPat = midicmd "program" #progNum absPat #ch 14
+perpetuate v = cc 64 v #ch 14
+-- portamento i v = cc 65 i #cc 5 v #ch 14
+portamento v = cc 65 1 #cc 5 v #ch 14
+assignaccent = assignable 1 #ch 14
+assignclock0 = assignable 2 #ch 14
+assignclock2 = assignable 3 #ch 14
+assignclock4 = assignable 4 #ch 14
+assignramp = assignable 5 #ch 14
+assignsaw = assignable 6 #ch 14
+assigntri = assignable 7 #ch 14
+assignrandom = assignable 8 #ch 14
+assigntrigger = assignable 9 #ch 14
+assignvel = assignable 10 #ch 14
+assignpressure = assignable 11 #ch 14
+assignbend = assignable 12 #ch 14
+assigncc1 = assignable 13 #ch 14
+assigncc2 = assignable 14 #ch 14
+assigncc4 = assignable 15 #ch 14
+assigncc7 = assignable 16 #ch 14
+
+-- Select a pattern by its absolute number (0-63) on channel 15
+s1pat p = midicmd "program" #progNum p #ch 15
+
+-- Select a pattern by bank (1-8) and pattern-within-bank (1-8) on channel 15
+s1seq pat bank = midicmd "program" #progNum (pat-1+((bank-1)*8)) #ch 15
+
+-- All parameter controls on Channel 15
+--
+-- Global & Performance
+modwheel v = cc 1 v #ch 15        -- CC 1: Modulation Wheel
+portatime v = cc 5 v #ch 15       -- CC 5: Portamento Time
+pan v = cc 10 v #ch 15            -- CC 10: Pan
+expression v = cc 11 v #ch 15     -- CC 11: Expression
+portamode v = cc 31 v #ch 15      -- CC 31: Portamento Mode
+damper v = cc 64 v #ch 15         -- CC 64: Damper Pedal (Sustain)
+portasw v = cc 65 v #ch 15        -- CC 65: Portamento On/Off Switch
+finetune v = cc 76 v #ch 15       -- CC 76: Fine Tune
+transposesw v = cc 77 v #ch 15    -- CC 77: Transpose Switch
+
+-- Oscillator (OSC)
+osclfo v = cc 13 v #ch 15         -- CC 13: OSC LFO Depth
+oscrange v = cc 14 v #ch 15       -- CC 14: OSC Range
+oscpwm v = cc 15 v #ch 15         -- CC 15: OSC Pulse Width
+oscpwmsrc v = cc 16 v #ch 15      -- CC 16: OSC PWM Source
+oscbendsens v = cc 18 v #ch 15    -- CC 18: OSC Bend Sensitivity
+oscsquarelvl v = cc 19 v #ch 15   -- CC 19: OSC Square Wave Level
+oscsawlvl v = cc 20 v #ch 15      -- CC 20: OSC Saw Wave Level
+oscsublvl v = cc 21 v #ch 15      -- CC 21: OSC Sub Level
+oscsuboct v = cc 22 v #ch 15      -- CC 22: OSC Sub Octave Type
+oscnoiselvl v = cc 23 v #ch 15    -- CC 23: OSC Noise Level
+noisemode v = cc 78 v #ch 15      -- CC 78: Noise Mode
+
+-- Filter & Amplifier (AMP)
+cutoff v = cc 74 v #ch 15         -- CC 74: Filter Cutoff Frequency
+res v = cc 71 v #ch 15            -- CC 71: Filter Resonance
+filterenv v = cc 24 v #ch 15      -- CC 24: Filter Envelope Depth
+filterlfo v = cc 25 v #ch 15      -- CC 25: Filter LFO Depth
+keytrack v = cc 26 v #ch 15 -- CC 26: Filter Keyboard Follow
+filterbendsens v = cc 27 v #ch 15 -- CC 27: Filter Bend Sensitivity
+ampenvmode v = cc 28 v #ch 15     -- CC 28: Amp Envelope Mode Switch
+
+-- LFO & Envelope (ENV)
+lforate v = cc 3 v #ch 15         -- CC 3: LFO Rate
+lfowave v = cc 12 v #ch 15        -- CC 12: LFO Wave Form
+lfomoddepth v = cc 17 v #ch 15    -- CC 17: LFO Modulation Depth
+lfomode v = cc 79 v #ch 15        -- CC 79: LFO Mode
+lfokeytrg v = cc 105 v #ch 15     -- CC 105: LFO Key Trigger
+lfosync v = cc 106 v #ch 15       -- CC 106: LFO Sync
+attack v = cc 73 v #ch 15         -- CC 73: Envelope Attack
+decay v = cc 75 v #ch 15          -- CC 75: Envelope Decay
+envsustain v = cc 30 v #ch 15     -- CC 30: Envelope Sustain
+release v = cc 72 v #ch 15        -- CC 72: Envelope Release
+envtrgmode v = cc 29 v #ch 15     -- CC 29: Envelope Trigger Mode
+
+-- Chord Mode
+polymode v = cc 80 v #ch 15         -- CC 80: Poly Mode
+chordvoice2sw v = cc 81 v #ch 15    -- CC 81: Chord Voice 2 Switch
+chordvoice3sw v = cc 82 v #ch 15    -- CC 82: Chord Voice 3 Switch
+chordvoice4sw v = cc 83 v #ch 15    -- CC 83: Chord Voice 4 Switch
+chordvoice2shift v = cc 85 v #ch 15 -- CC 85: Chord Voice 2 Key Shift
+chordvoice3shift v = cc 86 v #ch 15 -- CC 86: Chord Voice 3 Key Shift
+chordvoice4shift v = cc 87 v #ch 15 -- CC 87: Chord Voice 4 Key Shift
+
+-- Effects (FX)
+revlvl v = cc 91 v #ch 15         -- CC 91: Reverb Level
+revtime v = cc 89 v #ch 15        -- CC 89: Reverb Time
+dellvl v = cc 92 v #ch 15         -- CC 92: Delay Level
+deltime v = cc 90 v #ch 15        -- CC 90: Delay Time
+choruslvl v = cc 93 v #ch 15      -- CC 93: Chorus Level
+
+-- Advanced Oscillator Functions
+drawsw v = cc 107 v #ch 15        -- CC 107: OSC Draw Switch
+drawmultiply v = cc 102 v #ch 15  -- CC 102: OSC Draw Multiply
+chopovertone v = cc 103 v #ch 15  -- CC 103: OSC Chop Overtone
+chopcomb v = cc 104 v #ch 15      -- CC 104: OSC Chop Comb
+
+-- Piano
+wonky v = cc 1 v #ch 03
+
+-- t303
+slope v = cc 100 v #ch 8
+bright v = cc 101 v #ch 8
+reso v = cc 102 v #ch 8
+contour v = cc 103 v #ch 8
+waveform v = let v' = v --> [0.34, 0.67] in cc 104 v' #ch 8
+
 :{
 
 tempo = 120
 
-count s rep =
+count s rep d =
   let progLen (Progression (chords, _, _)) = length chords
       len = pure $ fromIntegral (progLen s)
       bars = run (pure $ progLen s) |+ 8
       pattern = slow (4 * len * fromIntegral rep)
-              $ midinote (fromIntegral <$> bars) |= vel 1
+              $ midinote (fromIntegral <$> bars) |* vel d
    in p "count" $ pattern # ch 10
 
-riser len s r d = d09 $ do
+rise len s r d = d01 $ do
   id $
     slow (len*4) $
       stack [n "~"
           -- --
         ,arrange flow s r (-9,9) ["~"
-        ,"[0]/2"
+        ,"[-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9]/2"
         ] |* vel 0.99
           -- --
         ,segment 256 $ cc 1 $ fastcat [ 0
-          ,0
+          ,0,0,0,0
           ,lfo saw 0 0.1
-          ,lfo saw 0.1 0.4
-          ,lfo saw 0.4 0.7
-          ,lfo saw 0.7 1
+          ,lfo saw 0.1 0.3
+          ,lfo saw 0.3 0.6
+          ,lfo saw 0.6 1
           ]
           -- --
-      ]# ch 09
+      ]# ch 01
       |* vel d
 
  -- DRUM MACHINE INIT
@@ -573,8 +689,8 @@ p10 f d = d10 $ id
 p11 f = d11 $ id
   $ mono
   $ f
-  $ 0.036 <~ stack [ silence
-    ,(steptrig $ "[1 2 3 4 5 6 7 8]/2")
+  $ stack [ silence
+    ,steptrig $ "[1 2 3 4 5 6 7 8]/2"
   ] # ch 11
 
  -- DFAM OSC 1 INIT

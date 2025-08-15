@@ -1,0 +1,75 @@
+-- Select a pattern by its absolute number (0-63) on channel 15
+s1pat p = midicmd "program" #progNum p #ch 15
+
+-- Select a pattern by bank (1-8) and pattern-within-bank (1-8) on channel 15
+s1seq pat bank = midicmd "program" #progNum (pat-1+((bank-1)*8)) #ch 15
+
+-- All parameter controls on Channel 15
+--
+-- Global & Performance
+modwheel v = cc 1 v #ch 15        -- CC 1: Modulation Wheel
+portatime v = cc 5 v #ch 15       -- CC 5: Portamento Time
+pan v = cc 10 v #ch 15            -- CC 10: Pan
+expression v = cc 11 v #ch 15     -- CC 11: Expression
+portamode v = cc 31 v #ch 15      -- CC 31: Portamento Mode
+damper v = cc 64 v #ch 15         -- CC 64: Damper Pedal (Sustain)
+portasw v = cc 65 v #ch 15        -- CC 65: Portamento On/Off Switch
+finetune v = cc 76 v #ch 15       -- CC 76: Fine Tune
+transposesw v = cc 77 v #ch 15    -- CC 77: Transpose Switch
+
+-- Oscillator (OSC)
+osclfo v = cc 13 v #ch 15         -- CC 13: OSC LFO Depth
+oscrange v = cc 14 v #ch 15       -- CC 14: OSC Range
+oscpwm v = cc 15 v #ch 15         -- CC 15: OSC Pulse Width
+oscpwmsrc v = cc 16 v #ch 15      -- CC 16: OSC PWM Source
+oscbendsens v = cc 18 v #ch 15    -- CC 18: OSC Bend Sensitivity
+oscsquarelvl v = cc 19 v #ch 15   -- CC 19: OSC Square Wave Level
+oscsawlvl v = cc 20 v #ch 15      -- CC 20: OSC Saw Wave Level
+oscsublvl v = cc 21 v #ch 15      -- CC 21: OSC Sub Level
+oscsuboct v = cc 22 v #ch 15      -- CC 22: OSC Sub Octave Type
+oscnoiselvl v = cc 23 v #ch 15    -- CC 23: OSC Noise Level
+noisemode v = cc 78 v #ch 15      -- CC 78: Noise Mode
+
+-- Filter & Amplifier (AMP)
+cutoff v = cc 74 v #ch 15         -- CC 74: Filter Cutoff Frequency
+res v = cc 71 v #ch 15            -- CC 71: Filter Resonance
+filterenv v = cc 24 v #ch 15      -- CC 24: Filter Envelope Depth
+filterlfo v = cc 25 v #ch 15      -- CC 25: Filter LFO Depth
+filterkeyfollow v = cc 26 v #ch 15 -- CC 26: Filter Keyboard Follow
+filterbendsens v = cc 27 v #ch 15 -- CC 27: Filter Bend Sensitivity
+ampenvmode v = cc 28 v #ch 15     -- CC 28: Amp Envelope Mode Switch
+
+-- LFO & Envelope (ENV)
+lforate v = cc 3 v #ch 15         -- CC 3: LFO Rate
+lfowave v = cc 12 v #ch 15        -- CC 12: LFO Wave Form
+lfomoddepth v = cc 17 v #ch 15    -- CC 17: LFO Modulation Depth
+lfomode v = cc 79 v #ch 15        -- CC 79: LFO Mode
+lfokeytrg v = cc 105 v #ch 15     -- CC 105: LFO Key Trigger
+lfosync v = cc 106 v #ch 15       -- CC 106: LFO Sync
+attack v = cc 73 v #ch 15         -- CC 73: Envelope Attack
+decay v = cc 75 v #ch 15          -- CC 75: Envelope Decay
+envsustain v = cc 30 v #ch 15     -- CC 30: Envelope Sustain
+release v = cc 72 v #ch 15        -- CC 72: Envelope Release
+envtrgmode v = cc 29 v #ch 15     -- CC 29: Envelope Trigger Mode
+
+-- Chord Mode
+polymode v = cc 80 v #ch 15         -- CC 80: Poly Mode
+chordvoice2sw v = cc 81 v #ch 15    -- CC 81: Chord Voice 2 Switch
+chordvoice3sw v = cc 82 v #ch 15    -- CC 82: Chord Voice 3 Switch
+chordvoice4sw v = cc 83 v #ch 15    -- CC 83: Chord Voice 4 Switch
+chordvoice2shift v = cc 85 v #ch 15 -- CC 85: Chord Voice 2 Key Shift
+chordvoice3shift v = cc 86 v #ch 15 -- CC 86: Chord Voice 3 Key Shift
+chordvoice4shift v = cc 87 v #ch 15 -- CC 87: Chord Voice 4 Key Shift
+
+-- Effects (FX)
+revlvl v = cc 91 v #ch 15         -- CC 91: Reverb Level
+revtime v = cc 89 v #ch 15        -- CC 89: Reverb Time
+dellvl v = cc 92 v #ch 15         -- CC 92: Delay Level
+deltime v = cc 90 v #ch 15        -- CC 90: Delay Time
+choruslvl v = cc 93 v #ch 15      -- CC 93: Chorus Level
+
+-- Advanced Oscillator Functions
+drawsw v = cc 107 v #ch 15        -- CC 107: OSC Draw Switch
+drawmultiply v = cc 102 v #ch 15  -- CC 102: OSC Draw Multiply
+chopovertone v = cc 103 v #ch 15  -- CC 103: OSC Chop Overtone
+chopcomb v = cc 104 v #ch 15      -- CC 104: OSC Chop Comb

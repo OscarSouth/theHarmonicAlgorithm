@@ -1,0 +1,17 @@
+dfam f s r d = p "moogDFAM" $ do
+  let (trig,osc1,osc2) = ch <$> (11,12,13)
+  let pat = "0"
+  f
+    $ stack [silence
+       -- --
+      ,steptrig "[1 2 3 4 5 6 7 8]/2" # trig
+       -- --
+      ,mono $ arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,pat
+      ]# osc1 |* vel 1 |- oct 1
+       -- --
+      ,mono $ arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,pat
+      ]# osc2 |* vel 1 |- oct 1
+       -- --
+    ] |* vel d
