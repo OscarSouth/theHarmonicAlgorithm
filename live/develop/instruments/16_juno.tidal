@@ -1,0 +1,10 @@
+juno f s r d = p "juno" $ do
+  let o = ch 16
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow (overlapF 1 s) r (-9,9) ["~"
+        ,slow 4 $ palindrome $ 8 -| run 16
+      ]# o |* vel 1
+       -- --
+    ] |* vel d

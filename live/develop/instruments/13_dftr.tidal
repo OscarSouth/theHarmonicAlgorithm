@@ -1,0 +1,29 @@
+mfam f s r d = p "moogDFAM" $ do
+  let (osc1,osc2) = (ch 12, ch 13)
+  let pat = slow 4 $ run 8
+  f
+    $ stack [silence
+       -- --
+      ,steptrig "[1 2 3 4 5 6 7 8]/2"
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,pat
+      ]# osc1 |* vel 1 |- oct 2
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,palindrome pat
+      ]# osc2 |* vel 1 |- oct 2
+       -- --
+    ] |* vel d
+
+
+p12 f s r d = d12 $ do
+  let o = ch 12
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,"[0 -1]/4"
+      ]# o |* vel 1
+       -- --
+    ] |* vel d

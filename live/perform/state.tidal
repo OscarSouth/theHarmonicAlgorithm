@@ -1,61 +1,45 @@
-hush
-
- -- CADENCE STATE
-state <- gammaGen 1 0.2
+next <- gammaGen 1 0.3
   >>= \rns ->
   chainCadence sharp
-  (initCadenceState (head rns) "C" [0,4,7]) -- init state
-  -- (extractCadenceState 2 state)
+  (initCadenceState (head rns) "E" [0,3,7])
+  -- (lastCadence state)
   (harmonicContext
   -- overtones
     "*"
   -- tonality
-    "*"
+    "1#"
   -- roots
-    "C"
+    "1#"
   )
   4 -- len
-  2.5 -- entropy
+  1.5 -- entropy
+
+state = rotate (0) next
 
 do
   let
-    dyn = 0.8
-    rep = 1
-    -- f = composition
-    t = bpm 107
-    s = state
-    f = swingBy 0.04 2
-    k = keySig -- s 1 4
+    dyn = 0.7
+    rep = 2
+    s = transpose (0) state
+    f = (swingBy 0.07 2)
     (d,r) = ((*dyn),rep)
   putStrLn . show $ s
-  mapM_ id [hush,p"t"t
-    -- ,count s rep
-    -- ,p01 s r
-    -- ,p10 f   $d 0.99
-    -- ,p11 f
-    -- ,p12 f s r $d 0.5
-    -- ,p13 f s r $d 0.9
-    -- ,p14 f s r $d 0.5
-    -- ,p15 f s r $d 0.5
+  mapM_ id [hush, setbpm tempo
+    -- ,metronome $d 0.1
+    ,count s r $d 0.4
+    ,rise 32 s r $d 0.7
+    -- ,sine f s r $d 0.7
+    -- ,jazz f s r $d 0.7
+    -- ,lboe f s r $d 0.7
+    -- ,hboe f s r $d 0.7
+    -- ,hmnx f s r $d 0.7
+    -- ,t303 f s r $d 0.7
+    -- ,k909 f     $d 0.7
+    ,kMPC f     $d 0.7
+    -- ,mfam f s r $d 0.7
+    -- ,moog f s r $d 0.7
+    -- ,s101 f s r $d 0.7
+    -- ,juno f s r $d 0.7
     ]
 
 hush
-
- -- TRANSPORT
-mapM_ id [p "transport"
-  $ do
-  let
-    out = 999999
-  --
-  seqP
-    $ sync out ++ [runSeq
-  --
-    ]
-  --
-  ,resetCycles
-  ,hush
-  ,allNotesOff
-  ,setcps (107/60)
-  ]
-
-hush''

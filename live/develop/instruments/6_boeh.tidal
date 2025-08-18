@@ -8,6 +8,20 @@ hboe f s r d = d06 $ do f
      -- --
   ] |* vel d
 
+
+
+hboe f s r d = p "boeingimpact" $ do
+  let o = ch 6
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,slow 2 $ "[0(3,8)]" |+ "[0 1 2]" |+ 3
+      ]# o |* vel 1
+       -- --
+    ] |* vel d
+
+
 do
   let
     dyn = 0.9

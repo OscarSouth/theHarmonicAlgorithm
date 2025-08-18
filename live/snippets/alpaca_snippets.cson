@@ -156,10 +156,10 @@
       $2
     '''
 
-  'moog DFAM':
-    'prefix': 'dfam'
+  'moog dfam':
+    'prefix': 'mfam'
     'body': '''
-      dfam f s r d = p "moogDFAM" $ do
+      mfam f s r d = p "moogDFAM" $ do
         let (trig,osc1,osc2) = ch <$> (11,12,13)
         let pat = "$1"
         f
@@ -179,7 +179,7 @@
       $2
     '''
 
-  'Mother32':
+  'moog mother32':
     'prefix': 'moog'
     'body': '''
       moog f s r d = p "moogMother32" $ do
@@ -197,10 +197,10 @@
       $2
     '''
 
-  'SH101':
-    'prefix': 'aira'
+  'sh101':
+    'prefix': 's101'
     'body': '''
-      aira f s r d = p "sh101" $ do
+      s101 f s r d = p "sh101" $ do
         let o = ch 15
         f
           $ stack [silence
@@ -220,7 +220,7 @@
       $2
     '''
 
-  'Juno':
+  'juno':
     'prefix': 'juno'
     'body': '''
       juno f s r d = p "juno" $ do
@@ -258,9 +258,9 @@
           -- ,t303 f s r  $d 0.7
           -- ,k909 f      $d 0.7
           -- ,kMPC f      $d 0.7
-          -- ,dfam f s r  $d 0.7
+          -- ,mfam f s r  $d 0.7
           -- ,moog f s r  $d 0.7
-          -- ,aira f s r  $d 0.7
+          -- ,s101 f s r  $d 0.7
           -- ,juno f s r  $d 0.7
         ]
       $1
@@ -287,8 +287,8 @@
       $1
     '''
 
-  'generative harmony':
-    'prefix': 'gen'
+  'the harmonic algorithm':
+    'prefix': 'harmonicAlgorithm'
     'body': '''
       next <- gammaGen 1 0.3
         >>= \\rns ->

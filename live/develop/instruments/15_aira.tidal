@@ -1,0 +1,17 @@
+s101 f s r d = p "sh101" $ do
+  let o = ch 15
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow (overlapF 1 s) r (-9,9) ["~"
+        ,"[-2,0,2]/16"
+      ]# o |* vel 1 #legato 0.5
+       -- --
+      -- ,attack 0.3
+      -- ,decay 0.5
+      -- ,cutoff 0.7
+      -- ,res 0.3
+      -- ,filterenv 0.6
+      -- ,keytrack 0.8
+       -- --
+    ] |* vel d

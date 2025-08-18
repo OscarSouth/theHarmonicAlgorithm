@@ -10,9 +10,9 @@ next <- gammaGen 1 0.3
   -- overtones
     "A E G B"
   -- tonality
-    "*"
+    "3# 1#"
   -- roots
-    "*"
+    "E"
   )
   4 -- len
   2.5 -- entropy
@@ -21,50 +21,28 @@ state = rotate (0) next
 
 do
   let
-    dyn = 0.1 + qlink4
+    dyn = 0.1 + qlink1
     rep = 4
     s = transpose (0) state
     f = (swingBy 0.07 2)
-    -- k = keySig -- s 1 4
     (d,r) = ((*dyn),rep)
   putStrLn . show $ s
   mapM_ id [hush, setbpm tempo
-    -- ,metronome $d 0.2
-    ,count s r $d 0.6
-    ,riser 32 s r $d 0.99
-    -- ,p01 f s r $d 0.99
-    -- ,p08 f s r $d 0.99
-    -- ,p07 f s r $d 0.99
-    -- ,p09 f s r $d 0.99
-    ,p10 f   $d 0.6
-    -- ,p11 f
-    -- ,p12 f s r $d 0.7
-    -- ,p13 f s r $d 0.7
-    ,p14 f s r $d 0.7
-    ,p15 f s r $d 0.6
-    -- ,p16 f s r $d 0.8
-    ]
-
-do
-  let
-    dyn = 0.1 + qlink4
-    rep = 4
-    s = transpose (0) state
-    f = (swingBy 0.07 2)
-    -- k = keySig -- s 1 4
-    (d,r) = ((*dyn),rep)
-  putStrLn . show $ s
-  mapM_ id [hush, setbpm tempo
-    -- ,metronome $d 0.2
-    ,count s r    $d 0.6
-    ,riser 32 s r $d 0.99
-    ,dm f         $d 0.6
-    -- ,p11 f
-    -- ,p12 f s r $d 0.7
-    -- ,p13 f s r $d 0.7
-    -- ,dfam f s r d $0.8
-    ,moog f s r   $d 0.7
-    ,aira f s r   $d 0.6
+    -- ,rise 32 s r $d 0.8
+    -- ,metronome   $d 0.1
+    -- ,count   s r $d 0.4
+    -- ,sine  f s r $d 0.7
+    -- ,jazz  f s r $d 0.7
+    -- ,hboe  f s r $d 0.7
+    -- ,lboe  f s r $d 0.7
+    -- ,hmnx  f s r $d 0.7
+    -- ,t303  f s r $d 0.7
+    -- ,kmpc f      $d 0.7
+    -- ,k909 f      $d 0.7
+    -- ,moog  f s r $d 0.7
+    -- ,mfam  f s r $d 0.7
+    -- ,s101  f s r $d 0.7
+    -- ,juno  f s r $d 0.7
     ]
 
  -- TRANSPORT

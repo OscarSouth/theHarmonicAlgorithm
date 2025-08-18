@@ -8,6 +8,18 @@ lboe f s r d = d05 $ do f
      -- --
   ] |* vel d
 
+lboe f s r d = p "boeingdrone" $ do
+  let o = ch 5
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,"[0]/4"
+      ]# o |* vel 1
+       -- --
+    ] |* vel d
+
+
 do
   let
     dyn = 0.9

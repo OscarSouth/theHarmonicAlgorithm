@@ -1,13 +1,15 @@
- -- RHYTHM
-k909 f d = d09 $ do f
-  $ stack [ silence
-     -- --
+k909 f d = p "sampled909" $ do
+  let o = ch 9
+  f
+    $ stack [silence
+       -- --
       ,kick "1"
-      ,hh "0 1"
+      -- ,hh "0 1"
       ,hh "1 1 2 1" |+ vel (lfo tri 0.1 0.5)
       ,snap "[0 1]/2"
-     -- --
-  ]# ch 09 #legato 0.01 |* vel d
+       -- --
+    ]# o # legato 0.01 |* vel d
+
 
 do
   let

@@ -1,14 +1,20 @@
- -- SINE
-sine f s r d = d02 $ do f
-  $ stack [ silence
-     -- --
-    ,arrange flow s r (-9,9) ["~"
-      -- ,"[0 1 2 3 6 4 2 1]/2"
-      ,"[-1,0,1]/4"
-      ,"[-9,-4]/4"
-    ]# ch 02
-     -- --
-  ] |* vel d
+sine f s r d = p "sinewave" $ do
+  let o = ch 2
+  f
+    $ stack [silence
+       -- --
+      ,jux (rev . fast (0.5 <~ lfo square 1 2)) $
+        arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,mask (fast 2 $ binary $ 64 + 16 + 8 + 1) $ "[0 1 0 -1 0 2 0 -2]/4"
+        -- ,"[-1,0,1]/4"
+      ]# o |* vel 0.8
+       -- --
+      ,arrange root (overlapF 0 s) r (-9,9) ["~"
+      ,"[-6 . -3 0]"
+      ]# o |* vel 0.8 |= legato 1
+       -- --
+    ] |* vel d
+
 
 do
   let

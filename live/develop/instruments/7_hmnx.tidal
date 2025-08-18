@@ -9,6 +9,18 @@ hmnx f s r d = d07 $ do
        -- --
     ] |* vel d #legato 1.0
 
+hmnx f s r d = p "bassovertones" $ do
+  let o = ch 7
+  f
+    $ stack [silence
+       -- --
+      ,ecbc (overlapF 1 s) r (stack ["~"
+        ,slow 2 $ stack [ "[0(3,8)]", "[0 -3]" ] |+ "[0 1 2 3]"
+      ])# o |* vel 0.6
+       -- --
+    ] |* vel d # legato 0.125
+
+
 do
   let
     dyn = 0.9

@@ -3,14 +3,28 @@ jazz f s r d = d03 $ do f
   $ stack [ silence
      -- --
     ,arrange flow (overlapF 1 s) r (-9,9) ["~"
-      -- ,"[0 1 2 3 6 4 2 1]/4"
-      ,"[0,2,4]/4"
-      ,"[-9@3 -6@5]/4"
+      ,"[0 1 2 3 6 4 2 1]/4"
+      -- ,"[0,2,4]/4"
+      -- ,"[-9@3 -6@5]/4"
     ]# ch 03
      -- --
     ,wonky 0
      -- --
   ] |* vel d
+
+jazz f s r d = p "piano" $ do
+  let o = ch 3
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow (overlapF 1 s) r (-9,9) ["~"
+        ,struct (fast 2 $ binary $ 16+2) "[0,2,4]"
+      ]# o |* vel 1
+       -- --
+      ,wonky 0
+       -- --
+    ] |* vel d
+
 
 do
   let
@@ -29,3 +43,8 @@ do
     ,jazz f s r $d 0.9
     -- ,sine f s r $d 0.9
     ]
+
+
+
+binary' = binary
+binary = slow 4 . binary'
