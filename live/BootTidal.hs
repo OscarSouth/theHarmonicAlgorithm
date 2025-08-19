@@ -77,7 +77,7 @@ hush = mapM_ ($ silence) [
   p "boeingimpact",
   p "bassovertones",
   p "tubeblip",
-  p "sampled909",
+  p "909kit",
   p "mpckit",
   p "moogDFAM",
   p "moogMother32",
