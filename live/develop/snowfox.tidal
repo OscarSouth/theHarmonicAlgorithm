@@ -1,0 +1,14 @@
+
+
+moog f s r d = p "moogMother32" $ do
+  let o = ch 14
+  f
+    $ stack [silence
+       -- --
+      ,mono $ arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,""
+      ]# o |* vel 1
+       -- --
+      ,portamento 0.0
+       -- --
+    ] |* vel d
