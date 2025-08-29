@@ -116,7 +116,7 @@ pushBy = (~>)
 (|=) = (#)
 resetCycles = streamResetCycles tidal
 
-steptrig p = mono $ 0.036 <~ midinote (toScale [-1, 0, 2, 4, 5, 7, 9, 10] $ (((p-1) `mod` 8)+1)) |= vel 1 #ch 11
+steptrig p = mono $ 0.036 <~ midinote (toScale [-1, 0, 2, 4, 5, 7, 9, 10] $ (((p-1) `mod` 8)+1)) |= vel 1 #ch 13
 oct n = note (12*n)
 out = 4
 bar b1 b2 p = ((b1+2)*4, (b2+3)*4, p)

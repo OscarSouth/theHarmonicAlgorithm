@@ -1,130 +1,4 @@
-tempo = 72
-
-blueInGreen = [
-    -- 1
-    [10, 9, 2, 4, 5],   -- Bbmaj7#11
-    [10, 9, 2, 4, 5],   -- (repeat)
-    -- 2
-    [9, 7, 1, 0, 4],    -- A7#9
-    [9, 7, 1, 0, 4],    -- (repeat)
-    -- 3
-    [2, 11, 0, 5, 9],    -- Dm13
-    [1, 11, 3, 5, 8],    -- Db9
-    -- 4
-    [0, 10, 3, 5, 7],    -- Cm11
-    [11, 9, 1, 4, 7],    -- B7#5
-    -- 5
-    [10, 9, 2, 4, 5],    -- Bbmaj7#11
-    [10, 9, 2, 4, 5],    -- (repeat)
-    -- 6
-    [9, 7, 1, 5, 0],     -- A7b13
-    [9, 7, 1, 5, 0],     -- (repeat)
-    -- 7
-    [2, 0, 5, 11, 7],    -- Dm13
-    [2, 0, 5, 11, 7],    -- (repeat)
-    -- 8
-    [4, 2, 11, 8, 0],    -- E7b13
-    [4, 2, 11, 8, 0],    -- (repeat)
-    -- 9
-    [9, 7, 0, 4, 11],    -- Am9
-    [9, 7, 0, 4, 11],    -- (repeat)
-    -- 10
-    [2, 0, 5, 9],        -- Dm7
-    [2, 0, 5, 9]         -- (repeat)
-  ]
-
-blueInGreen = [
-    [10, 9, 2, 4, 5], [10, 9, 2, 4, 5],  -- Bar 1:  B♭maj7♯11
-    [9, 7, 1, 0, 4],  [9, 7, 1, 0, 4],   -- Bar 2:  A7♯9
-    [2, 11, 0, 5, 9], [1, 11, 3, 5, 8],  -- Bar 3:  Dm13         | D♭9
-    [0, 10, 3, 5, 7], [11, 9, 1, 4, 7],  -- Bar 4:  Cm11         | B7♯5
-    [10, 9, 2, 4, 5], [10, 9, 2, 4, 5],  -- Bar 5:  B♭maj7♯11
-    [9, 7, 1, 5, 0],  [9, 7, 1, 5, 0],   -- Bar 6:  A7♭13
-    [2, 0, 5, 11, 7], [2, 0, 5, 11, 7],  -- Bar 7:  Dm13
-    [4, 2, 11, 8, 0], [4, 2, 11, 8, 0],  -- Bar 8:  E7♭13
-    [9, 7, 0, 4, 11], [9, 7, 0, 4, 11],  -- Bar 9:  Am9
-    [2, 0, 5, 9],     [2, 0, 5, 9]       -- Bar 10: Dm7
-  ]
-
-
-
-melody = [
-      "[4@3 2]",  -- 1
-      "[0@3 -2]", -- 2
-      "[-3@3 -5]", -- 3
-      "[-7 4@3]", -- 4
-      "[-8@3 -10 -11 -10 -5 -3]", -- 5
-      "[0@3 -3]", -- 6
-      "[-5@3 -7]", -- 7
-      "[0@3 -4]", -- 8
-      "[0@3 -3]", -- 9
-      "[5@3 1]"  -- 10
-      ]
-
-
-state = prog flat blueInGreen
-
-sine f s r d = p "sinewave" $ do
-  let o = ch 15
-  f
-    $ stack [silence
-       -- --
-      ,arrange wide (overlapF 0 s) r (-9,9) ["~"
-        ,"[0,1,2,3,4]/4"
-      ]# o |* vel 0.2
-       -- --
-      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
-        ,"[0]/4"
-      ]# o |* vel 1 |- oct 2
-       -- --
-    ] |* vel d
-
-mfam f s r d = p "moogDFAM" $ do
-  let (osc1,osc2) = (ch 12,ch 13)
-  let pat = struct (binary 203) $ "[0 2 4]"
-  f
-    $ stack [silence
-       -- --
-      ,steptrig "[1 2 3 4 5 6 7 8]/2"
-       -- --
-      ,sometimes palindrome $ arrange flow (overlapF 0 s) r (-9,9) ["~"
-        ,0.5 <~ pat
-      ]# osc1 |* vel 1 |- oct 1
-       -- --
-      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
-        ,"0"
-        -- ,slow 2 $ pat |= "[0 -1]*2"
-      ]# osc2 |* vel 1 |- oct 1 -- "[2 1@3]"
-       -- --
-    ] |* vel d
-
-moog f s r d = p "moogMother32" $ do
-  let o = ch 14
-  id
-    $ stack [silence
-       -- --
-      , stack ["~"
-        -- ,swingBy 0.07 4 $ note $ slow 8 $ slowcat melody
-        ,swingBy 0.07 4 $ note $ slow 8 $ slowcat (snd <$> blueInGreen)
-      ]# o |* vel 1 |+ oct 0
-       -- --
-      ,portamento 0.3
-       -- --
-    ] |* vel d
-
-
-
-
-
-
-
-
-
-
-
-
-    -- make Cb and B' notes  (also for E' and Fb)
-
+tempo = 92
 
 blueInGreen = zip chords melody
   where
@@ -153,4 +27,240 @@ blueInGreen = zip chords melody
       , "[5@3 1]"
       ]
 
-state = prog flat (map fst blueInGreen)
+melody = snd <$> blueInGreen
+state = prog flat (fst <$> blueInGreen)
+
+
+sine f s r d = p "sinewave" $ do
+  let o = ch 02
+  f
+    $ stack [silence
+       -- --
+      ,arrange wide (overlapF 0 s) r (-9,9) ["~"
+        ,"[0,1,2,3,4]/8"
+      ]# o |* vel 0.3
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,"[0]/8"
+      ]# o |* vel 1 |- oct 2
+       -- --
+    ] |* vel d
+
+mfam f s r d = p "moogDFAM" $ do
+  let (osc1,osc2) = (ch 11,ch 12)
+  -- let pat = "0"
+  let pat = struct (binary 203) $ "[0 0 2 4]/2"
+  f
+    $ stack [silence
+       -- --
+      ,steptrig "[1 2 3 4 5 6 7 8]/2"
+       -- --
+      ,sometimes palindrome $ arrange flow (overlapF 0 s) r (-9,9) ["~"
+      -- ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        -- ,"[0]/2"
+        -- ,0.5 <~ pat
+        ,"[0 -1 -2 -3]/4"
+      ]# osc1 |* vel 1 |- oct 1
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        -- ,"[0]"
+        ,slow 2 $ pat |+ "0" -- "[0 -1]*2"
+      ]# osc2 |* vel 1 |- oct 2 -- "[2 1@3]"
+       -- --
+    ]# legato 0.25 |* vel d
+
+moog f s r d = p "moogMother32" $ do
+  let o = ch 14
+  id
+    $ stack [silence
+       -- --
+      , stack ["~"
+        -- ,swingBy 0.07 4 $ note $ slow 8 $ slowcat melody
+        ,swingBy 0.07 4 $ note $ slow 8 $ slowcat (snd <$> blueInGreen)
+      ]# o |* vel 1 |+ oct 0
+       -- --
+      ,portamento 0.3
+       -- --
+    ] |* vel d
+
+
+
+s101 f s r d = p "sh101" $ do
+  let o = ch 15
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,"[0,1,2,3,4]"
+      ]# o |* vel 1
+       -- --
+      -- ,attack 0.3
+      -- ,decay 0.5
+      -- ,cutoff 0.7
+      -- ,res 0.3
+      -- ,filterenv 0.6
+      -- ,keytrack 0.8
+       -- --
+    ] |* vel d
+
+k909 f d = p "909kit" $ do
+  let o = ch 9
+  f
+    $ stack [silence
+       -- --
+      ,kick "1"
+      ,hh "0 1"
+      -- ,hh "1 1 2 1" #vel (lfo tri 0.1 0.5)
+      -- ,snap "<0 1>" #vel 0.4
+       -- --
+    ]# o # legato 0.01 |* vel d
+
+ -- CHECK EVERYTHING BELOW
+
+blueInGreen = zip3 (concat harmony) (cycle scale) (cycle melody)
+  where
+    harmony = [
+        [[10, 2, 9, 4], [10, 2, 9, 4]], -- Bar 1: B♭maj7♯11
+        [[9, 1, 7, 10], [9, 1, 7, 0]], -- Bar 2: A7♯9
+        [[2, 5, 0, 11], [1, 5, 11, 3]], -- Bar 3: Dm13 | D♭9
+        [[0, 3, 10, 5], [11, 3, 9, 7]], -- Bar 4: Cm11 | B7♯5
+        [[10, 2, 9, 5], [10, 2, 9, 5]], -- Bar 5: B♭maj7♯11
+        [[9, 1, 7, 5], [9, 1, 7, 5]], -- Bar 6: A7♭13
+        [[2, 5, 0, 11], [2, 5, 0, 11]], -- Bar 7: Dm13
+        [[4, 8, 2, 5], [4, 8, 2, 5]], -- Bar 8: E7♭13
+        [[9, 0, 7, 11], [9, 0, 7, 11]], -- Bar 9: Am9
+        [[2, 5, 1, 9], [2, 5, 1, 9]] -- Bar 10: Dm7
+      ]
+    scale = [
+        [2, 4, 7, 9, 11],    -- Bar 1: G Major Shape
+        [2, 5, 7, 10, 12],    -- Bar 2: G Minor Shape
+        [2, 5, 7, 9, 12],     -- Bar 3: D Minor Shape
+        [2, 5, 7, 10, 12],    -- Bar 4: B♭ Major Shape
+        [2, 4, 5, 9, 13],     -- Bar 5: Synthesized Shape
+        [2, 5, 7, 9, 12],     -- Bar 6: F Major Shape
+        [2, 5, 7, 9, 12],     -- Bar 7: D Minor Shape
+        [2, 4, 8, 11, 12],    -- Bar 8: Synthesized Shape
+        [2, 4, 7, 9, 11],    -- Bar 9: G Major Shape
+        [2, 5, 9, 12, 13]      -- Bar 10: Synthesized Shape
+      ]
+    melody = [
+        "[1@3 0]",
+        "[0@3 -1]",
+        "[-1@3 -2]",
+        "[2@3 1]",
+        "[2 1 0 3 4]",
+        "[0@3 -1]",
+        "[-2@3 2]",
+        "[0@3 -2]",
+        "[-1@3 -2]",
+        "[-2@3 1]"
+      ] :: [Pattern Int]
+
+jazz f s r d = p "piano" $ do
+  let o = ch 3
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,"0" -- pattern goes here
+      ]# o |* vel 1
+       -- --
+    ] |* vel d
+
+
+state = prog sharp ((\(h, _, _) -> h) <$> blueInGreen)
+
+melodyState = prog sharp ((concatMap (replicate 2)) ((\(_, s, _) -> s) <$> blueInGreen))
+
+melodyState = prog sharp ((\(_, s, _) -> s) <$> blueInGreen)
+
+-- melody = slowcat ((\(_, _, m) -> m) <$> blueInGreen)
+
+melody = [
+  "[1@3 0]",
+  "[0@3 -1]",
+  "[-1@3 -2]",
+  "[2@3 1]",
+  "[2 1 0 3 4]",
+  "[0@3 -1]",
+  "[-2@3 2]",
+  "[0@3 -2]",
+  "[-1@3 -2]",
+  "[-2@3 1]"
+  ]
+
+juno f s r d = p "juno" $ do
+  let o = ch 16
+  f
+    $ stack [silence
+       -- --
+      , stack ["~"
+        ,swingBy 0.07 4 $ note $ slow 8 $ slowcat melody
+      ]# o |* vel 1 |+ oct 1
+       -- --
+      ,portamento 0.3
+       -- --
+    ] |* vel d
+
+juno f s r d = p "juno" $ do
+  let o = ch 16
+  f
+    $ stack [silence
+       -- --
+      , arrange literal melodyState r (-9,12) ["~"
+      , swingBy 0.07 4 $ slow 16 $ slowcat melody
+      ]# o |* vel 1 |+ oct 1
+       -- --
+      -- , portamento 0.3
+       -- --
+    ] |* vel d
+
+
+jazz f s r d = p "piano" $ do
+  let o = ch 3
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        -- ,"[[1,2] [0,3]]/4"
+        -- ,"[1,2,3,4]/4"
+        ,"[-8,-1,1]/4"
+      ]# o |* vel 0.8
+       -- --
+      ,wonky 0
+       -- --
+    ] |* vel d
+
+
+-- To use it in performance:
+-- d2 $ jazz_melody (swingBy 0.05 8) scaleProg 1 0.9
+
+-- | A VoiceFunction that extracts scales or voicings literally, without modification.
+literal :: Progression -> [[Integer]]
+literal (Progression (chords, _, _)) = fromChord <$> chords
+
+-- Create the scale progression and melody pattern once
+let scaleProg = getScaleProgression
+let composedMelody = getMelodyPattern
+
+-- Melodic boilerplate for the Juno synthesizer
+juno f s r d = p "juno" $ do
+  let o = ch 16
+  f
+    $ stack [silence
+       -- --
+      -- Use `arrange` with the `literal` voice function.
+      -- This ensures our pentatonic scales are not changed.
+      , arrange literal (overlapF 0 s) r (-9,12) ["~"
+          -- This is the default, composed melody. It remains a pattern of strings
+          -- until `arrange` quantizes it to the scales in `s`.
+          , melody
+          -- Add improvisational patterns here. They will also be
+          -- quantized to the 5-note pentatonic scales.
+          -- , sometimes rev "[0,1,2,1,-1]"
+          -- , fast 2 "[0,1,2]"
+      ]# o |* vel 0.7 |+ oct 1
+       -- --
+      , portamento 0.3
+       -- --
+    ] |* vel d

@@ -1,0 +1,94 @@
+moog f s r d = p "moogMother32" $ do
+  let o = ch 14
+  f
+    $ stack [silence
+       -- --
+      ,mono $ arrange flow (overlapF 0 s) r (-9,9) ["~"
+        -- ,iter 4 $ "[0 1 2 3]/2"
+        , "0*2"
+        -- ,"0/4"
+      -- ,"[0 . ~@3 0? . ~ 0? . ~ 0? ~@2]/4" |+ "[0 1 2]"
+      ]# o |* vel 1 |- oct 2
+       -- --
+      ,portamento 0.0
+       -- --
+    ] |* vel d
+
+mfam f s r d = p "moogDFAM" $ do
+  let (osc1,osc2) = (ch 11,ch 12)
+  let pat = "0"
+  f
+    $ stack [silence
+       -- --
+      ,steptrig "[1 2 3 4 5 6 7 8]/2"
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,pat
+      ]# osc1 |* vel 1 |- oct 1
+       -- --
+      ,arrange root (overlapF 0 s) r (-9,9) ["~"
+        ,pat
+      ]# osc2 |* vel 1 |- oct 1
+       -- --
+    ]# legato 0.25 |* vel d
+
+k909 f d = p "909kit" $ do
+  let o = ch 9
+  f
+    $ stack [silence
+       -- --
+      ,hh "0 1"
+      ,kick "1"
+      ,snap "<0 1>"
+      ,hh "1 1 2 1"
+       -- --
+    ]# o # legato 0.01 |* vel d
+
+
+lboe f s r d = p "boeingdrone" $ do
+  let o = ch 5
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,"0" |- vel 0.5
+      ]# o |* vel 0.5 |- oct 2
+       -- --
+    ] |* vel d
+
+
+
+
+kmpc f d = p "mpckit" $ do
+  let o = ch 10
+  f
+    $ stack [silence
+       -- --
+      -- ,kick lmotif |* vel 0.9
+      -- ,kick "[1 . 0@3 1? . 0 1? . 0 1? 0@2]/4" |* vel 0.9
+      ,snare "[0 1]/2" |* vel 0.7
+      -- ,sometimesBy 0.05 (>>hh "2") $ someCyclesBy 0.01 (fast 2) $ degradeBy 0.1 $ hh "[1]*4" |* vel (lfo saw 0.1 0.7)
+       -- --
+    ]# o # legato 0.01 |* vel d
+
+hboe f s r d = p "boeingimpact" $ do
+  let o = ch 6
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,iter 4 "[3 2 1 0]/4"
+      ]# o |* vel 1
+       -- --
+    ] |* vel d
+
+juno f s r d = p "juno" $ do
+  let o = ch 16
+  f
+    $ stack [silence
+       -- --
+      ,slow 4 $ sometimes palindrome $ arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,degrade $ run 8
+      ]# o |* vel 1 |+ oct 1
+       -- --
+    ] |* vel d

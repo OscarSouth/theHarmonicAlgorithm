@@ -1,0 +1,109 @@
+blueInGreen = fmap i <$> pcSet <$> [
+    [10, 2, 9, 4], [10, 2, 9, 4], -- Bar 1: B♭maj7♯11
+    [9, 1, 7, 10], [9, 1, 7, 0], -- Bar 2: A7♯9
+    [2, 5, 0, 11], [1, 5, 11, 3], -- Bar 3: Dm13 | D♭9
+    [0, 3, 10, 5], [11, 3, 9, 7], -- Bar 4: Cm11 | B7♯5
+    [10, 2, 9, 5], [10, 2, 9, 5], -- Bar 5: B♭maj7♯11
+    [9, 1, 7, 5], [9, 1, 7, 5], -- Bar 6: A7♭13
+    [2, 5, 0, 11], [2, 5, 0, 11], -- Bar 7: Dm13
+    [4, 8, 2, 5], [4, 8, 2, 5], -- Bar 8: E7♭13
+    [9, 0, 7, 11], [9, 0, 7, 11], -- Bar 9: Am9
+    [2, 5, 1, 9], [2, 5, 1, 9] -- Bar 10: Dm7
+  ]
+
+melodyRel = slowcat [
+    "[1@3 0]",
+    "[-1@3 -2]",
+    "[-2@3 -3]",
+    "[-4 0]",
+    "[1@3 0 -1 0 2 3]",
+    "[-1@3 -2]",
+    "[-3@3 -4]",
+    "[-1@3 -3]",
+    "[-1@3 -2]",
+    "[1@3 -1]"
+  ]
+
+scales = concatMap (replicate 2) [
+    [2, 4, 7, 9, 11],    -- Bar 1: G Major Shape
+    [2, 5, 7, 10, 12],    -- Bar 2: G Minor Shape
+    [2, 5, 7, 9, 12],     -- Bar 3: D Minor Shape
+    [2, 5, 7, 10, 12],    -- Bar 4: B♭ Major Shape
+    [2, 4, 5, 9, 13],     -- Bar 5: Synthesized Shape
+    [2, 5, 7, 9, 12],     -- Bar 6: F Major Shape
+    [2, 5, 7, 9, 12],     -- Bar 7: D Minor Shape
+    [2, 4, 8, 11, 12],    -- Bar 8: Synthesized Shape
+    [2, 4, 7, 9, 11],    -- Bar 9: G Major Shape
+    [2, 5, 9, 12, 13]      -- Bar 10: Synthesized Shape
+  ]
+
+state = prog sharp blueInGreen
+
+melodyState = prog sharp scales
+
+juno f s r d = p "juno" $ do
+  let o = ch 16
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow melodyState r (-9,12) ["~"
+        ,slow 8 melodyRel
+      ]# o |* vel 0.7 |+ oct 1
+       -- --
+    ] |* vel d
+
+-- jazz f s r d = p "piano" $ do
+--   let o = ch 3
+--   f
+--     $ stack [silence
+--        -- --
+--       ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+--         ,"[1,2,3,4]/8"
+--         ,"[-8]/8"
+--       ]# o |* vel 0.5
+--        -- --
+--     ] |* vel d
+
+
+k909 f d = p "909kit" $ do
+  let o = ch 9
+  f
+    $ stack [silence
+       -- --
+      -- ,hh "[0 1]" |* vel (lfo saw 0.1 0.8)
+      ,kick "1"
+      ,snap "<0 1>" |* vel 0.4
+      ,hh "[1 1 2 1]" |* vel (lfo saw 0.1 0.8)
+       -- --
+    ]# o # legato 0.01 |* vel d
+
+sine f s r d = p "sinewave" $ do
+  let o = ch 2
+  f
+    $ stack [silence
+       -- --
+      ,arrange wide (overlapF 0 s) r (-9,9) ["~"
+        ,"[1,2,3,4]/4"
+        ,"[-4]/4"
+      ]# o |* vel 1
+       -- --
+    ] |* vel d
+
+
+mfam f s r d = p "moogDFAM" $ do
+  let (osc1,osc2) = (ch 11,ch 12)
+  let pat = "0"
+  f
+    $ stack [silence
+       -- --
+      ,steptrig "[1 2 3 4 5 6 7 8]/2"
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,pat
+      ]# osc1 |* vel 1 |- oct 1
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,pat
+      ]# osc2 |* vel 1 |- oct 1
+       -- --
+    ]# legato 0.25 |* vel d
