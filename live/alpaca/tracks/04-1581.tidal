@@ -1,0 +1,35 @@
+tempo = 82
+
+k909 f d = p "909kit" $ do
+  let o = ch 9
+  f
+    $ stack [silence
+       -- --
+      ,kick "1"
+      ,snap "<0 1>"
+      -- ,hh "0 1" #vel 1
+      ,degradeBy 0.0 $ hh "1 1 2 1" # vel (lfo tri 0.1 0.7)
+      ,ride "0 1" #vel 0.4
+      ,crash "1/4" #vel 0.7
+      -- ,slow (choose [2,4]) $ click "[0 0 1 0 0 1 1 0]" #vel (lfo saw 0.2 0.7)
+       -- --
+    ]# o # legato 0.01 |* vel d
+
+kmpc f d = p "mpckit" $ do
+  let o = ch 10
+  f
+    $ stack [silence
+       -- --
+      ,ride "[1 . 1 1]" #vel (lfo tri 0.08 0.5) |+ humanise 0.2
+      ,degradeBy 0.9 $ kick (slow 4 $ binary (128 |+ irand 128)) |* vel (lfo saw 0.05 0.4)
+      ,degradeBy 0.7 $ click (slow 2 $ binary 156) |+ vel 0.05
+      -- ,kick "[1]/2" # vel 0.2
+      -- ,kick "1" #vel 0.2
+      ,hh "[~ 1]" #vel 0.9
+      -- ,snare "[1 0]/2" #vel 0.5
+      -- ,crash "1/2" #vel 0.5
+      -- ,sometimesBy 0.05 (>>hh "2") $ someCyclesBy 0.01 (fast 2) $ degradeBy 0.1 $ hh "[1]*4" |* vel (lfo saw 0.1 0.7)
+      -- ,degradeBy 0.8 $ snare (slow 2 "[0 1 0 1 1 0 1 0]") # vel (range 0.05 0.2 rand)
+      -- , degradeBy 0.95 $ kick "1" # vel 0.25
+       -- --
+    ]# o # legato 0.01 |* vel d

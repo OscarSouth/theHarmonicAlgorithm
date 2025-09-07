@@ -1,12 +1,13 @@
 hush
 
+tempo = 80
 
  -- CADENCE STATE
 next <- gammaGen 1 0.3
   >>= \rns ->
   chainCadence sharp
-  (initCadenceState (head rns) "A" [0,3,7])
-  -- (lastCadence state)
+  -- (initCadenceState (head rns) "A" [0,3,7])
+  (lastCadence state)
   (harmonicContext
   -- overtones
     "*"
@@ -20,35 +21,30 @@ next <- gammaGen 1 0.3
 
 state = rotate (0) next
 
-tempo = 140
-
 do
   let
-    dyn = slow 64 (lfo tri 0.7 0.9)
+    dyn = slow 64 (lfo tri 0.5 0.9)
     rep = 2
     s = transpose (0) state
     f = (swingBy 0.07 2)
     (d,r) =((*dyn),rep)
-  putStrLn . show $ s
+  putStrLn$">>   LAUNCH¬¬"++show s
   mapM_ id [hush, setbpm tempo
     -- ,rise 32 s r $d 1
-    -- ,metronome   $d 0.1
-    -- ,count   s r $d 0.9
+    -- ,metronome   $d 0.2
+    -- ,count   s r $d 0.5
     -- ,sine  f s r $d 0.3
     -- ,jazz  f s r $d 0.8
-    ,lboe  f s r $d 0.2
+    -- ,lboe  f s r $d 0.2
     -- ,hboe  f s r $d 0.9
     -- ,hmnx  f s r $d 0.7
     -- ,t303  f s r $d 0.9
-    -- ,kmpc  f     $d 0.7
+    ,kmpc  f     $d 0.8
     -- ,k909  f     $d 0.9
     -- ,moog  f s r $d 0.8
     -- ,mfam  f s r $d 2
-    -- ,s101  f s r $d 0.7
-    -- ,juno  f s r $d 0.4
-    -- ,junoA f s r $d 0.4
-    -- ,junoR f s r $d 0.4
-    -- ,p07 f s r $d 0.4
+    -- ,s101  f s r $d 0.2
+    -- ,juno  f s r $d 0.9
     ]
 
  -- TRANSPORT

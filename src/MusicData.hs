@@ -763,6 +763,12 @@ instance Show Progression where
 --    fmap fromInteger <$> ecbcHarmony prog
 --  )
 
+literal :: Progression -> [[Integer]]
+literal (Progression (chords, _, _)) = fromChord <$> chords
+
+lite :: Progression -> [[Integer]]
+lite = literal
+
 -- |order the notes of a chord suitable for patterning
 orderVoicing       :: (Integral a, Num a) => [a] -> [a]
 orderVoicing []     = []

@@ -1,0 +1,16 @@
+tempo = 92
+
+kmpc f d = p "mpckit" $ do
+  let o = ch 10
+  let lmotif = "[1 . 0@3 1? . 0 1? . 0 1? 0@2]/4"
+  f
+    $ stack [silence
+       -- --
+      ,kick lmotif |* vel 0.9
+      ,snare "[0 1]/2" |* vel 0.7
+      ,sometimesBy 0.1 (>>hh "2") $ sometimesBy 0.05 (fast 2) $ degradeBy 0.1 $ hh "[1]*4" |* vel (lfo saw 0.2 0.9)
+      -- ,degrade $ click "[0 0 1 0 0 1 0 0]/2" # vel 0.2
+      -- ,ride "1" #vel 0.4
+      -- ,crash "1/4" #vel 0.4
+       -- --
+    ]# o # legato 0.01 |* vel d

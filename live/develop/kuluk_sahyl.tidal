@@ -11,10 +11,12 @@ hmnx f s r d = p "bassovertones" $ do
     $ stack [silence
        --
       ,ecbc (overlapF 0 s) r (stack ["~"
-        -- ,"[ ~ . 0 . ~ 7 . ~ 9]/2"
+        ,"[3 2 1 0]/4" -| "[ ~ . 0 . ~ 7 . ~ 9]/2" |+ (irand 2)
       ])# o |* vel 0.3
        -- --
     ] |* vel d # legato 0.1
+
+
 
 moog f s r d = p "moogMother32" $ do
   let o = ch 14

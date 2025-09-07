@@ -1,0 +1,36 @@
+tempo = 110
+bars = 1
+
+fire =
+  let
+    a = fmap i <$> [
+      [C,Eb,G],
+      [C,Eb,G],
+      [G,Bb,C],
+      [G,Bb,C],
+      []
+      ]
+    b = fmap i <$> [[C]]
+  in concatMap (\s -> if s == 'A' then a else b) "A"
+
+state = triadProg flat fire
+
+kmpc f d = p "mpckit" $ do
+  let o = ch 10
+  f
+    $ stack [silence
+       -- --
+      ,hh "<0 1>"
+       -- --
+    ]# o # legato 0.01 |* vel d
+
+s101 f s r d = p "sh101" $ do
+  let o = ch 15
+  f
+    $ stack [silence
+       -- --
+      ,arrange lite (overlapF 0 s) r (-9,9) ["~"
+         ,slow 4 $ "[0 -3 . [~ -3]*2 . -1 -3 .  [~ -3]*2 ]"
+      ]# o |* vel 1
+       -- --
+    ] |* vel d
