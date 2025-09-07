@@ -691,7 +691,7 @@ p11 f = d11 $ id
   $ f
   $ stack [ silence
     ,steptrig $ "[1 2 3 4 5 6 7 8]/2"
-  ] # ch 11
+  ] # ch 13
 
  -- DFAM OSC 1 INIT
 p12 f s r d = d12 $ do

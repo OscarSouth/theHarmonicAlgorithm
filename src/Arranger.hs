@@ -22,7 +22,11 @@ initProgression' (chords, cadences, enharms) = Progression (chords, cadences, en
 prog :: EnharmonicFunction -> [[Integer]] -> Progression
 prog enharm chords =
   let chordList = toChord enharm <$> chords
-      cadences = head (fromChords chordList) : fromChords chordList
+      -- Create a self-cadence from the first chord to itself for the initial cadence
+      firstChord = head chordList  -- This will naturally throw an error if empty
+      firstCadence = toCadence (firstChord, firstChord)
+      restCadences = fromChords chordList
+      cadences = firstCadence : restCadences
    in initProgression enharm (chordList, cadences)
 
 -- |convert a Progression into a list of lists of ints
@@ -34,7 +38,10 @@ fromProgression (Progression (chords,_, _)) =
 triadProg :: EnharmonicFunction -> [[Integer]] -> Progression
 triadProg enharm chords =
   let triadList = toTriad enharm <$> chords
-      cadences = head (fromChords triadList) : fromChords triadList
+      firstChord = head triadList  -- This will naturally throw an error if empty
+      firstCadence = toCadence (firstChord, firstChord)
+      restCadences = fromChords triadList
+      cadences = firstCadence : restCadences
    in initProgression enharm (triadList, cadences)
 
 -- function which will take a list of chords and produce a list of cadences which match the progression

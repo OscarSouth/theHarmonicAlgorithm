@@ -764,7 +764,7 @@ instance Show Progression where
 --  )
 
 literal :: Progression -> [[Integer]]
-literal (Progression (chords, _, _)) = fromChord <$> chords
+literal (Progression (chords, _, _)) = normaliseRegister $ (orderVoicing . fromChord) <$> chords
 
 lite :: Progression -> [[Integer]]
 lite = literal

@@ -1,7 +1,5 @@
 hush
 
-tempo = 80
-
  -- CADENCE STATE
 next <- gammaGen 1 0.3
   >>= \rns ->
@@ -23,27 +21,27 @@ state = rotate (0) next
 
 do
   let
-    dyn = slow 64 (lfo tri 0.5 0.9)
-    rep = 2
+    dyn = slow 32 (lfo saw 0.4 0.7)
+    rep = bars -- 2
     s = transpose (0) state
     f = (swingBy 0.07 2)
     (d,r) =((*dyn),rep)
   putStrLn$">>   LAUNCH¬¬"++show s
   mapM_ id [hush, setbpm tempo
-    -- ,rise 32 s r $d 1
+    ,rise 32 s r $d 0.4
     -- ,metronome   $d 0.2
-    -- ,count   s r $d 0.5
-    -- ,sine  f s r $d 0.3
+    ,count   s r $d 0.5
+    -- ,sine  f s r $d 0.9
     -- ,jazz  f s r $d 0.8
     -- ,lboe  f s r $d 0.2
     -- ,hboe  f s r $d 0.9
-    -- ,hmnx  f s r $d 0.7
-    -- ,t303  f s r $d 0.9
-    ,kmpc  f     $d 0.8
-    -- ,k909  f     $d 0.9
+    -- ,hmnx  f s r $d 0.4
+    -- ,t303  f s r $d 0.5
+    -- ,kmpc  f     $d 0.7
+    -- ,k909  f     $d 0.7
     -- ,moog  f s r $d 0.8
     -- ,mfam  f s r $d 2
-    -- ,s101  f s r $d 0.2
+    -- ,s101  f s r $d 0.5
     -- ,juno  f s r $d 0.9
     ]
 
