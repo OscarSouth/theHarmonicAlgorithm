@@ -6,7 +6,7 @@ next <- gammaGen 1 0.3
   (lastCadence state)
   (harmonicContext
   -- overtones
-    "E A E G B C"
+    "*"
   -- tonality
     "*"
   -- roots
@@ -19,26 +19,26 @@ state = rotate (0) next
 
 do
   let
-    dyn = slow 32 (lfo saw 0.4 0.7)
+    dyn = slow 32 (lfo saw 0.7 0.9)
     rep = bars -- 2
     s = transpose (0) state
     f = (swingBy 0.07 2)
     (d,r) =((*dyn),rep)
   putStrLn$">>   LAUNCH¬¬"++show s
   mapM_ id [hush, setbpm tempo
-    -- ,rise 64 s r $d 0.4
+    -- ,rise 32 s r $d 0.4
     -- ,metronome   $d 0.2
     -- ,count   s r $d 0.5
     -- ,sine  f s r $d 0.9
     -- ,lboe  f s r $d 0.2
     -- ,hmnx  f s r $d 0.99
     -- ,t303  f s r $d 0.5
-    -- ,kmpc  f     $d 0.9
-    -- ,k909  f     $d 0.9
+    -- ,kmpc  f     $d 0.7
+    -- ,k909  f     $d 0.7
     -- ,moog  f s r $d 0.8
     -- ,mfam  f s r $d 2
-    -- ,s101  f s r $d 0.5
-    -- ,juno  f s r $d 0.9
+    -- ,s101  f s r $d 0.99
+    -- ,juno  f s r $d 0.5
     ]
 
  -- TRANSPORT
@@ -52,9 +52,8 @@ mapM_ id [p "transport"
   --
     ]
   --
-  -- ,resetCycles,hush
-  ,allNotesOff
+  -- ,resetCycles,hush,allNotesOff
   ,setcps (tempo/60)
   ]
 
-hush
+-- hush

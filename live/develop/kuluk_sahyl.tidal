@@ -18,11 +18,11 @@ let
   c = (
       prog sharp $ fmap i <$> [[B,C',D,E,F',G,A]]
       , (
-          -- mask rumba32 $ "[0 1 2 3]" |- 0,
+          mask rumba32 $ "[0 1 2 3]" |- 0,
           -- "[-3 ~ ~ 3 . ~ 2]/2",
-          "0*2",
-          degrade $ struct bellpat32 $ "[3 2 1 0]" |+ 6
-          -- "[0 1 2 3]" |+ 6
+          -- "0*2",
+          -- degrade $ struct bellpat32 $ "[3 2 1 0]" |+ 6
+          "[0 1 2 3]" |+ 6
       )
     )
   (state, section) = a
