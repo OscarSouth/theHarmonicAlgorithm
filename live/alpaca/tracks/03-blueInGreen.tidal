@@ -38,16 +38,16 @@ kmpc f d = p "mpckit" $ do
     $ stack [silence
        -- --
       -- ,ride "[1 . 1 1]" #vel (lfo tri 0.08 0.5) |+ humanise 0.2
-      -- ,degradeBy 0.9 $ kick (slow 4 $ binary (128 |+ irand 128)) |* vel (lfo saw 0.05 0.4)
-      -- ,degradeBy 0.7 $ click (slow 2 $ binary 156) |+ vel 0.05
+      ,degradeBy 0.9 $ kick (slow 4 $ binary (128 |+ irand 128)) |* vel (lfo saw 0.05 0.4)
+      ,degradeBy 0.7 $ click (slow 2 $ binary 156) |+ vel 0.05
       -- ,kick "[1]/2" # vel 0.2
       -- ,kick "1" #vel 1
       ,hh "[~ 1]" #vel 0.4
       -- ,snare "[1 0]/2" #vel 0.5
-      -- ,snare "[0 1]/2" #vel 0.5
+      ,snare "[0 1]/2" #vel 0.5
       -- ,crash "1/2" #vel 0.5
       ,sometimesBy 0.05 (>>hh "2") $ someCyclesBy 0.01 (fast 2) $ degradeBy 0.1 $ hh "[1]*4" |* vel (lfo saw 0.1 0.7)
-      -- ,degradeBy 0.8 $ snare (slow 2 "[0 1 0 1 1 0 1 0]") # vel (range 0.05 0.2 rand)
+      ,degradeBy 0.8 $ snare (slow 2 "[0 1 0 1 1 0 1 0]") # vel (range 0.05 0.2 rand)
       -- , degradeBy 0.95 $ kick "1" # vel 0.25
        -- --
     ]# o # legato 0.01 |* vel d
@@ -57,7 +57,7 @@ k909 f d = p "909kit" $ do
   f
     $ stack [silence
        -- --
-      ,degrade $ rev$ stut 2 0.5 0.25 $ kick "1"
+      -- ,degrade $ rev$ stut 2 0.5 0.25 $ kick "1"
       ,kick "1"
       -- ,degradeBy 0.9 $ kick "0 1"
       -- ,hh "0 1" #vel 0.7
@@ -65,7 +65,7 @@ k909 f d = p "909kit" $ do
       -- ,degradeBy 0.1 $ hh "1 1 2 1" # vel (lfo tri 0.1 0.7)
       -- ,ride "0 1" #vel 0.3
       -- ,crash "1/4" #vel 0.7
-      ,slow (choose [2,4]) $ click "[0 0 1 0 0 1 1 0]" #vel (lfo saw 0.2 0.7)
+      -- ,slow (choose [2,4]) $ click "[0 0 1 0 0 1 1 0]" #vel (lfo saw 0.2 0.7)
        -- --
     ]# o # legato 0.01 |* vel d
 
@@ -142,21 +142,23 @@ mfam f s r d = p "moogDFAM" $ 0.036 <~ do
   f
     $ stack [silence
        -- --
+      -- ,slow 2 $ steptrig "[1 2 3 4 5 6 7 8]/2"
       ,steptrig "[1 2 3 4 5 6 7 8]/2"
        -- --
       ,arrange flow ms r (-9,9) ["~"
-        -- , slow 2 $ trunc 0.7 $ degrade $ "[2 3 4 5 6 7 6 8]" |+ irand 4
+        ,slow 2 $ trunc 0.7 $ degrade $ "[2 3 4 5 6 7 6 8]" |+ irand 4
         -- ,degrade $ iter 4 $ fast 2 $ pat
         -- ,struct rumba32 $ slow 4 $ iter 4 $ slow 2 $ run 8
-        ,struct bellpat32 $ run 8
+        -- ,struct bellpat32 $ run 8
         -- ,melodyRel
         -- ,slow 10 $ run 10
-      ]# osc1 |* vel 1 |- oct 1
+      ]# osc1 |* vel 1 |+ oct 1
        -- --
       ,arrange flow s r (-9,9) ["~"
         -- ,struct (slow 2 $ binary $ 205) $ "[0 -1 0 [2 3 . 4]]/4"
-        -- ,"0/4"
-        ,struct rumba32 $ "[0]"
+        ,"0/4"
+        -- ,"0"
+        -- ,struct rumba32 $ "[0]"
         -- ,run 4
       ]# osc2 |* vel 1 |- oct 1
        -- --

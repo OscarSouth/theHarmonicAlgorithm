@@ -9,7 +9,7 @@ let
       )
     )
   b = (
-      prog sharp $ fmap i <$> [[B,C',D,E,F',G,A']]
+      prog sharp $ fmap i <$> [[B,C',D,E,F',G,A]]
       , (
           "[[-2]*16 [-1]*16]/16" |-0,
           "[ [~ . 0 . ~ 2 . ~ 3 . ~ . 2 . ~ 0 . ~ 4 ]*2 [~ . 3 . ~ 2 . ~ 4 . ~ . 3 . ~ 2 . ~ 4 ]*2 ]/16" |-0
@@ -18,15 +18,15 @@ let
   c = (
       prog sharp $ fmap i <$> [[B,C',D,E,F',G,A]]
       , (
-          mask rumba32 $ "[0 1 2 3]" |- 0,
+          -- mask rumba32 $ "[0 1 2 3]" |- 0,
           -- "[-3 ~ ~ 3 . ~ 2]/2",
-          -- "0*2",
+          "0*2",
           -- degrade $ struct bellpat32 $ "[3 2 1 0]" |+ 6
           "[0 1 2 3]" |+ 6
       )
     )
-  (state, section) = a
-  -- (_, section) = c
+  -- (state, section) = a
+  (_, section) = c
 
 
 

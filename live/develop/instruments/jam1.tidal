@@ -1,0 +1,43 @@
+bpm = 87
+
+bars = 2
+
+juno f s r d = p "juno" $ do
+  let o = ch 16
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,"[0 1 2 1]"
+        -- ,"[0,1,2,1]"
+      ]# o |* vel 0.2 |+ oct 0
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,"[-6 -3]"
+        ,degrade $ "[6]/4" |- irand 3
+      ]# o |* vel 1
+       -- --
+    ] |* vel d
+
+
+kmpc f d = p "mpckit" $ do
+  let o = ch 10
+  f
+    $ stack [silence
+       -- --
+      ,hh "0 1"
+      -- ,kick "1"
+       -- --
+    ]# o # legato 0.01 |* vel d
+
+
+lboe f s r d = p "boeingdrone" $ do
+  let o = ch 5
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,"[0]/8"
+      ]# o |* vel 1 |- oct 2
+       -- --
+    ] |* vel d
