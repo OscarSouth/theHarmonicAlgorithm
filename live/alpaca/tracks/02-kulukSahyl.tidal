@@ -18,47 +18,15 @@ let
   c = (
       prog sharp $ fmap i <$> [[B,C',D,E,F',G,A]]
       , (
-          -- mask rumba32 $ "[0 1 2 3]" |- 0,
+          -- mask rumba32 $ "[0 -1]" |- 0,
           -- "[-3 ~ ~ 3 . ~ 2]/2",
           "0*2",
-          -- degrade $ struct bellpat32 $ "[3 2 1 0]" |+ 6
-          "[0 1 2 3]" |+ 6
+          degrade $ struct bellpat32 $ "[3 2 1 0]" |+ irand 2
+          -- "[0 1 2 3]" |+ 3
       )
     )
-  (state, section) = a
-  -- (_, section) = c
-
-
-
-hmnx f s r d = p "bassovertones" $ do
-  let o = ch 7
-  f
-    $ stack [silence
-       --
-      ,ecbc (overlapF 0 s) r (stack ["~"
-        ,degradeBy 0.0 $ "[0 -5 -3 0]/4" -| "[ ~ . 0 . ~ 7 . ~ 9]/2" |+ (irand 2)
-      ])# o |* vel 0.3
-       -- --
-    ] |* vel d # legato 0.1
-
-moog f s r d = p "moogMother32" $ do
-  let o = ch 14
-  let part = fst section
-  f
-    $ stack [silence
-       -- --
-      ,mono $ arrange flow (overlapF 0 s) r (-9,9) ["~"
-        ,part
-        -- ,"0/8"
-        -- ,"0/8"
-        -- ,"[0 4 -2 -1]/4" -- A section
-        -- ,"[[-2]*16 [-1]*16]/16" -- B section
-        -- ,trunc (slow 2 $ lfo saw 0 1) $ "3 1 2 1" |+ (slow 4 $ irand 2) |+ "[-3 0@7]/4"
-      ]# o |* vel 1 |- oct 2
-       -- --
-      -- ,portamento 0.0
-       -- --
-    ] |* vel d
+  -- (state, section) = a
+  (_, section) = c
 
 kmpc f d = p "mpckit" $ do
   let o = ch 10
@@ -66,9 +34,9 @@ kmpc f d = p "mpckit" $ do
     $ stack [silence
        -- --
       -- ,kick "[1 . 0@3 1? . 0 1? . 0 1? 0@2]/4" |* vel 0.9
-      ,snare "[0 1]/2" |* vel 0.7
-      ,sometimesBy 0.05 (>>hh "2") $ sometimesBy 0.01 (fast 2) $ degradeBy 0.1 $ hh "[1]*4" |* vel (lfo saw 0.1 0.7)
+      -- ,snare "<0 1>" |* vel 0.7
       -- ,hh "0 1"
+      ,sometimesBy 0.05 (>>hh "2") $ sometimesBy 0.01 (fast 2) $ degradeBy 0.1 $ hh "[1]*4" |* vel (lfo saw 0.1 0.7)
        -- --
     ]# o # legato 0.01 |* vel d
 
@@ -79,12 +47,30 @@ k909 f d = p "909kit" $ do
        -- --
       ,kick "1"
       -- ,snap "<0 1>" |* vel 0.4
-      -- ,hh "0 1" |* vel 0.4
+      ,hh "0 1" |* vel 0.4
       ,hh "[1 1 2 1]" |* vel (lfo saw 0.1 0.8)
        -- --
     ]# o # legato 0.01 |* vel d
 
-mfam f s r d = p "moogDFAM" $ do
+moog f s r d = p "moogMother32" $ do
+  let o = ch 14
+  let part = fst section
+  f
+    $ stack [silence
+       -- --
+      ,mono $ arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,part
+        -- ,"0/8"
+        -- ,"[0 4 -2 -1]/4" -- A section
+        -- ,"[[-2]*16 [-1]*16]/16" -- B section
+        -- ,trunc (slow 2 $ lfo saw 0 1) $ "3 1 2 1" |+ (slow 4 $ irand 2) |+ "[-3 0@7]/4"
+      ]# o |* vel 1 |- oct 2
+       -- --
+      -- ,portamento 0.0
+       -- --
+    ] |* vel d
+
+mfam f s r d = p "moogDFAM" $ 0.036 <~ do
   let (osc1,osc2) = (ch 11,ch 12)
   let part = snd section
   let pat = "0"

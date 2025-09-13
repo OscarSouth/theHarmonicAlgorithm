@@ -1,5 +1,3 @@
--- tempo = qlink1 --> [20..200]
-
 tempo = 80
 
 bars = 1
@@ -23,7 +21,7 @@ cadenceStates = fmap (fmap i) <$> [
     [[E,G',B]]       -- 16
   ]
 
-state = prog sharp $ cadenceStates!!16
+state = prog sharp $ cadenceStates!!0
 
 moog f s r d = p "moogMother32" $ do
   let o = ch 14
