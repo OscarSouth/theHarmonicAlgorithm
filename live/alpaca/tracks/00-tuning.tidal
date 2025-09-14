@@ -1,8 +1,8 @@
-let
-  tempo = 87
-  bars = 2
+tempo = 60
 
-state = prog flat [[0]] -- tune to C
+bars = 2
+
+state = prog flat [[-1]] -- tune to B
 
 state
 
@@ -38,6 +38,8 @@ mfam f s r d = p "moogDFAM" $ 0.036 <~ do
     ]# legato 0.25 |* vel d
 
 -- check volumes down on both synths
+-- check dfam seq started on midi mode
+-- check transport is started
 
 do
   let

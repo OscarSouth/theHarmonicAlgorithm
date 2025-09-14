@@ -8,18 +8,18 @@ next <- gammaGen 1 0.3
   -- overtones
     "*"
   -- tonality
-    "*"
+    "2#"
   -- roots
     "*"
   )
   4 -- len
-  2.5 -- entropy
+  1.5 -- entropy
 
 state = rotate (0) next
 
 do
   let
-    dyn = slow 32 (lfo saw 0.7 0.9)
+    dyn = slow 64 (lfo tri 0.7 0.9)
     rep = bars -- 2
     s = transpose (0) state
     f = (swingBy 0.07 2)
@@ -29,12 +29,12 @@ do
     -- ,rise 64 s r $d 0.4
     -- ,metronome   $d 0.2
     -- ,count   s r $d 1
-    ,kmpc  f     $d 0.9
-    ,k909  f     $d 0.6
+    -- ,kmpc  f     $d 0.5
+    -- ,k909  f     $d 0.8
     -- ,moog  f s r $d 0.8
-    -- ,mfam  f s r $d 6
+    -- ,mfam  f s r $d 1
     -- ,s101  f s r $d 0.6
-    -- ,juno  f s r $d 0.9
+    -- ,juno  f s r $d 0.6
     ]
 
  -- TRANSPORT
@@ -52,4 +52,4 @@ mapM_ id [p "transport"
   ,setcps (tempo/60)
   ]
 
-hush
+-- hush

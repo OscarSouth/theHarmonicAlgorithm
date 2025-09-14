@@ -9,7 +9,7 @@ let
       )
     )
   b = (
-      prog sharp $ fmap i <$> [[B,C',D,E,F',G,A]]
+      prog sharp $ fmap i <$> [[B,C',D,E,F',G,A']]
       , (
           "[[-2]*16 [-1]*16]/16" |-0,
           "[ [~ . 0 . ~ 2 . ~ 3 . ~ . 2 . ~ 0 . ~ 4 ]*2 [~ . 3 . ~ 2 . ~ 4 . ~ . 3 . ~ 2 . ~ 4 ]*2 ]/16" |-0
@@ -48,7 +48,7 @@ k909 f d = p "909kit" $ do
       ,kick "1"
       -- ,snap "<0 1>" |* vel 0.4
       ,hh "0 1" |* vel 0.4
-      ,hh "[1 1 2 1]" |* vel (lfo saw 0.1 0.8)
+      -- ,hh "[1 1 2 1]" |* vel (lfo saw 0.1 0.8)
        -- --
     ]# o # legato 0.01 |* vel d
 
