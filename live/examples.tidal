@@ -1,0 +1,77 @@
+-------------------------------------------------------------------------------
+-- examples.tidal - Example progressions using Phase B API
+-- 
+-- Demonstrates the Harmonic Algorithm's core workflow:
+--   1. Define starting state with initCadenceState
+--   2. Generate progressions using Markov walk through Neo4j
+--   3. Voice and arrange progressions for TidalCycles
+-------------------------------------------------------------------------------
+
+bars = 2
+tempo = 90
+
+-- Instrument launcher pattern
+p01 f s r d = d01 $ do
+  let o = ch 01
+  f
+    $ stack [silence
+      ,arrange flow (overlapF 1 s) r (-9,9) ["~"
+        ,slow 4 $ palindrome $ 8 -| run 16
+      ]# o |* vel 1
+    ] |* vel d
+
+-------------------------------------------------------------------------------
+-- EXAMPLE 1: Simple Generation
+-------------------------------------------------------------------------------
+
+-- Define starting point: B minor, arrived via unison (pedal)
+let startB = initCadenceState 0 "B" [0,3,7] FlatSpelling
+
+-- Generate 8 bars using the database (requires Neo4j running)
+-- Low entropy (1.0) = predictable, classical progressions
+-- progSimple <- generate startB 8 "bach" 1.0 defaultContext
+
+-- For offline use, create a manual progression:
+let prog1 = fromCadenceStates 
+      [ initCadenceState 0 "B" [0,3,7] FlatSpelling   -- Bm (start)
+      , initCadenceState 5 "E" [0,4,7] FlatSpelling   -- E (IV)
+      , initCadenceState 7 "B" [0,3,7] FlatSpelling   -- Bm (i via desc 5)
+      , initCadenceState 5 "E" [0,3,7] FlatSpelling   -- Em (iv)
+      ]
+
+-- Play with roots
+-- d1 $ note (voiceBy Roots prog1 "<0 1 2 3>") # s "superpiano"
+
+-------------------------------------------------------------------------------
+-- EXAMPLE 2: Using HarmonicContext filters
+-------------------------------------------------------------------------------
+
+-- Define a constrained context (only E, A, D, G overtones)
+let bassCtx = HarmonicContext "E A D G" "*" "*"
+
+-- Generate with composer blend (80% Debussy, 20% Bach)
+-- Higher entropy (2.5) = more adventurous
+-- progFiltered <- generate startB 8 "debussy:80 bach:20" 2.5 bassCtx
+
+-------------------------------------------------------------------------------
+-- EXAMPLE 3: Performance pattern
+-------------------------------------------------------------------------------
+
+-- Current state (can be modified during performance)
+state = prog1
+
+do
+  let
+    dyn = 0.8
+    rep = bars
+    s = transposeP (0) state
+    f = (swingBy 0.07 2)
+    (d,r) = ((*dyn),rep)
+  putStrLn . show $ s
+  mapM_ id [hush, setbpm tempo
+   ,p01 f s r $d 0.7
+   ]
+
+-------------------------------------------------------------------------------
+-- END examples.tidal
+-------------------------------------------------------------------------------

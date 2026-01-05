@@ -1,0 +1,138 @@
+-- test_voicing_paradigms.tidal
+-- Test the 3 voicing paradigms: root, flow, lite
+-- Run each section in TidalCycles REPL to verify behavior
+
+-- =============================================================================
+-- TEST FIXTURE: Manual progression for comparison
+-- =============================================================================
+
+-- Create a simple I-IV-V-I progression in C
+let cs1 = initCadenceState 0 "C" [0, 4, 7] FlatSpelling   -- C major (unison/start)
+let cs2 = initCadenceState 5 "F" [0, 4, 7] FlatSpelling   -- F major (asc 5th from C)
+let cs3 = initCadenceState 2 "G" [0, 4, 7] FlatSpelling   -- G major (asc 2nd from F)
+let cs4 = initCadenceState 5 "C" [0, 4, 7] FlatSpelling   -- C major (asc 5th from G)
+let testProg = fromCadenceStates [cs1, cs2, cs3, cs4]
+
+-- =============================================================================
+-- SECTION 1: LITE (Literal - No Transformation)
+-- =============================================================================
+
+-- lite returns exactly what's stored, no voice leading
+liteResult = lite testProg
+-- Expected: [[0,4,7], [5,9,0], [7,11,2], [0,4,7]]
+
+-- =============================================================================
+-- SECTION 2: ROOT (Root in Bass, Cyclic DP Voice-Led)
+-- =============================================================================
+
+-- root: uses cyclic DP to find globally optimal voicings
+-- Root always in bass, smooth compact voice leading
+rootResult = root testProg
+-- Root should be lowest note in each chord
+-- Voicings optimized for entire cycle (including wrap-around)
+
+-- =============================================================================
+-- SECTION 3: FLOW (Any Inversion, Cyclic DP Voice-Led)
+-- =============================================================================
+
+-- flow: uses cyclic DP with any inversion allowed
+-- Smoothest possible voice leading; bass doesn't need to be root
+flowResult = flow testProg
+-- May use inversions for smoother voice leading
+-- Voice crossings allowed
+
+-- =============================================================================
+-- COMPARISON SECTION
+-- =============================================================================
+
+-- Print all results side by side:
+compareAll = do
+  putStrLn "LITE (literal):"
+  print liteResult
+  putStrLn ""
+  putStrLn "ROOT (root bass, cyclic DP):"
+  print rootResult
+  putStrLn ""
+  putStrLn "FLOW (any inversion, cyclic DP):"
+  print flowResult
+
+-- =============================================================================
+-- SPAN ANALYSIS
+-- =============================================================================
+
+-- Helper to calculate span of a voicing (renamed to avoid shadowing Prelude.span)
+vspan v = maximum v - minimum v
+
+-- Calculate spans for each paradigm
+liteSpans = map vspan liteResult
+rootSpans = map vspan rootResult
+flowSpans = map vspan flowResult
+
+-- Print span comparison
+spanComparison = do
+  putStrLn "Span per chord:"
+  putStrLn $ "LITE: " ++ show liteSpans
+  putStrLn $ "ROOT: " ++ show rootSpans
+  putStrLn $ "FLOW: " ++ show flowSpans
+
+-- =============================================================================
+-- BASS NOTE ANALYSIS
+-- =============================================================================
+
+-- Check which note is in bass for each paradigm
+liteBasses = map head liteResult
+rootBasses = map head rootResult
+flowBasses = map head flowResult
+
+-- Print bass note comparison
+bassComparison = do
+  putStrLn "Bass notes (mod 12 for pitch class):"
+  putStrLn $ "LITE: " ++ show (map (`mod` 12) liteBasses)
+  putStrLn $ "ROOT: " ++ show (map (`mod` 12) rootBasses) ++ " (should be roots: 0,5,7,0)"
+  putStrLn $ "FLOW: " ++ show (map (`mod` 12) flowBasses) ++ " (may vary for smoother voice leading)"
+
+-- =============================================================================
+-- EXTENDED TEST: Longer Progression
+-- =============================================================================
+
+-- More complex progression to see voice leading in action
+let cx1 = initCadenceState 0 "C" [0, 4, 7] FlatSpelling   -- I (C major)
+let cx2 = initCadenceState 9 "A" [0, 3, 7] FlatSpelling   -- vi (A minor, desc 3rd)
+let cx3 = initCadenceState 8 "F" [0, 4, 7] FlatSpelling   -- IV (F major, desc 4th)
+let cx4 = initCadenceState 2 "G" [0, 4, 7] FlatSpelling   -- V (G major, asc 2nd)
+let cx5 = initCadenceState 10 "E" [0, 3, 7] FlatSpelling  -- iii (E minor, desc 3rd)
+let cx6 = initCadenceState 10 "D" [0, 3, 7] FlatSpelling  -- ii (D minor, desc 2nd)
+let cx7 = initCadenceState 5 "G" [0, 4, 7] FlatSpelling   -- V (G major, asc 5th)
+let cx8 = initCadenceState 5 "C" [0, 4, 7] FlatSpelling   -- I (C major, asc 5th)
+let complexProg = fromCadenceStates [cx1, cx2, cx3, cx4, cx5, cx6, cx7, cx8]
+
+-- Compare on longer progression
+complexRoot = root complexProg
+complexFlow = flow complexProg
+
+-- =============================================================================
+-- QUICK TESTS (Run These)
+-- =============================================================================
+
+{-
+-- Run these commands one at a time:
+
+-- Basic comparison:
+compareAll
+
+-- Span analysis:
+spanComparison
+
+-- Bass note analysis:
+bassComparison
+
+-- Individual results:
+liteResult
+rootResult
+flowResult
+
+-- Complex progression:
+complexRoot
+complexFlow
+
+-}

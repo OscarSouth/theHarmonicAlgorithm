@@ -5,42 +5,60 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           theHarmonicAlgorithm
-version:        2.0.0
-description:    Please see the README on GitHub at <https://github.com/OscarSouth/theHarmonicAlgorithm#readme>
-homepage:       https://github.com/OscarSouth/theHarmonicAlgorithm#readme
-bug-reports:    https://github.com/OscarSouth/theHarmonicAlgorithm/issues
-author:         Oscar South
-maintainer:     info@oscarsouth.com
-copyright:      2024 (c) Oscar South
+version:        0.1.0
+author:         HarmAlgo Team
 license:        BSD3
-license-file:   LICENSE
 build-type:     Simple
-extra-source-files:
-    README.md
-    ChangeLog.md
-
-source-repository head
-  type: git
-  location: https://github.com/OscarSouth/theHarmonicAlgorithm
 
 library
   exposed-modules:
-      Lib
+      Harmonic.Lib
+      Harmonic.Core.Pitch
+      Harmonic.Core.Harmony
+      Harmonic.Core.Dissonance
+      Harmonic.Core.Overtone
+      Harmonic.Core.VoiceLeading
+      Harmonic.Core.Progression
+      Harmonic.Core.Filter
+      Harmonic.Core.Probabilistic
+      Harmonic.Core.Builder
+      Harmonic.Database.Query
+      Harmonic.Analysis.Markov
+      Harmonic.Database.Graph
+      Harmonic.Ingestion.CSV
+      Harmonic.Ingestion.Types
+      Harmonic.Ingestion.Transform
+      Harmonic.Tidal.Interface
+      Harmonic.Tidal.Arranger
+      Harmonic.Tidal.Instruments
+      Harmonic.Tidal.Utils
+      Harmonic.Config
   other-modules:
-      Overtone
-      Markov
-      MusicData
-      Analysis
-      Utility
-      GraphDB
-      Arranger
+      Paths_theHarmonicAlgorithm
   hs-source-dirs:
       src
   build-depends:
-      base >=4.8 && <5
+      aeson
+    , base >=4.14 && <5
+    , bytestring
+    , cassava
+    , connection
     , containers
-    , parallel
+    , data-default
+    , hasbolt
+    , hosc
+    , mtl
+    , mwc-random
+    , random
     , split
+    , statistics
+    , stm
+    , text
+    , tidal
+    , tidal-core
+    , tidal-link
+    , tls
+    , vector
   default-language: Haskell2010
 
 executable theHarmonicAlgorithm-exe
@@ -52,32 +70,70 @@ executable theHarmonicAlgorithm-exe
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
-    , base >=4.8 && <5
+    , base >=4.14 && <5
     , bytestring
+    , cassava
+    , connection
     , containers
     , data-default
     , hasbolt
-    , inline-r
+    , hosc
     , mtl
-    , parallel
+    , mwc-random
+    , random
     , split
+    , statistics
+    , stm
     , text
     , theHarmonicAlgorithm
     , tidal
+    , tidal-core
+    , tidal-link
+    , tls
+    , vector
   default-language: Haskell2010
 
 test-suite theHarmonicAlgorithm-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
+      Harmonic.Core.BuilderSpec
+      Harmonic.Core.FilterSpec
+      Harmonic.Core.HarmonySpec
+      Harmonic.Core.OvertoneSpec
+      Harmonic.Core.PitchSpec
+      Harmonic.Core.ProbabilisticSpec
+      Harmonic.Core.ProgressionSpec
+      Harmonic.Core.VoiceLeadingSpec
+      Harmonic.Database.QuerySpec
+      Harmonic.Tidal.InterfaceSpec
       Paths_theHarmonicAlgorithm
   hs-source-dirs:
       test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       QuickCheck
-    , base >=4.8 && <5
+    , aeson
+    , base >=4.14 && <5
+    , bytestring
+    , cassava
+    , connection
+    , containers
+    , data-default
+    , hasbolt
+    , hosc
     , hspec
-    , parallel
+    , mtl
+    , mwc-random
+    , random
+    , split
+    , statistics
+    , stm
+    , text
     , theHarmonicAlgorithm
+    , tidal
+    , tidal-core
+    , tidal-link
+    , tls
+    , vector
   default-language: Haskell2010

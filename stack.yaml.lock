@@ -5,19 +5,33 @@
 
 packages:
 - completed:
-    hackage: tidal-core-1.10.0@sha256:3d1dc6c39aa12b813797506e9f7d903719639966c1b8b6b1994e26667bb0b92f,2008
+    hackage: tidal-1.10.1@sha256:78341c01002163364c4ff9e808c993d686405b0b43f16c0f5063a90389133e7a,3692
     pantry-tree:
-      sha256: 4e31f76d17b325c5a9b1a14e4d7cd11c9006dc4fbeef9a8b026fd82ee082a3f8
+      sha256: 22b5594c189c98255a9a9a08ff8d28c5f825383f8cc4e940f0d538049e515077
+      size: 2152
+  original:
+    hackage: tidal-1.10.1
+- completed:
+    hackage: hosc-0.21.1@sha256:95f06be1daa2a668f569d2f8b5e53887ef39c6e886e7c84ea574f85127d0abbf,2111
+    pantry-tree:
+      sha256: 0e6c1cd35b902465626c83517cb08abfa46b2e486985fb361b62086b89701759
+      size: 1769
+  original:
+    hackage: hosc-0.21.1
+- completed:
+    hackage: tidal-core-1.10.1@sha256:8300662a368613cff926acd21a52de79138871430a3e12ca7bbc945ba05a009d,2002
+    pantry-tree:
+      sha256: 23675e2ba493940010006c4711b441788793115fbd2c9137965ac6c849c62ff6
       size: 2006
   original:
-    hackage: tidal-core-1.10.0
+    hackage: tidal-core-1.10.1
 - completed:
-    hackage: inline-r-1.0.1@sha256:5f13fb06f6c156e7ea6f76f952c43b8e2125882934bd4806b7873394e369d405,6426
+    hackage: tidal-link-1.2.0@sha256:56543c7b7bf6032c166ad7e9ba429ab9c4c053b80d39b62d6cfc69738f43be47,2017
     pantry-tree:
-      sha256: 6dc2b14c23401ce0a276cad5480d164d84dcc4aab86a647e773ab51eb07bc93c
-      size: 4622
+      sha256: f13e8498c8da8ff11dffd2a716bcd265ecb7cdbf78fd7566b2af155abcd3587e
+      size: 92860
   original:
-    hackage: inline-r-1.0.1
+    hackage: tidal-link-1.2.0
 - completed:
     hackage: hasbolt-0.1.7.0@sha256:48e523eddb921972d58a6ecaa228af27e216b6015442faffb6e5404b12cff21f,4254
     pantry-tree:
@@ -25,20 +39,6 @@ packages:
       size: 1332
   original:
     hackage: hasbolt-0.1.7.0
-- completed:
-    hackage: tidal-link-1.0.3@sha256:d31d57950fc39bc6dc41dd58b1fb352ba46d52a46637fc5e66465e6b94a8d2bb,1887
-    pantry-tree:
-      sha256: 1d9e281b909a709ca95dd933324468c874ea335c93c3baac3a2fe51a22dfcfa5
-      size: 92791
-  original:
-    hackage: tidal-link-1.0.3
-- completed:
-    hackage: hosc-0.20@sha256:5aa9985a65a7b31fd3707dc04bf6221273a83d2f47009f816622114ff6c59bac,2077
-    pantry-tree:
-      sha256: 30289a03bb0c49332d7eaf39182bf71314846d377886b62591dcf699acfee9e5
-      size: 1753
-  original:
-    hackage: hosc-0.20
 - completed:
     hackage: connection-0.3.1@sha256:3dcbf2f10d1677d339267d6dacb38a24913622edf42b05f75a73f381610ddbfc,1563
     pantry-tree:

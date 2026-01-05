@@ -1,0 +1,187 @@
+-------------------------------------------------------------------------------
+-- test.tidal - Validation Tests for Phase D
+--
+-- Run these tests in Tidal REPL to validate Phase D functionality.
+-- Each section tests a specific aspect of the Harmonic Algorithm integration.
+--
+-- Usage:
+--   1. Start Tidal with the new BootTidal.hs
+--   2. Evaluate each section and verify output
+--   3. Check that sounds play correctly (requires SuperDirt)
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- TEST 1: Basic Imports
+-- Expected: No errors, types are accessible
+-------------------------------------------------------------------------------
+
+-- Test that core types and constructors are available
+:t (P 0)           -- Should show: PitchClass
+:t mkPitchClass    -- Should show: Int -> PitchClass
+:t C               -- Should show: NoteName
+:t pitchClass      -- Should show: NoteName -> PitchClass
+:t Chord           -- Should show: Chord constructor
+:t Cadence         -- Should show: Cadence constructor
+:t CadenceState    -- Should show: CadenceState constructor
+:t Progression     -- Should show: Progression type
+
+-- Test that voice functions are available
+:t flow
+:t root
+:t bass
+:t arrange
+:t overlapF
+:t rotate
+:t excerpt
+:t transposeP
+
+-------------------------------------------------------------------------------
+-- TEST 2: PitchClass Operations
+-- Expected: ℤ₁₂ arithmetic works correctly
+-------------------------------------------------------------------------------
+
+-- Basic pitch classes
+mkPitchClass 0   -- P0
+mkPitchClass 12  -- P0 (wraps)
+mkPitchClass 15  -- P3 (wraps)
+
+-- Arithmetic
+mkPitchClass 5 + mkPitchClass 9  -- P2 (5+9=14, 14 mod 12 = 2)
+mkPitchClass 3 - mkPitchClass 7  -- P8 (3-7=-4, -4 mod 12 = 8)
+
+-- Note names
+pitchClass C   -- P0
+pitchClass F'  -- P6
+pitchClass Bb  -- P10
+
+-- Enharmonic functions
+sharp (P 3)  -- D'
+flat (P 3)   -- Eb
+
+-- enharmFromNoteName
+enharmFromNoteName C (P 3)   -- Eb (C uses flat)
+enharmFromNoteName D (P 3)   -- D' (D uses sharp)
+
+-------------------------------------------------------------------------------
+-- TEST 3: Harmony Types
+-- Expected: Chord naming works correctly
+-------------------------------------------------------------------------------
+
+-- Create triads
+toTriad flat [0, 4, 7]      -- C maj
+toTriad sharp [0, 3, 7]     -- C min
+toTriad flat [0, 3, 6]      -- C dim
+toTriad flat [0, 4, 8]      -- C aug
+toTriad flat [0, 2, 7]      -- C sus2
+toTriad flat [0, 5, 7]      -- C sus4
+
+-- Movement types (shortest path in ℤ₁₂ determines direction)
+-- PitchClasses are register-agnostic: P 12 ≡ P 0
+toMovement (P 0) (P 7)  -- desc 5 (0 -> 7: shortest path is 5 semitones down via P 12)
+toMovement (P 7) (P 0)  -- asc 5 (7 -> 0: shortest path is 5 semitones up to P 12 ≡ P 0)
+toMovement (P 0) (P 0)  -- pedal
+toMovement (P 0) (P 6)  -- tritone
+
+-------------------------------------------------------------------------------
+-- TEST 4: Progression Operations
+-- Expected: Manipulation functions work correctly
+-------------------------------------------------------------------------------
+
+-- Create a simple progression for testing using initCadenceState
+-- initCadenceState :: Int -> String -> [Int] -> EnharmonicSpelling -> CadenceState
+-- Args: movement interval, root note name, quality intervals, spelling
+let testCs1 = initCadenceState 5 "C" [0, 4, 7] FlatSpelling   -- C major, arrived by asc 5th
+let testCs2 = initCadenceState 7 "G" [0, 3, 7] FlatSpelling   -- G minor, arrived by desc 5th
+let testCs3 = initCadenceState 0 "C" [0, 4, 7] FlatSpelling   -- C major, pedal
+let testCs4 = initCadenceState 2 "A" [0, 3, 7] FlatSpelling   -- A minor, arrived by asc 2nd
+
+let testProg = fromCadenceStates [testCs1, testCs2, testCs3, testCs4]
+
+-- Query functions
+progLength testProg  -- 4
+progChords testProg  -- List of Chord
+progCadences testProg  -- List of Cadence
+
+-- Manipulation
+rotate 1 testProg  -- Shift by 1
+excerpt 2 3 testProg  -- Bars 2-3
+expandP 2 testProg  -- Double length
+
+-- Voicing extractors (3 paradigms via cyclic DP)
+literal testProg   -- [[Integer]] raw pitch classes
+root testProg      -- Root in bass, smooth voice leading
+flow testProg      -- Any inversion, smoothest motion
+lite testProg      -- Same as literal
+
+-- Display (visual Show instance)
+testProg  -- Should show formatted grid
+
+-------------------------------------------------------------------------------
+-- TEST 5: Tidal Integration (requires SuperDirt)
+-- Expected: Sounds play correctly
+-------------------------------------------------------------------------------
+
+-- Basic note pattern
+-- d1 $ note "0 4 7" # s "superpiano"
+
+-- Harmonic pattern (manual scale)
+-- d1 $ note (toScale [0,4,7] "0 1 2") # s "superpiano"
+
+-- With flow voice function (if progression available)
+-- d1 $ arrange flow testProg 1 (-12,12) ["0 1 2"]
+
+-- Silence
+-- hush
+
+-------------------------------------------------------------------------------
+-- TEST 6: Filter Notation (Phase C)
+-- Expected: Parsing works correctly
+--
+-- Use String-based wrappers (overtones, key, funds, wildcard) in TidalCycles.
+-- The Text-based versions (parseOvertones, parseKey, parseFunds, isWildcard)
+-- conflict with Tidal's Stringy typeclass.
+-------------------------------------------------------------------------------
+
+-- Overtone filters (String-friendly wrappers)
+overtones "E A D G"     -- Bass tuning -> [P 4,P 8,P 11,P 9,P 0,P 4,P 2,P 7,P 11,P 7,P 11,P 2]
+overtones "C"           -- Just C -> [P 0,P 4,P 7]
+overtones "*"           -- Wildcard -> all 12 pitch classes
+
+-- Key signature filters
+key "#"                 -- 1 sharp (G major)
+key "bb"                -- 2 flats (Bb major)
+key "2b"                -- 2 flats (Bb major)
+
+-- Root filters
+funds "E F# G"          -- Specific roots -> [P 4,P 6,P 7]
+funds "1#"              -- G major roots
+funds "*"               -- Any root
+
+-- Wildcards (use 'wildcard' not 'isWildcard' in Tidal)
+wildcard "*"             -- True
+wildcard "all"           -- True
+wildcard "chr"           -- True
+wildcard "E A D G"       -- False
+
+-------------------------------------------------------------------------------
+-- TEST 7: Builder Types (Phase C)
+-- Expected: Context/Config types work correctly
+-------------------------------------------------------------------------------
+
+-- Default context (wildcards)
+defaultContext
+
+-- Custom context (use 'hContext' String wrapper in TidalCycles)
+-- HarmonicContext takes Text fields, but 'hContext' takes String:
+-- Named 'hContext' to avoid collision with TidalCycles' EventF.context
+let ctx = hContext "E A D G" "1#" "*"
+
+-- Default config
+defaultConfig
+
+-- Custom config
+let cfg = defaultConfig { gcHomingThreshold = 0.8 }
+
+-------------------------------------------------------------------------------
+-- End test.tidal
+-------------------------------------------------------------------------------

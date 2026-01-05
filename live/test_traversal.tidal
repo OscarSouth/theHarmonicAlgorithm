@@ -1,0 +1,315 @@
+-- test_traversal.tidal
+-- Diagnostic tests for the generation algorithm
+-- Tests: off-by-one fix, movement computation, fallback behavior, diagnostics
+--
+-- Run in GHCi: `:load live/test_traversal.tidal`
+-- All functions from Harmonic.Lib are available via BootTidal.hs
+--
+-- PIPELINE OVERVIEW:
+-- The generation algorithm follows a six-stage pipeline per step:
+--   [1] PRIOR STATE: Root + cadence before selection
+--   [2] CANDIDATE POOL: Graph + fallback ranked by dissonance
+--   [3] SELECTED FROM DB: Movement + zero-form intervals from Neo4j
+--   [4] ADVANCE: Root motion computation (prior PC + movement = posterior PC)
+--   [5] POSTERIOR STATE: New root + cadence after advance
+--   [6] RENDER: Transpose intervals by root + name chord
+--
+-- ZERO-FORM INVARIANT:
+-- All cadence intervals are stored relative ([P 0, ...]), enabling transposition:
+--   posterior chord = posteriorRootPC + cadenceIntervals
+-- This guarantees DB name == computed name (verified each step)
+--
+-- Use `gen''` to see STEP N output showing all pipeline stages with diagnostics.
+
+-------------------------------------------------------------------------------
+-- TEST 1: Length verification (off-by-one fix)
+-------------------------------------------------------------------------------
+
+putStrLn "\n=== TEST 1: Length Verification ==="
+let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+    ctx = defaultContext
+forM_ [4, 8, 12, 16] $ \len ->
+  gen start len "*" 0.5 ctx >>= \prog ->
+    let actual = progLength prog
+    in putStrLn $ "  Requested: " ++ show len ++ " -> Actual: " ++ show actual
+                  ++ " [" ++ (if len == actual then "PASS" else "FAIL") ++ "]"
+
+-------------------------------------------------------------------------------
+-- TEST 2: Starting chord verification
+-------------------------------------------------------------------------------
+
+putStrLn "\n=== TEST 2: Starting Chord Verification ==="
+let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+    ctx = defaultContext
+gen start 4 "*" 0.5 ctx >>= \prog ->
+  let cs1 = getCadenceState prog 1  -- Bar 1 (first chord)
+      cs2 = getCadenceState prog 2  -- Bar 2 (second chord)
+  in do
+    putStrLn $ "  Starting state: " ++ show start
+    putStrLn $ "  Chord 1 (bar 1): " ++ show cs1
+    putStrLn $ "  Chord 2 (bar 2): " ++ show cs2
+    putStrLn $ "  First chord matches start: " ++ show (fmap show cs1 == Just (show start))
+
+-------------------------------------------------------------------------------
+-- TEST 3: CadenceState round-trip verification
+-------------------------------------------------------------------------------
+
+putStrLn "\n=== TEST 3: CadenceState Round-Trip ==="
+let testCases =
+      [ (0, "C", [0,4,7], "C major, pedal")
+      , (0, "A", [0,3,7], "A minor, pedal")
+      , (7, "C", [0,4,7], "C major, desc 5")
+      , (5, "G", [0,4,7], "G major, asc 5")
+      , (9, "A", [0,3,7], "A minor, desc 3")
+      ]
+forM_ testCases $ \(mvmt, note, qual, desc) ->
+  let cs = initCadenceState mvmt note qual FlatSpelling
+      chord = fromCadenceState cs
+  in do
+    putStrLn $ "  " ++ desc ++ ":"
+    putStrLn $ "    CadenceState: " ++ show cs
+    putStrLn $ "    fromCadenceState: " ++ show chord
+
+-------------------------------------------------------------------------------
+-- TEST 4: Diagnostics - Full generation trace
+-------------------------------------------------------------------------------
+
+putStrLn "\n=== TEST 4: Generation Diagnostics ==="
+let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+    ctx = defaultContext
+gen' start 4 "*" 0.5 ctx >>= \(prog, diag) ->
+  let steps = gdSteps diag
+  in do
+    putStrLn $ "\n  Starting: " ++ gdStartCadence diag ++ " @ " ++ gdStartRoot diag
+    putStrLn $ "  Requested: " ++ show (gdRequestedLen diag) ++ " chords"
+    putStrLn $ "  Actual: " ++ show (gdActualLen diag) ++ " chords"
+    putStrLn $ "  Entropy: " ++ show (gdEntropy diag)
+    putStrLn "\n  Per-step diagnostics:"
+    forM_ steps $ \step -> do
+      putStrLn $ "\n  Step " ++ show (sdStepNumber step) ++ ":"
+      putStrLn $ "    Prior: " ++ sdPriorCadence step ++ " @ " ++ sdPriorRoot step
+      putStrLn $ "    Graph candidates: " ++ show (sdGraphCount step)
+      if sdGraphCount step > 0
+        then putStrLn $ "      Top 3: " ++ show (sdGraphTop3 step)
+        else return ()
+      putStrLn $ "    Fallback candidates: " ++ show (sdFallbackCount step)
+      if sdFallbackCount step > 0
+        then putStrLn $ "      Top 3: " ++ show (sdFallbackTop3 step)
+        else return ()
+      putStrLn $ "    Pool size: " ++ show (sdPoolSize step)
+      putStrLn $ "    Gamma index: " ++ show (sdGammaIndex step) ++ " (entropy=" ++ show (sdEntropyUsed step) ++ ")"
+      putStrLn $ "    Selected from: " ++ sdSelectedFrom step
+      putStrLn $ "    Selected DB: " ++ sdSelectedDbMovement step ++ " -> " ++ sdSelectedDbFunctionality step
+      putStrLn $ "    Posterior root: " ++ sdPosteriorRoot step
+    putStrLn $ "\n  Final progression:"
+    print prog
+
+-------------------------------------------------------------------------------
+-- TEST 5: Entropy effect on gamma index
+-------------------------------------------------------------------------------
+
+putStrLn "\n=== TEST 5: Entropy Effect ==="
+let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+    ctx = defaultContext
+forM_ [0.0, 0.25, 0.5, 0.75, 1.0] $ \entropy ->
+  gen' start 8 "*" entropy ctx >>= \(_, diag) ->
+    let indices = map sdGammaIndex (gdSteps diag)
+        avgIdx = fromIntegral (sum indices) / fromIntegral (length indices) :: Double
+    in putStrLn $ "  Entropy " ++ show entropy ++ ": avg index = " ++ show avgIdx
+                  ++ " (indices: " ++ show indices ++ ")"
+
+-------------------------------------------------------------------------------
+-- TEST 6: Movement traversal verification
+-------------------------------------------------------------------------------
+
+putStrLn "\n=== TEST 6: Movement Traversal ==="
+let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+    ctx = defaultContext
+gen' start 8 "*" 0.5 ctx >>= \(prog, diag) ->
+  let movements = map (\s -> sdSelectedDbMovement s ++ " -> " ++ sdSelectedDbFunctionality s) (gdSteps diag)
+      unique xs = foldr (\x acc -> if x `elem` acc then acc else x:acc) [] xs
+      uniqueMovements = length $ unique movements
+  in do
+    putStrLn "  Movement sequence:"
+    forM_ (zip [1..] movements) $ \(i, mvmt) ->
+      putStrLn $ "    Step " ++ show i ++ ": " ++ mvmt
+    putStrLn $ "\n  Unique movements: " ++ show uniqueMovements ++ " / " ++ show (length movements)
+    putStrLn $ "  Traversal diversity: " ++ (if uniqueMovements > 3 then "GOOD" else "LIMITED")
+
+-------------------------------------------------------------------------------
+-- TEST 7: Graph vs Fallback ratio
+-------------------------------------------------------------------------------
+
+putStrLn "\n=== TEST 7: Graph vs Fallback Ratio ==="
+let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+    ctx = defaultContext
+gen' start 16 "*" 0.5 ctx >>= \(_, diag) ->
+  let steps = gdSteps diag
+      graphSelections = length $ filter ((== "graph") . sdSelectedFrom) steps
+      fallbackSelections = length $ filter ((== "fallback") . sdSelectedFrom) steps
+      totalSteps = length steps
+      avgGraphCandidates = fromIntegral (sum $ map sdGraphCount steps) / fromIntegral totalSteps :: Double
+      avgFallbackCandidates = fromIntegral (sum $ map sdFallbackCount steps) / fromIntegral totalSteps :: Double
+  in do
+    putStrLn $ "  Total steps: " ++ show totalSteps
+    putStrLn $ "  Graph selections: " ++ show graphSelections
+               ++ " (" ++ show (100 * graphSelections `div` max 1 totalSteps) ++ "%)"
+    putStrLn $ "  Fallback selections: " ++ show fallbackSelections
+               ++ " (" ++ show (100 * fallbackSelections `div` max 1 totalSteps) ++ "%)"
+    putStrLn $ "\n  Avg graph candidates per step: " ++ show avgGraphCandidates
+    putStrLn $ "  Avg fallback candidates per step: " ++ show avgFallbackCandidates
+
+-------------------------------------------------------------------------------
+-- TEST 8: Different starting positions
+-------------------------------------------------------------------------------
+
+putStrLn "\n=== TEST 8: Different Starting Positions ==="
+let starts =
+      [ (initCadenceState 0 "C" [0,4,7] FlatSpelling, "C major")
+      , (initCadenceState 0 "A" [0,3,7] FlatSpelling, "A minor")
+      , (initCadenceState 7 "G" [0,4,7] FlatSpelling, "G major (desc 5)")
+      , (initCadenceState 5 "F" [0,4,7] FlatSpelling, "F major (asc 5)")
+      , (initCadenceState 0 "E" [0,3,7] FlatSpelling, "E minor")
+      ]
+    ctx = defaultContext
+forM_ starts $ \(start, desc) ->
+  gen' start 4 "*" 0.5 ctx >>= \(prog, diag) ->
+    let graphRatio = length (filter ((== "graph") . sdSelectedFrom) (gdSteps diag))
+    in putStrLn $ "  " ++ desc ++ ": " ++ show (progLength prog) ++ " chords, "
+                  ++ show graphRatio ++ "/" ++ show (length (gdSteps diag)) ++ " from graph"
+
+-------------------------------------------------------------------------------
+-- TEST 9: Maximum Verbosity Transform Tracing (gen'')
+-------------------------------------------------------------------------------
+
+putStrLn "\n=== TEST 9: Maximum Verbosity Transform Trace (gen'') ==="
+putStrLn "  NOTE: This test is slower due to extra tracing computation."
+let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+    ctx = defaultContext
+gen'' start 16 "*" 0.8 ctx >>= \(prog, diag) ->
+  let steps = gdSteps diag
+  in do
+    putStrLn $ "\n  Starting: " ++ gdStartCadence diag ++ " @ " ++ gdStartRoot diag
+    putStrLn "\n  Full pipeline trace for each step:"
+    forM_ steps $ \step -> do
+      putStrLn $ "\n  ═══════════════════════════════════════════════════════════════════"
+      putStrLn $ "  ═══ STEP " ++ show (sdStepNumber step) ++ " ═══"
+      putStrLn $ "  ═══════════════════════════════════════════════════════════════════"
+
+      -- 1. PRIOR STATE
+      putStrLn "\n  [1] PRIOR STATE (before selection):"
+      putStrLn $ "      Cadence: " ++ sdPriorCadence step
+      putStrLn $ "      Root: " ++ sdPriorRoot step ++ " (PC=" ++ show (sdPriorRootPC step) ++ ")"
+
+      -- 2. CANDIDATE POOL
+      putStrLn "\n  [2] CANDIDATE POOL:"
+      putStrLn $ "      Graph candidates: " ++ show (sdGraphCount step)
+      if sdGraphCount step > 0
+        then putStrLn $ "        Top 3: " ++ show (take 3 $ sdGraphTop3 step)
+        else return ()
+      putStrLn $ "      Fallback candidates: " ++ show (sdFallbackCount step)
+      if sdFallbackCount step > 0
+        then putStrLn $ "        Top 3: " ++ show (take 3 $ sdFallbackTop3 step)
+        else return ()
+      putStrLn $ "      Total pool size: " ++ show (sdPoolSize step)
+      putStrLn $ "      Gamma selection: index " ++ show (sdGammaIndex step)
+                 ++ " (entropy=" ++ show (sdEntropyUsed step) ++ ")"
+      putStrLn $ "      Selected from: " ++ sdSelectedFrom step
+
+      -- 3. SELECTED FROM DB (raw database record)
+      putStrLn "\n  [3] SELECTED FROM DB (raw record):"
+      putStrLn $ "      Intervals (zero-form): " ++ sdSelectedDbIntervals step
+      putStrLn $ "      Movement: " ++ sdSelectedDbMovement step
+      putStrLn $ "      Functionality: " ++ sdSelectedDbFunctionality step
+
+      -- 4. ADVANCE (apply movement transformation)
+      case sdAdvanceTrace step of
+        Just at -> do
+          putStrLn "\n  [4] ADVANCE (apply movement to prior root):"
+          putStrLn $ "      Prior root: " ++ atCurrentRoot at ++ " (PC=" ++ show (atCurrentRootPC at) ++ ")"
+          putStrLn $ "      Movement: " ++ atMovement at ++ " → interval " ++ show (atMovementInterval at)
+          putStrLn $ "      Computation: " ++ show (atCurrentRootPC at) ++ " + " ++ show (atMovementInterval at)
+                     ++ " = " ++ show (atNewRootPC at) ++ " (mod 12)"
+          putStrLn $ "      Enharm function: " ++ atEnharmFunc at
+          putStrLn $ "      Posterior root: " ++ atNewRoot at
+        Nothing -> do
+          putStrLn "\n  [4] ADVANCE (verbosity too low for trace):"
+          putStrLn $ "      Posterior root: " ++ sdPosteriorRoot step
+                     ++ " (PC=" ++ show (sdPosteriorRootPC step) ++ ")"
+
+      -- 5. POSTERIOR STATE
+      putStrLn "\n  [5] POSTERIOR STATE (after advance):"
+      putStrLn $ "      Root: " ++ sdPosteriorRoot step ++ " (PC=" ++ show (sdPosteriorRootPC step) ++ ")"
+      putStrLn $ "      Cadence intervals: " ++ sdSelectedDbIntervals step ++ " (from DB)"
+
+      -- 6. RENDER (posterior state → chord)
+      case sdTransformTrace step of
+        Just tt -> do
+          putStrLn "\n  [6] RENDER (transpose & name chord):"
+          putStrLn $ "      Posterior root PC: " ++ show (ttRootPC tt) ++ " (" ++ ttRootNoteName tt ++ ")"
+          putStrLn $ "      Zero-form intervals (from DB): " ++ show (ttTones tt)
+          putStrLn $ "      → Transpose by root: " ++ show (ttTransposedPitches tt)
+          putStrLn $ "      → Normalize to fund: " ++ show (ttNormalizedPs tt)
+          putStrLn $ "      → Compute zero-form: " ++ show (ttZeroForm tt)
+          putStrLn $ "      → Detect inversion root: " ++ ttDetectedRoot tt
+          putStrLn $ "      → Name triad: " ++ ttFunctionality tt
+          putStrLn $ "      → Final chord: " ++ ttFinalChord tt
+          putStrLn ""
+          putStrLn "      VERIFICATION:"
+          putStrLn $ "        DB stored name: " ++ ttStoredFunc tt
+          putStrLn $ "        Computed name:  " ++ ttFunctionality tt
+          if ttFunctionality tt /= ttStoredFunc tt
+            then putStrLn "        *** DISCREPANCY DETECTED ***"
+            else putStrLn "        ✓ Names match"
+        Nothing -> case sdRenderedChord step of
+          Just rendered -> do
+            putStrLn "\n  [6] RENDER (verbosity 1 - no trace):"
+            putStrLn $ "      Final chord: " ++ rendered
+          Nothing -> putStrLn "\n  [6] RENDER: (verbosity too low)"
+
+    putStrLn "\n  ═══════════════════════════════════════════════════════════════════"
+    putStrLn "  ═══ FINAL PROGRESSION ═══"
+    putStrLn "  ═══════════════════════════════════════════════════════════════════\n"
+    print prog
+
+-------------------------------------------------------------------------------
+-- TEST 7: Enharmonic Preference (C ambiguity and prior-preference-wins rule)
+-------------------------------------------------------------------------------
+
+putStrLn "\n=== TEST 7: Enharmonic Preference Logic ==="
+putStrLn "\n--- Test 7a: Starting on C (ambiguous) ---"
+putStrLn "When starting on C (ambiguous), initial state uses defaultEnharm (C→flat)"
+let cs_c_flat = initCadenceState 0 "C" [0,4,7] FlatSpelling
+putStrLn $ "  Start C with FlatSpelling: " ++ show cs_c_flat
+
+putStrLn "\n--- Test 7b: Transition from non-C to C (C adopts posterior preference) ---"
+putStrLn "When transitioning from G (sharp) to C (ambiguous),"
+putStrLn "selectEnharm should preserve sharp preference at C"
+putStrLn "  (C is ambiguous, so it adopts posterior's natural preference)"
+putStrLn "  When posterior is C and prior is sharp, C stays in its sharp spelling"
+
+putStrLn "\n--- Test 7c: Non-C pitch maintains its preference ---"
+putStrLn "When transitioning from C (flat) to G (natural preference sharp),"
+putStrLn "selectEnharm should preserve G's natural sharp preference"
+putStrLn "  G (and F#, A, B, D, E, C#) are always sharp"
+putStrLn "  Db (and Eb, F, Ab, Bb, B♭ enharmonically) prefer flats"
+
+putStrLn "\n--- Test 7d: Live generation example ---"
+putStrLn "Generate a 4-chord progression to observe enharmonic transitions:"
+let startC = initCadenceState 0 "C" [0,4,7] FlatSpelling
+    ctx = defaultContext
+gen startC 4 "*" 0.5 ctx >>= \prog -> do
+  putStrLn $ "\nGenerated 4-chord progression from C:"
+  print prog
+  putStrLn "\nEnharmonic logic applied during generation:"
+  putStrLn "  [1] Start: C with FlatSpelling (defaultEnharm)"
+  putStrLn "  [2] selectEnharm computes posterior spelling at each step"
+  putStrLn "      If prior is sharp/flat: that preference wins"
+  putStrLn "      If prior is C: posterior determines spelling"
+  putStrLn "  [3] Result: No spelling churn, smooth key transitions"
+
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+putStrLn "\n═══════════════════════════════════════════════════════════════════"
+putStrLn "Diagnostic tests complete."

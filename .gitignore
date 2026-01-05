@@ -1,6 +1,41 @@
+# Stack build artifacts
+.stack-work/
+
+# IDE
 .idea/
-.stack-work
-.vscode
+.vscode/
+*.iml
+
+# Output directories
 out/
+
+# Data directories (large corpus files)
 data/
-theHarmonicAlgorithm.iml
+musicdata/
+
+# Neo4j data (managed by docker)
+neo4j/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Haskell artifacts
+*.hi
+*.o
+*.dyn_hi
+*.dyn_o
+dist/
+dist-newstyle/
+cabal.sandbox.config
+.cabal-sandbox/
+*.prof
+*.aux
+*.hp
+*.eventlog
+
+# Stack lock file (optional - some prefer to commit this)
+# stack.yaml.lock
+
+# Generated cabal file (regenerated from package.yaml)
+*.cabal

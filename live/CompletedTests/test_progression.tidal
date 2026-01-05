@@ -1,0 +1,359 @@
+-------------------------------------------------------------------------------
+-- test_progression.tidal - Progression Generation & Manipulation Tests
+--
+-- Comprehensive tests for:
+--   * Graph-based generation (Neo4j traversal)
+--   * Gamma randomisation / probabilistic selection
+--   * Dissonance ranking (Hindemith model)
+--   * Progression manipulation (rotate, excerpt, transpose, fuse, etc.)
+--
+-- Prerequisites:
+--   1. Neo4j database running with cadence graph populated
+--   2. TidalCycles + SuperDirt running
+--   3. `stack ghci` or editor with Tidal plugin
+--
+-- Usage:
+--   Evaluate each section line by line in the Tidal REPL
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- TEST 1: Type Signatures and Constructors
+-------------------------------------------------------------------------------
+
+:t Progression             -- Seq CadenceState -> Progression
+:t singleton               -- CadenceState -> Progression
+:t fromCadenceStates       -- [CadenceState] -> Progression
+:t progLength              -- Progression -> Int
+:t progChords              -- Progression -> [Chord]
+:t progCadences            -- Progression -> [Cadence]
+
+:t generate                -- CadenceState -> Int -> Text -> Double -> HarmonicContext -> IO Progression
+:t generateWith            -- GeneratorConfig -> CadenceState -> Int -> Text -> Double -> HarmonicContext -> IO Progression
+:t gen                     -- String-friendly: CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Progression
+:t genWith                 -- String-friendly generateWith
+:t defaultContext          -- HarmonicContext
+:t defaultConfig           -- GeneratorConfig
+
+-------------------------------------------------------------------------------
+-- TEST 2: Manual Progression Construction
+-------------------------------------------------------------------------------
+
+-- Create CadenceStates manually
+let cs1 = initCadenceState 5 "C" [0, 4, 7] FlatSpelling   -- C major via asc 5th
+let cs2 = initCadenceState 7 "G" [0, 3, 7] FlatSpelling   -- G minor via desc 5th
+let cs3 = initCadenceState 0 "C" [0, 4, 7] FlatSpelling   -- C major (pedal)
+let cs4 = initCadenceState 2 "D" [0, 3, 7] FlatSpelling   -- D minor via asc 2nd
+
+-- Build progression from CadenceStates
+let prog4 = fromCadenceStates [cs1, cs2, cs3, cs4]
+
+-- Display (4-column grid format)
+prog4
+
+-- Verify length
+progLength prog4  -- Should be 4
+
+-- Extract chords
+progChords prog4  -- [C_maj, G_min, C_maj, D_min]
+
+-- Extract cadences
+progCadences prog4  -- [( asc 5 -> maj ), ( desc 5 -> min ), ...]
+
+-------------------------------------------------------------------------------
+-- TEST 3: Progression Manipulation
+-------------------------------------------------------------------------------
+
+-- Rotation: shift by 1 (first chord moves to end)
+rotate 1 prog4
+-- Expected: starts with G_min instead of C_maj
+
+rotate (-1) prog4
+-- Expected: D_min at front (right rotation)
+
+rotate 2 prog4
+-- Verify rotation by 2
+
+-- Excerpt: extract bars 2-3 (1-indexed, inclusive)
+excerpt 2 3 prog4
+-- Expected: 2 chords (G_min, C_maj)
+
+excerpt 1 2 prog4
+-- Expected: first 2 chords
+
+excerpt 3 4 prog4
+-- Expected: last 2 chords
+
+-- Transposition: shift by semitones
+transposeP 2 prog4
+-- Expected: D_maj, A_min, D_maj, E_min (up whole step)
+
+transposeP (-1) prog4
+-- Expected: B_maj, Gb_min, B_maj, Db_min (down semitone)
+
+transposeP 12 prog4
+-- Expected: same as original (octave equivalence)
+
+-- Expansion: repeat n times
+expandP 2 prog4
+-- Expected: 8 chords (prog4 twice)
+
+progLength (expandP 3 prog4)  -- Should be 12
+
+-- Fusion and Interleaving
+let progA = fromCadenceStates [cs1, cs2]
+let progB = fromCadenceStates [cs3, cs4]
+
+-- fuse: concatenate (legacy behavior) - takes list
+fuse [progA, progB]
+-- Expected: cs1, cs2, cs3, cs4 (concatenated)
+
+-- fuse2: binary concatenation convenience
+fuse2 progA progB
+-- Expected: same as fuse [progA, progB]
+
+-- interleave: alternating chords
+interleave progA progB
+-- Expected: cs1, cs3, cs2, cs4 (alternating)
+
+-------------------------------------------------------------------------------
+-- TEST 4: Voicing Extractors
+-------------------------------------------------------------------------------
+
+-- Literal: raw pitch classes (no register adjustment)
+literal prog4
+-- Expected: [[0,4,7], [7,10,2], [0,4,7], [2,5,9]]
+
+-- Voicing paradigms (3 strategies via cyclic DP):
+-- root: Root always in bass, smooth compact voice leading
+root prog4
+-- Expected: globally optimized voicings with root in bass
+
+-- flow: Any inversion allowed for smoothest motion
+flow prog4
+-- Expected: globally optimized voicings, inversions allowed
+
+-- lite: Same as literal (no voice leading)
+lite prog4
+-- Expected: same as literal
+
+-------------------------------------------------------------------------------
+-- TEST 5: Monoid Operations
+-------------------------------------------------------------------------------
+
+-- Semigroup: concatenation
+let progAB = prog4 <> prog4
+progLength progAB  -- Should be 8
+
+-- Monoid identity
+prog4 <> mempty  -- Should equal prog4
+mempty <> prog4  -- Should equal prog4
+
+-- Associativity
+let p1 = fromCadenceStates [cs1]
+let p2 = fromCadenceStates [cs2]
+let p3 = fromCadenceStates [cs3]
+(p1 <> p2) <> p3  -- Should equal...
+p1 <> (p2 <> p3)  -- ...this
+
+-------------------------------------------------------------------------------
+-- TEST 6: Probabilistic Selection (Gamma Distribution)
+-------------------------------------------------------------------------------
+
+:t gammaIndex    -- Double -> Int -> IO Int
+:t gammaSelect   -- Double -> [(a, Double)] -> IO (Maybe a)
+
+-- Test gamma index generation
+-- shape=1.0: peaks near 0 (conservative)
+gammaIndex 1.0 10  -- Usually 0, 1, or 2
+
+-- shape=3.0: peaks further from 0 (exploratory)
+gammaIndex 3.0 10  -- Often 2, 3, or 4
+
+-- shape=5.0: even more exploratory
+gammaIndex 5.0 10  -- Often 4, 5, or higher
+
+-- Test weighted selection
+let candidates = [("A", 100.0), ("B", 50.0), ("C", 25.0), ("D", 10.0)]
+
+-- With shape=1.0, should usually pick "A" (highest weight)
+gammaSelect 1.0 candidates
+
+-- With shape=3.0, more likely to pick "B" or "C"
+gammaSelect 3.0 candidates
+
+-- With shape=5.0, might even pick "D"
+gammaSelect 5.0 candidates
+
+-------------------------------------------------------------------------------
+-- TEST 7: Dissonance Ranking (Hindemith Model)
+-------------------------------------------------------------------------------
+
+:t hindemithVector     -- [Integer]
+:t intervalVector      -- [Int] -> [Integer]
+:t dissonanceLevel     -- [Int] -> (Integer, [Int]) -- returns (score, pitchSet)
+:t dissonanceScore     -- [Int] -> Integer -- just the score
+:t mostConsonant       -- [[Int]] -> [Int]
+:t rankByConsonance    -- [[Int]] -> [[Int]]
+
+-- Hindemith vector: [16,8,4,2,1,24]
+-- (weights for ic1-ic6, tritone is most dissonant)
+hindemithVector
+
+-- Interval vector for major triad [0,4,7]
+intervalVector [0, 4, 7]
+-- Expected: [0,0,1,1,1,0] (one m3, one M3, one P5, no tritones)
+
+-- Interval vector for diminished triad [0,3,6]
+intervalVector [0, 3, 6]
+-- Expected: [0,0,2,0,0,1] (two m3s, one tritone)
+
+-- Dissonance level comparison (returns tuple: score, pitchSet)
+dissonanceLevel [0, 4, 7]   -- Major triad: (6, [0,4,7])
+dissonanceLevel [0, 3, 6]   -- Diminished: (32, [0,3,6]) - higher due to tritone
+dissonanceLevel [0, 3, 7]   -- Minor triad: (6, [0,3,7])
+dissonanceLevel [0, 1, 6]   -- Cluster: (41, [0,1,6]) - very high
+
+-- dissonanceScore: just the Integer for simple comparisons
+dissonanceScore [0, 4, 7]   -- 6
+dissonanceScore [0, 3, 6]   -- 32
+dissonanceScore [0, 3, 7]   -- 6
+dissonanceScore [0, 1, 6]   -- 41
+
+-- Find most consonant from list
+let chords = [[0,4,7], [0,3,6], [0,3,7], [0,1,2]]
+mostConsonant chords
+-- Expected: [0,4,7] or [0,3,7] (major/minor triads are most consonant)
+
+-- Rank by consonance (most consonant first)
+rankByConsonance chords
+-- Expected: sorted from lowest to highest dissonance
+
+-------------------------------------------------------------------------------
+-- TEST 8: HarmonicContext (R Constraints)
+-------------------------------------------------------------------------------
+
+defaultContext
+-- HarmonicContext "*" "*" "*" (no filtering)
+
+hContext "E A D G" "*" "*"
+-- Bass tuning overtones, any tonality, any roots
+
+hContext "*" "1#" "*"
+-- Any overtones, G major tonality, any roots
+
+hContext "*" "*" "C G"
+-- Any overtones, any tonality, only C and G roots
+
+hContext "C E G" "0b" "C"
+-- C major triad pitches, C major tonality, C root only
+
+-------------------------------------------------------------------------------
+-- TEST 9: GeneratorConfig
+-------------------------------------------------------------------------------
+
+defaultConfig
+-- gcHomingThreshold = 0.75, gcHomingStrength = 1.0, gcMinCandidates = 1
+
+-- Custom config: earlier homing
+let earlyHoming = defaultConfig { gcHomingThreshold = 0.5 }
+earlyHoming  -- Homing starts at 50%
+
+-- Custom config: weaker homing
+let weakHoming = defaultConfig { gcHomingStrength = 0.5 }
+weakHoming  -- Less bias toward start
+
+-- Custom config: more candidates required
+let moreChoice = defaultConfig { gcMinCandidates = 5 }
+moreChoice  -- Won't accept fewer than 5 candidates
+
+-------------------------------------------------------------------------------
+-- TEST 10: Graph-Based Generation (Requires Neo4j)
+-------------------------------------------------------------------------------
+
+-- NOTE: These tests require the Neo4j database to be running
+-- with the cadence graph populated.
+-- Use 'gen' (String) instead of 'generate' (Text) in TidalCycles.
+
+-- Create starting state
+let start = initCadenceState 0 "C" [0, 4, 7] FlatSpelling  -- C major, arrived by unison
+
+-- Generate 8-bar progression with default settings
+-- Composer: equal weight to all composers
+-- Entropy: 1.0 (balanced exploration)
+prog8 <- gen start 8 "debussy stravinsky" 1.0 defaultContext
+prog8
+
+-- Generate with higher entropy (more unusual choices)
+prog8_unusual <- gen start 8 "debussy stravinsky" 3.0 defaultContext
+prog8_unusual
+
+-- Generate with lower entropy (more conservative)
+prog8_safe <- gen start 8 "debussy stravinsky" 0.5 defaultContext
+prog8_safe
+
+-- Generate with composer weighting
+prog8_debussy <- gen start 8 "debussy:80 stravinsky:20" 1.0 defaultContext
+prog8_debussy
+
+-- Generate with context constraints
+let bassContext = hContext "E A D G" "*" "*"
+prog8_bass <- gen start 8 "debussy stravinsky" 1.0 bassContext
+prog8_bass
+
+-- Generate with custom config (early homing)
+let earlyConfig = defaultConfig { gcHomingThreshold = 0.5 }
+prog8_early <- genWith earlyConfig start 8 "debussy stravinsky" 1.0 defaultContext
+prog8_early
+
+-- Compare progression lengths
+progLength prog8         -- Should be 8
+progLength prog8_unusual -- Should be 8
+
+-------------------------------------------------------------------------------
+-- TEST 11: Combining Generated Progressions
+-------------------------------------------------------------------------------
+
+-- Generate two 4-bar phrases
+phraseA <- gen start 4 "debussy" 1.0 defaultContext
+phraseB <- gen start 4 "stravinsky" 1.0 defaultContext
+
+-- Concatenate (Monoid)
+let combined = phraseA <> phraseB
+progLength combined  -- Should be 8
+
+-- Display combined
+combined
+
+-- Concatenate with fuse2
+fuse2 phraseA phraseB
+
+-- Interleave (alternating chords)
+interleave phraseA phraseB
+
+-- Extract and recombine
+let firstHalf = excerpt 1 4 combined
+let secondHalf = excerpt 5 8 combined
+secondHalf <> firstHalf  -- Reversed order
+
+-------------------------------------------------------------------------------
+-- TEST 12: Performance Integration (Requires SuperDirt)
+-------------------------------------------------------------------------------
+
+-- Basic playback of generated progression
+-- prog <- generate start 8 "debussy" 1.0 defaultContext
+-- d1 $ arrange flow prog 2 (-12, 12) ["0 1 2 3"] # s "superpiano"
+
+-- With rotation
+-- d1 $ arrange flow (rotate 2 prog) 2 (-12, 12) ["0 1 2 3"] # s "superpiano"
+
+-- With transposition
+-- d1 $ arrange flow (transposeP 5 prog) 2 (-12, 12) ["0 1 2 3"] # s "superpiano"
+
+-- With excerpt
+-- d1 $ arrange flow (excerpt 1 4 prog) 2 (-12, 12) ["0 1 2 3"] # s "superpiano"
+
+-- hush
+
+-------------------------------------------------------------------------------
+-- End test_progression.tidal
+-------------------------------------------------------------------------------

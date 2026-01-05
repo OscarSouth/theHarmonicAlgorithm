@@ -1,74 +1,94 @@
 name:                theHarmonicAlgorithm
-version:             2.0.0
-github:              "OscarSouth/theHarmonicAlgorithm"
+version:             0.1.0
 license:             BSD3
-author:              "Oscar South"
-maintainer:          "info@oscarsouth.com"
-copyright:           "2024 (c) Oscar South"
-
-extra-source-files:
-- README.md
-- ChangeLog.md
-
-# Metadata used when publishing your package
-# synopsis:            Short description of your package
-# category:            Academic
-
-# To avoid duplicated efforts in documentation and dealing with the
-# complications of embedding Haddock markup inside cabal files, it is
-# common to point users to the README.md file.
-description:         Please see the README on GitHub at <https://github.com/OscarSouth/theHarmonicAlgorithm#readme>
+author:              "HarmAlgo Team"
+maintainer:          ""
 
 dependencies:
-- base >= 4.8 && < 5
-- parallel
+  - base >= 4.14 && < 5
+  - text
+  - bytestring
+  - containers
+  - vector
+  - mtl
+  - stm
+  - cassava
+  - data-default
+  - statistics
+  - split
+  - hasbolt
+  - tidal
+  - hosc
+  - tidal-core
+  - tidal-link
+  - connection
+  - tls
+  # Phase C: Interactive Behaviour
+  - aeson           # JSON parsing for r.weights from Neo4j
+  - random          # Base randomness for weighted selection
+  - mwc-random      # High-quality gamma distribution sampling
 
 library:
-  exposed-modules:       Lib
-  source-dirs:           src
-  other-modules:
-  - Overtone
-  - Markov
-  - MusicData
-  - Analysis
-  - Utility
-  - GraphDB
-  - Arranger
-  dependencies:
-  - containers
-  - split
-
+  exposed-modules:
+    - Harmonic.Lib
+    # Phase B: Core Music Types
+    - Harmonic.Core.Pitch
+    - Harmonic.Core.Harmony
+    - Harmonic.Core.Dissonance
+    - Harmonic.Core.Overtone
+    - Harmonic.Core.VoiceLeading
+    - Harmonic.Core.Progression
+    - Harmonic.Core.Filter
+    # Phase C: Interactive Behaviour
+    - Harmonic.Core.Probabilistic
+    - Harmonic.Core.Builder
+    - Harmonic.Database.Query
+    # Analysis
+    - Harmonic.Analysis.Markov
+    # Database
+    - Harmonic.Database.Graph
+    # Ingestion
+    - Harmonic.Ingestion.CSV
+    - Harmonic.Ingestion.Types
+    - Harmonic.Ingestion.Transform
+    # Tidal Interface
+    - Harmonic.Tidal.Interface
+    - Harmonic.Tidal.Arranger
+    - Harmonic.Tidal.Instruments
+    - Harmonic.Tidal.Utils
+    # Config
+    - Harmonic.Config
+  source-dirs: src
+  # ghc-options:
+    # - -Wall
 
 executables:
   theHarmonicAlgorithm-exe:
     main:                Main.hs
     source-dirs:         app
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
-    - theHarmonicAlgorithm
-    - containers
-    - mtl
-    - inline-r
-    - split
-    - tidal
-    - hasbolt
-    - text
-    - data-default
-    - aeson
-    - bytestring
-
+      - theHarmonicAlgorithm
+      - text
+      - cassava
+      - statistics
+      - hasbolt
+      - containers
 tests:
   theHarmonicAlgorithm-test:
     main:                Spec.hs
     source-dirs:         test
     ghc-options:
-    - -threaded
-    - -rtsopts
-    - -with-rtsopts=-N
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     dependencies:
-    - theHarmonicAlgorithm
-    - hspec
-    - QuickCheck
+      - theHarmonicAlgorithm
+      - hspec
+      - QuickCheck
+      - containers
+      - text
+      - tidal

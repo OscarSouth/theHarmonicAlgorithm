@@ -1,0 +1,576 @@
+-------------------------------------------------------------------------------
+-- test_voiceleading.tidal - Voice Leading Tests
+--
+-- Tests for the Cyclic DP Voice Leading System:
+--
+-- SECTION 1: Core Functions (TESTS 1-7)
+--   * Voice movement calculation (absolute distance for concrete pitches)
+--   * Cost functions (base movement + parallel penalty + leap penalty)
+--   * Cyclic cost (wrap-around for looping progressions)
+--
+-- SECTION 2: Paradigm Solvers (TESTS 8-10)
+--   * root: Cyclic DP with root always in bass
+--   * flow: Cyclic DP with inversions allowed for smoothest motion
+--   * lite: Literal (no voice leading, only normalization)
+--   * bass: Bass line only (root note per chord, [0-11] range)
+--
+-- NORMALIZATION: First chord's root (bass note) is placed in [7-18] (G0-F#1)
+-- This ensures consistent output ranges across all progressions regardless
+-- of key. root, flow, and lite use this normalization. bass returns [0-11].
+--
+-- Exploration bounds during solving: [7, 41]
+-- Output range after normalization: approximately [7, 35] (root/flow/lite), [0, 11] (bass)
+--
+-- Prerequisites:
+--   1. TidalCycles + SuperDirt running
+--   2. `stack ghci` or editor with Tidal plugin
+--
+-- Usage:
+--   Evaluate each section line by line in the Tidal REPL
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- TEST 1: Type Signatures
+-------------------------------------------------------------------------------
+
+:t voiceMovement       -- Int -> Int -> Int
+:t minimalMovement     -- PitchClass -> PitchClass -> Int
+:t voiceLeadingCost    -- [Int] -> [Int] -> Int
+:t totalCost           -- [[Int]] -> Int
+:t cyclicCost          -- [[Int]] -> Int
+:t solveRoot           -- [[Int]] -> [[Int]]
+:t solveFlow           -- [[Int]] -> [[Int]]
+:t liteVoicing         -- [[Int]] -> [[Int]]
+:t bassVoicing         -- [[Int]] -> [[Int]]
+
+-------------------------------------------------------------------------------
+-- TEST 2: Voice Movement
+-------------------------------------------------------------------------------
+
+-- voiceMovement uses absolute distance (no mod-12 wrap)
+-- For concrete pitches in a register
+
+voiceMovement 0 2    -- 2 (C to D, up 2)
+voiceMovement 0 5    -- 5 (C to F, up 5)
+voiceMovement 0 7    -- 7 (C to G, up 7)
+voiceMovement 0 11   -- 11 (C to B, up 11)
+
+-- Movement from G (7)
+voiceMovement 7 0    -- 7 (G down to C)
+voiceMovement 7 2    -- 5 (G down to D)
+voiceMovement 7 10   -- 3 (G to Bb, up 3)
+
+-- Symmetry: absolute distance is the same in either direction
+voiceMovement 0 6    -- 6
+voiceMovement 6 0    -- 6
+
+-- Edge cases
+voiceMovement 0 0    -- 0 (no movement)
+voiceMovement 11 0   -- 11 (B down to C)
+voiceMovement 0 12   -- 12 (octave leap)
+
+-- minimalMovement: For pitch class movement (mod 12 aware)
+minimalMovement (P 0) (P 7)   -- 5 (shorter path around circle)
+minimalMovement (P 7) (P 0)   -- 5
+minimalMovement (P 0) (P 0)   -- 0
+minimalMovement (P 3) (P 10)  -- 5 (Eb to Bb)
+
+-------------------------------------------------------------------------------
+-- TEST 3: Voice Leading Cost (Chord to Chord)
+-------------------------------------------------------------------------------
+
+-- Define some test chords (as pitch integers)
+let cMaj = [0, 4, 7]       -- C major root position
+let gMaj = [7, 11, 2]      -- G major root position (G B D)
+let aMin = [9, 0, 4]       -- A minor root position (A C E)
+let dMin = [2, 5, 9]       -- D minor root position (D F A)
+let fMaj = [5, 9, 0]       -- F major root position (F A C)
+
+-- Basic cost: sum of voice movements + penalties
+voiceLeadingCost cMaj gMaj
+-- Voice movements: 0→7=7, 4→11=7, 7→2=5 = 19 base
+
+voiceLeadingCost cMaj aMin
+-- Voice movements: 0→9=9, 4→0=4, 7→4=3 = 16 base
+
+-- Same chord = zero cost
+voiceLeadingCost cMaj cMaj  -- 0
+
+-- Incompatible voicings (different lengths)
+voiceLeadingCost [0, 4, 7] [0, 4, 7, 11]  -- 999 (error penalty)
+
+-------------------------------------------------------------------------------
+-- TEST 4: Parallel Motion Penalties
+-------------------------------------------------------------------------------
+
+-- Parallel fifths: two voices maintain P5 interval while both move same direction
+-- Penalty: +3 for each parallel P5 or P8
+
+-- Parallel fifths test
+let chord1 = [0, 7]        -- C and G (P5)
+let chord2 = [1, 8]        -- Db and Ab (P5) - both moved up 1
+voiceLeadingCost chord1 chord2
+-- Expected: 2 base + 3 parallel penalty = 5
+
+-- No parallel fifths (contrary motion)
+let chord3 = [0, 7]
+let chord4 = [1, 6]        -- One up, one down
+voiceLeadingCost chord3 chord4
+-- Expected: 2 base, no penalty
+
+-- Parallel octaves
+let oct1 = [0, 12]         -- C and C octave
+let oct2 = [2, 14]         -- D and D octave
+voiceLeadingCost oct1 oct2
+-- Both voices move by 2, maintaining octave = penalty
+
+-------------------------------------------------------------------------------
+-- TEST 5: Large Leap Penalty
+-------------------------------------------------------------------------------
+
+-- Large leap = any voice moving > 4 semitones
+-- Each large leap adds +2 to cost
+
+-- Small movements (no penalty)
+let close1 = [0, 4, 7]
+let close2 = [2, 5, 9]     -- Each voice: 2, 1, 2
+voiceLeadingCost close1 close2
+-- No voice > 4, so no leap penalty
+
+-- One large leap
+let wide1 = [0, 4, 7]
+let wide2 = [7, 4, 7]      -- Bass jumps 0→7 = 7 semitones (> 4)
+voiceLeadingCost wide1 wide2
+-- Should include +2 leap penalty for bass
+
+-------------------------------------------------------------------------------
+-- TEST 6: Total Cost (Sequence of Chords)
+-------------------------------------------------------------------------------
+
+-- Total cost = sum of consecutive pair costs
+let progression = [[0,4,7], [7,11,2], [5,9,0], [0,4,7]]
+
+totalCost progression
+-- = voiceLeadingCost [0,4,7] [7,11,2]
+--   + voiceLeadingCost [7,11,2] [5,9,0]
+--   + voiceLeadingCost [5,9,0] [0,4,7]
+
+-- Single chord = zero cost
+totalCost [[0,4,7]]  -- 0
+
+-- Empty = zero cost
+totalCost []  -- 0
+
+-------------------------------------------------------------------------------
+-- TEST 7: Cyclic Cost (Wrap-Around for Loops)
+-------------------------------------------------------------------------------
+
+-- Cyclic cost = totalCost + cost from last back to first
+-- Essential for progressions that loop (cyclic DP optimizes this)
+
+let loopProg = [[0,4,7], [5,9,0], [7,11,2], [0,4,7]]
+
+totalCost loopProg   -- Linear cost only
+cyclicCost loopProg  -- Linear + wrap (last→first is 0 if identical)
+
+-- When last ≠ first, wrap cost adds significantly
+let openProg = [[0,4,7], [5,9,0], [7,11,2], [9,0,4]]
+totalCost openProg
+cyclicCost openProg  -- Higher (includes wrap from [9,0,4] to [0,4,7])
+
+-------------------------------------------------------------------------------
+-- TEST 8: Cyclic DP Solvers (solveRoot, solveFlow)
+-------------------------------------------------------------------------------
+
+-- solveRoot: Globally optimal voicings with root always in bass
+-- solveFlow: Globally optimal voicings, any inversion allowed
+-- NEW: Both now start in middle octave (12-23) and normalize output
+
+-- Test input (pitch class triads)
+let input = [[0,4,7], [7,11,2], [5,9,0], [0,4,7]]  -- C, G, F, C
+
+-- Solve with root constraint
+let rootVoices = solveRoot input
+rootVoices
+-- First note of each chord should be root (mod 12)
+-- First chord's root normalized to [7-18]
+
+-- Solve with flow (any inversion)
+let flowVoices = solveFlow input
+flowVoices
+-- May use inversions for smoother motion
+-- First chord's root normalized to [7-18]
+
+-- Compare costs
+cyclicCost input        -- Original (pitch class level)
+cyclicCost rootVoices   -- Root-constrained (optimized, voiced)
+cyclicCost flowVoices   -- Flow (often lowest, any inversion)
+
+-------------------------------------------------------------------------------
+-- TEST 9: Progression Voicing Extractors (root, flow, lite)
+-------------------------------------------------------------------------------
+
+-- Create a test progression
+let cs1 = initCadenceState 0 "C" [0, 4, 7] FlatSpelling
+let cs2 = initCadenceState 7 "G" [0, 3, 7] FlatSpelling  -- G minor
+let cs3 = initCadenceState 5 "F" [0, 4, 7] FlatSpelling
+let cs4 = initCadenceState 0 "C" [0, 4, 7] FlatSpelling
+let prog = fromCadenceStates [cs1, cs2, cs3, cs4]
+
+-- Extract voicings with different paradigms:
+-- lite: Raw pitch classes with first-root normalization (returns [[Int]])
+lite prog
+
+-- root: Cyclic DP with root in bass (returns [[Int]])
+root prog
+
+-- flow: Cyclic DP with any inversion (returns [[Int]])
+flow prog
+
+-- Compare costs (now works directly - types match)
+cyclicCost (lite prog)
+cyclicCost (root prog)
+cyclicCost (flow prog)
+bass prog           -- Bass line only (root notes in [0,11])
+
+-------------------------------------------------------------------------------
+-- TEST 10: Bass Voicing Paradigm
+-------------------------------------------------------------------------------
+
+-- BASS: Extract root note per chord, normalized to [0-11]
+-- Input: voiced progression with full chords
+-- Output: single root note per chord as pitch class
+
+-- Example: voiced progression to bass line
+let voicedExample = [[12,16,19], [10,14,17], [8,12,15], [10,14,17]]
+bassVoicing voicedExample
+-- Expected: [[0], [10], [8], [10]]
+-- (12 mod 12 = 0, 10 mod 12 = 10, 8 mod 12 = 8, 10 mod 12 = 10)
+
+-- Bass line for jazz progression
+let jazzInput = [[2,5,9], [7,11,2], [0,4,7]]  -- Dm G C
+bassVoicing jazzInput
+-- Expected: [[2], [7], [0]]
+
+-- Using on progression directly
+let cs1 = initCadenceState 0 "C" [0, 4, 7] FlatSpelling
+let cs2 = initCadenceState 7 "G" [0, 3, 7] FlatSpelling
+let cs3 = initCadenceState 5 "F" [0, 4, 7] FlatSpelling
+let cs4 = initCadenceState 0 "C" [0, 4, 7] FlatSpelling
+let jazzProg = fromCadenceStates [cs1, cs2, cs3, cs4]
+bass jazzProg
+-- Returns root notes of each chord in [0-11] range
+
+-------------------------------------------------------------------------------
+-- TEST 11: Edge Cases
+-------------------------------------------------------------------------------
+
+-- Empty progression
+solveRoot []   -- []
+solveFlow []   -- []
+liteVoicing []   -- []
+bassVoicing []   -- []
+
+-- Single chord (normalized: first root in [7-18])
+solveRoot [[0,4,7]]   -- Single chord voiced
+solveFlow [[0,4,7]]
+liteVoicing [[0,4,7]]   -- Single chord normalized
+bassVoicing [[0,4,7]]   -- Returns [[0]]
+
+-- Two chords
+solveRoot [[0,4,7], [7,11,2]]
+solveFlow [[0,4,7], [7,11,2]]
+liteVoicing [[0,4,7], [7,11,2]]
+bassVoicing [[0,4,7], [7,11,2]]
+
+-- Incompatible chord sizes
+voiceLeadingCost [0,4,7] [0,4]  -- 999
+
+-- Wide intervals
+voiceLeadingCost [0, 24, 48] [1, 25, 49]  -- Large absolute distances
+
+-------------------------------------------------------------------------------
+-- TEST 12: Real-World Progressions - Short (2-4 chords)
+-------------------------------------------------------------------------------
+
+-- I-V (Two chord turnaround, very common)
+let twoChord_IV = [[0,4,7], [7,11,2]]         -- C G
+solveRoot twoChord_IV
+solveFlow twoChord_IV
+cyclicCost (solveRoot twoChord_IV)
+cyclicCost (solveFlow twoChord_IV)
+
+-- I-IV (Plagal motion)
+let twoChord_I_IV = [[0,4,7], [5,9,0]]        -- C F
+solveRoot twoChord_I_IV
+solveFlow twoChord_I_IV
+cyclicCost (solveRoot twoChord_I_IV)
+cyclicCost (solveFlow twoChord_I_IV)
+
+-- i-iv (Minor plagal)
+let twoChord_min = [[0,3,7], [5,8,0]]         -- Cm Fm
+solveRoot twoChord_min
+solveFlow twoChord_min
+
+-- I-vi-IV-V (50s doo-wop, most common pop progression)
+let fifties = [[0,4,7], [9,0,4], [5,9,0], [7,11,2]]   -- C Am F G
+solveRoot fifties
+solveFlow fifties
+cyclicCost (solveRoot fifties)
+cyclicCost (solveFlow fifties)
+
+-- i-VII-VI-VII (Aeolian vamp, common in rock/metal)
+let aeolian = [[0,3,7], [10,2,5], [8,0,3], [10,2,5]]  -- Am G F G
+solveRoot aeolian
+solveFlow aeolian
+cyclicCost (solveRoot aeolian)
+cyclicCost (solveFlow aeolian)
+
+-- ii-V-I (Jazz turnaround)
+let iiVI = [[2,5,9], [7,11,2], [0,4,7]]       -- Dm G C
+solveRoot iiVI
+solveFlow iiVI
+cyclicCost (solveRoot iiVI)
+cyclicCost (solveFlow iiVI)
+
+-------------------------------------------------------------------------------
+-- TEST 13: Real-World Progressions - Medium (5-8 chords)
+-------------------------------------------------------------------------------
+
+-- Canon (Pachelbel-style descending bass line)
+let canon = [[0,4,7], [7,11,2], [9,0,4], [4,8,11], [5,9,0], [0,4,7], [5,9,0], [7,11,2]]
+-- C G Am Em F C F G
+solveRoot canon
+solveFlow canon
+cyclicCost (solveRoot canon)
+cyclicCost (solveFlow canon)
+
+-- Modal jazz vamp (Dorian)
+let dorian = [[2,5,9], [4,7,11], [2,5,9], [0,4,7], [2,5,9], [4,7,11]]
+-- Dm Em Dm C Dm Em (cycling modal pattern)
+solveRoot dorian
+solveFlow dorian
+cyclicCost (solveRoot dorian)
+cyclicCost (solveFlow dorian)
+
+-- Blues turnaround (I-IV-I-V-IV-I)
+let blues = [[0,4,7], [5,9,0], [0,4,7], [7,11,2], [5,9,0], [0,4,7]]
+-- C F C G F C
+solveRoot blues
+solveFlow blues
+cyclicCost (solveRoot blues)
+cyclicCost (solveFlow blues)
+
+-- Andalusian cadence (flamenco descending)
+let andalusian = [[9,0,4], [7,11,2], [5,9,0], [4,8,11]]
+-- Am G F E (descending Am → E)
+solveRoot andalusian
+solveFlow andalusian
+cyclicCost (solveRoot andalusian)
+cyclicCost (solveFlow andalusian)
+
+-- Royal Road (J-pop/anime IV-V-iii-vi)
+let royalRoad = [[5,9,0], [7,11,2], [4,8,11], [9,0,4]]
+-- F G Em Am
+solveRoot royalRoad
+solveFlow royalRoad
+cyclicCost (solveRoot royalRoad)
+cyclicCost (solveFlow royalRoad)
+
+-------------------------------------------------------------------------------
+-- TEST 14: Real-World Progressions - Long (9+ chords)
+-------------------------------------------------------------------------------
+
+-- Full 12-bar blues (I I I I | IV IV I I | V IV I V)
+let blues12 = [[0,4,7], [0,4,7], [0,4,7], [0,4,7],
+               [5,9,0], [5,9,0], [0,4,7], [0,4,7],
+               [7,11,2], [5,9,0], [0,4,7], [7,11,2]]
+solveRoot blues12
+solveFlow blues12
+cyclicCost (solveRoot blues12)
+cyclicCost (solveFlow blues12)
+
+-- Extended jazz ii-V-I with passing chords
+let jazzExtended = [[2,5,9], [2,6,9], [7,11,2], [7,10,1], [0,4,7], [0,4,9], [2,5,9], [5,8,0], [7,11,2]]
+-- Dm Ddim G G7 C Am7 Dm Fmin G
+solveRoot jazzExtended
+solveFlow jazzExtended
+cyclicCost (solveRoot jazzExtended)
+cyclicCost (solveFlow jazzExtended)
+
+-- Chromatic mediant exploration (cinematic)
+let chromatic = [[0,4,7], [4,8,11], [9,1,4], [2,6,9], [7,11,2], [0,4,7]]
+-- C E A D G C (major thirds cycle with passing dominants)
+solveRoot chromatic
+solveFlow chromatic
+cyclicCost (solveRoot chromatic)
+cyclicCost (solveFlow chromatic)
+
+-------------------------------------------------------------------------------
+-- TEST 15: Different Keys (Transposition Test)
+-------------------------------------------------------------------------------
+
+-- All examples so far in C. Test same progressions in other keys.
+
+-- ii-V-I in G major
+let iiVI_G = [[9,0,4], [2,6,9], [7,11,2]]     -- Am D G
+solveRoot iiVI_G
+solveFlow iiVI_G
+
+-- ii-V-I in F major
+let iiVI_F = [[7,10,2], [0,4,7], [5,9,0]]     -- Gm C F
+solveRoot iiVI_F
+solveFlow iiVI_F
+
+-- ii-V-I in Eb major
+let iiVI_Eb = [[5,8,0], [10,2,5], [3,7,10]]   -- Fm Bb Eb
+solveRoot iiVI_Eb
+solveFlow iiVI_Eb
+
+-- ii-V-I in B major (very sharp key)
+let iiVI_B = [[1,4,8], [6,10,1], [11,3,6]]    -- C#m F# B
+solveRoot iiVI_B
+solveFlow iiVI_B
+
+-- Compare: Do all keys produce similar pitch ranges?
+-- Ideally yes - normalization should be key-agnostic
+
+-------------------------------------------------------------------------------
+-- TEST 16: Minor Key Progressions
+-------------------------------------------------------------------------------
+
+-- i-iv-V-i (Natural minor with major V)
+let natMinor = [[0,3,7], [5,8,0], [7,11,2], [0,3,7]]  -- Am Dm E Am
+solveRoot natMinor
+solveFlow natMinor
+cyclicCost (solveRoot natMinor)
+cyclicCost (solveFlow natMinor)
+
+-- i-VI-III-VII (Epic minor, common in film)
+let epicMinor = [[0,3,7], [8,0,3], [3,7,10], [10,2,5]]  -- Am F C G
+solveRoot epicMinor
+solveFlow epicMinor
+cyclicCost (solveRoot epicMinor)
+cyclicCost (solveFlow epicMinor)
+
+-- Harmonic minor cadence (i-iv-V-i with raised 7th in V)
+let harmMinor = [[0,3,7], [5,8,0], [7,11,3], [0,3,7]]   -- Am Dm E7(no5) Am
+solveRoot harmMinor
+solveFlow harmMinor
+
+-------------------------------------------------------------------------------
+-- TEST 17: Problematic / Edge Case Progressions
+-------------------------------------------------------------------------------
+
+-- Tritone jump (C to F#)
+let tritone = [[0,4,7], [6,10,1], [0,4,7]]    -- C F#dim C
+solveRoot tritone
+solveFlow tritone
+cyclicCost (solveRoot tritone)
+cyclicCost (solveFlow tritone)
+
+-- Wide root motion (semitone, then 11 semitones)
+let wideMotion = [[0,4,7], [1,5,8], [0,4,7]]  -- C Db C
+solveRoot wideMotion
+solveFlow wideMotion
+
+-- All same chord (test for zero cost)
+let allSame = [[0,4,7], [0,4,7], [0,4,7], [0,4,7]]
+solveRoot allSame
+solveFlow allSame
+cyclicCost (solveRoot allSame)  -- Should be 0
+cyclicCost (solveFlow allSame)  -- Should be 0
+
+-- Repeated two-chord oscillation
+let oscillate = [[0,4,7], [7,11,2], [0,4,7], [7,11,2], [0,4,7], [7,11,2]]
+solveRoot oscillate
+solveFlow oscillate
+cyclicCost (solveRoot oscillate)
+cyclicCost (solveFlow oscillate)
+
+-- Ascending bass line (challenging for root position)
+let ascending = [[0,4,7], [2,5,9], [4,8,11], [5,9,0], [7,11,2]]
+-- C Dm Em F G (stepwise up)
+solveRoot ascending
+solveFlow ascending
+cyclicCost (solveRoot ascending)
+cyclicCost (solveFlow ascending)
+
+-- Descending bass line (easier for root position)
+let descending = [[7,11,2], [5,9,0], [4,8,11], [2,5,9], [0,4,7]]
+-- G F Em Dm C (stepwise down)
+solveRoot descending
+solveFlow descending
+liteVoicing descending
+cyclicCost (solveRoot descending)
+cyclicCost (solveFlow descending)
+
+-------------------------------------------------------------------------------
+-- TEST 18: Output Range Analysis
+-------------------------------------------------------------------------------
+
+-- Helper: find min/max in a voiced progression
+let voicedMin prog = minimum (concat prog)
+let voicedMax prog = maximum (concat prog)
+let voicedRange prog = (voicedMin prog, voicedMax prog)
+
+-- Compare output ranges across different progressions
+-- First chord root should be in [7-18] for all
+voicedRange (solveRoot fifties)
+voicedRange (solveFlow fifties)
+
+voicedRange (solveRoot canon)
+voicedRange (solveFlow canon)
+
+voicedRange (solveRoot blues12)
+voicedRange (solveFlow blues12)
+
+voicedRange (solveRoot iiVI)
+voicedRange (solveFlow iiVI)
+
+voicedRange (solveRoot iiVI_G)
+voicedRange (solveFlow iiVI_G)
+
+voicedRange (solveRoot iiVI_Eb)
+voicedRange (solveFlow iiVI_Eb)
+
+-- Compare solved ranges (all should now be consistent)
+voicedRange (solveRoot fifties)
+voicedRange (solveFlow fifties)
+
+-------------------------------------------------------------------------------
+-- TEST 19: First Chord Comparison
+-------------------------------------------------------------------------------
+
+-- Compare how different progressions start
+-- Key question: Do they all start with first root in [7-18]?
+-- Answer: Yes! All C-rooted progressions should start at 12 (C1)
+-- Other keys will start at their root in [7-18]
+
+head (solveRoot fifties)      -- First chord of fifties (C -> 12)
+head (solveFlow fifties)
+
+head (solveRoot canon)        -- First chord of canon (C -> 12)
+head (solveFlow canon)
+
+head (solveRoot blues12)      -- First chord of blues (C -> 12)
+head (solveFlow blues12)
+
+head (solveRoot iiVI)         -- First chord of jazz (Dm -> 14)
+head (solveFlow iiVI)
+
+head (solveRoot iiVI_G)       -- ii-V-I in G (Am -> 9)
+head (solveFlow iiVI_G)
+
+head (solveRoot iiVI_Eb)      -- ii-V-I in Eb (Fm -> 17)
+head (solveFlow iiVI_Eb)
+
+head (solveRoot ascending)    -- Ascending bass (C -> 12)
+head (solveFlow ascending)
+
+head (solveRoot descending)   -- Descending bass (G -> 7)
+head (solveFlow descending)
+
+-------------------------------------------------------------------------------
+-- End test_voiceleading.tidal
+-------------------------------------------------------------------------------

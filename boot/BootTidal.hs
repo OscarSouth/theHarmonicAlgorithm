@@ -18,8 +18,7 @@
 :set prompt ""
 :set prompt-cont ""
 :set -Wno-operator-whitespace-ext-conflict
-import Sound.Tidal.Context hiding (defaultConfig)
-import qualified Sound.Tidal.Config as TidalConfig
+import Sound.Tidal.Context
 
 import System.IO (hSetEncoding, stdout, utf8)
 hSetEncoding stdout utf8
@@ -31,7 +30,7 @@ hSetEncoding stdout utf8
 let editorTarget = Target {oName = "editor", oAddress = "127.0.0.1", oPort = 6013, oLatency = 0.02, oSchedule = Pre BundleStamp, oWindow = Nothing, oHandshake = False, oBusPort = Nothing }
 let editorShape = OSCContext "/editor/highlights"
 
-tidal <- startStream (TidalConfig.defaultConfig {cFrameTimespan = 1/50, cEnableLink = False}) [(superdirtTarget {oLatency = 0.15}, [superdirtShape]), (editorTarget, [editorShape])]
+tidal <- startStream (defaultConfig {cFrameTimespan = 1/50, cEnableLink = False}) [(superdirtTarget {oLatency = 0.15}, [superdirtShape]), (editorTarget, [editorShape])]
 
 -------------------------------------------------------------------------------
 -- Core Stream Definitions
@@ -167,27 +166,18 @@ minim = 1/2
 --   * rotate, excerpt, insert, switch, clone, extract (Arranger)
 --   * transposeP, reverse, fuse, expand (Arranger)
 --   * progOverlap, progOverlapF, progOverlapB (Arranger)
---   * root, flow, lite (Voicing paradigms - 3 strategies via cyclic DP)
+--   * literal, lite, slim, wide (Voicing extractors)
+--   * flow, root, bass (Voice functions)
 --   * arrange, applyProg, voiceRange (Pattern application)
 --   * overlapF (Pattern sustain/legato)
---   * PitchClass, NoteName, Chord, Cadence, CadenceState (Core types)
---   * initCadenceState, fromCadenceStates (Construction)
---   * generate, generateWith (Phase C database generation)
---   * HarmonicContext, GeneratorConfig (Context/config)
---
--- Voicing paradigms:
---   * root: Cyclic DP, root always in bass, smooth compact voice leading
---   * flow: Cyclic DP, any inversion allowed for smoothest motion
---   * lite: Literal intervals, no voice leading applied
---
--- All types are Phase B (MusicData has been deprecated).
+--   * PitchClass, NoteName, Chord, Cadence (Core types)
 -------------------------------------------------------------------------------
 
 import Harmonic.Lib
 
 putStrLn "theHarmonicAlgorithm V3 boot complete."
 putStrLn "Available: d1-d9 (SuperDirt), d01-d16 (MIDI)"
-putStrLn "Phase B types loaded: PitchClass, Chord, Cadence, Progression"
+putStrLn "Try: import Harmonic.Lib in GHCi for Progression types"
 
 -------------------------------------------------------------------------------
 -- End BootTidal.hs

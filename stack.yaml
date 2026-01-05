@@ -3,12 +3,12 @@ resolver: lts-22.44
 packages:
 - .
 
-extra-deps: 
-- tidal-core-1.10.0
-- inline-r-1.0.1
+extra-deps:
+- tidal-1.10.1
+- hosc-0.21.1
+- tidal-core-1.10.1
+- tidal-link-1.2.0
 - hasbolt-0.1.7.0
-- tidal-link-1.0.3
-- hosc-0.20
 - connection-0.3.1
 - tls-1.6.0
 

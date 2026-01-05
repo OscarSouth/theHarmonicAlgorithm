@@ -1,45 +1,32 @@
+bars = 2
+tempo = 90
+
 next <- gammaGen 1 0.3
   >>= \rns ->
   chainCadence sharp
-  (initCadenceState (head rns) "E" [0,3,7])
+  (initCadenceState (head rns) "B" [0,3,7])
   -- (lastCadence state)
   (harmonicContext
   -- overtones
     "*"
   -- tonality
-    "1#"
+    "*"
   -- roots
-    "1#"
+    "*"
   )
   4 -- len
-  1.5 -- entropy
+  1 -- entropy
 
 state = rotate (0) next
 
 do
   let
-    dyn = 0.7
-    rep = 2
+    dyn = 0.8
+    rep = bars
     s = transpose (0) state
     f = (swingBy 0.07 2)
     (d,r) = ((*dyn),rep)
   putStrLn . show $ s
   mapM_ id [hush, setbpm tempo
-    -- ,metronome $d 0.1
-    ,count s r $d 0.4
-    ,rise 32 s r $d 0.7
-    -- ,sine f s r $d 0.7
-    -- ,jazz f s r $d 0.7
-    -- ,lboe f s r $d 0.7
-    -- ,hboe f s r $d 0.7
-    -- ,hmnx f s r $d 0.7
-    -- ,t303 f s r $d 0.7
-    -- ,k909 f     $d 0.7
-    ,kMPC f     $d 0.7
-    -- ,mfam f s r $d 0.7
-    -- ,moog f s r $d 0.7
-    -- ,s101 f s r $d 0.7
-    -- ,juno f s r $d 0.7
-    ]
-
-hush
+   ,p01 f s r $d 0.7
+   ]

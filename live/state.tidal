@@ -1,0 +1,144 @@
+-------------------------------------------------------------------------------
+-- state.tidal - Performance State Template
+-- 
+-- This file holds the live performance state for a Harmonic Algorithm session.
+-- Evaluate this file at the start of a session to set up:
+--   1. Harmonic context (key, overtone filters, movement filters)
+--   2. Active progressions
+--   3. Instrument launchers (pXX)
+--   4. Per-track configuration
+--
+-- Workflow:
+--   1. Edit harmonic context below
+--   2. Evaluate the whole file (Cmd+Shift+Enter in Pulsar)
+--   3. Generate progressions in orchestrate.tidal or inline
+--   4. Perform with instrument launchers
+-------------------------------------------------------------------------------
+
+-------------------------------------------------------------------------------
+-- HARMONIC CONTEXT
+-- 
+-- These settings control harmonic generation:
+--   overtones: Filter by pitch classes present in the progression
+--   tonality: Key signature filter (e.g., "#" for G major, "bb" for Bb major)
+--   roots: Root motion filter (e.g., "E F# G" or "1#" for certain roots)
+--   
+-- Wildcards: "*", "all", or "chr" match everything
+-------------------------------------------------------------------------------
+
+-- Example contexts (uncomment one or create your own)
+
+-- Open/chromatic context (anything goes)
+-- let ctx = defaultContext
+
+-- E minor pentatonic overtones, natural minor tonality
+-- let ctx = HarmonicContext "E G A B D" "0b" "*"
+
+-- Jazz ii-V-I context in C major
+-- let ctx = HarmonicContext "C D E G" "#" "D G C"
+
+-- Modal context: Dorian over D
+-- let ctx = HarmonicContext "D E F G A B C" "1b" "D"
+
+-- Current context for this session:
+let ctx = defaultContext
+
+-------------------------------------------------------------------------------
+-- GENERATOR CONFIG
+-- 
+-- Controls the generation algorithm behavior:
+--   homingThreshold: When to start homing (0.75 = last 25% of progression)
+--   homingStrength: How strongly to pull toward target (0.0-1.0)
+--   minCandidates: Minimum transitions to consider per step
+-------------------------------------------------------------------------------
+
+let cfg = defaultConfig { 
+  configHomingThreshold = 0.75,
+  configHomingStrength = 0.5,
+  configMinCandidates = 3
+  }
+
+-------------------------------------------------------------------------------
+-- PROGRESSION SLOTS
+-- 
+-- Generate or define progressions here. Use these patterns:
+--
+--   1. Manual definition (for simple progressions):
+--      let progA = fromCadenceStates [cs1, cs2, cs3, cs4]
+--
+--   2. Generated from context (requires database connection):
+--      progB <- generate ctx cfg 16
+--
+--   3. Loaded from file or REPL session:
+--      let progC = ... (paste from GHCi)
+-------------------------------------------------------------------------------
+
+-- Placeholder progressions (replace with generated ones)
+-- let progA = mempty :: Progression
+-- let progB = mempty :: Progression
+
+-------------------------------------------------------------------------------
+-- SCALES (define as needed for this performance)
+-------------------------------------------------------------------------------
+
+-- Example scales (pitch class lists for toScale)
+let cMaj = [0,2,4,5,7,9,11]
+let cMin = [0,2,3,5,7,8,10]
+let cPent = [0,2,4,7,9]
+let chromatic = [0,1,2,3,4,5,6,7,8,9,10,11]
+
+-- Modal scales
+let dorian = [0,2,3,5,7,9,10]
+let phrygian = [0,1,3,5,7,8,10]
+let lydian = [0,2,4,6,7,9,11]
+let mixolydian = [0,2,4,5,7,9,10]
+
+-- Working scale for this session
+let keySig = cMaj
+
+-------------------------------------------------------------------------------
+-- INSTRUMENT LAUNCHERS
+-- 
+-- Define pXX launchers for each instrument in your setup.
+-- Uses 3 voicing paradigms via cyclic DP:
+--   root: Root always in bass, globally optimized voice leading
+--   flow: Any inversion, smoothest possible motion
+--   lite: Literal intervals (no voice leading)
+--
+-- The pattern is:
+--   pXX f s r d = streamXX $ f $ arrange root (overlapF 0 s) r range [...] # ch XX |* vel d
+--
+-- Where:
+--   f = pattern transformation function (id, fast 2, etc.)
+--   s = progression to use
+--   r = repetitions/cycle length
+--   d = velocity/dynamics multiplier
+-------------------------------------------------------------------------------
+
+-- Example MIDI instrument launchers (customize for your setup)
+-- 
+-- let p01 f s r d = d01 $ f $ arrange root (overlapF 0 s) r (-9,9) ["0 1 2 3"] # ch 1 |* vel d
+-- let p02 f s r d = d02 $ f $ arrange flow (overlapF 0 s) r (-12,0) ["0"] # ch 2 |* vel d
+-- let p03 f s r d = d03 $ f $ arrange lite (overlapF 0 s) r (-24,-12) ["0"] # ch 3 |* vel d
+
+-- Example SuperDirt launcher
+-- let sd1 f s r = d1 $ f $ arrange flow (overlapF 1 s) r (-12,12) ["0 1 2 3"] # s "superpiano"
+
+-------------------------------------------------------------------------------
+-- UTILITY PATTERNS
+-------------------------------------------------------------------------------
+
+-- Arpeggio patterns
+let arp4 = "0 1 2 3"
+let arp8 = "0 1 2 3 4 5 6 7"
+let arpUp = "<0 1 2 3 4 5 6 7>"
+let arpDown = "<7 6 5 4 3 2 1 0>"
+
+-- Rhythmic patterns
+let whole = "0"
+let half = "0 ~"
+let quarter = "0 ~ ~ ~"
+
+-------------------------------------------------------------------------------
+-- End state.tidal
+-------------------------------------------------------------------------------

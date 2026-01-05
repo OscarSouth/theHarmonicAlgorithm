@@ -1,0 +1,137 @@
+--------------------------------------------------------------------------------
+-- THE HARMONIC ALGORITHM: FIRST PERFORMANCE
+-- Context: Phase E Complete. Engine is fully operational.
+--------------------------------------------------------------------------------
+
+-- 0. SETUP --------------------------------------------------------------------
+-- Ensure you have booted Tidal with 'boot/BootTidal.hs'
+-- This imports Harmonic.Lib and establishes the connection to Neo4j.
+
+-- Let's define a starting point (The "Anchor")
+-- A simple C Major triad in root position.
+let startState = initCadenceState 0 "C" [0,4,7] FlatSpelling
+
+--------------------------------------------------------------------------------
+-- 1. THE "ENTROPY" KNOB (Stability vs. Chaos)
+--------------------------------------------------------------------------------
+
+-- GENERATE: Low Entropy (0.5) - "Classic"
+-- Expect: I-IV-V-I movements, smooth voice leading, very predictable.
+progClassic <- generate startState 8 "bach" 0.5 defaultContext
+
+-- INSPECT: Look at the visual grid in the console/output window.
+-- Notice the bar numbers and the coherent progression.
+print progClassic
+
+-- PLAY: Listen to the stability.
+-- Using 'arrange' (Legacy compatible launcher)
+d1 $ note (voiceBy Roots progClassic "<0 1 2 3 4 5 6 7>") 
+  # s "superpiano" 
+  # velocity 0.6
+
+d2 $ note (voiceBy Voiced progClassic "<0 1 2 3 4 5 6 7>") 
+  # s "supermandolin" 
+  # legato 2 
+  # velocity 0.5
+
+-- GENERATE: High Entropy (3.0) - "Exploratory"
+-- Expect: Modulations, chromaticism, and deeper graph traversal.
+progJazz <- generate startState 8 "debussy:80 bach:20" 3.0 defaultContext
+
+-- COMPARE:
+print progJazz
+
+-- PLAY: Notice the harmonic "drift" and color.
+d1 $ note (voiceBy Roots progJazz "<0 1 2 3 4 5 6 7>") 
+  # s "superpiano" 
+  # velocity 0.6
+
+d2 $ note (voiceBy Voiced progJazz "<0 1 2 3 4 5 6 7>") 
+  # s "supervibe" 
+  # legato 2
+
+--------------------------------------------------------------------------------
+-- 2. THE "HOMING" LOGIC (Closing the Loop)
+--------------------------------------------------------------------------------
+
+-- The engine forces the progression to return to the start state 
+-- in the last 25% of the chain.
+
+-- GENERATE: A longer 16-bar chain.
+-- Watch bars 13-16 in the output; they should navigate back to C Major.
+progLoop <- generate startState 16 "bach" 1.2 defaultContext
+
+print progLoop
+
+-- PLAY: Fast cycle. Listen for the resolution at the loop point.
+d1 $ note (voiceBy Voiced progLoop (run 16)) 
+  # s "superreese" 
+  # legato 1 
+  # lpf 2000
+
+--------------------------------------------------------------------------------
+-- 3. PATTERN-BASED LOOKUP (Decoupling Time & Harmony)
+--------------------------------------------------------------------------------
+
+-- New Phase C Feature: Modulo Wrapping.
+-- We can apply a short rhythmic pattern to a long harmonic progression.
+
+-- CASE A: Linear Walk
+-- 'run 4' walks through the first 4 chords.
+d1 $ note (voiceBy Voiced progLoop (run 4)) 
+  # s "superpiano"
+
+-- CASE B: Polyrhythmic Cycle
+-- 'run 5' on a 4-chord progression wraps around. 
+-- Index 4 becomes chord 0. Index 5 becomes chord 1.
+d1 $ note (voiceBy Voiced progClassic (run 5)) 
+  # s "superpiano"
+
+-- CASE C: Euclidian Indexing
+-- We pick chords based on a rhythm, not just a straight sequence.
+d1 $ note (voiceBy Voiced progJazz "0(3,8) 4(5,8)") 
+  # s "superhex" 
+  # legato 0.5
+
+--------------------------------------------------------------------------------
+-- 4. MANIPULATION (The Arranger Module)
+--------------------------------------------------------------------------------
+
+-- We can manipulate the progression object itself *before* playing it.
+
+-- ROTATE: Start from the middle of the progression
+let progRotated = rotate 4 progJazz
+
+-- REVERSE: Play it backwards
+let progRev = Harmonic.Tidal.Arranger.reverse progJazz
+
+-- PLAY:
+d1 $ stack [
+  note (voiceBy Roots progJazz (run 8)) # s "superpiano", -- Original
+  note (voiceBy Roots progRev (run 8)) # s "supermandolin" |+ note 12 -- Reversed (Counterpoint?)
+]
+
+--------------------------------------------------------------------------------
+-- 5. THE FULL STACK (Performance Template)
+--------------------------------------------------------------------------------
+
+-- Setup a context
+let ctx = harmonicContext "*" "*" "*"
+
+-- Generate live
+liveProg <- generate startState 8 "bach:50 debussy:50" 1.5 ctx
+
+-- Perform
+do
+  let pHarm = voiceBy Voiced liveProg (run 8)
+  let pBass = voiceBy Bass liveProg (run 8)
+  d1 $ note pBass 
+     # s "superzow" 
+     # lpf 400 
+     # legato 1
+  d2 $ note pHarm 
+     # s "superpiano" 
+     # velocity 0.6
+  d3 $ note (pHarm + 12) 
+     # s "supermandolin" 
+     # struct "t(3,8)"
