@@ -29,6 +29,7 @@ import qualified Harmonic.Core.OvertoneSpec as OvertoneSpec
 import qualified Harmonic.Core.VoiceLeadingSpec as VoiceLeadingSpec
 import qualified Harmonic.Core.ProgressionSpec as ProgressionSpec
 import qualified Harmonic.Core.FilterSpec as FilterSpec
+import qualified Harmonic.Core.DissonanceSpec as DissonanceSpec
 
 -- Phase C: Interactive Behaviour
 import qualified Harmonic.Core.ProbabilisticSpec as ProbabilisticSpec
@@ -45,6 +46,7 @@ main = hspec $ do
   describe "Harmonic.Core.VoiceLeading" VoiceLeadingSpec.spec
   describe "Harmonic.Core.Progression" ProgressionSpec.spec
   describe "Harmonic.Core.Filter" FilterSpec.spec
+  describe "Harmonic.Core.Dissonance" DissonanceSpec.spec
   -- Phase C
   describe "Harmonic.Database.Query" QuerySpec.spec
   describe "Harmonic.Core.Probabilistic" ProbabilisticSpec.spec

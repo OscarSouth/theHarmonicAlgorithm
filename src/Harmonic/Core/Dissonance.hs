@@ -32,6 +32,10 @@ module Harmonic.Core.Dissonance
   , intervalVector
   , intervalClass
   
+    -- * Root Motion Scoring
+  , rootMotionVector
+  , rootMotionScore
+  
     -- * Selection
   , mostConsonant
   , rankByConsonance
@@ -60,6 +64,40 @@ import Harmonic.Core.Pitch (PitchClass(..), mkPitchClass, unPitchClass)
 hindemithVector :: [Integer]
 hindemithVector = [16, 8, 4, 2, 1, 24]
 {-# INLINE hindemithVector #-}
+
+-- |Root motion scoring vector for fallback generation.
+-- Ranks interval classes by smoothness (lower = smoother movement).
+--
+-- Interval class mapping:
+--   Index 0 → ic 1 (m2/M7) → weight 3 (stepwise)
+--   Index 1 → ic 2 (M2/m7) → weight 3 (stepwise)
+--   Index 2 → ic 3 (m3/M6) → weight 4 (moderate leap)
+--   Index 3 → ic 4 (M3/m6) → weight 4 (moderate leap)
+--   Index 4 → ic 5 (P4/P5) → weight 1 (strong harmonic motion)
+--   Index 5 → ic 6 (TT)    → weight 6 (avoid)
+--
+-- Special cases:
+--   ic 0 (Unison/Pedal) → weight 2 (encourages harmonic rhythm)
+rootMotionVector :: [Integer]
+rootMotionVector = [3, 3, 4, 4, 1, 6]
+{-# INLINE rootMotionVector #-}
+
+-- |Score root motion interval by smoothness.
+-- Returns smoothness penalty (lower = better movement).
+--
+-- Examples:
+--   rootMotionScore 0  == 2 (pedal - slight penalty)
+--   rootMotionScore 7  == 1 (P5 - strongest movement)
+--   rootMotionScore 5  == 1 (P4 - strong movement)
+--   rootMotionScore 1  == 3 (m2 - stepwise)
+--   rootMotionScore 2  == 3 (M2 - stepwise)
+--   rootMotionScore 6  == 6 (TT - avoid)
+rootMotionScore :: Int -> Integer
+rootMotionScore n
+  | ic == 0   = 2  -- Pedal: slight penalty to encourage harmonic rhythm
+  | otherwise = rootMotionVector !! (ic - 1)
+  where ic = intervalClass n
+{-# INLINE rootMotionScore #-}
 
 -------------------------------------------------------------------------------
 -- Interval Vector (Set Theory)

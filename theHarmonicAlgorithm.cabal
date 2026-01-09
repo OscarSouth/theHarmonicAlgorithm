@@ -98,6 +98,7 @@ test-suite theHarmonicAlgorithm-test
   main-is: Spec.hs
   other-modules:
       Harmonic.Core.BuilderSpec
+      Harmonic.Core.DissonanceSpec
       Harmonic.Core.FilterSpec
       Harmonic.Core.HarmonySpec
       Harmonic.Core.OvertoneSpec

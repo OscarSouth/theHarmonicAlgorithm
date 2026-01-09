@@ -88,6 +88,7 @@ import           Harmonic.Database.Query
 import           Harmonic.Core.Probabilistic (gammaIndexScaled)
 import           Harmonic.Core.Filter (parseOvertones, parseOvertones', parseKey, parseFunds, isWildcard, resolveRoots)
 import           Harmonic.Core.Overtone (overtoneSets)
+import qualified Harmonic.Core.Dissonance as D
 import           Harmonic.Core.Dissonance (dissonanceScore)
 import qualified Data.Sequence as Seq
 
@@ -709,13 +710,14 @@ consonanceFallback currentState context =
       -- Remove duplicates and empty results
       uniqueTriads = nub $ filter (\t -> length t == 3) triads
       
-      -- Score by consonance (lower dissonance = higher score)
-      -- Use 100 - dissonance so more consonant triads rank higher
-      -- Compute actual movement from current root to triad root (head of sorted triad)
-      scored = [(triadToCadenceFrom currentRoot t, 100 - fromIntegral (dissonanceScore t)) 
-               | t <- uniqueTriads]
+      -- Compute normalized badness score combining chord dissonance and root motion
+      -- Formula: badness = chordDiss_norm * (motionDiss_norm + 1)
+      -- Score: 10000 - badness (higher = better)
+      scored = [(cad, computeFallbackScore currentRoot cad t) 
+               | t <- uniqueTriads
+               , let cad = triadToCadenceFrom currentRoot t]
       
-      -- Sort by score (highest first = most consonant)
+      -- Sort by score (highest first = best combination of consonance + smooth motion)
   in sortBy (compare `on` (Down . snd)) scored
 
 -- |Convert a triad (list of pitch classes) to a Cadence with movement from current root.
@@ -734,6 +736,45 @@ triadToCadenceFrom currentRoot pitches =
       pcs = H.zeroFormPC (map P.mkPitchClass sortedPitches)
       functionality = H.toFunctionality pcs
   in H.Cadence functionality movement pcs
+
+-- |Compute normalized fallback score combining chord dissonance and root motion smoothness.
+-- Formula: score = 10000 - (chordDiss_norm × motionDiss_norm × 100)
+-- where both dissonances are normalized to [0.01, 1] range.
+--
+-- Chord dissonance range: 6 (major/minor triad) to ~50 (dense cluster)
+-- Root motion range: 1 (P5/P4) to 6 (tritone)
+--
+-- Both normalized to [0.01, 1] ensures the product never collapses to zero,
+-- maintaining gradient resolution across fallback candidates.
+computeFallbackScore :: P.PitchClass -> H.Cadence -> [Int] -> Double
+computeFallbackScore currentRoot cad triad =
+  let -- Chord vertical dissonance (raw Hindemith score)
+      chordDiss = fromIntegral (dissonanceScore triad) :: Double
+      
+      -- Root motion dissonance (extract interval from Movement)
+      interval = extractMovementInterval (H.cadenceMovement cad)
+      motionDiss = fromIntegral (D.rootMotionScore interval) :: Double
+      
+      -- Normalize to [0.01, 1]: prevents zero products while maintaining gradient
+      -- Formula: 0.01 + (normalized_0_to_1 * 0.99)
+      chordDissNorm = 0.01 + (((chordDiss - 6.0) / 44.0) * 0.99)
+      motionDissNorm = 0.01 + (((motionDiss - 1.0) / 5.0) * 0.99)
+      
+      -- Combined badness: multiply normalized dissonances
+      badness = chordDissNorm * motionDissNorm
+      
+      -- Final score: higher is better (subtract badness from large constant)
+  in 10000.0 - (badness * 100.0)  -- Scale by 100 to maintain resolution
+
+-- |Extract semitone interval from Movement type.
+-- Maps Movement to interval in semitones (0-11) for rootMotionScore input.
+extractMovementInterval :: H.Movement -> Int
+extractMovementInterval movement = case movement of
+  H.Asc pc   -> P.unPitchClass pc
+  H.Desc pc  -> P.unPitchClass pc
+  H.Unison   -> 0
+  H.Tritone  -> 6
+  H.Empty    -> 0
 
 -- |Apply R constraints to filter transitions
 applyRConstraints :: HarmonicContext 
