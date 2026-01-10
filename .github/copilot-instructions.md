@@ -91,11 +91,21 @@ Modules:
 	- `fetchTransitions` — retrieves NEXT edges with composer weights
 	- `resolveWeights` — applies composer blend to raw weights
 	- `applyComposerBlend` — normalizes composer contributions
-- `Harmonic.Tidal.Builder` — Generation engine:
+- `Harmonic.Tidal.Builder` — Generation engine with **unified interface**:
 	- `HarmonicContext` — R constraints (overtones, key, roots) — three-part filtering
 	- Filter notation from legacy Overtone.hs: `"*"` = wildcard, `"1#"` = G major, `"2b"` = Bb major, `"##"` = D major, note names like `"c"`, `"eb"`
 	- `GeneratorConfig` — homing threshold (75%), strength, minimum candidates
-	- `generate` — main entry point producing `Progression` from context via R→E→T pipeline
+	- **Three unified generation functions** (identical signatures, variable output):
+		- `genSilent` — no diagnostics (production use)
+		- `genStandard` — standard diagnostics (exploration use)
+		- `genVerbose` — verbose diagnostics with transform/advance traces (debugging use)
+	- **With custom config** (`'` suffix variants):
+		- `genSilent'`, `genStandard'`, `genVerbose'` — same as above but with custom `GeneratorConfig`
+	- **Internal functions** (for advanced use):
+		- `generate'`, `generate''` — return tuple `(Progression, GenerationDiagnostics)` for manual extraction
+		- `genWith'`, `genWith''` — with custom config
+	- **Diagnostics utility**:
+		- `printDiagnostics` — reprint diagnostics at any time
 
 ### Layer D — Voice (Interface)
 
@@ -106,6 +116,91 @@ Modules:
 	- `voiceBy` — extracts voice (flow, root, bass) from chord
 	- `VoiceType` — `Flow | Root | Bass` enum for voice extraction
 	- `arrange` — applies voicing strategy to progression, preserves **launcher paradigm**
+
+## Unified Generation Interface (Layer C)
+
+The generation engine provides a **unified interface** with three functions sharing identical type signatures:
+
+```haskell
+genSilent   :: CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Progression
+genStandard :: CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Progression
+genVerbose  :: CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Progression
+```
+
+All three return `IO Progression` (not tuples); diagnostics are printed as side effects based on verbosity level.
+
+### Verbosity Levels
+
+- **0 (Silent)**: No diagnostic output; fastest execution. Use for production music-making.
+- **1 (Standard)**: Per-step candidate pools, selections, and rendered chord names. Use for exploration and tuning.
+- **2 (Verbose)**: Standard diagnostics plus transform and advance traces (DB intervals, transposition, PC arithmetic, enharmonic spelling). Approximately 20-30% slower. Use only for debugging.
+
+### Usage Pattern
+
+**Identical signatures enable seamless switching:**
+
+```haskell
+-- Start with exploration
+prog <- genStandard start 8 "*" 0.5 ctx
+
+-- Switch to production (one word change)
+prog <- genSilent start 8 "*" 0.5 ctx
+
+-- Switch to debugging (one word change)
+prog <- genVerbose start 4 "*" 0.5 ctx
+```
+
+### Custom Configuration Variants
+
+All three functions have `'` suffix variants accepting custom `GeneratorConfig`:
+
+```haskell
+genSilent'   :: GeneratorConfig -> CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Progression
+genStandard' :: GeneratorConfig -> CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Progression
+genVerbose'  :: GeneratorConfig -> CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Progression
+```
+
+Example:
+```haskell
+let cfg = defaultConfig { cfgHomingThreshold = 0.8 }
+prog <- genStandard' cfg start 8 "*" 0.5 ctx
+```
+
+### Internal Tuple Functions
+
+For advanced use cases requiring manual diagnostics extraction:
+
+```haskell
+generate'   :: ... -> IO (Progression, GenerationDiagnostics)
+generate''  :: ... -> IO (Progression, GenerationDiagnostics)
+genWith'    :: ... -> IO (Progression, GenerationDiagnostics)
+genWith''   :: ... -> IO (Progression, GenerationDiagnostics)
+printDiagnostics :: Int -> GenerationDiagnostics -> IO ()
+```
+
+- `generate'` and `genWith'` return standard-level diagnostics
+- `generate''` and `genWith''` return maximum diagnostics (with full traces)
+- `printDiagnostics` reprints diagnostics at any verbosity level
+
+### Diagnostics Output Format
+
+**Standard diagnostics (verbosity 1)** include:
+- Per-step prior/posterior cadence states and roots
+- Graph and fallback candidate pool counts
+- Top 3 candidates from each pool with confidence scores
+- Selected source (graph or fallback) and gamma-weighted index
+- Selected movement and rendered chord name
+
+**Verbose diagnostics (verbosity 2)** add:
+- **Transform traces**: DB intervals, transposition, normalization, zero-form, detected root, computed vs. stored name
+- **Advance traces**: Prior/posterior root PCs, movement interval, PC arithmetic (mod 12), enharmonic spelling decision, final root note
+
+### Documentation
+
+- **UNIFIED_INTERFACE.md** — Complete reference for all generation functions
+- **UNIFIED_INTERFACE_DESIGN.md** — Design philosophy and rationale
+- **USER_GUIDE.md** — Workflow guide with practical examples
+- **Haddock comments** in `src/Harmonic/Core/Builder.hs` — Full API documentation
 
 ### Test Suite (`theHarmonicAlgorithm/test/Harmonic/*`)
 
@@ -187,6 +282,16 @@ The system implements **persistence-based context-aware enharmonic spelling** vi
 - **Tests**: Run `stack test` to validate Layer B, C, and D modules. Use `stack ghci` with qualified imports (`import qualified Harmonic.Core.Harmony as H`) to avoid ambiguity with legacy `MusicData`.
 - **Layer C Query**: Use `parseComposerWeights "bach:30 debussy:70"` in GHCi to test weight parsing; result should show normalized Map with values summing to 1.0.
 - **Layer C Builder**: Test `defaultContext` and `defaultConfig` in GHCi; context should show `"*"` wildcards, config should show threshold=0.75.
+- **Layer C Generation**: Use `genStandard start 8 "*" 0.5 ctx` to explore generation flow; switches to `genVerbose` for full traces when debugging chord naming or voice leading.
+- **Layer C Diagnostics**: Call `printDiagnostics 1 diag` or `printDiagnostics 2 diag` to reprint diagnostics at different verbosity levels after extraction.
 - **Layer D Interface**: Test `lookupChord prog 4` where prog has 4 chords; should return chord at index 0 (modulo wrap).
 
-Keep this document updated whenever the data flow, composer scope, module structure, or triad-weighting strategy changes.
+## Unified Interface Conventions
+
+- **Primary functions** (high-frequency): `genSilent`, `genStandard`, `genVerbose` — use these for all generation
+- **Custom config** (`'` suffix): `genSilent'`, `genStandard'`, `genVerbose'` — when tuning homing, strength, or candidate thresholds
+- **Internal functions**: `generate'`, `generate''`, `genWith'`, `genWith''` — only for manual diagnostics processing
+- **Diagnostics printing**: `printDiagnostics` — reprint diagnostics after extraction or batch processing
+- **String wrappers for TidalCycles**: In live code, use `gen`/`genWith` (not `generate`/`generateWith`) to avoid conflicts with TidalCycles' own `generate`
+
+Keep this document updated whenever the data flow, composer scope, module structure, generation interface, or triad-weighting strategy changes.

@@ -142,18 +142,235 @@ let cfg = defaultConfig {
 
 ## Generating Progressions
 
+### Unified Generation Interface — Three Functions, One Signature
+
+The harmonic generator provides **three functions with identical type signatures** that differ only in their diagnostic output. This enables seamless switching between verbosity levels:
+
+```haskell
+genSilent   :: CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Progression
+genStandard :: CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Progression
+genVerbose  :: CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Progression
+```
+
+All three:
+- Accept identical parameters in identical order
+- Return `IO Progression` directly (not tuples)
+- Print diagnostics as side effects (when applicable)
+- Can be switched with a single-word change
+
+This design makes it trivial to move between modes without changing the rest of your code:
+
+```haskell
+-- Development: explore behavior
+prog <- genStandard start 8 "*" 0.5 ctx
+
+-- Production: remove output (one word change)
+prog <- genSilent start 8 "*" 0.5 ctx
+
+-- Debugging: add traces (one word change)
+prog <- genVerbose start 4 "*" 0.5 ctx
+```
+
+#### Silent Mode (Verbosity 0) — Production
+
+**Best for:** Live performance, batch generation, when you only care about the progression.
+
+```haskell
+prog <- genSilent start 16 "*" 0.5 ctx
+print prog  -- Just shows the progression, no diagnostic output
+```
+
+**Characteristics:**
+- Zero diagnostic output
+- Fastest execution (no I/O overhead)
+- Returns progression directly
+
+**Use when:**
+- Generating music for live performance
+- Running batch operations
+- Working in production environments where output is unnecessary
+
+#### Standard Mode (Verbosity 1) — Exploration
+
+**Best for:** Understanding generation behavior, tuning context filters, and learning how the system works.
+
+```haskell
+prog <- genStandard start 8 "*" 0.5 ctx
+```
+
+**Console output for each step includes:**
+- Prior and posterior cadence states with roots
+- Graph candidate pool size and top 3 candidates (with confidence scores)
+- Fallback candidate pool size and top 3 candidates
+- Total pool size and gamma-weighted selection index
+- Selected source (graph or fallback) and selected movement
+- Rendered chord name
+- Final progression visualization (4-column grid)
+
+**Example output:**
+```
+═══════════════════════════════════════════════════════════════════
+GENERATION DIAGNOSTICS
+═══════════════════════════════════════════════════════════════════
+Starting: ( pedal -> maj ) @ C
+Entropy: 0.5
+Generated: 8/8 chords
+
+STEP 1:
+  Prior: ( pedal -> maj ) @ C
+  Candidates: graph=30, fallback=0, pool=30
+    Top graph: [("ped->min",0.95),("ped->aug",0.87),...]
+  Selected: graph @ index 5
+  Movement: down_2nd
+  Posterior: Bb
+  Chord: Bbm
+
+...
+═══════════════════════════════════════════════════════════════════
+FINAL PROGRESSION:
+═══════════════════════════════════════════════════════════════════
+Bar 1: | Cm   | Bbm  |
+Bar 2: | Fm   | Bbm  |
+```
+
+**Use when:**
+- Exploring generation behavior
+- Understanding why certain candidates were selected
+- Tuning context filters (overtones, keys, roots)
+- Spotting pattern issues
+- Learning how the system works
+
+#### Verbose Mode (Verbosity 2) — Debugging
+
+**Best for:** Debugging chord naming discrepancies, understanding voice leading computations, and investigating transformation pipeline issues.
+
+```haskell
+prog <- genVerbose start 2 "*" 0.5 ctx
+```
+
+**Console output includes everything from Standard mode, plus:**
+
+**Transform trace** for each step:
+- DB zero-form intervals before transposition (what's stored)
+- Transposed pitch classes (DB intervals + root PC arithmetic)
+- Normalized pitch classes (after fundamental adjustment)
+- Final zero-form representation
+- Detected root from pitch classes
+- Computed chord name (derived from pitches)
+- Comparison with DB stored chord name
+
+**Advance trace** for each step:
+- Prior and posterior root pitch classes
+- Movement interval extracted from DB
+- PC arithmetic: `(prior_PC + movement_interval) mod 12`
+- Enharmonic spelling decision (flat/sharp)
+- Final posterior root note name
+
+**Example traces:**
+```
+[TRANSFORM TRACE]
+  DB intervals: [0,4,7]
+  Transposed: [0,4,7]
+  Normalized: [0,4,7]
+  Zero-form: [0,4,7]
+  Detected root: Bb
+  Computed name: Bbm
+  DB stored name: min (normalized "Bbm" → "min")
+[ADVANCE TRACE]
+  0 + 10 = 10 (mod 12)
+  C → Bb
+```
+
+**Performance:** Approximately 20-30% slower than Standard mode due to extra tracing computation.
+
+**Use when:**
+- Debugging chord naming discrepancies (computed vs. DB stored name)
+- Understanding voice leading calculations
+- Investigating transform pipeline issues
+- Checking enharmonic spelling decisions
+- Tuning generator configuration
+
+### Custom Configuration with `'` Suffix Variants
+
+All three functions have `'` suffix variants that accept custom `GeneratorConfig`:
+
+```haskell
+genSilent'   :: GeneratorConfig -> CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Progression
+genStandard' :: GeneratorConfig -> CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Progression
+genVerbose'  :: GeneratorConfig -> CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Progression
+```
+
+Customize generation behavior:
+
+```haskell
+let cfg = defaultConfig 
+      { cfgHomingThreshold = 0.8     -- Start homing at 80% (default: 75%)
+      , cfgCompositionStrength = 0.8 -- Strong pull to resolution (default: 0.5)
+      , cfgMinCandidates = 5         -- More variety (default: 3)
+      }
+
+-- Silent with custom config
+prog1 <- genSilent' cfg start 16 "*" 0.5 ctx
+
+-- Standard with custom config  
+prog2 <- genStandard' cfg start 16 "*" 0.5 ctx
+
+-- Verbose with custom config
+prog3 <- genVerbose' cfg start 8 "*" 0.5 ctx
+```
+
+**Configuration options:**
+- `cfgHomingThreshold` — When to start guiding toward resolution (0.0-1.0, default: 0.75)
+- `cfgCompositionStrength` — How strongly to pull toward resolution (0.0-1.0, default: 0.5)
+- `cfgMinCandidates` — Minimum candidates to keep per step (default: 3)
+
+### Internal Tuple Functions (Advanced)
+
+For advanced use cases that require manual diagnostics extraction or processing:
+
+```haskell
+generate'   :: CadenceState -> Int -> String -> Double -> HarmonicContext -> IO (Progression, GenerationDiagnostics)
+generate''  :: CadenceState -> Int -> String -> Double -> HarmonicContext -> IO (Progression, GenerationDiagnostics)
+genWith'    :: GeneratorConfig -> CadenceState -> Int -> String -> Double -> HarmonicContext -> IO (Progression, GenerationDiagnostics)
+genWith''   :: GeneratorConfig -> CadenceState -> Int -> String -> Double -> HarmonicContext -> IO (Progression, GenerationDiagnostics)
+
+printDiagnostics :: Int -> GenerationDiagnostics -> IO ()
+```
+
+These functions return tuples instead of side-effect diagnostics:
+- `generate'` and `genWith'` return standard-level diagnostics
+- `generate''` and `genWith''` return maximum diagnostics (with full traces)
+- `printDiagnostics` reprints diagnostics at any verbosity level
+
+Example:
+```haskell
+-- Generate once, extract tuple
+(prog, diag) <- generate' start 8 "*" 0.5 ctx
+
+-- Reprint at different verbosity levels
+printDiagnostics 1 diag  -- standard output
+printDiagnostics 2 diag  -- verbose output with traces
+```
+
+### Basic Progression Display
+
 ```haskell
 -- Generate 16-bar progression
-progA <- generate ctx cfg 16
-
--- Generate 32-bar progression with specific context
-progB <- generate (HarmonicContext "E A" "1#" "*") cfg 32
+prog <- genSilent start 16 "debussy stravinsky" 1.0 ctx
 
 -- Display progression (4-column grid)
-print progA
+print prog
 -- Bar 1: | Dm   | F    | Am   | G    |
 -- Bar 2: | Em   | Bdim | C    | Am   |
 -- ...
+
+-- Get progression length
+progLength prog  -- Returns Int
+
+-- Lookup specific chord by index
+lookupChord prog 0   -- First chord
+lookupChord prog 15  -- 16th chord
+lookupChord prog 16  -- Wraps to 0 (modulo wrap)
 ```
 
 ## Playing Progressions

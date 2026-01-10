@@ -2,6 +2,8 @@
 
 `theHarmonicAlgorithm` is an environment for generating harmonic progressions from the Yale Classical Archives Corpus (YCACL), storing cadence transitions inside Neo4j, and reusing that graph as the live-coding backend (via TidalCycles/SuperCollider).
 
+See [USER_GUIDE.md](USER_GUIDE.md) for the complete workflow guide.
+
 ### Prerequisites
 
 - [Stack](https://docs.haskellstack.org/) with a working GHC toolchain (project currently uses GHC 9.6.7).
@@ -16,6 +18,18 @@ stack test           # run test suite (301 examples)
 docker compose up -d neo4j
 stack run            # populate Neo4j with cadence graph
 ```
+
+### Unified Generation Interface
+
+Three functions, one signature, seamless switching:
+
+```haskell
+genSilent   start len "*" 0.5 ctx  -- No output (production)
+genStandard start len "*" 0.5 ctx  -- Standard diagnostics (exploration)
+genVerbose  start len "*" 0.5 ctx  -- Verbose traces (debugging)
+```
+
+All return `IO Progression` with diagnostics printed as side effects.
 
 ### Architecture Overview
 
@@ -56,7 +70,7 @@ Layer C implements the **CSF (Creative Systems Framework)** pipeline: **R** (Rul
 | Module | Purpose |
 |--------|---------|
 | `Probabilistic.hs` | Gamma distribution sampling for weighted selection; `gammaIndex`, `gammaSelect`, `gammaSequence` |
-| `Builder.hs` | Main generation engine; `HarmonicContext` (R constraints), `GeneratorConfig`, `generate` function |
+| `Builder.hs` | Main generation engine; **three unified functions** (`genSilent`, `genStandard`, `genVerbose`), `HarmonicContext`, `GeneratorConfig` |
 | `Query.hs` | Neo4j read interface; `parseComposerWeights`, `fetchTransitions`, `resolveWeights` |
 | `Interface.hs` | TidalCycles bridge; `lookupProgression`, `voiceBy`, modulo wrap, `arrange` |
 

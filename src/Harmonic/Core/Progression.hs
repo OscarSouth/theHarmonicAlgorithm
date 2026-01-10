@@ -99,10 +99,10 @@ instance Show Progression where
           -- Pad each chord string to fixed width (14 chars) and add separator
           paddedChords = map ((++"|   ") . padTo 14) showChords
           -- Group into lines of 4 chords with bar labels (consistent 3-space indent)
-          barLabels = ["\n   1    ||   ", "\n   5    |   ", "\n   9    |   ", "\n   13   |   ",
-                       "\n   17   |   ", "\n   21   |   ", "\n   25   |   ", "\n   29   |   ",
-                       "\n   33   |   ", "\n   37   |   ", "\n   41   |   ", "\n   45   |   ",
-                       "\n   49   |   ", "\n   53   |   ", "\n   57   |   ", "\n   61   |   "]
+          barLabels = ["\n   1   ||   ", "\n   5    |   ", "\n   9    |   ", "\n   13  |   ",
+                       "\n   17  |   ", "\n   21  |   ", "\n   25  |   ", "\n   29  |   ",
+                       "\n   33  |   ", "\n   37  |   ", "\n   41  |   ", "\n   45  |   ",
+                       "\n   49  |   ", "\n   53  |   ", "\n   57  |   ", "\n   61  |   "]
           groupedChords = chunksOf 4 paddedChords
           -- Format each 4-bar group (remove trailing separator)
           formattedGroups = map (init . init . init . concat) groupedChords
