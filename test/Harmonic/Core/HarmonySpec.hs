@@ -37,10 +37,11 @@ spec = do
     
     describe "Suspended Chords" $ do
       
-      -- [0,2,7] is root position sus2 (C, D, G)
-
-      it "[0,2,7] -> sus2" $
-        chordFunctionality (flatTriad [0,2,7]) `shouldContain` "sus2"
+      -- [0,2,7] is enharmonically equivalent to sus4 1st inversion
+      -- Legacy treats this as sus4_1stInv (sus2 and sus4 are inversions of each other)
+      
+      it "[0,2,7] -> sus4_1stInv (legacy: sus2/sus4 are inversionally equivalent)" $
+        chordFunctionality (flatTriad [0,2,7]) `shouldContain` "sus4"
       
       it "[0,5,7] -> sus4" $
         chordFunctionality (flatTriad [0,5,7]) `shouldContain` "sus4"
@@ -168,24 +169,25 @@ spec = do
     -- (bass note) as the reported root. True inversion detection (finding the
     -- "real" root of an inverted chord) is a complex topic that requires
     -- comparing against known chord shapes. The tests below document the
-    -- CURRENT behavior.
+    -- Inversion detection now correctly identifies the root and adds inversion suffix
     
-    describe "Current behavior: bass note becomes reported root" $ do
+    describe "Inversions correctly identify root and add suffix" $ do
       
-      -- C major inversions: the bass note is what gets reported
-      it "[4,7,0] reports E as root (bass note)" $ do
+      -- C major inversions: now correctly reports C as root with inversion suffix
+      it "[4,7,0] (C major 1st inv) reports C as root with _1stInv suffix" $ do
         let chord = flatTriad [4,7,0]
-        chordNoteName chord `shouldBe` E
-        chordFunctionality chord `shouldContain` "min"  -- E-G-C sounds like E min
+        chordNoteName chord `shouldBe` C
+        chordFunctionality chord `shouldBe` "maj_1stInv"
       
-      it "[7,0,4] reports G as root (bass note)" $ do
+      it "[7,0,4] (C major 2nd inv) reports C as root with _2ndInv suffix" $ do
         let chord = flatTriad [7,0,4]
-        chordNoteName chord `shouldBe` G
-        -- G-C-E = sus4 or similar depending on normalization
+        chordNoteName chord `shouldBe` C
+        chordFunctionality chord `shouldBe` "maj_2ndInv"
       
-      it "[3,7,0] reports Eb as root (bass note)" $ do
+      it "[3,7,0] (C minor 1st inv) reports C as root with _1stInv suffix" $ do
         let chord = flatTriad [3,7,0]
-        chordNoteName chord `shouldBe` Eb
+        chordNoteName chord `shouldBe` C
+        chordFunctionality chord `shouldBe` "min_1stInv"
     
     describe "Root position chords correctly identify root" $ do
       
@@ -202,14 +204,13 @@ spec = do
       it "[6,9,1] correctly identifies F# as root" $
         chordNoteName (sharpTriad [6,9,1]) `shouldBe` F'
     
-    describe "Functionality detection works regardless of inversion" $ do
+    describe "Functionality detection correctly identifies chord quality" $ do
       
-      -- Even if root detection is bass-based, functionality should detect
-      -- the chord quality from the pitch content
-      it "[4,7,0] contains intervals of a minor triad" $ do
-        -- E-G-C has intervals 3-5 from E, which is minor
+      -- With correct inversion detection, chord quality is determined from the actual chord
+      it "[4,7,0] (C major 1st inv) is correctly identified as major" $ do
+        -- E-G-C is C major in 1st inversion
         let chord = flatTriad [4,7,0]
-        chordFunctionality chord `shouldContain` "min"
+        chordFunctionality chord `shouldContain` "maj"
       
       it "[8,0,4] is detected as augmented (symmetric)" $ do
         -- Augmented triads are symmetric, any rotation is equivalent

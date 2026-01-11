@@ -444,8 +444,31 @@ toTriad enharm ps@(fund:_)
   | length (pcSetInts ps) > 3 = toTriad enharm $ mostConsonant $ possibleTriadsSimple enharm fund (tail ps)
   | otherwise = 
     let normalizedPs = normalizeWithFund fund ps
+        pcs = map mkPitchClass normalizedPs
+        bass = mkPitchClass (head normalizedPs)
+        invs = inversions pcs
+        headInv = head invs
+        -- Get root offset from inversion pattern
+        rootOffset = case headInv of
+          [P 0, P 4, P 7] -> 0   -- Root position major
+          [P 0, P 3, P 7] -> 0   -- Root position minor
+          [P 0, P 3, P 8] -> 8   -- 1st inv major
+          [P 0, P 4, P 9] -> 9   -- 1st inv minor
+          [P 0, P 5, P 9] -> 5   -- 2nd inv major
+          [P 0, P 5, P 8] -> 5   -- 2nd inv minor
+          [P 0, P 5, P 7] -> 0   -- Root position sus4
+          [P 0, P 5, P 10] -> 5  -- 2nd inv sus4
+          [P 0, P 2, P 7] -> 7   -- 1st inv sus4
+          [P 0, P 3, P 6] -> 0   -- Root position dim
+          [P 0, P 6, P 9] -> 6   -- 2nd inv dim
+          [P 0, P 3, P 9] -> 9   -- 1st inv dim
+          _ -> 0                 -- Fallback
+        rootPC = bass + P rootOffset
+        -- Compute root-relative intervals for naming
+        rootRelativePCs = sort $ map (\p -> p - rootPC) pcs
+        functionality = nameFuncTriad zeroFormPC rootRelativePCs ""
+        -- Get root name and inversion suffix
         invResult = detectInversion enharm normalizedPs
-        functionality = nameFuncTriad zeroFormPC (map mkPitchClass normalizedPs) ""
     in Chord (fst invResult) (functionality ++ snd invResult) (map fromIntegral ps)
   where
     pcSetInts xs = List.nub $ sort $ map (`mod` 12) xs
@@ -718,8 +741,44 @@ mostConsonant xs = head $ sortBy (compare `on` dissonanceScore) xs
     intervalVector ys = [countInterval i ys | i <- [1..6]]
     countInterval i ys = length [() | a <- ys, b <- ys, a < b, ((b - a) `mod` 12) `elem` [i, 12-i]]
 
--- |Detect chord inversion (simplified version)
+-- |Detect chord inversion by pattern matching against known inversion forms
+-- Returns (root_note, inversion_suffix) where suffix is "", "_1stInv", or "_2ndInv"
+-- Uses mathematical computation of root instead of index-based lookup
 detectInversion :: (PitchClass -> NoteName) -> [Int] -> (NoteName, String)
 detectInversion enharm xs
   | null xs = (enharm (P 0), "")
-  | otherwise = (enharm (mkPitchClass (head xs)), "")  -- Simplified - full logic requires prime form comparison
+  | length xs < 3 = (enharm (mkPitchClass (head xs)), "")
+  | otherwise =
+    let pcs = map mkPitchClass xs
+        bass = mkPitchClass (head xs)
+        invs = inversions pcs
+        headInv = head invs
+        -- Compute root from bass + interval offset based on pattern
+        rootFromOffset offset = enharm (bass + P offset)
+    in case headInv of
+      -- Root position major: root is bass
+      [P 0, P 4, P 7] -> (rootFromOffset 0, "")
+      -- Root position minor: root is bass
+      [P 0, P 3, P 7] -> (rootFromOffset 0, "")
+      -- 1st inversion major: [0,3,8] means root is 8 semitones above bass
+      [P 0, P 3, P 8] -> (rootFromOffset 8, "_1stInv")
+      -- 1st inversion minor: [0,4,9] means root is 9 semitones above bass
+      [P 0, P 4, P 9] -> (rootFromOffset 9, "_1stInv")
+      -- 2nd inversion major: [0,5,9] means root is 5 semitones above bass
+      [P 0, P 5, P 9] -> (rootFromOffset 5, "_2ndInv")
+      -- 2nd inversion minor: [0,5,8] means root is 5 semitones above bass
+      [P 0, P 5, P 8] -> (rootFromOffset 5, "_2ndInv")
+      -- Root position sus4
+      [P 0, P 5, P 7] -> (rootFromOffset 0, "")
+      -- 2nd inversion sus4: root is 5 semitones above bass
+      [P 0, P 5, P 10] -> (rootFromOffset 5, "_2ndInv")
+      -- 1st inversion sus4: root is 7 semitones above bass
+      [P 0, P 2, P 7] -> (rootFromOffset 7, "_1stInv")
+      -- Root position dim
+      [P 0, P 3, P 6] -> (rootFromOffset 0, "")
+      -- 2nd inversion dim: root is 6 semitones above bass
+      [P 0, P 6, P 9] -> (rootFromOffset 6, "_2ndInv")
+      -- 1st inversion dim: root is 9 semitones above bass
+      [P 0, P 3, P 9] -> (rootFromOffset 9, "_1stInv")
+      -- Fallback: assume root position
+      _ -> (rootFromOffset 0, "")

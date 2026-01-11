@@ -332,30 +332,30 @@ showTriad f (Chord noteName functionality _)
     -- Root position sus4
     | "sus4" `List.isInfixOf` functionality && not (any (`List.isInfixOf` functionality) ["_1stInv", "_2ndInv"]) =
       show (f $ pitchClass noteName) ++ " " ++ functionality
-    -- 1st inversion major: C maj/E
+    -- 1st inversion major: C maj/E (3rd in bass = root + 4 semitones)
     | all (`List.isInfixOf` functionality) ["_1stInv", "maj"] =
       show (f $ pitchClass noteName) ++ " " ++ takeWhile Char.isAlphaNum functionality
-      ++ "/" ++ show (f (pitchClass noteName - P 4))
-    -- 1st inversion minor: A min/C
+      ++ "/" ++ show (f (pitchClass noteName + P 4))
+    -- 1st inversion minor: A min/C (3rd in bass = root + 3 semitones)
     | all (`List.isInfixOf` functionality) ["_1stInv", "min"] =
       show (f $ pitchClass noteName) ++ " " ++ takeWhile Char.isAlphaNum functionality
-      ++ "/" ++ show (f (pitchClass noteName - P 3))
+      ++ "/" ++ show (f (pitchClass noteName + P 3))
     -- 1st inversion sus4 -> sus2 equivalent
     | all (`List.isInfixOf` functionality) ["_1stInv", "sus4"] =
       show (f (pitchClass noteName - P 5)) ++ " sus2"
-    -- 1st inversion dim
+    -- 1st inversion dim (3rd in bass = root + 3 semitones)
     | all (`List.isInfixOf` functionality) ["_1stInv", "dim"] =
       show (f $ pitchClass noteName) ++ " " ++ takeWhile Char.isAlphaNum functionality ++
-      "/" ++ show (f (pitchClass noteName - P 3))
-    -- 2nd inversion maj/min
+      "/" ++ show (f (pitchClass noteName + P 3))
+    -- 2nd inversion maj/min (5th in bass = root + 7 semitones)
     | "_2ndInv" `List.isInfixOf` functionality && any (`List.isInfixOf` functionality) ["maj", "min"] =
       show (f $ pitchClass noteName) ++ " " ++
       takeWhile Char.isAlphaNum functionality ++ "/" ++ show (f (pitchClass noteName + P 7))
-    -- 2nd inversion sus4
+    -- 2nd inversion sus4 (5th in bass = root + 7 semitones)
     | "_2ndInv" `List.isInfixOf` functionality && "sus4" `List.isInfixOf` functionality =
       show (f $ pitchClass noteName) ++ " " ++
       takeWhile Char.isAlphaNum functionality ++ "/" ++ show (f (pitchClass noteName + P 7))
-    -- 2nd inversion dim
+    -- 2nd inversion dim (5th in bass = root + 6 semitones for diminished)
     | "_2ndInv" `List.isInfixOf` functionality && "dim" `List.isInfixOf` functionality =
       show (f $ pitchClass noteName) ++ " " ++
       takeWhile Char.isAlphaNum functionality ++ "/" ++ show (f (pitchClass noteName + P 6))
