@@ -1,0 +1,17 @@
+lets write a CLAUDE.md file for this project
+
+The key ingredients are:
+
+•⁠  ⁠Vertical slices - delivering the changes in chunks of the minimum deliverable working and verifiable thing. So it will create the smallest piece of the feature and test and verify that and move onto the next slice etc until the whole feature or bug fix is complete.
+
+•⁠  ⁠Mandatory verification - this means giving the agent the tools it needs to verify the work it is doing is working and complete and providing clear instructions that it is able to reliably follow to fully verify all changes before moving on to the next slice.
+
+the way the verification will work is:
+
+(A) execution (and maintanance) of the test suite with `stack test`
+(B) execution of code examples on the GHCi repl in order to check and verify expected behaviour. eg. 
+```
+cd /Users/oscarsouth/.stack/global-project && stack ghci << 'EOF'
+... ghci code ...
+EOF
+```
