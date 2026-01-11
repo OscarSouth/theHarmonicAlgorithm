@@ -55,15 +55,14 @@
 -- @
 --   chordDiss     = Hindemith vertical dissonance (6-50 range)
 --   motionDiss    = Root motion dissonance (1-6 range, vector-based)
+--   gammaDraw     = Entropy-based random perturbation (~0-5, shape=1.01)
 --   
---   chordDiss_norm  = 0.01 + ((chordDiss - 6) / 44) * 0.99  -- normalize to [0.01, 1.0]
---   motionDiss_norm = 0.01 + ((motionDiss - 1) / 5) * 0.99  -- normalize to [0.01, 1.0]
---   
---   badness = chordDiss_norm * motionDiss_norm
---   score = 10000 - (badness * 100)
+--   badness = chordDiss × motionDiss × (gammaDraw + 1)
+--   score = 10000 - badness
 -- @
 --
--- The [0.01, 1.0] normalization range prevents zero products while maintaining resolution.
+-- The multiplicative formula spreads scores organically without artificial limits.
+-- Full 660-candidate pool (12 roots × C(11,2) pairs) ensures maximum variety.
 --
 -- The database is treated as abstract/pitch-agnostic. Root notes are
 -- computed at runtime based on movement intervals from a user-defined
@@ -141,9 +140,11 @@ import           Data.Maybe (fromMaybe, mapMaybe, catMaybes)
 import qualified Data.Set as Set
 import           Control.Monad (foldM, forM_, when)
 import           Control.Monad.IO.Class (liftIO)
-import           Data.List (sortBy, nub, sort)
+import           Data.List (sortBy, nub, sort, intercalate)
 import           Data.Function (on)
 import           Data.Ord (Down(..))
+import           System.Random.MWC (createSystemRandom)
+import qualified System.Random.MWC.Distributions as Dist
 
 import qualified Harmonic.Core.Harmony as H
 import qualified Harmonic.Core.Pitch as P
@@ -152,7 +153,7 @@ import           Harmonic.Database.Graph (connectNeo4j)
 import           Harmonic.Database.Query
 import           Harmonic.Core.Probabilistic (gammaIndexScaled)
 import           Harmonic.Core.Filter (parseOvertones, parseOvertones', parseKey, parseFunds, isWildcard, resolveRoots)
-import           Harmonic.Core.Overtone (overtoneSets)
+import           Harmonic.Core.Overtone (overtoneSets, nCr)
 import qualified Harmonic.Core.Dissonance as D
 import           Harmonic.Core.Dissonance (dissonanceScore)
 import qualified Data.Sequence as Seq
@@ -350,7 +351,7 @@ data StepDiagnostic = StepDiagnostic
   , sdGraphCount      :: Int              -- ^ Number of graph candidates found
   , sdGraphTop6       :: [(String, Double)] -- ^ Top 6 graph candidates with confidence
   , sdFallbackCount   :: Int              -- ^ Number of fallback candidates used
-  , sdFallbackTop6    :: [(String, Double, Double, Double)] -- ^ Top 6 fallback candidates (name, score, chordDiss_norm, motionDiss_norm)
+  , sdFallbackTop6    :: [(String, Double, Double, Double, Double)] -- ^ Top 6 fallback candidates (name, score, chordDiss, motionDiss, gammaDraw)
   , sdPoolSize        :: Int              -- ^ Total pool size
   , sdEntropyUsed     :: Double           -- ^ Entropy value used
   , sdGammaIndex      :: Int              -- ^ Index selected by gamma sampling
@@ -472,21 +473,70 @@ gen' start len composerStr entropy ctx = do
              ++ " → " ++ show (gdActualLen diag) ++ " chords (entropy " ++ show (gdEntropy diag) ++ ")"
   putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   
+  -- Show starting state as bar 1
+  putStrLn $ "  1: " ++ gdStartRoot diag ++ " " ++ gdStartCadence diag ++ " [starting state]"
+  putStrLn ""
+  
+  -- Show each step with bar number = stepNumber + 1
   forM_ (gdSteps diag) $ \step -> do
-    let mvmt = padToN 12 (sdSelectedDbMovement step)
+    let barNum = sdStepNumber step + 1
+        stateInfo = sdPriorRoot step ++ " → " ++ sdPosteriorRoot step
+        poolInfo = "[" ++ show (sdGraphCount step) ++ "G/" 
+                   ++ show (sdFallbackCount step) ++ "F]"
+        mvmt = sdSelectedDbMovement step
         chord = case sdRenderedChord step of
-                  Just c -> padToN 16 c
-                  Nothing -> padToN 16 (sdPosteriorRoot step)
+                  Just c -> c
+                  Nothing -> sdPosteriorRoot step
         src = "[" ++ sdSelectedFrom step ++ "]"
-    putStrLn $ "  " ++ show (sdStepNumber step) ++ ": " ++ mvmt ++ " → " ++ chord ++ " " ++ src
+        selIdx = "γ=" ++ show (sdGammaIndex step)
+    
+    -- Single line: bar number, state, pool, movement, chord, source, gamma
+    putStrLn $ "  " ++ show barNum ++ ": " ++ stateInfo ++ "  " ++ poolInfo 
+               ++ "  " ++ mvmt ++ " → " ++ chord ++ "  " ++ src ++ " " ++ selIdx
+    
+    -- Top 6 candidates rendered as actual chords (with roots)
+    let posteriorRoot = sdPosteriorRoot step
+        posteriorRootPC = sdPosteriorRootPC step
+        
+    -- Render candidate cadences as actual chords
+    let renderCandidateName name = 
+          case parseCadenceFromString name posteriorRootPC of
+            Just renderedName -> renderedName
+            Nothing -> name  -- fallback to original if parse fails
+    
+    let topCands = if sdSelectedFrom step == "graph"
+                   then take 6 (sdGraphTop6 step)
+                   else take 6 [(n, s) | (n, s, _, _, _) <- sdFallbackTop6 step]
+    
+    when (not (null topCands)) $ do
+      let candNames = [renderCandidateName name | (name, _) <- topCands]
+          candStr = intercalate " | " candNames
+      putStrLn $ "     Options: " ++ candStr
+    putStrLn ""
   
   putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  print prog
   putStrLn ""
   
   pure prog
   where
     padToN n s = take n (s ++ repeat ' ')
+    
+    -- Parse candidate name like "( pedal -> min )" and render with posterior root
+    -- Returns "C min" for "( pedal -> min )" when posterior root is C
+    parseCadenceFromString :: String -> Int -> Maybe String
+    parseCadenceFromString name posteriorRootPC = 
+      let -- Strip parentheses: "( pedal -> min )" → " pedal -> min "
+          cleaned = filter (\c -> c /= '(' && c /= ')') name
+          -- Find arrow position and split
+          (before, after) = break (== '>') (dropWhile (/= '-') cleaned)
+      in if null after || null before
+         then Nothing
+         else let functionality = trim (tail after)  -- skip '>'
+                  posteriorRoot = show (P.sharp (P.mkPitchClass posteriorRootPC))
+              in Just $ posteriorRoot ++ " " ++ functionality
+    
+    trim :: String -> String
+    trim = dropWhile (== ' ') . reverse . dropWhile (== ' ') . reverse
 
 -- |Generate with custom configuration, returning diagnostics tuple (internal).
 --
@@ -622,23 +672,39 @@ gen'' start len composerStr entropy ctx = do
              ++ " → " ++ show (gdActualLen diag) ++ " chords (entropy " ++ show (gdEntropy diag) ++ ")"
   putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
   
+  -- Show starting state as bar 1
+  putStrLn $ "STEP 1: " ++ gdStartRoot diag ++ " " ++ gdStartCadence diag ++ " [starting state]"
+  putStrLn ""
+  
   forM_ (gdSteps diag) $ \step -> do
-    let mvmt = sdSelectedDbMovement step
+    let barNum = sdStepNumber step + 1
+        mvmt = sdSelectedDbMovement step
         chord = case sdRenderedChord step of
                   Just c -> c
                   Nothing -> sdPosteriorRoot step
         src = "[" ++ sdSelectedFrom step ++ "]"
+        selIdx = "(γ=" ++ show (sdGammaIndex step) ++ "/" ++ show (sdPoolSize step) ++ ")"
     
-    putStrLn $ "STEP " ++ show (sdStepNumber step) ++ ": " ++ mvmt ++ " → " ++ chord ++ " " ++ src
+    putStrLn $ "STEP " ++ show barNum ++ ": " ++ sdPriorRoot step ++ " → " 
+               ++ sdPosteriorRoot step ++ "  " ++ mvmt ++ " → " ++ chord ++ " " ++ src ++ " " ++ selIdx
     
-    -- Transform trace (if available)
-    case sdTransformTrace step of
-      Just tt -> do
-        let verify = if ttFunctionality tt == ttStoredFunc tt then "✓" else "✗"
-        putStrLn $ "  Transform: " ++ show (ttTones tt) ++ " → " ++ ttFinalChord tt 
-                   ++ " (DB: " ++ ttStoredFunc tt ++ ") " ++ verify
-      Nothing -> return ()
+    -- Pool composition
+    putStrLn $ "  Pool: " ++ show (sdGraphCount step) ++ " graph, " 
+               ++ show (sdFallbackCount step) ++ " fallback"
     
+    -- Top 6 candidates from selected pool (not rounded, show actual scores)
+    when (sdSelectedFrom step == "graph" && not (null (sdGraphTop6 step))) $ do
+      putStrLn "  Top graph:"
+      forM_ (take 6 (sdGraphTop6 step)) $ \(name, conf) -> do
+        putStrLn $ "    " ++ name ++ " (" ++ show conf ++ ")"
+    
+    when (sdSelectedFrom step == "fallback" && not (null (sdFallbackTop6 step))) $ do
+      putStrLn "  Top fallback:"
+      forM_ (take 6 (sdFallbackTop6 step)) $ \(name, score, chordD, motionD, gammaD) -> do
+        putStrLn $ "    " ++ name ++ " (" ++ show score
+                   ++ ", c=" ++ show chordD
+                   ++ ", m=" ++ show motionD
+                   ++ ", γ=" ++ show gammaD ++ ")"
     -- Advance trace (if available)
     case sdAdvanceTrace step of
       Just at -> do
@@ -650,7 +716,6 @@ gen'' start len composerStr entropy ctx = do
     putStrLn ""
   
   putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  print prog
   putStrLn ""
   
   pure prog
@@ -833,7 +898,7 @@ printDiagnostics verbosity diag = do
       putStrLn $ "    Graph top 3: " ++ show (take 3 $ sdGraphTop6 step)
     
     when (fallbackCount > 0) $
-      putStrLn $ "    Fallback top 3: " ++ show (take 3 [(n, s) | (n, s, _, _) <- sdFallbackTop6 step])
+      putStrLn $ "    Fallback top 3: " ++ show (take 3 [(n, s) | (n, s, _, _, _) <- sdFallbackTop6 step])
     
     -- Selection details
     putStrLn $ "  Selection: " ++ sdSelectedFrom step ++ " @ gamma index " ++ show (sdGammaIndex step)
@@ -1191,13 +1256,13 @@ stepChainWithDiagV config verbosity entropy context (chain, diags) stepNum = do
       graphCandidates = take poolSize scored
       graphCount = length graphCandidates
   
-  -- Build candidate pool: graph candidates + consonanceFallback if needed
-  let needed = poolSize - graphCount
-      fallbackAll = consonanceFallback current context
-      fallbackCandidates = if needed > 0 then take needed fallbackAll else []
-      fallbackCount = length fallbackCandidates
+  -- Build candidate pool: graph candidates + consonanceFallback
+  -- NO POOL SIZE LIMIT - use full 660-candidate fallback generation
+  fallbackAll <- liftIO $ consonanceFallback current context
+  let fallbackCount = length fallbackAll
       -- Create unified pool with (Cadence, score) format
-      pool = graphCandidates ++ [(cad, score) | (cad, score, _, _) <- fallbackCandidates]
+      -- Graph candidates first (preserves database priority), then all fallback
+      pool = graphCandidates ++ [(cad, score) | (cad, score, _, _, _) <- fallbackAll]
   
   -- Select next cadence using gamma sampling
   if null pool
@@ -1241,8 +1306,8 @@ stepChainWithDiagV config verbosity entropy context (chain, diags) stepNum = do
           
           -- Build diagnostic for this step
           graphTop6 = take 6 [(show cad, conf) | (cad, conf) <- graphCandidates]
-          -- For fallback, use actual component scores (name, score, chordDiss_norm, motionDiss_norm)
-          fallbackTop6 = take 6 [(show cad, score, cd, md) | (cad, score, cd, md) <- fallbackCandidates]
+          -- For fallback, use actual component scores (name, score, chordDiss, motionDiss, gammaDraw)
+          fallbackTop6 = take 6 [(show cad, score, cd, md, gd) | (cad, score, cd, md, gd) <- fallbackAll]
           
           -- Compute rendered chord and transform trace based on verbosity
           (renderedChord, transformTrace) = computeChordTrace verbosity newState
@@ -1377,10 +1442,12 @@ stepChain config entropy context chain _step = do
   
   -- Build candidate pool: graph candidates + consonanceFallback if needed
   let needed = poolSize - length graphCandidates
-      -- Extract just (cadence, score) tuples from fallback 4-tuples
-      fallbackCandidates = if needed > 0
-                           then take needed [(cad, score) | (cad, score, _, _) <- consonanceFallback current context]
-                           else []
+  
+  fallback <- if needed > 0
+              then liftIO $ consonanceFallback current context
+              else pure []
+  
+  let fallbackCandidates = take needed [(cad, score) | (cad, score, _, _, _) <- fallback]
       pool = graphCandidates ++ fallbackCandidates
   
   -- Select next cadence using gamma sampling
@@ -1405,18 +1472,21 @@ scoreByConfidence transitions =
 -- This implements the legacy "constructive generation" pattern:
 --   1. Get effective overtone palette (tuning filtered by key)
 --   2. Get allowed roots (via resolveRoots which handles "key"/"tones" options)
---   3. Generate all valid triads from roots × overtones
+--   3. Generate all valid triads from roots × overtones (660 structures with wildcard)
 --   4. Compute actual movement from current state to each candidate
---   5. Sort by consonance (most consonant first)
---   6. Return as [(Cadence, Double)] with inverted dissonance as score
+--   5. Score with multiplicative formula: (rootMotionDiss × structureDiss × (gammaDraw+1))
+--   6. Sort by score (lower badness = higher score)
 -- 
 -- Movement computation matches legacy getCadenceOptions which uses:
 --   toCadence (transposeCadence enharm rootPC prev, nxt)
 -- to derive proper movements from current position to each candidate.
 -- This ensures fallback cadences have real movements, enabling subsequent
 -- iterations to find graph matches and traverse freely.
--- Returns [(Cadence, score, chordDiss_norm, motionDiss_norm)]
-consonanceFallback :: H.CadenceState -> HarmonicContext -> [(H.Cadence, Double, Double, Double)]
+-- 
+-- The gamma draw adds organic randomness to scoring, preventing identical
+-- scores for structurally similar triads with the same movement type.
+-- Returns IO [(Cadence, score, chordDiss, motionDiss, gammaDraw)]
+consonanceFallback :: H.CadenceState -> HarmonicContext -> IO [(H.Cadence, Double, Double, Double, Double)]
 consonanceFallback currentState context =
   let -- Get current root pitch class for movement computation
       currentRoot = P.pitchClass (H.stateCadenceRoot currentState)
@@ -1430,25 +1500,33 @@ consonanceFallback currentState context =
                            then overtones
                            else filter (`elem` keyPcs) overtones
       
-      -- Get allowed roots (handles "key", "tones", or explicit notes)
-      roots = resolveRoots (hcOvertones context) (hcKey context) (hcRoots context)
+      -- Generate all valid triads: all ROOT+PAIR combinations
+      -- For complete coverage with wildcard context: 12 roots × C(11,2) pairs = 660 structures
+      -- Each root gets all possible 2-note pairs from the remaining 11 pitches
+      -- This preserves inversion distinctions: [0,4,7], [4,0,7], [7,0,4] are three unique structures
+      triads = case (isWildcard (hcOvertones context), isWildcard (hcKey context), isWildcard (hcRoots context)) of
+        -- Full wildcard: for each root, generate all pairs from remaining pitches (660 total)
+        (True, True, True) -> 
+          let allRoots = effectiveOvertones
+          in concatMap (\r -> overtoneSets 3 [r] effectiveOvertones) allRoots
+        -- Otherwise use root-based generation: respects constraint structure
+        _ -> let roots = resolveRoots (hcOvertones context) (hcKey context) (hcRoots context)
+             in concatMap (\r -> overtoneSets 3 [r] effectiveOvertones) roots
       
-      -- Generate all valid triads: root + 2 tones from effective overtones
-      -- Each root gets all valid 3-note sets
-      triads = concatMap (\r -> overtoneSets 3 [r] effectiveOvertones) roots
+      -- No normalization deduplication: preserve ROOT+PAIR distinction for inversions
+      -- Each triad is already distinct by its root position
+      uniqueTriads = triads
+  in do
+      -- Compute multiplicative badness score with gamma randomness for each triad
+      -- Returns IO (score, chordDiss, motionDiss, gammaDraw) for each candidate
+      results <- mapM (\t -> do
+                         let cad = triadToCadenceFrom currentRoot t
+                         (score, cd, md, gd) <- computeFallbackScoreWithComponents currentRoot cad t
+                         pure (cad, score, cd, md, gd)
+                       ) uniqueTriads
       
-      -- Remove duplicates and empty results
-      uniqueTriads = nub $ filter (\t -> length t == 3) triads
-      
-      -- Compute normalized badness score combining chord dissonance and root motion
-      -- Returns (score, chordDiss_norm, motionDiss_norm) for score composition display
-      scored = [(cad, score, cd, md) 
-               | t <- uniqueTriads
-               , let cad = triadToCadenceFrom currentRoot t
-               , let (score, cd, md) = computeFallbackScoreWithComponents currentRoot cad t]
-      
-      -- Sort by score (highest first = best combination of consonance + smooth motion)
-  in sortBy (compare `on` (\(_, s, _, _) -> Down s)) scored
+      -- Sort by score (highest first = lowest badness = best combination)
+      pure $ sortBy (compare `on` (\(_, s, _, _, _) -> Down s)) results
 
 -- |Convert a triad (list of pitch classes) to a Cadence with movement from current root.
 -- Movement is computed from currentRoot to the triad's root (head of sorted triad).
@@ -1467,52 +1545,60 @@ triadToCadenceFrom currentRoot pitches =
       functionality = H.toFunctionality pcs
   in H.Cadence functionality movement pcs
 
--- |Compute normalized fallback score combining chord dissonance and root motion smoothness.
--- Formula: score = 10000 - (chordDiss_norm × motionDiss_norm × 100)
--- where both dissonances are normalized to [0.01, 1] range.
+-- |Compute multiplicative fallback score with entropy-based randomness.
+-- Formula: badness = rootMotionDiss × structureDiss × (gammaDraw + 1)
+--          score = 10000 - badness
 --
 -- Chord dissonance range: 6 (major/minor triad) to ~50 (dense cluster)
 -- Root motion range: 1 (P5/P4) to 6 (tritone)
+-- Gamma draw range: ~0.0-5.0 (minimum entropy, shape=1.01)
 --
--- Both normalized to [0.01, 1] ensures the product never collapses to zero,
--- maintaining gradient resolution across fallback candidates.
--- Returns (finalScore, chordDiss_normalized, motionDiss_normalized)
-computeFallbackScoreWithComponents :: P.PitchClass -> H.Cadence -> [Int] -> (Double, Double, Double)
-computeFallbackScoreWithComponents currentRoot cad triad =
-  let -- Chord vertical dissonance (raw Hindemith score)
-      chordDiss = fromIntegral (dissonanceScore triad) :: Double
+-- The multiplicative formula spreads scores organically based on:
+--   * Root motion quality (smooth vs rough)
+--   * Vertical consonance (simple vs complex)
+--   * Stochastic perturbation (via gamma draw)
+--
+-- This prevents score clustering and eliminates the need for pool size limits.
+-- Returns IO (finalScore, chordDiss, motionDiss, gammaDraw)
+computeFallbackScoreWithComponents :: P.PitchClass -> H.Cadence -> [Int] -> IO (Double, Double, Double, Double)
+computeFallbackScoreWithComponents currentRoot cad triad = do
+  -- Chord vertical dissonance (raw Hindemith score)
+  let chordDiss = fromIntegral (dissonanceScore triad) :: Double
       
       -- Root motion dissonance (extract interval from Movement)
       interval = extractMovementInterval (H.cadenceMovement cad)
       motionDiss = fromIntegral (D.rootMotionScore interval) :: Double
+  
+  -- Draw gamma sample for entropy (minimum entropy: shape=1.01)
+  gammaDraw <- liftIO $ Dist.gamma 1.01 1.0 =<< createSystemRandom
+  
+  -- Multiplicative badness: all three factors contribute
+  let badness = chordDiss * motionDiss * (gammaDraw + 1.0)
       
-      -- Normalize to [0.01, 1]: prevents zero products while maintaining gradient
-      -- Formula: 0.01 + (normalized_0_to_1 * 0.99)
-      chordDissNorm = 0.01 + (((chordDiss - 6.0) / 44.0) * 0.99)
-      motionDissNorm = 0.01 + (((motionDiss - 1.0) / 5.0) * 0.99)
-      
-      -- Combined badness: multiply normalized dissonances
-      badness = chordDissNorm * motionDissNorm
-      
-      -- Final score: higher is better (subtract badness from large constant)
-      finalScore = 10000.0 - (badness * 100.0)  -- Scale by 100 to maintain resolution
-  in (finalScore, chordDissNorm, motionDissNorm)
+      -- Final score: 10000 - badness (higher is better)
+      finalScore = 10000.0 - badness
+  
+  pure (finalScore, chordDiss, motionDiss, gammaDraw)
 
--- Convenience wrapper returning only the score
-computeFallbackScore :: P.PitchClass -> H.Cadence -> [Int] -> Double
-computeFallbackScore root cad triad = 
-  let (score, _, _) = computeFallbackScoreWithComponents root cad triad
-  in score
+-- Convenience wrapper returning only the score (now in IO)
+computeFallbackScore :: P.PitchClass -> H.Cadence -> [Int] -> IO Double
+computeFallbackScore root cad triad = do
+  (score, _, _, _) <- computeFallbackScoreWithComponents root cad triad
+  pure score
 
--- |Extract semitone interval from Movement type.
--- Maps Movement to interval in semitones (0-11) for rootMotionScore input.
+-- |Extract interval class (0-6) from Movement type.
+-- Maps Movement to interval class for rootMotionScore input.
+-- Interval class folds intervals larger than tritone to their complement.
 extractMovementInterval :: H.Movement -> Int
 extractMovementInterval movement = case movement of
-  H.Asc pc   -> P.unPitchClass pc
-  H.Desc pc  -> P.unPitchClass pc
+  H.Asc pc   -> intervalClassFromPC (P.unPitchClass pc)
+  H.Desc pc  -> intervalClassFromPC (P.unPitchClass pc)
   H.Unison   -> 0
   H.Tritone  -> 6
-  H.Empty    -> 0
+  where
+    intervalClassFromPC semitones = 
+      let m = semitones `mod` 12
+      in if m <= 6 then m else 12 - m
 
 -- |Apply R constraints to filter transitions
 applyRConstraints :: HarmonicContext 

@@ -39,3 +39,5 @@ cabal.sandbox.config
 
 # Generated cabal file (regenerated from package.yaml)
 *.cabal
+
+.serena
