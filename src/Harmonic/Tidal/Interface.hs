@@ -18,26 +18,28 @@
 -- 3. Voice extraction: Uses voicing paradigms from Arranger module
 --    (flow, tall, slim, wide, lite) for different instrumental roles.
 
-module Harmonic.Tidal.Interface 
+module Harmonic.Tidal.Interface
   ( -- * Voice Functions
     VoiceFunction
   , rootNotes
   , bassNotes
-  
+
     -- * Pattern Application
   , arrange
   , applyProg
   , voiceRange
-  
-    -- * Pattern-Based Lookup (New)
+
+    -- * Pattern-Based Lookup
   , lookupProgression
   , lookupChord
   , VoiceType(..)
   , voiceBy
   , harmony
-  
-    -- * Utilities
-  , overlapF
+
+    -- * Progression Overlap (Re-exports from Arranger)
+  , overlapF    -- Forward overlap
+  , overlapB    -- Backward overlap
+  , overlap     -- Bidirectional overlap
   ) where
 
 -- Phase B imports
@@ -181,13 +183,19 @@ harmony prog idxPat =
   in note $ fmap (fromIntegral . head) voicings  -- Take first note for simplicity
 
 -------------------------------------------------------------------------------
--- Utilities
+-- Progression Overlap (Re-exports from Arranger)
 -------------------------------------------------------------------------------
 
--- |Overlap function for pattern phrasing.
--- 
--- scl=0: Full overlap (sustain)
--- scl=1: No overlap (staccato)
-overlapF :: Double -> Pattern Double -> Pattern Double
-overlapF scl pat = pat * pure (1 - scl)
+-- |Forward overlap: merge pitches from n bars ahead
+-- Example: overlapF 1 prog merges each chord with the next chord's pitches
+overlapF :: Int -> P.Progression -> P.Progression
+overlapF = A.progOverlapF
+
+-- |Backward overlap: merge pitches from n bars behind
+overlapB :: Int -> P.Progression -> P.Progression
+overlapB = A.progOverlapB
+
+-- |Bidirectional overlap: merge pitches from n bars in both directions
+overlap :: Int -> P.Progression -> P.Progression
+overlap = A.progOverlap
 
