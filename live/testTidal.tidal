@@ -1,0 +1,42 @@
+ -- 1. Generate
+let start = initCadenceState 8 "C" [0,3,7] FlatSpelling
+    ctx = defaultContext
+
+ -- generates an IO Progression, so we bind it
+next <- gen start 8 "*" 0.2 ctx
+
+ -- 2. Manipulate (Pure functional updates)
+let state = rotate 0 next
+
+ -- 3. Create a generic pattern block
+p01 f s r d = d01 $ do
+  let o = ch 01
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        -- ,trunc 0.9 $ slow 2 $ palindrome $ "[0 1 2 3]/2" |+ "[1 2 3 4]/4"
+        -- ,slow 2 $ palindrome $ run 8
+        ,"[~ [0,1,2]@3]/4"
+      ]# o |* vel 1 |- oct 1
+       -- --
+      ,arrange root (overlapF 0 s) r (-9,9) ["~"
+        ,"[0@3 ~]/4"
+        -- ,"[0,3,4,5,6]/4"
+      ]# o |* vel 1 |- oct 3
+      -- --
+    ] |* vel d
+
+ -- 4. Perform (Legacy Launcher Block)
+do
+  let
+    dyn = 0.8
+    rep = 1  -- bars
+    s = transposeP 0 state  -- Note: transposeP renaming avoids clash
+    f = id   -- or swingBy etc.
+    (d,r) = ((*dyn), rep)
+  putStrLn . show $ s
+  mapM_ id [hush, setbpm 90
+    -- The p01 launcher uses 'arrange' internally
+    ,p01 f s r $ d 0.7
+   ]
