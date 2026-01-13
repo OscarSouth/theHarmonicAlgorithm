@@ -28,8 +28,10 @@ import qualified Data.Text as T
 import Data.Text (Text)
 import Data.List (sort)
 
-import Harmonic.Core.Builder (HarmonicContext(..), GeneratorConfig(..), defaultContext, defaultConfig, TransformTrace(..), AdvanceTrace(..), StepDiagnostic(..), harmonicContext)
+import Harmonic.Core.Builder (HarmonicContext(..), GeneratorConfig(..), defaultContext, defaultConfig, TransformTrace(..), AdvanceTrace(..), StepDiagnostic(..), harmonicContext, matchesContext)
 import Harmonic.Core.Filter (parseOvertones, parseKey, parseFunds)
+import qualified Harmonic.Core.Harmony as H
+import qualified Harmonic.Core.Pitch as P
 
 -------------------------------------------------------------------------------
 -- Tests
@@ -389,3 +391,72 @@ spec = do
       it "contains per-step diagnostics list" $ do
         -- Type-level verification - gdSteps is [StepDiagnostic]
         True `shouldBe` True
+
+  describe "Key Filter (matchesContext)" $ do
+    -- Tests for the fix to the key filter bug (transposes relative intervals to absolute pitches)
+
+    describe "rejects chords with pitches outside key filter" $ do
+      it "E major chord rejected by D major key (contains G#)" $ do
+        let context = harmonicContext "*" "2#" "*"  -- D major [1,2,4,6,7,9,11]
+            -- E major: root E (4), intervals [0,4,7] → absolute [4,8,11]
+            -- 8 (G#) is NOT in D major
+            emajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 4)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
+        matchesContext context emajCadence `shouldBe` False
+
+      it "A major chord rejected by D major key (contains C#)" $ do
+        let context = harmonicContext "*" "2#" "*"  -- D major [1,2,4,6,7,9,11]
+            -- A major: root A (9), intervals [0,4,7] → absolute [9,1,4]
+            -- 1 (C#) IS in D major, so this should actually pass
+            -- Let's use A major starting from 9: [9,1,4] - wait, C# (1) IS in D major
+            -- Let me use Bb major instead: root Bb (10), intervals [0,4,7] → absolute [10,2,5]
+            -- 10 (Bb) is NOT in D major
+            bbmajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 10)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
+        matchesContext context bbmajCadence `shouldBe` False
+
+      it "F major chord rejected by C major key (contains Bb)" $ do
+        let context = harmonicContext "*" "C" "*"  -- C major [0,2,4,5,7,9,11]
+            -- Wait, F major is F A C = [5,9,0] which are all in C major
+            -- Let me use F# major: root F# (6), intervals [0,4,7] → absolute [6,10,1]
+            -- 6 (F#), 10 (Bb), 1 (Db) - F# and Bb are NOT in C major
+            fsharpmajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 6)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
+        matchesContext context fsharpmajCadence `shouldBe` False
+
+    describe "accepts chords with all pitches in key filter" $ do
+      it "D major chord accepted by D major key" $ do
+        let context = harmonicContext "*" "2#" "*"  -- D major [1,2,4,6,7,9,11]
+            -- D major: root D (2), intervals [0,4,7] → absolute [2,6,9]
+            -- All in D major
+            dmajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 2)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
+        matchesContext context dmajCadence `shouldBe` True
+
+      it "E minor chord accepted by D major key" $ do
+        let context = harmonicContext "*" "2#" "*"  -- D major [1,2,4,6,7,9,11]
+            -- E minor: root E (4), intervals [0,3,7] → absolute [4,7,11]
+            -- All in D major
+            eminCadence = H.Cadence "min" (H.Asc (P.mkPitchClass 4)) [P.mkPitchClass 0, P.mkPitchClass 3, P.mkPitchClass 7]
+        matchesContext context eminCadence `shouldBe` True
+
+      it "A major chord accepted by D major key" $ do
+        let context = harmonicContext "*" "2#" "*"  -- D major [1,2,4,6,7,9,11]
+            -- A major: root A (9), intervals [0,4,7] → absolute [9,1,4]
+            -- All in D major (C# is 1, which is in D major)
+            amajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 9)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
+        matchesContext context amajCadence `shouldBe` True
+
+      it "C major chord accepted by C major key" $ do
+        let context = harmonicContext "*" "C" "*"  -- C major [0,2,4,5,7,9,11]
+            -- C major: root C (0), intervals [0,4,7] → absolute [0,4,7]
+            -- All in C major
+            cmajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 0)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
+        matchesContext context cmajCadence `shouldBe` True
+
+    describe "wildcard key accepts all chords" $ do
+      it "E major accepted with wildcard key" $ do
+        let context = harmonicContext "*" "*" "*"  -- No key filter
+            emajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 4)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
+        matchesContext context emajCadence `shouldBe` True
+
+      it "Bb major accepted with wildcard key" $ do
+        let context = harmonicContext "*" "*" "*"  -- No key filter
+            bbmajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 10)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
+        matchesContext context bbmajCadence `shouldBe` True

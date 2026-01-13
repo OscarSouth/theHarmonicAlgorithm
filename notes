@@ -1,3 +1,5 @@
+This is a Haskell project, which is compiled and loaded into the GHCi repl to provide a rich musical context library for use in the live coding syntax 'TidalCycles'. This includes querying a neo4j graph database backend.
+
 lets write a CLAUDE.md file for this project
 
 The key ingredients are:
