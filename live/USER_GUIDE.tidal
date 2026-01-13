@@ -127,13 +127,111 @@ prog3 <- gen'' start 8 "*" 0.5 ctx
 -- Parameters explained:
 -- start = CadenceState (where to begin)
 -- 8 = number of chords to generate
--- "*" = composer blend (see Section 2.4 for weighting syntax)
+-- "*" = composer blend (see Section 2.5 for weighting syntax)
 -- 0.5 = entropy [0.0 = conservative/greedy, 2.0+ = exploratory/random]
 -- ctx = HarmonicContext (filter constraints)
 
 
 -- ───────────────────────────────────────────────────────────────────────────
--- 2.4 Composer Weighting - Stylistic Control
+-- 2.4 Pitch Removal with '-' Operator
+-- ───────────────────────────────────────────────────────────────────────────
+-- All three harmonic context parameters (overtones, key, roots) support
+-- pitch removal using the '-' prefix operator.
+--
+-- ORDER OF OPERATIONS:
+-- 1. Union all positive tokens (without '-')
+-- 2. Union all negative tokens (with '-', prefix stripped)
+-- 3. Subtract negative from positive
+
+-- ─── OVERTONES PARAMETER ───────────────────────────────────────────────────
+-- Overtones: 'G' = G overtones [7,11,2,6], 'G'' = G pitch [7]
+
+let ctx1 = hContext "C E -E'" "*" "*"
+-- C overtones [0,4,7,10] ∪ E overtones [4,8,11,1] \ {E pitch 4}
+-- Result: [0,1,7,8,10,11]
+
+let ctx2 = hContext "* -G" "*" "*"
+-- All pitches [0..11] \ G overtones [7,11,2,6]
+-- Result: [0,1,3,4,5,8,9,10]
+
+let ctx3 = hContext "* -G'" "*" "*"
+-- All pitches [0..11] \ {G pitch 7}
+-- Result: [0,1,2,3,4,5,6,8,9,10,11]
+
+-- ─── KEY PARAMETER ─────────────────────────────────────────────────────────
+-- Key: 'G' = G major scale [0,2,4,6,7,9,11], 'G'' = G pitch [7]
+
+let ctx4 = hContext "*" "1b -G'" "*"
+-- F major [0,2,4,5,7,9,10] \ {G pitch 7}
+-- Result: [0,2,4,5,9,10]
+
+let ctx5 = hContext "*" "1b 2# -G" "*"
+-- (F major [0,2,4,5,7,9,10] ∪ D major [1,2,4,6,7,9,11]) \ G major [0,2,4,6,7,9,11]
+-- Result: [1,5,10]
+
+let ctx6 = hContext "*" "* -C' -F#'" "*"
+-- All pitches [0..11] \ {C=0, F#=6}
+-- Result: [1,2,3,4,5,7,8,9,10,11]
+
+-- ─── ROOTS PARAMETER ───────────────────────────────────────────────────────
+-- Roots: INVERTED prime notation: 'G' = G pitch [7], 'G'' = G major scale
+
+let ctx7 = hContext "*" "*" "C G -G"
+-- {C=0, G=7} \ {G=7}
+-- Result: [0]
+
+let ctx8 = hContext "*" "*" "* -E -A -D -G"
+-- All pitches [0..11] \ {E=4, A=9, D=2, G=7}
+-- Result: [0,1,3,5,6,8,10,11] (all except bass tuning notes)
+
+let ctx9 = hContext "*" "*" "2# C F"
+-- D major [1,2,4,6,7,9,11] ∪ C [0] ∪ F [5] (token-by-token)
+-- Result: [0,1,2,4,5,6,7,9,11]
+
+let ctx10 = hContext "*" "*" "G'"
+-- G major scale [0,2,4,6,7,9,11] (INVERTED: prime = scale in roots)
+-- Result: [0,2,4,6,7,9,11]
+
+let ctx11 = hContext "*" "*" "G' -G"
+-- G major scale [0,2,4,6,7,9,11] \ {G pitch 7}
+-- Result: [0,2,4,6,9,11]
+
+-- ─── COMBINED EXAMPLES ─────────────────────────────────────────────────────
+
+-- Avoid F# overtones, stay in C major, only C/G roots
+let modalCtx = hContext "* -F#" "C" "C G"
+
+-- Jazz context: all overtones except C, D major key except F#, specific roots
+let jazzCtx = hContext "* -C'" "2# -F#'" "D F# A -A"
+
+-- ─── EDGE CASES ────────────────────────────────────────────────────────────
+
+let empty1 = hContext "-*" "*" "*"        -- Empty overtones (no positive tokens)
+let empty2 = hContext "-C -D" "*" "*"     -- Empty overtones (only negatives)
+let allButC = hContext "* -C'" "*" "*"    -- All except C
+
+-- IMPORTANT: Prime (') notation behavior:
+--   - In OVERTONES: prevents overtone generation (G' = just G pitch, not G overtones)
+--   - In KEY: specifies single pitch (G' = pitch 7, not G major scale)
+--   - In ROOTS: INVERTED - specifies scale (G = pitch 7, G' = G major scale)
+--
+-- Why invert prime in roots? Makes roots default to individual pitches (more intuitive):
+--   - "C G D" = just those 3 pitches [0,7,2]
+--   - "2# C F" = D major + C + F (token-by-token union)
+--   - "G'" = G major scale (when you need a scale in roots)
+--
+-- Removal (-) works with ANY valid token:
+--   - '-G' in overtones: removes G overtones
+--   - '-G' in key: removes G major scale
+--   - '-G' in roots: removes G pitch
+--   - '-G'' in overtones/key: removes G pitch
+--   - '-G'' in roots: removes G major scale (INVERTED)
+--   - '-1b': removes F major scale
+--   - '-*': removes all pitches (results in empty set)
+
+
+-- ───────────────────────────────────────────────────────────────────────────
+-- 2.5 Composer Weighting - Stylistic Control
 -- ───────────────────────────────────────────────────────────────────────────
 -- The composer parameter filters graph edges by historical usage patterns.
 -- Each edge in the Neo4j graph stores per-composer weights from YCACL corpus.
