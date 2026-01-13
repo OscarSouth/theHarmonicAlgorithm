@@ -132,10 +132,25 @@ generate' start 16 "*" 0.5 ctx >>= \(_, diag) ->
 
 putStrLn "\n=== TEST 8: Verbose Diagnostics (gen'') ==="
 putStrLn "  Shows standard diagnostics plus transform and advance traces:"
-let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+let start = initCadenceState 8 "C" [0,3,7] FlatSpelling
     ctx = defaultContext
-gen'' start 4 "*" 0.8 ctx
+gen'' start 3 "*" 0.3 ctx
 
+gen start 8 "*" 0.6 ctx
+
+func = gen start 8 "*" 0.6
+
+pfunc n = d1 $ fast n $ note "0 1"
+
+:t pfunc
+
+:t arrange
+
+G min/D
+
+[D, G, Bb] "D sus4#5"
+
+[G, Bb, D] "G min/D"
 -------------------------------------------------------------------------------
 -- SUMMARY
 -------------------------------------------------------------------------------
@@ -154,4 +169,3 @@ putStrLn "  6. Movement diversity (generate')"
 putStrLn "  7. Graph/fallback ratio (generate')"
 putStrLn "  8. Verbose diagnostics (gen'')"
 putStrLn ""
-

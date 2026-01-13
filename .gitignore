@@ -41,4 +41,4 @@ cabal.sandbox.config
 *.cabal
 
 .serena
-notes
+# notes
