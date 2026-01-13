@@ -31,6 +31,36 @@
 -- * Pitches: @"E F# G"@
 -- * Key signature: @"1b"@, @"#"@
 -- * Wildcard: @"*"@ (all roots)
+--
+-- == Pitch Removal with '-' Operator
+--
+-- All parsing functions support pitch removal using the @-@ prefix:
+--
+-- * @"C E -E'"@ → (C overtones ∪ E overtones) \\ {E pitch}
+-- * @"1b 2# -G"@ → (F major ∪ D major) \\ G major scale
+-- * @"* -C' -F#'"@ → All pitches except C and F#
+--
+-- === Context-Specific Behavior
+--
+-- The @-@ operator treats tokens identically to positive tokens but subtracts:
+--
+-- * __Overtones__: @-G@ removes G overtones, @-G'@ removes G pitch
+-- * __Key__: @-G@ removes G major scale, @-G'@ removes G pitch
+-- * __Roots__: @-G@ removes G pitch, @-G'@ removes G major scale (INVERTED prime notation)
+--
+-- === Order of Operations
+--
+-- 1. Union all positive tokens
+-- 2. Union all negative tokens
+-- 3. Subtract: positive \\ negative
+--
+-- === Edge Cases
+--
+-- * @"*"@ → all pitches (wildcard shortcut)
+-- * @"* -C'"@ → all except C
+-- * @"-*"@ → empty set (no includes)
+-- * @"-C -D"@ → empty set (no includes)
+-- * @"C -C"@ → empty set (self-cancellation)
 
 module Harmonic.Core.Filter
   ( -- * Parsing Functions (Text versions)
@@ -63,13 +93,14 @@ module Harmonic.Core.Filter
   , parseKey'
   , parseFunds'
   , parseTuning'
+  , partitionTokens
   , keyToPitchClasses
   ) where
 
 import qualified Data.Char as Char
 import qualified Data.Text as T
 import           Data.Text (Text)
-import           Data.List (nub, sort)
+import           Data.List (nub, sort, partition, (\\))
 import           Data.Maybe (mapMaybe)
 
 -------------------------------------------------------------------------------
@@ -168,20 +199,64 @@ noteNameToPitchClass t = case T.toLower t of
 --   * Flats: @"b"@, @"bb"@, @"bbb"@, @"1b"@, @"2b"@, etc.
 --   * Named: @"C"@, @"G"@, @"F#"@, @"Bb"@, @"Am"@, @"F#m"@
 --   * Wildcard: @"*"@
+--   * Removal: @"1b 2# -G"@ (union minus scale), @"* -C'"@ (all minus C)
 parseKey' :: Int -> Text -> [PitchClass]
 parseKey' _ input
   | isWildcard input = chromaticSet
-  | otherwise = keyToPitchClasses input
+  | otherwise =
+      let (includes, excludes) = partitionTokens input
+          includePcs = unique $ concatMap parseKeyToken includes
+          excludePcs = unique $ concatMap parseKeyToken excludes
+      in includePcs \\ excludePcs
 
 -- |Convert a key specification to pitch classes
 keyToPitchClasses :: Text -> [PitchClass]
-keyToPitchClasses input = 
+keyToPitchClasses input =
   let t = T.toLower $ T.strip input
   in case parseKeySignature t of
        Just fifths -> keyPitches fifths
        Nothing -> case parseNamedKey t of
          Just fifths -> keyPitches fifths
          Nothing -> chromaticSet  -- Fallback to chromatic if unparseable
+
+-- |Parse a single token in key context
+-- With prime: "G'" -> single pitch [7]
+-- Without prime: "G" -> G major scale, "1b" -> F major, etc.
+-- Wildcard token: "*" -> chromatic set
+parseKeyToken :: Text -> [PitchClass]
+parseKeyToken token
+  | T.null token = []
+  | token == "*" || token == "all" || token == "chr" = chromaticSet
+  | "'" `T.isSuffixOf` token =
+      -- Prime notation: single pitch class only
+      case noteNameToPitchClass (T.init token) of
+        Just pc -> [pc]
+        Nothing -> []
+  | otherwise =
+      -- Try key signature first
+      case parseKeySignature token of
+        Just fifths -> keyPitches fifths
+        Nothing ->
+          -- Try as note name (resolves to key of that note)
+          case noteNameToPitchClass token of
+            Just pc ->
+              -- Map pitch class to key: C=0 fifths, G=1, D=2, F=-1, etc.
+              let fifths = case pc of
+                    0 -> 0   -- C major
+                    7 -> 1   -- G major (1#)
+                    2 -> 2   -- D major (2#)
+                    9 -> 3   -- A major (3#)
+                    4 -> 4   -- E major (4#)
+                    11 -> 5  -- B major (5#)
+                    6 -> 6   -- F# major (6#)
+                    1 -> -5  -- Db major (5b)
+                    8 -> -4  -- Ab major (4b)
+                    3 -> -3  -- Eb major (3b)
+                    10 -> -2 -- Bb major (2b)
+                    5 -> -1  -- F major (1b)
+                    _ -> 0
+              in keyPitches fifths
+            Nothing -> []
 
 -- |Parse key signature notation: "#", "##", "1#", "2b", "4b", etc.
 parseKeySignature :: Text -> Maybe Int
@@ -240,19 +315,73 @@ parseNamedKey t =
 -- |Parse fundamentals (root notes) filter.
 --
 -- Formats:
---   * Note names: @"E F# G"@
+--   * Note names: @"E F# G"@ → individual pitches [4,6,7]
 --   * Key signature: @"1b"@, @"#"@ (roots from that key)
 --   * Wildcard: @"*"@
+--   * Removal: @"C G -G"@ (C and G minus G), @"* -E -A"@ (all except E,A)
+--   * INVERTED prime: @"G"@ = single pitch [7], @"G'"@ = G major scale
 parseFunds' :: Int -> Text -> [PitchClass]
 parseFunds' _ input
   | isWildcard input = chromaticSet
-  | otherwise = 
-      -- Try parsing as key signature first
-      case parseKeySignature (T.toLower input) of
+  | otherwise =
+      let (includes, excludes) = partitionTokens input
+          includePcs = unique $ concatMap parseFundsToken includes
+          excludePcs = unique $ concatMap parseFundsToken excludes
+      in includePcs \\ excludePcs
+
+-- |Parse a single token in fundamentals/roots context
+-- INVERTED prime notation: 'G' = single pitch, 'G'' = G major scale
+-- This makes roots default to individual pitches (more intuitive)
+-- Wildcard token: "*" -> chromatic set
+parseFundsToken :: Text -> [PitchClass]
+parseFundsToken token
+  | T.null token = []
+  | token == "*" || token == "all" || token == "chr" = chromaticSet
+  | "'" `T.isSuffixOf` token =
+      -- INVERTED: Prime notation means KEY/SCALE in roots context
+      let noteToken = T.init token
+      in case noteNameToPitchClass noteToken of
+           Just pc ->
+             -- Map pitch class to key: C=0 fifths, G=1, D=2, F=-1, etc.
+             let fifths = case pc of
+                   0 -> 0   -- C major
+                   7 -> 1   -- G major (1#)
+                   2 -> 2   -- D major (2#)
+                   9 -> 3   -- A major (3#)
+                   4 -> 4   -- E major (4#)
+                   11 -> 5  -- B major (5#)
+                   6 -> 6   -- F# major (6#)
+                   1 -> -5  -- Db major (5b)
+                   8 -> -4  -- Ab major (4b)
+                   3 -> -3  -- Eb major (3b)
+                   10 -> -2 -- Bb major (2b)
+                   5 -> -1  -- F major (1b)
+                   _ -> 0
+             in keyPitches fifths
+           Nothing -> []
+  -- Check for key signature patterns FIRST (before note names)
+  -- This ensures "bb" = 2 flats (not Bb note), "###" = 3 sharps, etc.
+  -- But "b" = B note (not 1 flat) since single letters are notes
+  | T.length token > 1 && T.all (== '#') token = keyPitches (T.length token)
+  | T.length token > 1 && T.all (== 'b') token = keyPitches (negate $ T.length token)
+  -- Check for numbered key signatures like "1#", "2b"
+  | ("#" `T.isSuffixOf` token || "b" `T.isSuffixOf` token) && T.length token > 1 =
+      case parseKeySignature token of
         Just fifths -> keyPitches fifths
-        Nothing -> 
-          -- Otherwise parse as space-separated note names
-          mapMaybe noteNameToPitchClass $ T.words $ T.toLower input
+        Nothing ->
+          -- If it doesn't parse as key signature, try as note (e.g., "eb" = Eb note)
+          case noteNameToPitchClass token of
+            Just pc -> [pc]
+            Nothing -> []
+  -- Default: single pitch (so "G" = pitch 7, "D" = pitch 2, "b" = pitch 11, etc.)
+  | otherwise =
+      case noteNameToPitchClass token of
+        Just pc -> [pc]
+        Nothing ->
+          -- Last resort: try as key signature (e.g., single "#" = 1 sharp)
+          case parseKeySignature token of
+            Just fifths -> keyPitches fifths
+            Nothing -> []
 
 -- |Resolve roots with special options "key" and "tones".
 -- 
@@ -287,18 +416,22 @@ resolveRoots overtoneFilter keyFilter rootsFilter
 
 -- |Parse an overtones filter with full notation support.
 -- This is the most general parser, combining tuning notation with individual pitches.
+-- Supports removal with '-' prefix: "C E -E'" removes E pitch from (C ∪ E) overtones
 parseOvertones' :: Int -> Text -> [PitchClass]
 parseOvertones' n input
   | isWildcard input = chromaticSet
-  | otherwise = unique $ concatMap (parseGeneralToken n) tokens
-  where
-    tokens = T.words $ T.toLower input
+  | otherwise =
+      let (includes, excludes) = partitionTokens input
+          includePcs = unique $ concatMap (parseGeneralToken n) includes
+          excludePcs = unique $ concatMap (parseGeneralToken n) excludes
+      in includePcs \\ excludePcs
 
 -- |Parse a general token (could be note name, prime notation, or key signature)
 parseGeneralToken :: Int -> Text -> [PitchClass]
 parseGeneralToken n token
   | T.null token = []
-  | "'" `T.isSuffixOf` token = 
+  | token == "*" || token == "all" || token == "chr" = chromaticSet
+  | "'" `T.isSuffixOf` token =
       -- Prime notation: single pitch class only (legacy behavior)
       case noteNameToPitchClass (T.init token) of
         Just pc -> [pc]
@@ -424,3 +557,12 @@ matchesRoots rootsFilter rootPc
 -- |Remove duplicates and sort
 unique :: [PitchClass] -> [PitchClass]
 unique = sort . nub
+
+-- |Partition input tokens into positive and negative (those prefixed with '-')
+-- Returns (positive tokens, negative tokens with '-' prefix stripped)
+partitionTokens :: Text -> ([Text], [Text])
+partitionTokens input =
+  let tokens = T.words $ T.toLower input
+      (negTokens, posTokens) = partition (T.isPrefixOf "-") tokens
+      negTokens' = map (T.drop 1) negTokens
+  in (posTokens, negTokens')
