@@ -1,292 +1,349 @@
-## The Harmonic Algorithm
+# theHarmonicAlgorithm
 
-`theHarmonicAlgorithm` is an environment for generating harmonic progressions from the Yale Classical Archives Corpus (YCACL), storing cadence transitions inside Neo4j, and reusing that graph as the live-coding backend (via TidalCycles/SuperCollider).
+**Generate harmonic progressions trained on the Yale Classical Archives Corpus**
 
-See [USER_GUIDE.md](USER_GUIDE.md) for the complete workflow guide.
+A Haskell library that combines music theory, graph databases, and probabilistic selection to create musically coherent chord progressions for live coding with TidalCycles.
+
+---
+
+## What It Does
+
+theHarmonicAlgorithm generates harmonic progressions by learning from Bach chorales in the Yale Classical Archives Corpus (YCACL). It stores cadence transitions in Neo4j, applies harmonic constraints, and selects chords probabilistically.
+
+**Key Features:**
+- **Training on classical repertoire**: Learn harmonic patterns from 60 Bach chorales
+- **Flexible constraints**: Filter by overtones, key signatures, and root motion
+- **Probabilistic selection**: Gamma-distribution sampling balances exploration and exploitation
+- **TidalCycles integration**: Pattern-based lookup with infinite cycling for live coding
+- **Voice leading optimization**: Dynamic programming for smooth chord progressions
+- **Comprehensive test suite**: 379 examples validating music theory and generation
+
+**Who It's For:**
+- Live coders using TidalCycles and SuperCollider
+- Composers exploring algorithmic harmony
+- Music researchers interested in computational creativity
+
+---
+
+## Quick Start (5 Minutes)
 
 ### Prerequisites
 
-- [Stack](https://docs.haskellstack.org/) with a working GHC toolchain (project currently uses GHC 9.6.7).
-- R with the tidyverse installed (for the YCACL exporter).
-- Docker (or another Neo4j runtime). The repo ships with `docker-compose.yml` that exposes Bolt on `7687` with `NEO4J_AUTH=neo4j/password`.
+- **Haskell Stack**: [Install Stack](https://docs.haskellstack.org/) with GHC 9.6.7
+- **Docker**: For running Neo4j database
+- **TidalCycles** (optional): For live coding integration
 
-### Quick start
+### Installation
 
 ```bash
-stack build          # compile
-stack test           # run test suite (301 examples)
+# Step 1: Clone and build
+git clone https://github.com/OscarSouth/theHarmonicAlgorithm
+cd theHarmonicAlgorithm
+stack build
+
+# Step 2: Start Neo4j database
 docker compose up -d neo4j
-stack run            # populate Neo4j with cadence graph
+
+# Step 3: Populate database with Bach chorales
+stack run
+# Expected: "Cadence count: ~5000, Transition count: ~15000"
+
+# Step 4: Run tests to verify everything works
+stack test
+# Expected: "379 examples, 0 failures"
 ```
 
-### Unified Generation Interface
+### First Progression
 
-Three functions, one signature, seamless switching:
+```bash
+stack ghci
+```
 
 ```haskell
-genSilent   start len "*" 0.5 ctx  -- No output (production)
-genStandard start len "*" 0.5 ctx  -- Standard diagnostics (exploration)
-genVerbose  start len "*" 0.5 ctx  -- Verbose traces (debugging)
+:set -XOverloadedStrings
+import Harmonic.Lib
+
+-- Create context and starting point
+ctx <- harmonicContext "*" "*" "*"  -- No filtering (wildcard)
+let start = initCadenceState 0 "C" [0,4,7] FlatSpelling  -- C major
+
+-- Generate 4-chord progression
+prog <- genSilent start 4 "*" 0.5 ctx
+print prog
 ```
 
-All return `IO Progression` with diagnostics printed as side effects.
-
-### Architecture Overview
-
-The system is organized into four layers:
-
-| Layer | Name | Role | Key Modules |
-|-------|------|------|-------------|
-| **A** | Memory | Ingestion – R export, CSV parsing, Neo4j writes | `export_ycacl.R`, `Ingestion/*`, `Graph.hs` |
-| **B** | Brain | Types – pitch-class algebra, harmony naming, voice leading | `Pitch.hs`, `Harmony.hs`, `Overtone.hs`, `VoiceLeading.hs` |
-| **C** | Hands | IO – database queries, builder logic, probabilistic selection | `Query.hs`, `Builder.hs`, `Probabilistic.hs` |
-| **D** | Voice | Interface – TidalCycles bridge, pattern lookup, arrangement | `Interface.hs`, `Arranger.hs`, `BootTidal.hs` |
-
-#### Layer Constraints & Zero-Form Invariant
-
-- **CRITICAL:** All Cadence objects store intervals in **zero-form** `[P 0, ...]` (relative, pitch-agnostic). This enables transposition: `posterior chord = rootPC + cadenceIntervals`.
-- **Layer A (Memory):** Database stores zero-form cadences normalized during ingestion. All three codepaths (DB query, toCadence, fallback generation) enforce zero-form normalization.
-- **Layer B (Brain):** Strict types (`PitchClass` newtype with ℤ₁₂ algebra), **constructive generation** via `possibleTriads` (no enumeration), legacy `nameFunc` fidelity preserved. `zeroFormPC` ensures semantic consistency across all cadence sources. **Enharmonic spelling** determined by `selectEnharm` with context-aware rules (see Conventions section below).
-- **Layer C (Hands):** Follows **R→E→T pipeline** order (Rules filter → Evaluation rank → Traversal walk). Three-part `HarmonicContext` filtering (overtones, key, roots). Gamma sampling for weighted selection. Homing logic activates at 75% threshold. Fallback generation produces zero-form cadences matching database format. Enharmonic spelling carries through state transitions via `advanceStateTraced`.
-- **Layer D (Voice):** `lookupChord` uses **modulo wrap** for infinite pattern cycling. `arrange` preserves launcher paradigm compatibility. Visual `Show` instance displays 4-column grid with bar labels. Enharmonic spelling determined by CadenceState and propagated through voicing.
-
-### Layer B Core Modules
-
-The `src/Harmonic/Core/` directory contains modular, well-typed music theory primitives:
-
-| Module | Purpose |
-|--------|---------|
-| `Pitch.hs` | `PitchClass` newtype with ℤ₁₂ algebra (Num, Monoid), constructors `pc`/`mkPitchClass`, `transpose` |
-| `Harmony.hs` | Chord/triad naming with **separate** `nameFuncTriad` (3 pitches) and `nameFuncChord` (extended); `normalForm`, `primeForm`, `zeroForm`, `toMovement` |
-| `Overtone.hs` | `Overtones` newtype, `fromPitchClasses`, Hindemith dissonance ranking |
-| `VoiceLeading.hs` | Cyclic DP voice leading, `solveRoot`/`solveFlow`, parallel fifths penalty |
-| `Progression.hs` | `Progression` type with Semigroup/Monoid, rotation, excerpt, transpose, expand, fuse |
-| `MusicData.hs` | Legacy monolith (still used by ingestion pipeline) |
-
-### Layer C Hands Modules
-
-Layer C implements the **CSF (Creative Systems Framework)** pipeline: **R** (Rules) → **E** (Evaluation) → **T** (Traversal).
-
-| Module | Purpose |
-|--------|---------|
-| `Probabilistic.hs` | Gamma distribution sampling for weighted selection; `gammaIndex`, `gammaSelect`, `gammaSequence` |
-| `Builder.hs` | Main generation engine; **three unified functions** (`genSilent`, `genStandard`, `genVerbose`), `HarmonicContext`, `GeneratorConfig` |
-| `Query.hs` | Neo4j read interface; `parseComposerWeights`, `fetchTransitions`, `resolveWeights` |
-| `Interface.hs` | TidalCycles bridge; `lookupProgression`, `voiceBy`, modulo wrap, `arrange` |
-
-### Layer D Voice Modules
-
-Layer D provides the TidalCycles integration and visual output:
-
-| Module | Purpose |
-|--------|---------|
-| `Interface.hs` | Pattern lookup with **modulo wrap** (index 4 on 4-chord prog → 0), `lookupProgression`, `voiceBy` |
-| `Arranger.hs` | Voicing strategies, `arrange` preserves launcher paradigm |
-| `BootTidal.hs` | TidalCycles boot script with progression helpers |
-
-**Composer Weight Parsing:**
-```haskell
-parseComposerWeights "bach debussy"      -- Equal weights: 0.5/0.5
-parseComposerWeights "bach:30 debussy:70" -- Weighted: 0.3/0.7
+**Expected output**:
+```
+C maj → F maj → G maj → C maj
 ```
 
-**Harmonic Context (R constraints):**
+---
 
-The filter notation from the original Harmonic Algorithm CLI is fully supported:
+## Architecture Overview
 
-| Filter | Purpose | Examples |
-|--------|---------|----------|
-| **Overtones** | Limit to overtone series of fundamentals | `"E A D G"` (bass tuning), `"C"`, `"*"` |
-| **Prime (')** | Add individual pitch classes | `"E'"`, `"G E' A' A#'"` (G overtones + E, A, A#) |
-| **Key (sharps)** | Key signature filtering | `"#"` (G), `"##"` (D), `"1#"`, `"2#"` |
-| **Key (flats)** | Key signature filtering | `"b"` (F), `"bb"` (Bb), `"1b"`, `"2b"` |
-| **Named key** | Key by name | `"C"`, `"G"`, `"F#"`, `"Bb"` |
-| **Roots** | Limit bass notes | `"E F# G"`, `"1b"`, `"##"` |
-| **Wildcard** | Match all | `"*"`, `"all"`, `"chr"` |
+theHarmonicAlgorithm implements the **Creative Systems Framework (R→E→T)**:
+
+```
+   RULES (R)              EVALUATION (E)          TRAVERSAL (T)
+Define valid chords ───▶ Score chord quality ───▶ Select probabilistically
+```
+
+- **Rules (R)**: Defines valid harmonic possibilities (overtones, key signatures, root motion)
+- **Evaluation (E)**: Scores quality using dissonance and voice leading costs
+- **Traversal (T)**: Selects next chord using gamma-distribution sampling
+
+**Four-Layer Architecture:**
+
+```
+Layer D: VOICE       ─ TidalCycles interface, pattern lookup
+         │
+Layer C: HANDS       ─ Evaluation (scoring) + Traversal (selection)
+         │
+Layer B: BRAIN       ─ Music theory types (Pitch, Harmony, Progression)
+         │
+Layer A: MEMORY      ─ Data ingestion (CSV parsing, Neo4j writes)
+```
+
+**For detailed architecture**, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
+---
+
+## Usage Examples
+
+### Generate Progressions
 
 ```haskell
-defaultContext                           -- "*" wildcards (no filtering)
-harmonicContext "*" "1#" "1#"            -- G major key and root motion
-harmonicContext "E A D G" "*" "*"        -- Bass tuning overtones
-harmonicContext "G E' A' A#'" "*" "E G"  -- G overtones + blues notes, E/G roots
+import Harmonic.Lib
+
+-- Create context and starting state
+ctx <- harmonicContext "*" "*" "*"
+let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+
+-- Different verbosity levels
+prog1 <- genSilent start 8 "*" 0.5 ctx    -- No diagnostics
+prog2 <- genStandard start 8 "*" 0.5 ctx  -- Standard logging
+prog3 <- genVerbose start 8 "*" 0.5 ctx   -- Full trace
+
+-- Control entropy (exploration vs exploitation)
+lowEntropy  <- genSilent start 8 "*" 0.2 ctx  -- Conservative (high-weight cadences)
+highEntropy <- genSilent start 8 "*" 0.8 ctx  -- Exploratory (deeper sampling)
 ```
 
-**Test coverage:** `stack test` runs 309 examples across all four layers, verifying:
-- Layer B: ℤ₁₂ arithmetic, zero-form normalization, triad/chord naming, voice leading costs
-- Layer C: Composer weight parsing, context filtering, fallback cadence generation (zero-form)
-- Layer D: TidalCycles interface, modulo wrap, enharmonic rendering
-All cadence sources (DB, toCadence, fallback) are verified to produce semantically consistent zero-form intervals.
+### Apply Constraints
 
-### Data preparation
+```haskell
+-- Key filtering (G major - 1 sharp)
+let gMajorCtx = harmonicContext "*" "1#" "*"
+prog <- genSilent start 8 "*" 0.5 gMajorCtx
 
-1. Ensure the YCACL CSV corpus and metadata exist under `musicdata/` (see `musicdata/YCACL` and `musicdata/YCAC-metadata.csv`).
-2. From the project root run:
+-- Overtone filtering (bass guitar tuning E-A-D-G)
+let bassCtx = harmonicContext "E A D G" "*" "*"
+prog <- genSilent start 8 "*" 0.5 bassCtx
 
-	```bash
-	Rscript scripts/export_ycacl.R ../musicdata/YCACL ../musicdata/YCAC-metadata.csv/YCAC-metadata.csv data/ycacl_sequences.csv
-	```
+-- Combined: D major key and roots
+let dMajorCtx = harmonicContext "*" "##" "##"
+prog <- genSilent start 8 "*" 0.5 dMajorCtx
 
-	The exporter normalizes composer names, filters to triads/quartal voicings of 3–7 voices, and writes a tall CSV (`composer,piece,order,pitches,fundamental`). The `fundamental` column stores the lowest pitch-class integer (0–11) inferred from each slice. When an ultra-low pedal tone merely doubles the same pitch class in higher registers (e.g., `A--1` under `A-1`/`A1`), the exporter promotes the higher voice so that the stored fundamental reflects the harmonic root rather than the duplicated pedal. The parser keeps the original high→low ordering quirks in mind, so runs like `B-1 B--1` retain the distinction between Bb/1 and Bb/−1 while we evaluate potential doublings.
-
-### Populating Neo4j
-
-1. Start the bundled database: `docker compose up neo4j` (or reuse an existing instance by editing `Harmonic.Config`).
-2. Run the ingestion executable:
-
-	```bash
-	stack run
-	```
-
-	The `Main` module logs every composer, cadence count, and transition count before writing. Each run now triggers a memory-safe APOC purge (`apoc.periodic.iterate "MATCH (n:Cadence) RETURN n" "DETACH DELETE n" {batchSize:5000,parallel:true}`) so cadences and `NEXT` edges from previous sessions are cleared in batches before reloading the graph. Once the delete completes, the pipeline re-creates the schema constraint and writes the fresh transition set.
-
-3. Validate the graph with `cypher-shell`:
-
-	```bash
-	docker exec theHarmonicAlgorithm-neo4j \
-	  cypher-shell -u neo4j -p password "MATCH (c:Cadence) RETURN count(c)"
-	docker exec theHarmonicAlgorithm-neo4j \
-	  cypher-shell -u neo4j -p password "MATCH ()-[r:NEXT]->() RETURN count(r)"
-	```
-
-### Composer filtering
-
-`composerInclude` in [app/Main.hs](app/Main.hs) lists every normalized YCACL composer. Only Bach, Debussy, and Stravinsky are uncommented by default; remove `--` prefixes to bring more composers into the training set. Use `composerExclude` for quick overrides when you want to keep the master list intact.
-
-### Code map
-
-**Layer A — Memory** (Ingestion)
-- [scripts/export_ycacl.R](scripts/export_ycacl.R) — R exporter, constrained to include list, 3–7 voices
-- [src/Harmonic/Ingestion/CSV.hs](src/Harmonic/Ingestion/CSV.hs) — loads the YCACL artifact
-- [src/Harmonic/Ingestion/Transform.hs](src/Harmonic/Ingestion/Transform.hs) — converts pitch-class lists into cadences
-- [src/Harmonic/Analysis/Markov.hs](src/Harmonic/Analysis/Markov.hs) — transition counts and probabilities
-- [src/Harmonic/Database/Graph.hs](src/Harmonic/Database/Graph.hs) — Neo4j writer (stores relative movements, pitch-agnostic)
-
-**Layer B — Brain** (`src/Harmonic/Core/`)
-- [Pitch.hs](src/Harmonic/Core/Pitch.hs) — `PitchClass` newtype with ℤ₁₂ arithmetic
-- [Harmony.hs](src/Harmonic/Core/Harmony.hs) — chord/triad naming (separate `nameFuncTriad` / `nameFuncChord`), set-theory ops
-- [Overtone.hs](src/Harmonic/Core/Overtone.hs) — Hindemith dissonance ranking, constructive generation via `possibleTriads`
-- [VoiceLeading.hs](src/Harmonic/Core/VoiceLeading.hs) — voice-leading cost, optimal voicing
-- [Progression.hs](src/Harmonic/Core/Progression.hs) — `Progression` combinator library
-- [Filter.hs](src/Harmonic/Core/Filter.hs) — legacy filter notation parser (overtones, keys, roots)
-- [MusicData.hs](src/Harmonic/Core/MusicData.hs) — legacy monolith (still used by ingestion)
-- [Probabilistic.hs](src/Harmonic/Core/Probabilistic.hs) — gamma distribution sampling for weighted selection
-
-**Layer C — Hands** (`src/Harmonic/Database/`, `src/Harmonic/Tidal/`)
-- [Query.hs](src/Harmonic/Database/Query.hs) — Neo4j read interface, composer weight parsing, transition resolution
-- [Builder.hs](src/Harmonic/Tidal/Builder.hs) — generation engine, `HarmonicContext` (R constraints), R→E→T pipeline, `generate` function
-
-**Layer D — Voice** (`src/Harmonic/Tidal/`)
-- [Interface.hs](src/Harmonic/Tidal/Interface.hs) — TidalCycles bridge, `lookupProgression`, `voiceBy`, modulo wrap, `arrange`
-
-**Layer B Tests** (`test/Harmonic/Core/`)
-- [PitchSpec.hs](test/Harmonic/Core/PitchSpec.hs) — ℤ₁₂ wraparound, Monoid laws
-- [HarmonySpec.hs](test/Harmonic/Core/HarmonySpec.hs) — triad/chord naming golden tests
-- [OvertoneSpec.hs](test/Harmonic/Core/OvertoneSpec.hs) — dissonance ranking
-- [VoiceLeadingSpec.hs](test/Harmonic/Core/VoiceLeadingSpec.hs) — cost metrics, parallel fifths
-- [ProgressionSpec.hs](test/Harmonic/Core/ProgressionSpec.hs) — Semigroup/Monoid laws, combinators
-- [FilterSpec.hs](test/Harmonic/Core/FilterSpec.hs) — legacy filter notation parsing
-
-**Layer C/D Tests** (`test/Harmonic/`)
-- [ProbabilisticSpec.hs](test/Harmonic/Core/ProbabilisticSpec.hs) — gamma sampling statistics
-- [QuerySpec.hs](test/Harmonic/Database/QuerySpec.hs) — composer weight parsing
-- [BuilderSpec.hs](test/Harmonic/Core/BuilderSpec.hs) — generation engine config
-- [InterfaceSpec.hs](test/Harmonic/Tidal/InterfaceSpec.hs) — TidalCycles pattern tests, modulo wrap
-
-**Live coding**
-- [live/](live/) — TidalCycles boot scripts
-
-## Conventions & Decisions
-
-### Enharmonic Spelling (`selectEnharm`)
-
-The system uses **persistence-based context-aware enharmonic spelling** to choose between equivalent pitches (C#/Db, D#/Eb, etc.). The `selectEnharm` function implements four-tier rules:
-
-1. **Same Pitch Class** (highest priority)
-   - If prior and posterior have the **same pitch class**, use prior's actual spelling
-   - Example: D# → D# keeps Sharp, Eb → Eb keeps Flat
-
-2. **C is Flexible**
-   - C (pitch class 0) has no preference, adopts adjacent pitch preferences
-   - Prior is C + posterior is definite → adopt posterior's preference
-   - Posterior is C + prior is definite → adopt prior's actual spelling
-
-3. **Both Definite (different pitch classes) - Consensus-Based**
-   - If prior's actual spelling matches posterior's preference → persist (consensus)
-   - If both have **same preference** AND it differs from prior's actual → switch (consensus to switch)
-   - Otherwise → persist prior's actual spelling (disagreement)
-
-**Example Trace:**
-```
-Db (FlatPref, actual Flat) → D (SharpPref) → disagree → persist Flat
-D (SharpPref, actual Flat) → E (SharpPref) → both prefer Sharp → switch to Sharp!
-E (SharpPref, actual Sharp) → Eb (FlatPref) → disagree → persist Sharp
-Eb (FlatPref, actual Sharp) → Db (FlatPref) → both prefer Flat → switch to Flat
-Db (FlatPref, actual Flat) → Db → same PC → persist Flat
+-- Prime notation (exact pitch-classes without overtones)
+let bluesCtx = harmonicContext "G E' A' A#'" "*" "E G"
+prog <- genSilent start 8 "*" 0.5 bluesCtx
 ```
 
-This approach prevents spelling churn while enabling natural key transitions guided by pitch preferences and consensus.
+**Filter Notation:**
+- **Overtones**: `"E A D G"` (fundamentals), `"C"` (single overtone series), `"*"` (wildcard)
+- **Prime**: `"C'"` (exact pitch-class C, no overtones), `"E'"` (exact E)
+- **Key signatures**: `"1#"` (G major), `"2b"` (Bb major), `"##"` (D major)
+- **Roots**: `"E F# G"` (specific roots), `"1#"` (G major scale roots)
 
-### Other Conventions
+### TidalCycles Integration
 
-- Only triads with ≥3 distinct pitch classes participate; slices exceeding 7 voices are filtered at export time.
-- Fundamentals are trusted inputs from the exporter; ingestion reads `sliceFundamental` instead of recomputing bass.
-- Multi-triad duplication replaces fractional weighting: most consonant appears 3×, then 2×, then 1× in cadence stream.
-- Neo4j writes are additive across composers; MERGE keeps existing cadences, and truncation runs before each ingestion to guarantee determinism.
-- **Layer B naming functions are SEPARATE**: `nameFuncTriad` for triads, `nameFuncChord` for extended harmonies—ported verbatim from legacy.
-- **zeroForm subtracts the FIRST element** (not minimum), matching legacy behavior.
-- **Layer C composer weights** support three formats: space-separated equal ("bach debussy"), colon-weighted ("bach:30 debussy:70"), and comma-separated.
-- **Layer D lookupChord uses modulo wrap**: index 4 on a 4-chord progression returns index 0, enabling infinite cycling.
-- **Layer C HarmonicContext** uses three-part filtering (overtones, key, roots) with legacy notation: `"*"` = wildcard, `"1#"` = G major, `"2b"` = Bb major, note names like `"c"`, `"eb"`.
-- **String wrappers for TidalCycles**: Use `hContext` (not `HarmonicContext`), `gen`/`genWith` (not `generate`), `overtones`, `key`, `funds`, `wildcard` in the Tidal REPL.
+```haskell
+-- Generate a progression
+ctx <- harmonicContext "*" "*" "*"
+let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+prog <- genSilent start 16 "*" 0.5 ctx
 
-### Typical workflow
+-- Use in TidalCycles patterns
+d1 $ note (harmony prog "<0 1 2 3>") # s "superpiano"
 
-1. `docker compose up -d neo4j`
-2. `Rscript scripts/export_ycacl.R …` (re-run when the corpus changes)
-3. `stack run` (creates/updates graph, logs per-composer progress)
-4. Inspect Neo4j or export derived playlists/patterns
-5. Fire up SuperCollider + Tidal to improvise with the stored cadences.
+-- Pattern-based lookup with modulo wrap
+-- Index 16 on a 16-chord progression wraps to 0 (infinite cycling)
+d1 $ note (harmony prog (run 16)) # s "superpiano"
 
-### Notes on database resets
-
-Running `stack run` now wipes only the `Cadence`/`NEXT` subgraph via APOC's batched delete before repopulating it, so you get a deterministic rebuild without exhausting heap space. If you truly want to drop every Neo4j object (indexes, other custom nodes, etc.), stop the container and delete the mounted volume (`docker compose down -v neo4j`) as before.
-
-### Database Schema
-
-The Neo4j graph stores cadence transitions using the following structure:
-
-#### Cadence Node Properties
-
-| Property     | Type    | Description |
-|--------------|---------|-------------|
-| `show`       | String  | Unique key: `"( <movement> -> <functionality> )"` |
-| `movement`   | String  | Root motion (e.g., `"desc 2"`, `"pedal"`) — pitch-agnostic |
-| `chord`      | String  | Target pitch classes (e.g., `"[P 0,P 9,P 11]"`) |
-| `dissonance` | Integer | Hindemith ranking hint |
-
-A uniqueness constraint exists on `Cadence.show`.
-
-#### NEXT Relationships
-
-Cadence transitions are represented by `[:NEXT]` edges with a `weights` property containing per-composer counts as a JSON string.
-
-```cypher
--- Inspect node structure
-MATCH (c:Cadence) RETURN keys(c) AS props LIMIT 1;
--- => ["show", "movement", "dissonance", "chord"]
-
--- Sample cadences
-MATCH (c:Cadence) RETURN c.show, c.movement, c.chord, c.dissonance LIMIT 5;
-
--- Sample transitions
-MATCH (from:Cadence)-[r:NEXT]->(to:Cadence)
-RETURN from.show, r.weights, to.show LIMIT 5;
+-- Extract different voices
+d1 $ note (voiceBy Roots prog (run 8)) # s "bass"
+d1 $ note (voiceBy Harmony prog "<0 2 4 6>") # s "superpiano"
 ```
 
-#### Round-Tripping
+**Full TidalCycles guide**: [live/USER_GUIDE.tidal](live/USER_GUIDE.tidal)
 
-Data is serialized via `deconstructCadence` and deserialized via `constructCadence` (see `MusicData.hs`). The `movement` and `chord` fields are stored as text to enable pitch-agnostic storage; transposition happens at runtime.
+---
 
-### Live Coding
+## Documentation
 
-For TidalCycles workflow instructions, see [USER_GUIDE.md](USER_GUIDE.md).
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Comprehensive technical reference (R→E→T framework, module structure, core concepts)
+- **[live/USER_GUIDE.tidal](live/USER_GUIDE.tidal)** - Interactive TidalCycles tutorial with examples
+- **[CLAUDE.md](CLAUDE.md)** - Development guidelines for contributors (vertical slices, testing, legacy comparison)
+- **[IMPROVEMENTS.md](IMPROVEMENTS.md)** - Tracked opportunities for optimization and enhancement
+
+---
+
+## Key Concepts
+
+### Zero-Form Invariant
+
+All cadences are stored as **relative intervals** starting at pitch-class 0, making the graph transposition-invariant:
+
+```
+C major → F major  =  Up 5 semitones + [0,4,7]
+G major → C major  =  Up 5 semitones + [0,4,7]
+                      ↑ Same relative movement!
+```
+
+**Why?**
+- Dataset not biased toward common keys
+- Smaller transition matrix (12× fewer states)
+- Emphasizes cadence movement not chord identity
+
+### Layer Boundaries
+
+Architecture enforces clean dependency flow:
+- Layer B (Types) **cannot** import from C or D
+- Layer C (Evaluation/Traversal) may import from B but **not** D
+- Layer D (Interface) may import from B and C
+
+**Prevents** circular dependencies and ensures unidirectional data flow.
+
+### Composer Specification
+
+Currently **not implemented** - use `"*"` for all operations to aggregate all composer intent from the deterministic graph.
+
+Planned for future release: per-composer filtering (e.g., `"bach"`, `"debussy"`) and weighted blending (e.g., `"bach:70 debussy:30"`).
+
+---
+
+## Development
+
+### Build Commands
+
+```bash
+stack build      # Compile library and executable
+stack test       # Run test suite (379 examples)
+stack ghci       # Interactive REPL for testing
+stack run        # Populate Neo4j with YCACL corpus
+stack haddock    # Generate API documentation
+```
+
+### Project Structure
+
+```
+src/Harmonic/
+├── Framework/      - Builder and orchestration (R→E→T pipeline)
+├── Rules/          - Types and constraints (validity)
+├── Evaluation/     - Scoring (dissonance, voice leading, database)
+├── Traversal/      - Selection (probabilistic sampling)
+└── Interface/      - TidalCycles integration
+
+test/               - HSpec + QuickCheck test suite
+live/               - TidalCycles boot scripts and examples
+musicdata/          - Yale Classical Archives Corpus (Bach chorales)
+scripts/            - R scripts for corpus preprocessing
+```
+
+### Contributing
+
+See [CLAUDE.md](CLAUDE.md) for detailed development guidelines:
+- Vertical slice methodology (minimum deliverable units)
+- Mandatory verification (tests + REPL)
+- Legacy comparison workflow
+- Layer boundary enforcement
+
+**Before contributing**:
+1. Ensure Neo4j is running (`docker compose up -d neo4j`)
+2. Run full test suite (`stack test`)
+3. Verify behavior matches legacy implementation where applicable
+
+---
+
+## Data Preparation (Optional)
+
+The repository includes preprocessed YCACL data. To regenerate from source:
+
+```bash
+# Requires R with tidyverse
+Rscript scripts/export_ycacl.R \
+  musicdata/YCACL \
+  musicdata/YCAC-metadata.csv \
+  data/ycacl_sequences.csv
+```
+
+The exporter:
+- Filters to triads/quartal voicings (3-7 voices)
+- Normalizes composer names
+- Extracts fundamentals (lowest pitch-class)
+- Writes tall CSV format (`composer,piece,order,pitches,fundamental`)
+
+---
+
+## License
+
+MIT License - see [LICENSE](LICENSE) for details.
+
+---
+
+## Acknowledgments
+
+- **Geraint A. Wiggins** - Creative Systems Framework (R→E→T)
+- **Alex McLean** - TidalCycles live coding environment
+- **UCI Machine Learning Repository** - Yale Classical Archives Corpus (Bach chorales dataset)
+- **Paul Hindemith** - Interval dissonance theory (The Craft of Musical Composition, 1937)
+
+---
+
+## Troubleshooting
+
+**Neo4j connection fails:**
+```bash
+# Check Neo4j is running
+curl -s http://localhost:7474
+# Expected: HTML page
+
+# Verify credentials in src/Harmonic/Config.hs
+-- default: bolt://localhost:7687 with neo4j/password
+```
+
+**Build errors:**
+```bash
+# Clean and rebuild
+stack clean
+stack build
+
+# Update package index
+stack update
+```
+
+**Tests fail:**
+```bash
+# Ensure Neo4j is running (some tests require database)
+docker compose up -d neo4j
+
+# Run specific test suite
+stack test --test-arguments="--match Pitch"
+```
+
+**Generation returns empty progressions:**
+```bash
+# Verify database is populated
+docker exec -it theHarmonicAlgorithm-neo4j \
+  cypher-shell -u neo4j -p password \
+  "MATCH (c:Cadence) RETURN count(c)"
+
+# Expected: ~5000 cadences
+# If 0, run: stack run
+```
+
+---
+
+**Version**: 3.0.0
+**Last Updated**: 2026-01-14
+**Repository**: https://github.com/OscarSouth/theHarmonicAlgorithm

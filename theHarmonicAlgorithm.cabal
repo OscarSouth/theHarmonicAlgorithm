@@ -13,26 +13,26 @@ build-type:     Simple
 library
   exposed-modules:
       Harmonic.Lib
-      Harmonic.Core.Pitch
-      Harmonic.Core.Harmony
-      Harmonic.Core.Dissonance
-      Harmonic.Core.Overtone
-      Harmonic.Core.VoiceLeading
-      Harmonic.Core.Progression
-      Harmonic.Core.Filter
-      Harmonic.Core.Probabilistic
-      Harmonic.Core.Builder
-      Harmonic.Database.Query
-      Harmonic.Analysis.Markov
-      Harmonic.Database.Graph
-      Harmonic.Ingestion.CSV
-      Harmonic.Ingestion.Types
-      Harmonic.Ingestion.Transform
-      Harmonic.Tidal.Interface
-      Harmonic.Tidal.Arranger
-      Harmonic.Tidal.Instruments
-      Harmonic.Tidal.Utils
       Harmonic.Config
+      Harmonic.Framework.Builder
+      Harmonic.Rules.Types.Pitch
+      Harmonic.Rules.Types.Harmony
+      Harmonic.Rules.Types.Progression
+      Harmonic.Rules.Constraints.Filter
+      Harmonic.Rules.Constraints.Overtone
+      Harmonic.Rules.Import.CSV
+      Harmonic.Rules.Import.Types
+      Harmonic.Rules.Import.Transform
+      Harmonic.Rules.Import.Graph
+      Harmonic.Evaluation.Scoring.Dissonance
+      Harmonic.Evaluation.Scoring.VoiceLeading
+      Harmonic.Evaluation.Database.Query
+      Harmonic.Evaluation.Analysis.Markov
+      Harmonic.Traversal.Probabilistic
+      Harmonic.Interface.Tidal.Bridge
+      Harmonic.Interface.Tidal.Arranger
+      Harmonic.Interface.Tidal.Instruments
+      Harmonic.Interface.Tidal.Utils
   other-modules:
       Paths_theHarmonicAlgorithm
   hs-source-dirs:
@@ -97,17 +97,17 @@ test-suite theHarmonicAlgorithm-test
   type: exitcode-stdio-1.0
   main-is: Spec.hs
   other-modules:
-      Harmonic.Core.BuilderSpec
-      Harmonic.Core.DissonanceSpec
-      Harmonic.Core.FilterSpec
-      Harmonic.Core.HarmonySpec
-      Harmonic.Core.OvertoneSpec
-      Harmonic.Core.PitchSpec
-      Harmonic.Core.ProbabilisticSpec
-      Harmonic.Core.ProgressionSpec
-      Harmonic.Core.VoiceLeadingSpec
-      Harmonic.Database.QuerySpec
-      Harmonic.Tidal.InterfaceSpec
+      Harmonic.Evaluation.Database.QuerySpec
+      Harmonic.Evaluation.Scoring.DissonanceSpec
+      Harmonic.Evaluation.Scoring.VoiceLeadingSpec
+      Harmonic.Framework.BuilderSpec
+      Harmonic.Interface.Tidal.BridgeSpec
+      Harmonic.Rules.Constraints.FilterSpec
+      Harmonic.Rules.Constraints.OvertoneSpec
+      Harmonic.Rules.Types.HarmonySpec
+      Harmonic.Rules.Types.PitchSpec
+      Harmonic.Rules.Types.ProgressionSpec
+      Harmonic.Traversal.ProbabilisticSpec
       Paths_theHarmonicAlgorithm
   hs-source-dirs:
       test

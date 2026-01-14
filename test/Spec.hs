@@ -23,19 +23,19 @@ module Main where
 import Test.Hspec
 
 -- Phase B: Core Music Types
-import qualified Harmonic.Core.PitchSpec as PitchSpec
-import qualified Harmonic.Core.HarmonySpec as HarmonySpec
-import qualified Harmonic.Core.OvertoneSpec as OvertoneSpec
-import qualified Harmonic.Core.VoiceLeadingSpec as VoiceLeadingSpec
-import qualified Harmonic.Core.ProgressionSpec as ProgressionSpec
-import qualified Harmonic.Core.FilterSpec as FilterSpec
-import qualified Harmonic.Core.DissonanceSpec as DissonanceSpec
+import qualified Harmonic.Rules.Types.PitchSpec as PitchSpec
+import qualified Harmonic.Rules.Types.HarmonySpec as HarmonySpec
+import qualified Harmonic.Rules.Constraints.OvertoneSpec as OvertoneSpec
+import qualified Harmonic.Evaluation.Scoring.VoiceLeadingSpec as VoiceLeadingSpec
+import qualified Harmonic.Rules.Types.ProgressionSpec as ProgressionSpec
+import qualified Harmonic.Rules.Constraints.FilterSpec as FilterSpec
+import qualified Harmonic.Evaluation.Scoring.DissonanceSpec as DissonanceSpec
 
 -- Phase C: Interactive Behaviour
-import qualified Harmonic.Core.ProbabilisticSpec as ProbabilisticSpec
-import qualified Harmonic.Core.BuilderSpec as BuilderSpec
-import qualified Harmonic.Database.QuerySpec as QuerySpec
-import qualified Harmonic.Tidal.InterfaceSpec as InterfaceSpec
+import qualified Harmonic.Traversal.ProbabilisticSpec as ProbabilisticSpec
+import qualified Harmonic.Framework.BuilderSpec as BuilderSpec
+import qualified Harmonic.Evaluation.Database.QuerySpec as QuerySpec
+import qualified Harmonic.Interface.Tidal.BridgeSpec as InterfaceSpec
 
 main :: IO ()
 main = hspec $ do

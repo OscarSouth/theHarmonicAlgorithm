@@ -76,6 +76,109 @@ stack test
 
 Only proceed if all checks pass.
 
+## Memory Systems (MCP Servers)
+
+This project uses **two memory systems** to preserve knowledge across sessions. Both should be actively used throughout development.
+
+### System 1: mem0 (Conversational Memory)
+
+**Purpose**: Stores project context, user preferences, and workflow patterns as natural language memories.
+
+**When to use**:
+- At the **start of each session**: Query to recall project context
+- When discovering **new patterns or quirks** in the codebase
+- When the user expresses a **preference or constraint**
+- At the **end of a session**: Store key learnings
+
+**Query existing memories**:
+```
+Tool: mcp__mem0__search-memories
+- query: "Neo4j database" or "vertical slices" or "composer specification"
+- userId: "mem0-mcp-user"
+```
+
+**Add new memories**:
+```
+Tool: mcp__mem0__add-memory
+- content: "User prefers X approach for Y feature"
+- userId: "mem0-mcp-user"
+```
+
+**Current memories include**:
+- Neo4j connection requirements and startup
+- Legacy codebase as source of truth
+- Vertical slice workflow preferences
+- Composer specification status (not implemented)
+- Architecture layers and boundaries
+- Zero-form invariant
+- Code minimization principles
+
+### System 2: memory (Knowledge Graph)
+
+**Purpose**: Stores structured entities and relations representing the codebase architecture.
+
+**When to use**:
+- To understand **module dependencies** before making changes
+- When exploring how components **relate to each other**
+- To identify **which modules to check** when debugging
+- When **adding new modules** (create entities and relations)
+
+**Read the full graph**:
+```
+Tool: mcp__memory__read_graph
+```
+
+**Query specific nodes**:
+```
+Tool: mcp__memory__search_nodes
+- query: "Builder" or "TidalCycles" or "Layer B"
+```
+
+**Add new entities**:
+```
+Tool: mcp__memory__create_entities
+- entities: [{"name": "NewModule", "entityType": "CoreModule", "observations": ["description"]}]
+```
+
+**Add new relations**:
+```
+Tool: mcp__memory__create_relations
+- relations: [{"from": "ModuleA", "to": "ModuleB", "relationType": "depends-on"}]
+```
+
+**Current graph structure**:
+- **Entities**: Pitch, Harmony, VoiceLeading, Builder, Interface, Arranger, Neo4jDatabase, LegacyCodebase
+- **Relations**: Shows dependency chains (e.g., Builder → Harmony → Pitch)
+
+### Memory Workflow
+
+**At session start**:
+1. Query mem0 for relevant project context: `search-memories` with your current task keywords
+2. Read knowledge graph to understand affected modules: `read_graph` or `search_nodes`
+3. Use retrieved knowledge to inform your approach
+
+**During development**:
+- When discovering new patterns → add to mem0
+- When creating new modules → add entities and relations to knowledge graph
+- When user states preferences → add to mem0
+
+**At session end** (or after major milestones):
+- Store key learnings in mem0
+- Update knowledge graph if architecture changed
+
+### Validation
+
+**Test memory systems are working**:
+```bash
+# mem0 test
+Tool: mcp__mem0__search-memories with query "Neo4j"
+# Should return: Neo4j connection info and requirements
+
+# Knowledge graph test
+Tool: mcp__memory__open_nodes with names ["Builder", "Interface"]
+# Should return: Entity details with observations and relations
+```
+
 ## Development Workflow: Vertical Slices
 
 **CRITICAL**: All changes must be delivered in vertical slices - the minimum deliverable working and verifiable unit.

@@ -31,33 +31,31 @@ dependencies:
 library:
   exposed-modules:
     - Harmonic.Lib
-    # Phase B: Core Music Types
-    - Harmonic.Core.Pitch
-    - Harmonic.Core.Harmony
-    - Harmonic.Core.Dissonance
-    - Harmonic.Core.Overtone
-    - Harmonic.Core.VoiceLeading
-    - Harmonic.Core.Progression
-    - Harmonic.Core.Filter
-    # Phase C: Interactive Behaviour
-    - Harmonic.Core.Probabilistic
-    - Harmonic.Core.Builder
-    - Harmonic.Database.Query
-    # Analysis
-    - Harmonic.Analysis.Markov
-    # Database
-    - Harmonic.Database.Graph
-    # Ingestion
-    - Harmonic.Ingestion.CSV
-    - Harmonic.Ingestion.Types
-    - Harmonic.Ingestion.Transform
-    # Tidal Interface
-    - Harmonic.Tidal.Interface
-    - Harmonic.Tidal.Arranger
-    - Harmonic.Tidal.Instruments
-    - Harmonic.Tidal.Utils
-    # Config
     - Harmonic.Config
+    # Framework (R→E→T Orchestration)
+    - Harmonic.Framework.Builder
+    # Rules (R Component + Layer A)
+    - Harmonic.Rules.Types.Pitch
+    - Harmonic.Rules.Types.Harmony
+    - Harmonic.Rules.Types.Progression
+    - Harmonic.Rules.Constraints.Filter
+    - Harmonic.Rules.Constraints.Overtone
+    - Harmonic.Rules.Import.CSV
+    - Harmonic.Rules.Import.Types
+    - Harmonic.Rules.Import.Transform
+    - Harmonic.Rules.Import.Graph
+    # Evaluation (E Component + Layer C)
+    - Harmonic.Evaluation.Scoring.Dissonance
+    - Harmonic.Evaluation.Scoring.VoiceLeading
+    - Harmonic.Evaluation.Database.Query
+    - Harmonic.Evaluation.Analysis.Markov
+    # Traversal (T Component + Layer C)
+    - Harmonic.Traversal.Probabilistic
+    # Interface (Layer D)
+    - Harmonic.Interface.Tidal.Bridge
+    - Harmonic.Interface.Tidal.Arranger
+    - Harmonic.Interface.Tidal.Instruments
+    - Harmonic.Interface.Tidal.Utils
   source-dirs: src
   # ghc-options:
     # - -Wall

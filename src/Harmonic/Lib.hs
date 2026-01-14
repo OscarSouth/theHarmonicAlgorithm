@@ -82,35 +82,35 @@ module Harmonic.Lib (
   GeneratorConfig(..), defaultConfig,
   
   -- ========== PHASE B: CORE MUSIC TYPES ==========
-  module Harmonic.Core.Pitch,
-  module Harmonic.Core.Harmony,
-  module Harmonic.Core.Dissonance,
-  module Harmonic.Core.Overtone,
-  
+  module Harmonic.Rules.Types.Pitch,
+  module Harmonic.Rules.Types.Harmony,
+  module Harmonic.Evaluation.Scoring.Dissonance,
+  module Harmonic.Rules.Constraints.Overtone,
+
   -- VoiceLeading (cyclic DP paradigms)
   voiceLeadingCost, totalCost, cyclicCost,
   voiceMovement, minimalMovement,
   allVoicings, initialCompact,
   solveRoot, solveFlow,
-  
-  module Harmonic.Core.Progression,
-  
+
+  module Harmonic.Rules.Types.Progression,
+
   -- ========== PHASE C: INTERACTIVE BEHAVIOUR ==========
-  module Harmonic.Core.Probabilistic,
+  module Harmonic.Traversal.Probabilistic,
   
   -- ========== FILTER FUNCTIONS ==========
   -- String-friendly versions for TidalCycles
-  overtones, Harmonic.Core.Filter.key, funds, tuning, wildcard,
+  overtones, Harmonic.Rules.Constraints.Filter.key, funds, tuning, wildcard,
   -- Text versions
   parseOvertones, parseKey, parseFunds, parseTuning, isWildcard,
   
   -- ========== DATABASE INTERFACE ==========
-  module Harmonic.Database.Query,
+  module Harmonic.Evaluation.Database.Query,
   connectNeo4j,
-  
+
   -- ========== INGESTION PIPELINE ==========
-  module Harmonic.Ingestion.CSV,
-  module Harmonic.Ingestion.Transform,
+  module Harmonic.Rules.Import.CSV,
+  module Harmonic.Rules.Import.Transform,
   
   -- ========== TIDAL INTERFACE ==========
   -- Pattern-level operations
@@ -121,12 +121,12 @@ module Harmonic.Lib (
   
   -- Arranger functions (voicing paradigms)
   rotate, excerpt, insert, switch, clone, extract,
-  transposeP, Harmonic.Tidal.Arranger.reverse, fuse, fuse2, interleave, expandP,
+  transposeP, Harmonic.Interface.Tidal.Arranger.reverse, fuse, fuse2, interleave, expandP,
   progOverlap, progOverlapF, progOverlapB,
   root, flow, lite, literal,
-  
-  module Harmonic.Tidal.Instruments,
-  module Harmonic.Tidal.Utils,
+
+  module Harmonic.Interface.Tidal.Instruments,
+  module Harmonic.Interface.Tidal.Utils,
   module Harmonic.Config,
   
   -- ========== INTERNAL FUNCTIONS (advanced use only) ==========
@@ -141,33 +141,33 @@ module Harmonic.Lib (
 ) where
 
 -- Phase B: Core Music Types
-import Harmonic.Core.Pitch
-import Harmonic.Core.Harmony
-import Harmonic.Core.Dissonance
-import Harmonic.Core.Overtone
-import Harmonic.Core.VoiceLeading (voiceLeadingCost, totalCost, cyclicCost, voiceMovement, minimalMovement, allVoicings, initialCompact, solveRoot, solveFlow)
-import Harmonic.Core.Progression
+import Harmonic.Rules.Types.Pitch
+import Harmonic.Rules.Types.Harmony
+import Harmonic.Evaluation.Scoring.Dissonance
+import Harmonic.Rules.Constraints.Overtone
+import Harmonic.Evaluation.Scoring.VoiceLeading (voiceLeadingCost, totalCost, cyclicCost, voiceMovement, minimalMovement, allVoicings, initialCompact, solveRoot, solveFlow)
+import Harmonic.Rules.Types.Progression
 -- Phase C: Interactive Behaviour
-import Harmonic.Core.Probabilistic
-import Harmonic.Core.Builder (HarmonicContext(..), harmonicContext, hContext, defaultContext, GeneratorConfig(..), defaultConfig, generate, generateWith, gen, genWith, generate', gen', genWith', generate'', gen'', genWith'', genSilent, genStandard, genVerbose, genSilent', genStandard', genVerbose', printDiagnostics, StepDiagnostic(..), GenerationDiagnostics(..), TransformTrace(..), AdvanceTrace(..))
-import Harmonic.Core.Filter (overtones, key, funds, tuning, wildcard, parseOvertones, parseKey, parseFunds, parseTuning, isWildcard)
-import Harmonic.Database.Query
+import Harmonic.Traversal.Probabilistic
+import Harmonic.Framework.Builder (HarmonicContext(..), harmonicContext, hContext, defaultContext, GeneratorConfig(..), defaultConfig, generate, generateWith, gen, genWith, generate', gen', genWith', generate'', gen'', genWith'', genSilent, genStandard, genVerbose, genSilent', genStandard', genVerbose', printDiagnostics, StepDiagnostic(..), GenerationDiagnostics(..), TransformTrace(..), AdvanceTrace(..))
+import Harmonic.Rules.Constraints.Filter (overtones, key, funds, tuning, wildcard, parseOvertones, parseKey, parseFunds, parseTuning, isWildcard)
+import Harmonic.Evaluation.Database.Query
 -- Infrastructure (selective imports to avoid conflicts)
-import Harmonic.Database.Graph (connectNeo4j)
-import Harmonic.Ingestion.CSV
-import Harmonic.Ingestion.Transform
-import Harmonic.Tidal.Interface (
+import Harmonic.Rules.Import.Graph (connectNeo4j)
+import Harmonic.Rules.Import.CSV
+import Harmonic.Rules.Import.Transform
+import Harmonic.Interface.Tidal.Bridge (
     VoiceFunction, rootNotes, bassNotes,
     arrange, applyProg, voiceRange,
     lookupProgression, lookupChord, VoiceType(..), voiceBy, harmony,
     overlapF
   )
-import Harmonic.Tidal.Arranger (
+import Harmonic.Interface.Tidal.Arranger (
     rotate, excerpt, insert, switch, clone, extract,
     transposeP, reverse, fuse, fuse2, interleave, expandP,
     progOverlap, progOverlapF, progOverlapB,
     root, flow, lite, literal
   )
-import Harmonic.Tidal.Instruments
-import Harmonic.Tidal.Utils
+import Harmonic.Interface.Tidal.Instruments
+import Harmonic.Interface.Tidal.Utils
 import Harmonic.Config
