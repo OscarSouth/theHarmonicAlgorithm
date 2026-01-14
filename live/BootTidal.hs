@@ -1,6 +1,6 @@
 -- |
 -- Minimal TidalCycles V3 BootTidal.hs for Harmonic Algorithm
--- 
+--
 -- This boot file provides:
 --   1. Stream setup (d01-d16 MIDI, d1-d9 SuperDirt)
 --   2. MIDI helpers (ch, cc, vel, ped)
@@ -106,6 +106,19 @@ let p = streamReplace tidal
 hush = mapM_ ($ silence) [
   d1,d2,d3,d4,d5,d6,d7,d8,d9,
   d01,d02,d03,d04,d05,d06,d07,d08,d09,d10,d11,d12,d13,d14,d15,d16
+  ,
+  p "sinewave",
+  p "piano",
+  p "boeingdrone",
+  p "boeingimpact",
+  p "bassovertones",
+  p "tubeblip",
+  p "909kit",
+  p "mpckit",
+  p "moogDFAM",
+  p "moogMother32",
+  p "sh101",
+  p "juno"
   ]
 :}
 
@@ -161,7 +174,7 @@ minim = 1/2
 
 -------------------------------------------------------------------------------
 -- Harmonic Algorithm Integration
--- 
+--
 -- Import Harmonic.Lib for access to:
 --   * Progression type (Phase B)
 --   * rotate, excerpt, insert, switch, clone, extract (Arranger)
@@ -186,8 +199,31 @@ minim = 1/2
 import Harmonic.Lib
 
 putStrLn "theHarmonicAlgorithm V3 boot complete."
-putStrLn "Available: d1-d9 (SuperDirt), d01-d16 (MIDI)"
-putStrLn "Phase B types loaded: PitchClass, Chord, Cadence, Progression"
+
+-- additions
+
+kick pat = struct pat $ midinote "0" #ch 10 #sustain 0.05
+snap pat = struct pat $ midinote "1" #ch 10 #sustain 0.05
+hhcl pat = struct pat $ midinote "2" #ch 10 #sustain 0.05
+hhop pat = struct pat $ midinote "3" #ch 10 #sustain 0.05
+ride pat = struct pat $ midinote "4" #ch 10 #sustain 0.05
+crash pat = struct pat $ midinote "5" #ch 10 #sustain 0.05
+click pat = struct pat $ midinote "6" #ch 10 #sustain 0.05
+snare pat = struct pat $ midinote "7" #ch 10 #sustain 0.05
+rimshot pat = struct pat $ midinote "[6,7]" #ch 10 #sustain 0.05
+
+:{
+hh pat = do
+  let bars = 1
+      ps = [
+            ("x", midinote 2 #ch 10 #sustain 0.05 #vel 0.5),
+            ("1", midinote 2 #ch 10 #sustain 0.05 #vel 0.5),
+            ("o", midinote 3 #ch 10 #sustain 0.05 #vel 0.5),
+            ("2", midinote 3 #ch 10 #sustain 0.05 #vel 0.5)
+            ]
+      fs   = []
+   in ur bars pat ps fs
+:}
 
 -------------------------------------------------------------------------------
 -- End BootTidal.hs
