@@ -1,0 +1,104 @@
+lmotif = "[1 . 0@3 1? . 0 1? . 0 1? 0@2]/4"
+
+kmpc f d = p "mpckit" $ do
+  let o = ch 10
+  -- let lmotif = "[1 . 0@3 1? . 0 1? . 0 1? 0@2]/4"
+  f
+    $ stack [silence
+       -- --
+      -- ,kick lmotif |* vel 0.9
+      -- ,kick "1"
+      -- ,rimshot "[0 1]/2" |* vel 0.6
+      ,sometimesBy 0.1 (>>hh "2") $ sometimesBy 0.05 (fast 2) $ degradeBy 0.4 $ hh "[1]*4" |* vel (lfo saw 0.1 0.4)
+      -- ,degrade $ click "[0 0 1 0 0 1 0 0]/2" # vel 0.2
+      -- ,ride "0 1" #vel 0.4
+      -- ,crash "1/4" #vel 0.4
+      ,hh "0 2?"
+       -- --
+    ]# o # legato 0.01 |* vel d |+ vel 0.2
+
+    tempo = 112
+
+k909 f d = p "909kit" $ do
+  let o = ch 9
+  f
+    $ stack [silence
+       -- --
+      ,kick "1"
+      ,snap "<0 1>" #vel 0.2
+      -- ,hh "0 1" #vel 0.2
+      -- ,degradeBy 0.0 $ hh "1 1 2 1" # vel (lfo tri 0.01 0.2)
+      -- ,ride "0 1" #vel 0.4
+      -- ,crash "1/4" #vel 0.7
+      -- ,slow (choose [2,4]) $ click "[0 0 1 0 0 1 1 0]" #vel (lfo saw 0.2 0.7)
+       -- --
+    ]# o # legato 0.01 |* vel d
+
+
+moog f s r d = p "moogMother32" $ do
+  let o = ch 14
+  f
+    $ stack [silence
+       -- --
+      ,arrange root (overlapF 0 s) r (-9,9) ["~"
+        -- ,"~ 3 0 0"
+        -- ,"[[0@3 3] ~ ~ [~ . 6 3]]/8"
+        -- ,lmotif
+        -- ,"[0 ~@7]/8"
+        -- ,"[0 3]/8"
+        ,"0*2"
+        -- ,"[[0@3 3] ~@3]/4"
+      ]# o |* vel 1 |- oct 4
+       -- --
+    ] |* vel d
+
+p03 f s r d = d03 $ do
+  let o = ch 03
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        -- ,trunc 0.9 $ slow 2 $ palindrome $ "[0 1 2 3]/2" |+ "[1 2 3 4]/4"
+        ,slow 2 $ palindrome $ run 8
+        -- ,"[~ [1,2,3]]/2"
+        -- ,"[0 1 2 3]"
+      ]# o |* vel 0.6 |- oct 1 |= legato 0.99
+       -- --
+      ,arrange root (overlapF 0 s) r (-9,9) ["~"
+        -- ,"[0 ~@7]/4"
+        ,"[[0,3,4,5,6]]"
+        -- ,iter 4 $ "[0 1 2 3]" |+ 3
+      ]# o |* vel 0.8 |- oct 3
+      -- --
+    ] |* vel d
+
+
+
+k909 f d = p "909kit" $ do
+  let o = ch 09
+  f
+    $ stack [silence
+       -- --
+      ,kick "1"
+      -- ,hh "1 1 2 1" #vel (lfo saw 0.2 0.8)
+      ,hh "0 1" #vel (lfo saw 0.2 0.8)
+       -- --
+    ]# o # legato 0.01 |* vel d
+
+moog f s r d = p "moog" $ do
+  let o = ch 14
+  f
+    $ stack [silence
+       -- --
+      ,arrange root (overlapF 0 s) r (-9,9) ["~"
+        -- ,"~ 3 0 0"
+        -- ,"[[0@3 3] ~ ~ [~ . 6 3]]/8"
+        -- ,degrade $ lmotif |= "[~ . 6 2]/2"
+        -- ,"[0 ~@3]/4"
+        -- ,"[0 ~@7]/8"
+        -- ,"[0 3]/8"
+        ,"0*2"
+        -- ,"[[0@3 3] ~@3]/4"
+      ]# o |* vel 1 |- oct 3
+       -- --
+    ] |* vel d

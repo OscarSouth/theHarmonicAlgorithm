@@ -40,10 +40,16 @@ moog f s r d = p "moog" $ do
  -- 1. Generate
 let start = initCadenceState 5 "E" [0,3,7] FlatSpelling
     ctx = defaultContext
-    -- ctx = hContext "D G A E" "1#" "*"
+    -- ctx = hContext "*" "2#" "*"
+ -- overtones "*" permits any pitch class
+ -- key "2#" (D) filters candidates from overtones to D E F# G A B C#
+ -- roots "*" permits any pitch class
 
  -- generates an IO Progression, so we bind it
-next <- gen start 4 "debussy" 0.1 ctx
+next <- gen start 8 "debussy:0.75 bach:0.25" 0.3 ctx
+
+fmap mkPitchClass <$> root next
+fmap (sharp . mkPitchClass) <$> root next
 
  -- 2. Manipulate (Pure functional updates)
 let state = rotate 0 next

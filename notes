@@ -17,3 +17,313 @@ cd /Users/oscarsouth/.stack/global-project && stack ghci << 'EOF'
 ... ghci code ...
 EOF
 ```
+
+
+
+note that the R export in layer (A) refers to the R component of the Creative Systems Framework matrix <R,T,E> and not the R language, which was a dependency in the legacy implementation, but has been removed in the modernisation
+
+in examples such as `prog <- genSilent start 4 "bach" 0.5 ctx`, while the backend graph is provisioned for it, the "bach" composer specification is not yet implemented. `prog <- genSilent start 4 "*" 0.5 ctx` will work, which takes a combination of all composer intent from the deterministic graph.
+
+the codebase is currently in an intermediate state of refactoring, so nothing will be considered concrete until ultimate completion, and every detail of structure, design and implenmentation should be examined.
+
+across all changes, there is an overarching intent to minimise code and complexity of implementation, towards facilitation of the core interfaces exposed in TidalCycles. there may be much extra unneeded or hallucinated logic created by previous code agents, as well as required logic that has been stubbed out or has been implemented wrongly in the modernised version compared to the legacy version
+
+in general, the moderisation has been heavily supervised and there are significant breakthroughs in functionality, flexibility and extensibility, however the legacy implementation DID function largely perfectly and was extremely confirmed in correctness of behaviour, so should be treated as a source of truth for ultimate natures of behaviour.
+
+tests suites should be interrogated and changed to accomodate need, not simply assumed to be correct.
+
+
+
+
+
+
+
+
+
+here is the debugging printout created by executing `gen'' start 3 "*" 0.3 ctx`:
+
+```
+t> Verbose Generation: C ( asc 5 -> maj ) → 4 chords (entropy 0.8)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 1: C ( asc 5 -> maj ) [starting state]
+
+STEP 2: C → E  asc 4 → E min#5 [graph] (γ=8/690)
+  Pool: 30 graph, 660 fallback
+  Top graph:
+    ( asc 5 -> maj ) (385.159562730594)
+    ( pedal -> maj ) (14.83703207679262)
+    ( asc 5 -> 7no3 ) (12.3392465223908)
+    ( asc 5 -> sus2 ) (6.381056827319538)
+    ( asc 5 -> maj6no5 ) (5.159151145868291)
+    ( desc 5 -> 6sus4no5 ) (2.562739585018584)
+  Advance: C (0) + 4 → E (4)
+
+STEP 3: E → D#  desc 1 → D# sus4#5 [fallback] (γ=9/660)
+  Pool: 0 graph, 660 fallback
+  Top fallback:
+    ( pedal -> maj ) (9986.620460510418, c=6.0, m=2.0, γ=0.11496162413193596)
+    ( pedal -> min ) (9984.61428224322, c=7.0, m=2.0, γ=9.897983976999349e-2)
+    ( pedal -> min ) (9984.550242135958, c=7.0, m=2.0, γ=0.10355413314583757)
+    ( pedal -> min ) (9984.42510778216, c=6.0, m=2.0, γ=0.2979076848200555)
+    ( desc 2 -> maj6no5 ) (9980.938146271554, c=6.0, m=3.0, γ=5.899187380257414e-2)
+    ( pedal -> sus4 ) (9979.741507172504, c=9.0, m=2.0, γ=0.12547182374973337)
+  Advance: E (4) + 11 → D# (3)
+
+STEP 4: D# → D#  pedal → D# min [fallback] (γ=8/660)
+  Pool: 0 graph, 660 fallback
+  Top fallback:
+    ( pedal -> min#5 ) (9985.993639100594, c=6.0, m=2.0, γ=0.16719674161721432)
+    ( pedal -> min ) (9985.126870870514, c=7.0, m=2.0, γ=6.236636639182264e-2)
+    ( pedal -> min#5 ) (9982.649694018855, c=7.0, m=2.0, γ=0.2393075700817964)
+    ( pedal -> sus4#5 ) (9980.797494656274, c=6.0, m=2.0, γ=0.6002087786438062)
+    ( desc 1 -> sus4#5 ) (9980.284100460265, c=6.0, m=3.0, γ=9.532775220746403e-2)
+    ( desc 1 -> min#5 ) (9980.065986673542, c=6.0, m=3.0, γ=0.10744518480324355)
+  Advance: D# (3) + 0 → D# (3)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+   1   ||   C maj         |   E min#5       |   D# sus4#5     |   D# min        ||
+```
+
+I notice in the printout that there seems to be an issue with notation of chord inversions
+
+for example, min#5 keeps showing up, which in reality is a major chord in 1st inversion (in the chord progression above E min#5 would be C maj/E and the D# sus4#5 would be G min/D#). we also commonly see maj6no5, which is a minor chord in 1st inversion. I'm sure there are other cases, we'll want to remedy the underlying causes rather than the symptoms.
+
+be aware of and understand the difference in (and differing underlying functions of) notation using _1stInv vs using slash notation (in the show implementation)
+
+the triad naming in the legacy implementation is highly curated and has never had an issue with inversion naming or handling
+
+inspect the modernised logic against the legacy logic closely and create a plan to get this functionality back to spec. investigate and resolve any architectural issues in the modernisation that need resolving in relation to this
+
+treat the legacy detection/naming function as the foundational truth on this logic. the functions toTriad and showTriad in theHarmonicAlgorithmLegacy/src/MusicData.hs contain the core legacy logic
+
+first make sure you can recreate the issue entirely and understand the desired behaviour
+
+do not complete the task until you have fully verified that the fix is complete and correct
+
+
+
+
+
+
+now that we've fixed the overlap function, lets get back to Implementing the TidalCycles Interface
+
+Objective:
+
+Implement the interface layer in Harmonic.Tidal.Interface and Harmonic.Tidal.Arranger to enable applying generated Progression objects to TidalCycles patterns, preserving the exact syntax of the legacy arrange block.
+
+Goal Syntax:
+
+We want the user's performance script to look exactly like this:
+
+```
+-- 1. Generate
+let start = initCadenceState 8 "C" [0,3,7] FlatSpelling
+    ctx = defaultContext
+
+-- 'next' is now an IO Progression, so we bind it
+next <- gen start 8 "*" 0.6 ctx
+
+-- 2. Manipulate (Pure functional updates)
+let state = rotate 0 next
+
+-- 3. Perform (Legacy Launcher Block)
+do
+  let
+    dyn = 0.8
+    rep = 2  -- bars
+    s = transposeP 0 state  -- Note: transposeP renaming avoids clash
+    f = id   -- or swingBy etc.
+    (d,r) = ((*dyn), rep)
+  putStrLn . show $ s
+  mapM_ id [hush, setbpm 90
+    -- The p01 launcher uses 'arrange' internally
+    ,p01 f s r $ d 0.7
+   ]
+```
+
+Implementation Requirements:
+
+arrange Function:
+
+The core bridge is the arrange function. It must accept a VoiceFunction, a Progression, cycle length, range constraint, and a list of patterns.
+
+Signature: VoiceFunction -> Progression -> Pattern Time -> (Int, Int) -> [Pattern Int] -> Pattern ValueMap
+
+p01 (the pattern block) creates an IO () type when executed with it's arguments in 
+
+you can see how the pattern and arrange blocks are constructed in the pulsar snippet file here:
+```
+➜  global-project git:(master) ✗ cat ~/.pulsar/snippets.cson
+'.source.tidalcycles':
+  'pattern block':
+    'prefix': 'p'
+    'body': '''
+      p$1 f s r d = d$1 $ do
+        let o = ch $1
+        f
+          $ stack [silence
+             -- --
+            ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+              ,$2
+            ]# o |* vel 1
+             -- --
+          ] |* vel d
+      $3
+    '''
+
+
+  'arrange block':
+    'prefix': 'rrange'
+    'body': '''
+      arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,$2
+      ]# o |* vel 1
+       -- --
+    '''
+```
+
+Logic:
+
+Extract voicings from Progression using the VoiceFunction (e.g., flow, root). This gives [[Int]].
+
+Use cat and slow to spread these voicings over the cycle length (rep). the legacy code is:slow (4*len) (cat $ note <$> ...). This stretches the chords to fit the bar structure.
+
+This is a case where the legacy implementation has been functional, but has a lot of issues. While this is an initial 'simple' implementation, if there are any viable options for modernisations then that is worth consideration.
+
+Apply toScale to map the input patterns ([Pattern Int]) through the current chord's intervals.
+
+Filter by range (this spans from -9 to 9, relating to the pre scaled integer notes in the raw pattern).
+
+are any other architectural or implementation changes/additions required to facilitate this, which require decisions?
+
+it will not be possible to run tidalcycles code in a full realistic environment, so verify things to realistic limits using tests and the GHCi interpreter, and I will validate on real life tests in tidalcycles when an implementation is presented
+
+in addition to the implementation, create a file in the `live` directory called `testTidal.tidal` (`live/testTidal.tidal`) which presents a worked example of the modernised format
+
+
+
+
+
+
+now that the core implementation is complete, I would like to spend some time to create a USER_GUIDE.tidal within the live directory
+
+this file should function as a 'playable' documentation script, which a tidalcycles performer can read down literately and execute code examples from from top to bottom. it should teach them the core workflow of the harmonic algorithm and surface all required components for basic functionality and how to interact with them. the core legacy functionality workflow has been implemented in `live/testTidal.tidal` in a modern format (although this needs a little fleshing out with the addition of a customisable harmonic context declaration)
+
+consult the older files in theHarmonicAlgorithmLegacy/live and theHarmonicAlgorithmLegacy/liveArchives to see some real life concert examples from the legacy version. don't worry about the many fixed pattern structure such as `k909`, `moog` etc. -- lets just document the general case with the pXX pattern blocks, which are quick to create using the pulsar snippets:
+```
+➜  global-project git:(master) ✗ cat ~/.pulsar/snippets.cson
+'.source.tidalcycles':
+  'pattern block':
+    'prefix': 'p'
+    'body': '''
+      p$1 f s r d = d$1 $ do
+        let o = ch $1
+        f
+          $ stack [silence
+             -- --
+            ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+              ,$2
+            ]# o |* vel 1
+             -- --
+          ] |* vel d
+      $3
+    '''
+
+
+  'arrange block':
+    'prefix': 'rrange'
+    'body': '''
+      arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,$2
+      ]# o |* vel 1
+       -- --
+    '''
+```
+
+include the basic tidalcycles components utilised and how they interact with the harmonic algorithm structure
+
+the documentation should provide an intuition for behaviour as well as how to use the surfaced components
+
+consult the files in `live/CompletedTests` to see a variety of example cases of how things have been implemented and checked. some of this may be outdated, wrong or misguided
+
+look through `README.md` and `USER_GUIDE.md` but don't consider them as any permanant standard as they are just accumulated context from a different AI prompt and will be rewritten later (a later task, after `USER_GUIDE.tidal` is complete) 
+
+explore the user-facing functionality that has been implemented in the modules, to make sure we aren't missing anything from these sources and have a correct understanding of the real functionality. check the actual implementation of how everything we include in `USER_GUIDE.tidal` functions so that we know our understanding is correct.
+
+continue to iterate until a comprehesive initial version of `USER_GUIDE.tidal` is complete. the next stage will be me experimenting with it and providing feedback for further improvements
+
+
+
+
+
+
+
+
+
+the next feature to add is to implement the ability to weight the graph selections by specific composers, for example instead of the generic case, "*", to use cases such as "bach", "debussy", "bach debussy" (equal weightings), "bach:0.25 debussy:0.75" or "bach:1 debussy:4" (these last 2 examples produce identical effects). this should use the data available in the relationships in the graph to produce 
+
+here's an example of the schema of nodes in the graph:
+```
+<id>: 2
+chord: [P 0,P 4,P 8]
+dissonance: 27
+movement: asc 2
+show: ( asc 2 -> aug )
+```
+
+here's an example of relationships:
+```
+<id>: 57236
+confidence: 385.159562730594
+weights: {"abel":0.8826291079812206,"accolay":0.9265873015873016,"adam":0.8985976267529665,"agnesi":0.8888888888888888,"aguado":0.8817204301075269,"ahlefeldt":0.8888888888888888,"albeniz":0.8594252221591984,"albinoni":0.8415637860082305,"albrechtsberger":0.8793103448275862,"alexandrov":0.8888888888888888,"alkan":0.8495934959349594,"ambroise":0.89086859688196,"anonymous":0.8187393526405451,"archer":0.8398268398268398,"arensky":0.8004866180048662,"arne":0.8974358974358975,"arnold":0.8571428571428571,"arriaga":0.7972222222222223,"arrieta":0.8641975308641975,"ascher":0.8891534391534391,"astorga":0.8395061728395061,"attwood":0.9047619047619048,"auber":0.9035087719298246,"audran":0.9259259259259259,"bach":0.8505569138820973,"bachman":0.9111111111111111,"badarzewska":0.9248366013071896,"balakirev":0.8705882352941177,"balfe":0.855072463768116,"banister":0.9206349206349206,"bargiel":0.8267419962335216,"bargy":0.833762223365929,"barnard":0.9119601328903655,"barnett":0.9150326797385621,"baron":0.0,"barret":0.8888888888888888,"barrios":0.8888888888888888,"bartok":0.8442622950819673,"bazin":0.9290123456790124,"bazzini":0.7847222222222222,"beethoven":0.8508814216172788,"bellini":0.8682352941176471,"bellinzani":0.8846960167714885,"bellman":0.9352941176470588,"bembo":0.896551724137931,"benda":0.8888888888888888,"benoit":0.8888888888888888,"berens":0.0,"berlioz":0.7897022332506204,"berthomieu":0.8497942386831275,"berwald":0.7928712871287129,"best":0.7422222222222222,"bevilacqua":0.8383838383838383,"billema":0.8288288288288288,"billi":0.9042145593869731,"billings":0.9066666666666666,"bizet":0.8357244551527763,"blavet":0.8112874779541446,"bloch":0.8260869565217391,"blodek":0.8701870187018702,"blow":0.8842203548085901,"boccherini":0.7843915343915344,"bochsa":0.8858447488584474,"boehm":0.8920634920634921,"boellmann":0.8814814814814815,"boely":0.9444444444444444,"bohm":1.0,"boieldieu":0.848559670781893,"boismortier":0.8635863586358636,"bonis":0.7777777777777778,"borodin":0.8353658536585366,"bortnyansky":0.9050925925925926,"bouffil":0.841025641025641,"boulanger":0.6805555555555556,"bourgaultducoudray":0.8888888888888888,"boyce":0.9084967320261438,"braga":0.9166666666666666,"braham":0.9033816425120773,"brahms":0.8342724693282181,"brant":0.8359788359788359,"braunschweig":0.8888888888888888,"brenton":0.7605633802816901,"brescianello":0.0,"broca":0.9040404040404041,"bruch":0.8622296173044925,"bruckner":0.7977146938046777,"burgmuller":0.8733874820831342,"busoni":0.8423493044822257,"buxtehude":0.8292682926829268,"byrd":0.8747752472280491,"cabanilles":0.8962264150943396,"caldara":0.8761662425784563,"campion":0.9022988505747126,"campra":0.0,"cano":0.8812260536398467,"cantallos":0.0,"carcassi":0.8888888888888888,"cardillo":0.9192307692307692,"carey":0.8844444444444445,"carissimi":0.9031339031339032,"carr":0.878968253968254,"carreno":0.9166666666666666,"carulli":0.8648215002005616,"casadesus":0.8666666666666667,"casanovas":0.8888888888888888,"casciolini":0.8888888888888888,"casella":0.6801801801801802,"castello":0.896551724137931,"catel":0.8818713450292398,"cernohorsky":0.8198757763975155,"cervantes":0.9130434782608695,"chabrier":0.7266505636070854,"chambonnieres":0.9166666666666666,"chaminade":0.8290598290598291,"chapi":0.7864406779661017,"charpentier":0.8911111111111111,"cherubini":0.8416347381864623,"chopin":0.8313359645975362,"cilea":0.8888888888888888,"cimarosa":0.8831845238095238,"clarke":0.8991060025542784,"clementi":0.8900116595413914,"clerambault":0.8888888888888888,"coleridgetaylor":0.8718253968253968,"colkin":0.9142857142857143,"cons":0.8888888888888888,"cooke":0.8846960167714885,"corbetta":0.8888888888888888,"corelli":0.8601868067717455,"coste":0.9052823315118397,"couperin":0.8719898605830165,"cramer":0.9111111111111111,"croft":0.9166666666666666,"crusell":0.8232477144101001,"cui":0.8169642857142857,"czerny":0.8680033416875522,"dandrieu":0.8571428571428571,"daquin":0.8981481481481481,"daragona":0.8888888888888888,"dargomizhsky":0.8888888888888888,"dauprat":0.7301587301587301,"dawes":0.8538011695906432,"debali":0.8733333333333333,"debussy":0.7651478816946443,"delibes":0.8183279742765274,"delioux":0.904320987654321,"delius":0.730593607305936,"dentella":0.8766430738119313,"denza":0.8611111111111112,"devienne":0.7968036529680366,"diabelli":0.8681318681318682,"dittersdorf":0.8837209302325582,"donizetti":0.8454336689630807,"doppler":0.8544600938967136,"dornell":0.8425925925925926,"draeseke":0.821954484605087,"dreyshock":0.848605577689243,"dukas":0.8167330677290837,"duparc":0.8968253968253969,"dupre":0.691358024691358,"durand":0.9230769230769231,"durango":0.8992248062015504,"durante":0.8362573099415205,"dusek":0.8868360277136259,"duval":0.8366013071895425,"duvernoy":0.8738317757009346,"dvorak":0.8224175408751536,"eberlin":0.7936507936507936,"eberling":0.8974358974358975,"eccles":0.8888888888888888,"eichner":0.8888888888888888,"elgar":0.837108953613808,"ewald":0.8450704225352113,"exaudet":0.9090909090909091,"fasch":0.8551358101779581,"faure":0.8454004896817069,"ferrer":0.7222222222222222,"fibich":0.7916666666666666,"field":0.8546511627906976,"finger":0.9029126213592233,"fiocco":0.8780487804878049,"fiorillo":0.0,"fischer":0.8253968253968254,"fisher":0.9259259259259259,"flies":0.8333333333333334,"fomin":0.8571428571428571,"franck":0.8370818915801614,"freixanet":0.0,"friese":0.8888888888888888,"froberger":0.9074074074074074,"fucik":0.7141025641025641,"gade":0.8676470588235294,"galliard":0.8439716312056738,"galuppi":0.8468468468468469,"ganne":0.8792270531400966,"gaultier":0.0,"gelinek":0.9027777777777778,"geminiani":0.8709677419354839,"geoffroy":0.0,"german":0.8888888888888888,"gershwin":0.8339181286549707,"giardini":0.8888888888888888,"gibbons":0.8888888888888888,"gibel":0.8924731182795699,"gigout":0.8888888888888888,"gimenez":0.7435254803675856,"giordani":0.9259259259259259,"giuliani":0.8667293822514895,"glazunov":0.8043641835966893,"gliere":0.898635477582846,"glinka":0.8130081300813008,"gluck":0.8701095461658842,"godard":0.8541266794625719,"godowsky":0.8392282958199357,"haberbier":0.8199052132701422,"haeffner":0.0,"halevy":0.9037037037037037,"halvorsen":0.8673469387755102,"handel":0.8668512185854638,"haslinger":0.7647058823529411,"hasse":0.8325018896447468,"haydn":0.8607381017630401,"heller":0.886762360446571,"henselt":0.8806584362139918,"herbert":0.7606837606837606,"herold":0.8816425120772947,"herz":0.8990393329708175,"hewitt":0.7654320987654321,"hoffmeister":0.8944444444444445,"hol":0.9354838709677419,"holcombe":0.0,"holst":0.7349768875192604,"hough":0.8518518518518519,"huber":0.7802469135802469,"hummel":0.8483247972684592,"humperdinck":0.7824561403508772,"hunten":0.0,"ilynsky":0.0,"jackson":0.9516129032258065,"jadassohn":0.897196261682243,"jensen":0.852910052910053,"joplin":0.8517356344381252,"joseffy":0.8320413436692506,"jullien":0.787372330547818,"juon":0.8417508417508418,"kalkbrenner":0.879154078549849,"kelerbela":0.8552631578947368,"kerll":0.8709480122324159,"kessler":0.8888888888888888,"ketelbey":0.8308004052684904,"ketterer":0.843915343915344,"khachaturian":0.7401360544217687,"kiel":0.8191721132897604,"kircher":0.0,"kirkpatrick":0.6666666666666666,"klendel":0.9130434782608695,"kodaly":0.8080808080808081,"komarowski":0.8873239436619719,"kopylov":0.828352490421456,"koschat":0.9333333333333333,"kowalski":0.9090909090909091,"krafft":0.9047619047619048,"kraus":0.8603988603988604,"kreisler":0.9042145593869731,"kreutzer":0.8888888888888888,"krieger":0.9166666666666666,"krommer":0.8749524895477004,"krov":0.8364197530864198,"kuhlau":0.8777885548011639,"kuhnau":0.8557213930348259,"kunzen":0.8888888888888888,"labitzky":0.9087837837837838,"lachner":0.8691148775894538,"lacombe":0.8792270531400966,"lajarte":0.837037037037037,"lalo":0.8383838383838383,"lassen":0.8806584362139918,"lauffensteiner":0.9012345679012346,"lawes":0.9012345679012346,"leclair":0.8581196581196581,"lecuona":0.8794326241134752,"lefebure":0.8579154375614553,"lefebvre":0.917098445595855,"legnani":0.9027777777777778,"lehar":0.8555555555555555,"lemire":0.795036984013362,"lemmens":0.8986928104575164,"leo":0.864,"leonarda":0.8725925925925926,"leschetizky":0.8131313131313131,"levy":0.8586497890295358,"leybach":0.8641975308641975,"liguori":0.8232323232323232,"lindberg":0.8888888888888888,"linley":0.912,"liobet":0.8587962962962963,"liszt":0.8443569553805774,"lobo":0.8972746331236897,"loeillet":0.8432748538011696,"losy":0.897119341563786,"lotti":0.8127090301003345,"loud":0.8888888888888888,"luigini":0.8657407407407407,"lully":0.8561232765612328,"lyadov":0.8253968253968254,"macdowell":0.8106995884773662,"mahler":0.8040611814345991,"malats":0.7325102880658436,"marais":0.8888888888888888,"mendelssohn":0.8316518779628054,"mozart":0.8599313738184643,"naderman":0.896551724137931,"nascimbeni":0.9020979020979021,"nazareth":0.9281045751633987,"nedbal":0.8205128205128205,"nicolai":0.818260120585702,"nicolini":0.85451197053407,"nielsen":0.8151719704275152,"novacek":0.9047619047619048,"ocarolan":0.8888888888888888,"offenbach":0.883668903803132,"oliveira":0.8184818481848185,"onslow":0.8333333333333334,"pachelbel":0.8832236842105263,"pacini":0.8672632363907532,"paderewski":0.8730385164051355,"paganini":0.8665540540540541,"paisiello":0.8977777777777778,"paradis":0.8174603174603174,"paradisi":0.8888888888888888,"parker":0.8888888888888888,"parry":0.8493408662900188,"pasquini":0.8897411313518696,"pergolesi":0.8784067085953878,"perosi":0.8778923253150057,"persichetti":0.0,"pescetti":0.8888888888888888,"peter":0.9222222222222223,"petersonberger":0.8897280966767371,"pieczonka":0.0,"pierpont":0.8148148148148148,"pixis":0.8954248366013072,"platti":0.8682432432432432,"pleyel":0.8948948948948949,"ponce":0.8070175438596491,"ponchielli":0.9047619047619048,"poole":0.8055555555555556,"popp":0.8271604938271605,"poulenc":0.8046398046398047,"prokofiev":0.7648902821316614,"prudent":0.9021164021164021,"pryor":0.8269230769230769,"puccini":0.8591623036649214,"purcell":0.8799126637554585,"rachmaninov":0.8019289578922606,"raff":0.8457142857142858,"rameau":0.8411284335560505,"rance":0.9160493827160494,"ravel":0.7283950617283951,"ravina":0.8454106280193237,"redmer":0.9402390438247012,"reger":0.733229329173167,"reicha":0.8217299578059072,"reinecke":0.8402498884426596,"respighi":0.87248322147651,"reubke":0.8148148148148148,"rheinberger":0.8559670781893004,"rieding":0.8611111111111112,"rietz":0.8549707602339182,"rimskykorsakov":0.8149796069707081,"rinaldi":0.0,"rodriguez":0.7666666666666667,"roman":0.8306878306878307,"romberg":0.8678451178451179,"roncalli":0.8888888888888888,"rosas":0.7884615384615384,"rossini":0.8627997054963347,"rubinstein":0.8708403835307389,"saintluc":0.8235294117647058,"saintsaens":0.7802244464664847,"salieri":0.9042145593869731,"sambucetti":0.9444444444444444,"sammartini":0.8804216536729987,"sanz":0.8888888888888888,"sarasate":0.8859357696566998,"satie":0.7986928104575164,"scarlatti":0.8596295113382306,"scharwenka":0.821256038647343,"scheidler":0.8888888888888888,"schenker":0.7407407407407407,"schmelzer":0.8850574712643678,"scholtz":0.8766937669376694,"schubert":0.8700953472454356,"schulhoff":0.7854330708661418,"schulz":0.7619047619047619,"schumann":0.8057521320994375,"scott":0.6666666666666666,"scriabin":0.7919191919191919,"sgambati":0.91796875,"shand":0.8355555555555556,"shostakovich":0.6666666666666666,"sibelius":0.8476936466492603,"sibencanin":0.8777777777777778,"sinding":0.8641975308641975,"smart":0.8333333333333334,"smetana":0.8338473840530043,"smith":0.8027210884353742,"sokolov":0.8641025641025641,"soler":0.8535353535353535,"somis":0.7333333333333333,"sor":0.8757575757575757,"sousa":0.8085291557876414,"souza":0.8792650918635171,"spindler":0.8829787234042553,"spohr":0.8248905565978737,"stainer":0.8804347826086957,"stamitz":0.8850338135842399,"stanely":0.8888888888888888,"stanford":0.8148148148148148,"steffani":0.9022727272727272,"steiner":0.8247863247863247,"strauss":0.8829365079365079,"stravinsky":0.7271523178807947,"strozzi":0.8888888888888888,"sullivan":0.8618957940991839,"suppe":0.8514680483592401,"taffanel":0.8611111111111112,"taki":0.8647342995169082,"talexy":0.898989898989899,"tallard":0.9074074074074074,"tarrega":0.8630490956072352,"tartini":0.8538011695906432,"tchaikovsky":0.8086834733893558,"telemann":0.8586112708453134,"thalberg":0.8502037489812551,"thomas":0.8567251461988304,"torelli":0.8169934640522876,"translateur":0.9079365079365079,"tulou":0.8710736052508204,"umlauf":0.8679245283018868,"vanhal":0.865296803652968,"veracini":0.8888888888888888,"verdi":0.8475499836119306,"vierne":0.7370517928286853,"villalobos":0.6666666666666666,"vinci":0.8436911487758946,"viraldini":0.0,"visee":0.8958333333333334,"vitali":0.7592592592592593,"vivaldi":0.8567149452021003,"wagenseil":0.8834688346883469,"wagner":0.8339142847657935,"walckiers":0.8793650793650793,"waldteufel":0.7525252525252525,"walker":0.8888888888888888,"walthew":0.835285764998225,"walton":0.8792270531400966,"weber":0.8820930379347346,"weckmann":0.8636363636363636,"weiss":0.8828382838283828,"wesley":0.8620689655172413,"widor":0.8269841269841269,"wieniawski":0.8809523809523809,"willis":0.9259259259259259,"witt":0.8888888888888888,"wolf":0.8167259786476868,"wolff":0.830999066293184,"yeatman":0.0,"zipoli":0.8844444444444445}
+```
+
+where the cumulative probability from included composers for a traversal is 0.0, that route should not be included in the set of graph results used for next step selection
+
+there is currently a limit to candidates taken from the graph set at 30, can we remove this
+
+update USER_GUIDE.tidal to accomodate the additions/changes
+
+
+
+
+
+
+new task -- I believe that there are issues with the harmonic context filtering functionality
+
+have a look this example:
+
+ -- 1. Generate
+let start = initCadenceState 5 "E" [0,3,7] FlatSpelling
+    -- ctx = defaultContext
+    ctx = hContext "*" "2#" "*"
+ -- overtones "*" permits any pitch class
+ -- key "2#" (D) filters candidates from overtones to D E F# G A B C#
+ -- roots "*" permits any pitch class
+
+ -- generates an IO Progression, so we bind it
+next <- gen start 4 "*" 0.1 ctx
+
+fmap mkPitchClass <$> root next
+fmap (sharp . mkPitchClass) <$> root next
+
+t> generated by 'The Harmonic Algorithm' -> https://github.com/OscarSouth/theHarmonicAlgorithm
+
+   1   ||   E min         |   E min         |   E maj         |   E min         ||
+
+t> [[P 4,P 7,P 11],[P 4,P 7,P 11],[P 4,P 8,P 11],[P 4,P 7,P 11]]
+t> [[E,G,B],[E,G,B],[E,G#,B],[E,G,B]]
+
+contains G# (in an upper structure) which is not permitted
+
+this single case example seems mild, however it is showing the capability for error and casting suspicion on the implementation of a key component involved in translating musical intuition to the live coding process and impcts live interaction with other musicians
+
+the correct principle is:
+
+'overtones' generates a set of candidate pitches that are viable upper structure elements, with "*" being 'all'
+'key' filters the 'overtones' candidate set, creating a set of viable pitches to be included in the upper structures
+'roots' is a separate filter, which can either specify "*", using the same filter as the 'overtones'/'key' or specify a filter similar to 'key' that is applied to a chromatic set. this creates the viable candidates for pitches to be used as roots
+
+can this area of functionality be deeply investigated and understood, any changes or improvements required to implement correct behaviour implemented, and the documentation/examples in USER_GUIDE.tidal updated if needed to keep it accurate. usability of this area of functionality should be comprehensively documented.
