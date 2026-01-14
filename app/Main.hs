@@ -3,12 +3,12 @@
 module Main where
 
 import           Harmonic.Config
-import           Harmonic.Database.Graph
-import           Harmonic.Ingestion.CSV
-import           Harmonic.Ingestion.Transform
-import           Harmonic.Ingestion.Types
-import qualified Harmonic.Core.Harmony as H
-import qualified Harmonic.Core.Pitch as P
+import           Harmonic.Rules.Import.Graph
+import           Harmonic.Rules.Import.CSV
+import           Harmonic.Rules.Import.Transform
+import           Harmonic.Rules.Import.Types
+import qualified Harmonic.Rules.Types.Harmony as H
+import qualified Harmonic.Rules.Types.Pitch as P
 
 import qualified Database.Bolt as Bolt
 import           Control.Monad (forM_)
