@@ -59,16 +59,16 @@ p03 f s r d = d03 $ do
        -- --
       ,arrange flow (overlapF 0 s) r (-9,9) ["~"
         -- ,trunc 0.9 $ slow 2 $ palindrome $ "[0 1 2 3]/2" |+ "[1 2 3 4]/4"
-        ,slow 2 $ palindrome $ run 8
-        -- ,"[~ [1,2,3]]/2"
-        -- ,"[0 1 2 3]"
-      ]# o |* vel 0.6 |- oct 1 |= legato 0.99
+        -- ,stripe 2 $ slow 2 $ palindrome $ run 8
+        ,"[~ [1,2,3]]/2"
+        -- ,"[1,2,3]*2"
+      ]# o |* vel 0.6 |- oct 1 |= legato 0.2
        -- --
       ,arrange root (overlapF 0 s) r (-9,9) ["~"
-        -- ,"[0 ~@7]/4"
-        ,"[[0,3,4,5,6]]"
+        ,"[[0,3] ~@3]/4" - 3
+        -- ,"[[4,5,6]]/4"
         -- ,iter 4 $ "[0 1 2 3]" |+ 3
-      ]# o |* vel 0.8 |- oct 3
+      ]# o |* vel 0.8 |- oct 3 -- |= legato
       -- --
     ] |* vel d
 
