@@ -1,17 +1,17 @@
-tempo = 112
+tempo = 78
 
-start = initCadenceState 5 "E" [0,3,7] FlatSpelling
+start = initCadenceState 0 "D" [0,4,7] FlatSpelling
 
-ctx = hContext "*" "*" "*"
+ctx = hContext "*" "*" "D"
 
-next <- gen start 8 "debussy:0.75 bach:0.25" 0.7 ctx
+next <- gen start 8 "*" 0.8 ctx
 
 state = rotate (0) next
 
 do
   let
     dyn = slow 64 $ lfo tri 0.6 0.99
-    rep = 1
+    rep = 2
     s = transposeP 0 state
     f = (swingBy 0.07 2)
     (d,r) = ((*dyn), rep)
@@ -19,10 +19,11 @@ do
   mapM_ id [hush, setbpm tempo
     -- ,metronome $d 0.1
     -- ,count s r $d 0.5
+    -- ,p01 f s r $ d 0.9
     ,p03 f s r $ d 0.9
     -- ,juno f s r $ d 0.9
     -- ,moog f s r $ d 0.9
-    ,k909 f     $d 0.99
+    -- ,k909 f     $d 0.99
     ,kmpc f     $d 0.9
    ]
 

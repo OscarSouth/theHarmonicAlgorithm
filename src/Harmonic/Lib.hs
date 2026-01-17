@@ -125,6 +125,12 @@ module Harmonic.Lib (
   progOverlap, progOverlapF, progOverlapB,
   root, flow, lite, literal,
 
+  -- Explicit progression construction
+  fromChords, prog, fromChordsFlat, fromChordsSharp,
+
+  -- Scale source (switch mechanism)
+  ScaleSource(..), melodyStateFrom,
+
   module Harmonic.Interface.Tidal.Instruments,
   module Harmonic.Interface.Tidal.Utils,
   module Harmonic.Config,
@@ -166,7 +172,9 @@ import Harmonic.Interface.Tidal.Arranger (
     rotate, excerpt, insert, switch, clone, extract,
     transposeP, reverse, fuse, fuse2, interleave, expandP,
     progOverlap, progOverlapF, progOverlapB,
-    root, flow, lite, literal
+    root, flow, lite, literal,
+    fromChords, prog, fromChordsFlat, fromChordsSharp,
+    ScaleSource(..), melodyStateFrom
   )
 import Harmonic.Interface.Tidal.Instruments
 import Harmonic.Interface.Tidal.Utils

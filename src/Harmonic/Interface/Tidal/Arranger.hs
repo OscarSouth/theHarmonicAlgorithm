@@ -14,7 +14,7 @@
 --   * overlap, overlapF, overlapB
 --   * root, flow, lite (3 voicing paradigms via cyclic DP)
 
-module Harmonic.Interface.Tidal.Arranger 
+module Harmonic.Interface.Tidal.Arranger
   ( -- * Position/Range Operations
     rotate
   , excerpt
@@ -22,7 +22,7 @@ module Harmonic.Interface.Tidal.Arranger
   , switch
   , clone
   , extract
-  
+
     -- * Transformation Operations
   , transposeP
   , Harmonic.Interface.Tidal.Arranger.reverse
@@ -30,18 +30,28 @@ module Harmonic.Interface.Tidal.Arranger
   , fuse2
   , interleave
   , expandP
-  
+
     -- * Overlap Operations (Progression-level)
   , progOverlap
   , progOverlapF
   , progOverlapB
-  
+
     -- * Voicing Extractors (3 Paradigms)
   , root   -- Root always in bass, smooth compact voice leading (cyclic DP)
   , flow   -- Any inversion allowed for smoothest voice leading (cyclic DP)
   , lite   -- Literal, no transformation
   , literal -- Alias for lite
   , bass   -- Bass note only (root pitch class)
+
+    -- * Explicit Progression Construction
+  , fromChords      -- Construct Progression from pitch-class lists
+  , prog            -- Legacy alias for fromChords
+  , fromChordsFlat  -- fromChords with flat spelling
+  , fromChordsSharp -- fromChords with sharp spelling
+
+    -- * Scale Source (Switch Mechanism)
+  , ScaleSource(..)
+  , melodyStateFrom
   ) where
 
 import qualified Data.Sequence as Seq
@@ -50,8 +60,8 @@ import Data.Foldable (toList)
 import Data.List (sort, nub)
 
 import Harmonic.Rules.Types.Progression
-import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), CadenceState(..), fromCadenceState, ChordState(..), EnharmonicSpelling(..))
-import Harmonic.Rules.Types.Pitch (PitchClass(..), NoteName(..), pitchClass, enharmFromNoteName, mkPitchClass)
+import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), CadenceState(..), fromCadenceState, ChordState(..), EnharmonicSpelling(..), toFunctionality, toFunctionalityChord, Movement(..), enharmonicFunc)
+import Harmonic.Rules.Types.Pitch (PitchClass(..), NoteName(..), pitchClass, enharmFromNoteName, mkPitchClass, unPitchClass)
 import Harmonic.Evaluation.Scoring.VoiceLeading (solveRoot, solveFlow, liteVoicing, bassVoicing, normalizeByFirstRoot)
 
 -------------------------------------------------------------------------------
@@ -275,5 +285,98 @@ literal = lite
 
 -- Helper to get literal voicings as Integer lists (internal use)
 literalVoicing' :: Progression -> [[Integer]]
-literalVoicing' (Progression seq) = 
+literalVoicing' (Progression seq) =
   map (chordIntervals . fromCadenceState) (toList seq)
+
+-------------------------------------------------------------------------------
+-- Explicit Progression Construction
+-------------------------------------------------------------------------------
+
+-- |Convert pitch-class list to zero-form intervals (relative to root).
+-- Zero-form means the lowest pitch class becomes 0, and all other pitch
+-- classes are expressed as intervals from it.
+-- Example: [5, 9, 0] (F major) becomes [0, 4, 7]
+toZeroForm :: [Int] -> [Int]
+toZeroForm [] = []
+toZeroForm pcs =
+  let sorted = sort pcs
+      root = head sorted
+   in map (\p -> (p - root) `mod` 12) sorted
+
+-- |Name a chord from its zero-form intervals.
+-- Uses legacy chord naming logic (toFunctionality for 3-note chords,
+-- toFunctionalityChord for extended harmonies).
+nameChord :: [Int] -> String
+nameChord intervals
+  | length intervals == 3 =
+      toFunctionality (map mkPitchClass intervals)
+  | otherwise =
+      toFunctionalityChord (map mkPitchClass intervals)
+
+-- |Construct a Progression from explicit pitch-class sets.
+-- This is the main function for composing/arranging workflow (not generation).
+-- Takes an enharmonic spelling and a list of chord pitch-class sets,
+-- returns a Progression ready for 'arrange'.
+--
+-- Example:
+-- @
+-- fromChords FlatSpelling [[0,4,7], [5,9,0], [7,11,2]]
+--   --> C major → F major → G major
+-- @
+fromChords :: EnharmonicSpelling -> [[Int]] -> Progression
+fromChords _ [] = mempty
+fromChords spelling chordSets = Progression (Seq.fromList cadenceStates)
+  where
+    -- Get enharmonic conversion function for this spelling
+    enharm = enharmonicFunc spelling
+
+    cadenceStates = map toCadenceState chordSets
+
+    toCadenceState :: [Int] -> CadenceState
+    toCadenceState pcs =
+      let sorted = sort pcs
+          root = if null sorted then 0 else head sorted
+          rootPC = mkPitchClass root
+          intervals = toZeroForm pcs
+          intervalPCs = map mkPitchClass intervals
+          chordName = nameChord intervals
+          -- Create Cadence with record syntax
+          cadence = Cadence
+            { cadenceFunctionality = chordName
+            , cadenceMovement = Unison  -- Placeholder (no prior context)
+            , cadenceIntervals = intervalPCs
+            }
+          rootNote = enharm rootPC
+       in CadenceState cadence rootNote spelling
+
+-- |Legacy alias for fromChords (matches legacy prog function)
+prog :: EnharmonicSpelling -> [[Int]] -> Progression
+prog = fromChords
+
+-- |Convenience: fromChords with flat spelling
+fromChordsFlat :: [[Int]] -> Progression
+fromChordsFlat = fromChords FlatSpelling
+
+-- |Convenience: fromChords with sharp spelling
+fromChordsSharp :: [[Int]] -> Progression
+fromChordsSharp = fromChords SharpSpelling
+
+-------------------------------------------------------------------------------
+-- Scale Source (Switch Mechanism)
+-------------------------------------------------------------------------------
+
+-- |Scale source for melody mapping.
+-- Enables flexible melody construction by allowing harmony (with optional
+-- overlap) to serve as the scale source instead of explicit scale definitions.
+data ScaleSource
+  = ExplicitScale [[Int]]           -- ^ User-defined scale per chord
+  | HarmonyAsScale Progression      -- ^ Use harmony chords as scales
+  | HarmonyWithOverlap Progression (Int -> Progression -> Progression)
+    -- ^ Use harmony with overlap function applied
+
+-- |Create melody state from scale source.
+-- Converts a ScaleSource into a Progression suitable for melody arrangement.
+melodyStateFrom :: ScaleSource -> Progression
+melodyStateFrom (ExplicitScale scales) = fromChordsFlat scales
+melodyStateFrom (HarmonyAsScale prog) = prog  -- Direct passthrough
+melodyStateFrom (HarmonyWithOverlap prog overlapFn) = overlapFn 1 prog

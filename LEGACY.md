@@ -578,12 +578,15 @@ sortBy (comparing dissonanceScore) allPossibleChords
 
 ### B2. Explicit Progression Construction (`prog` function) ⭐
 
-**Status**: ❌ Not ported - **USER PRIORITY**
+**Status**: ✅ Ported - **COMPLETED**
 **Legacy**: `theHarmonicAlgorithmLegacy/src/Arranger.hs` lines 22-30 (`prog`), lines 38-45 (`triadProg`)
-**Modern**: None - needs porting
+**Modern**: `src/Harmonic/Interface/Tidal/Arranger.hs` lines 288-362 (`fromChords`, `prog`, etc.)
 **Priority**: **HIGH** - User specifically requested this feature
 **User Impact**: High - enables composing/arranging workflow (not just generation)
-**Estimated Effort**: 2-3 days
+**Implementation Date**: 2026-01-16
+**Examples**:
+- `live/examples/blue_in_green.tidal` - Jazz progression with switch mechanism
+- `live/examples/rosslyn_castle.tidal` - AABA form with transformation support
 
 **Purpose**:
 Allow users to define harmonic progressions explicitly using readable syntax, complementing the probabilistic generation approach. Critical for composing pre-determined chord sequences for performances.

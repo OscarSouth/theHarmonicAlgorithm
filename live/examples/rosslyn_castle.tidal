@@ -1,0 +1,183 @@
+-- rosslyn_castle.tidal
+-- Modernized example demonstrating AABA form structure with note name syntax
+-- and form transformation capabilities
+
+-- ============================================================================
+-- HARMONY SECTIONS (Note Name Syntax)
+-- ============================================================================
+
+-- A Section (16 bars)
+rosslynCastleA :: [[Int]]
+rosslynCastleA = notesToPCs <$> [
+    [B, D, F']       -- Bar 1: Bm
+  , [D, F', A]       -- Bar 2: Dm
+  , [C', E, G, Bb]   -- Bar 3: C7
+  , [F', A, C', E]   -- Bar 4: F maj7
+  , [F', A, C', Eb]  -- Bar 5: F min7
+  , [G, Bb, D, F']   -- Bar 6: G min7
+  , [A, C', E, G]    -- Bar 7: A min7
+  , [C', Eb, G, Bb]  -- Bar 8: C min7
+  , [B, D, F']       -- Bar 9: Bm
+  , [D, F', A]       -- Bar 10: Dm
+  , [C', E, G, Bb]   -- Bar 11: C7
+  , [F', A, C', E]   -- Bar 12: F maj7
+  , [Bb, D, F', A]   -- Bar 13: Bb maj7
+  , [D, F', A, C']   -- Bar 14: Dm7
+  , [G, Bb, D]       -- Bar 15: Gm
+  , [C', E, G]       -- Bar 16: C
+  ]
+
+-- B Section (16 bars)
+rosslynCastleB :: [[Int]]
+rosslynCastleB = notesToPCs <$> [
+    [G, B, D]        -- Bar 1: G
+  , [B, D, F']       -- Bar 2: Bm
+  , [D, F', A]       -- Bar 3: Dm
+  , [G, Bb, Db, E]   -- Bar 4: G7♭9
+  , [C', E, G, Bb]   -- Bar 5: C7
+  , [A, C', E]       -- Bar 6: Am
+  , [D, F', A, C']   -- Bar 7: Dm7
+  , [G, B, D]        -- Bar 8: G
+  , [E, G, B]        -- Bar 9: Em
+  , [A, C', E, G]    -- Bar 10: Am7
+  , [D, F', A]       -- Bar 11: Dm
+  , [G, Bb, D, F']   -- Bar 12: Gm7
+  , [C', E, G]       -- Bar 13: C
+  , [F', A, C', E]   -- Bar 14: F maj7
+  , [Bb, D, F', A]   -- Bar 15: Bb maj7
+  , [B, D, F', A]    -- Bar 16: Bm7
+  ]
+
+-- ============================================================================
+-- FORM AS PARAMETER (Easily Transformable)
+-- ============================================================================
+
+-- Construct harmony based on form string (e.g., "AABA", "ABAB", "AABB")
+rosslynCastleHarmony :: String -> [[Int]]
+rosslynCastleHarmony form =
+  concatMap (\s -> if s == 'A' then rosslynCastleA else rosslynCastleB) form
+
+-- ============================================================================
+-- SCALE DEFINITION (Single Harmonic Minor)
+-- ============================================================================
+
+-- B harmonic minor scale (independent of chords)
+rosslynCastleScale :: [[Int]]
+rosslynCastleScale = replicate 64 [(-1), 0, 2, 3, 5, 7, 8, 11]  -- B harmonic minor for 64 bars
+
+-- ============================================================================
+-- MELODY SECTIONS (Scale Degree Patterns)
+-- ============================================================================
+
+-- A Section Melody (16 patterns)
+rosslynCastleMelodyA :: [Pattern String]
+rosslynCastleMelodyA = [
+    "[0 . 4@3 5 . 4 . 3 4]"
+  , "[2 . 2 4 . 5 . 4 2]"
+  , "[0 1 2@3 4 . 2 . 1 2]"
+  , "[0@6 2 1]"
+  , "[0@3 -1 . -2 . -1 0]"
+  , "[-1@3 -2 . -3 . -2 -1]"
+  , "[-2@3 -3 . -4 . -3 -2]"
+  , "[-3@3 -4 . -5 . -4 -3]"
+  , "[0 . 4@3 5 . 4 . 3 4]"
+  , "[2 . 2 4 . 5 . 4 2]"
+  , "[0 1 2@3 4 . 2 . 1 2]"
+  , "[0@6 2 1]"
+  , "[2@3 3 . 4 . 3 2]"
+  , "[0@3 1 . 2 . 1 0]"
+  , "[-1@3 0 . 1 . 0 -1]"
+  , "[-2@6 0 -1]"
+  ]
+
+-- B Section Melody (16 patterns)
+rosslynCastleMelodyB :: [Pattern String]
+rosslynCastleMelodyB = [
+    "[7 . 7 8 . 9 . 8 7]"
+  , "[5 . 5 7 . 8 . 7 5]"
+  , "[4@3 5 . 7 . 5 4]"
+  , "[2@3 4 . 5 . 4 2]"
+  , "[0@3 2 . 4 . 2 0]"
+  , "[-1@3 0 . 2 . 0 -1]"
+  , "[-2@3 -1 . 0 . -1 -2]"
+  , "[-3@6 -1 -2]"
+  , "[4@3 5 . 6 . 5 4]"
+  , "[2@3 3 . 4 . 3 2]"
+  , "[0@3 1 . 2 . 1 0]"
+  , "[-1@3 0 . 1 . 0 -1]"
+  , "[-2@3 -1 . 0 . -1 -2]"
+  , "[-3@3 -2 . -1 . -2 -3]"
+  , "[-4@3 -3 . -2 . -3 -4]"
+  , "[-5@6 -3 -4]"
+  ]
+
+-- Form-based melody (easily transformable)
+rosslynCastleMelody :: String -> Pattern String
+rosslynCastleMelody form =
+  let patterns = concatMap (\s -> if s == 'B' then rosslynCastleMelodyB else rosslynCastleMelodyA) form
+   in slow 4 . slowcat $ patterns
+
+-- ============================================================================
+-- PROGRESSION CONSTRUCTION
+-- ============================================================================
+
+-- Harmony states with different forms
+stateAABA :: Progression
+stateAABA = prog sharp (rosslynCastleHarmony "AABA")
+
+stateABAB :: Progression
+stateABAB = prog sharp (rosslynCastleHarmony "ABAB")
+
+stateAABB :: Progression
+stateAABB = prog sharp (rosslynCastleHarmony "AABB")
+
+-- Melody state with explicit scale
+melodyState :: Progression
+melodyState = prog sharp rosslynCastleScale
+
+-- Switch mechanism demonstration
+melodyFromHarmony :: Progression
+melodyFromHarmony = stateAABA  -- Use harmony as scale source
+
+melodyWithOverlap :: Progression
+melodyWithOverlap = progOverlapF 1 stateAABA  -- Harmony with passing tones
+
+-- Form-based melodies
+melodyAABA :: Pattern String
+melodyAABA = rosslynCastleMelody "AABA"
+
+melodyABAB :: Pattern String
+melodyABAB = rosslynCastleMelody "ABAB"
+
+-- ============================================================================
+-- USAGE IN TIDAL CYCLES
+-- ============================================================================
+
+-- Play harmony (original AABA form)
+-- d1 $ note (arrange flow stateAABA 0 (-9,9) "0 1 2 3") # s "superpiano"
+
+-- Play harmony (alternate ABAB form)
+-- d1 $ note (arrange flow stateABAB 0 (-9,9) "0 1 2 3") # s "superpiano"
+
+-- Play melody (explicit scale, AABA form)
+-- d2 $ note (arrange flow melodyState 0 (-9,9) melodyAABA) # s "supersaw"
+
+-- Play melody (harmony as scale)
+-- d2 $ note (arrange flow melodyFromHarmony 0 (-9,9) melodyAABA) # s "supersaw"
+
+-- Play melody (with passing tones)
+-- d2 $ note (arrange flow melodyWithOverlap 0 (-9,9) melodyAABA) # s "supersaw"
+
+-- Play melody with different form (ABAB)
+-- d2 $ note (arrange flow melodyState 0 (-9,9) melodyABAB) # s "supersaw"
+
+-- ============================================================================
+-- IMPROVEMENTS OVER LEGACY
+-- ============================================================================
+
+-- ✅ Form as parameter (transform "AABA" → "ABAB" without rewriting)
+-- ✅ Note name syntax maintained (readable)
+-- ✅ Melody sections separate (A/B sections independent)
+-- ✅ Switch mechanism demonstrated
+-- ✅ Clear separation: harmony, scale, melody, form
+-- ✅ Composition elements independently transformable
