@@ -6,6 +6,25 @@ This document tracks opportunities for bug fixes, code cleanup, performance opti
 
 ---
 
+## Recently Completed (2026-01-16)
+
+### B2: Explicit Progression Construction ✅
+**Status**: Completed
+**Implementation**: `src/Harmonic/Interface/Tidal/Arranger.hs` lines 288-382
+**Features Added**:
+- Core `fromChords` function for explicit chord sequence construction
+- Note name syntax support with `notesToPCs` helper (`C, E, G`, `F'`, etc.)
+- Switch mechanism via `ScaleSource` type (harmony as scale source for melody)
+- Convenience aliases: `prog`, `fromChordsFlat`, `fromChordsSharp`
+- Two complete examples:
+  - `live/examples/blue_in_green.tidal` - Jazz progression with switch mechanism
+  - `live/examples/rosslyn_castle.tidal` - AABA form with transformation support
+
+**User Impact**: High - enables composing/arranging workflow beyond probabilistic generation
+**Documentation**: Updated README.md with usage examples and integration guide
+
+---
+
 ## Priority Matrix
 
 | Priority | Count | Impact Level |

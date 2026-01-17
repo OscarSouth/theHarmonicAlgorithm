@@ -179,6 +179,87 @@ d1 $ note (voiceBy Harmony prog "<0 2 4 6>") # s "superpiano"
 
 ---
 
+## Explicit Progression Construction
+
+In addition to generating progressions from the database, you can explicitly construct progressions for composition and arrangement workflows:
+
+```haskell
+import Harmonic.Lib
+
+-- Method 1: Direct pitch-class lists
+myProg = fromChordsFlat [
+    [0, 4, 7],    -- C major
+    [5, 9, 0],    -- F major
+    [7, 11, 2],   -- G major
+    [0, 4, 7]     -- C major
+  ]
+
+-- Method 2: Note names for readability
+myProg2 = fromChordsSharp [
+    notesToPCs [C, E, G],     -- C major
+    notesToPCs [D, F', A],    -- D major
+    notesToPCs [G, B, D]      -- G major
+  ]
+
+-- Use in TidalCycles
+d1 $ note (arrange flow myProg 0 (-9,9) "0 1 2 3") # s "superpiano"
+```
+
+### Switch Mechanism (Harmony as Scale Source)
+
+The switch mechanism allows harmony to serve as the scale source for melody, enabling flexible melodic construction:
+
+```haskell
+-- Create harmony progression
+harmonyProg = fromChordsFlat [[0,4,7], [5,9,0], [7,11,2]]
+
+-- Option 1: Explicit scales (traditional)
+scales = [[0,2,4,7,9], [0,2,4,5,9], [0,2,4,7,9]]
+melodyState1 = fromChordsFlat scales
+
+-- Option 2: Use harmony as scales (switch!)
+melodyState2 = harmonyProg  -- Same progression, used for melody
+
+-- Option 3: Use harmony with overlap (passing tones)
+melodyState3 = progOverlapF 1 harmonyProg
+
+-- Usage in patterns:
+d1 $ note (arrange flow harmonyProg 0 (-9,9) "0 1 2") # s "superpiano"     -- Harmony
+d2 $ note (arrange flow melodyState1 0 (-9,9) "[0 2 4]") # s "supersaw"    -- Melody (explicit scales)
+d2 $ note (arrange flow melodyState2 0 (-9,9) "[0 1 2]") # s "supersaw"    -- Melody (harmony as scale)
+d2 $ note (arrange flow melodyState3 0 (-9,9) "[0 1 2 3]") # s "supersaw"  -- Melody (with passing tones)
+```
+
+### Form Transformation
+
+Define musical sections and transform them by changing the form structure:
+
+```haskell
+-- Define sections
+a = [notesToPCs [C, E, G], notesToPCs [F, A, C]]
+b = [notesToPCs [G, B, D], notesToPCs [D, F', A]]
+
+-- Change form by changing the assembly
+form1 = concat [a, a, b, a]  -- AABA (original)
+form2 = concat [a, b, a, b]  -- ABAB (alternate)
+form3 = concat [a, a, b, b]  -- AABB (variation)
+
+state1 = fromChordsSharp form1
+state2 = fromChordsSharp form2
+state3 = fromChordsSharp form3
+
+-- Same melody, different forms
+melody = "[0 2 4 0 1 2 3 1]"
+d1 $ note (arrange flow state1 0 (-9,9) melody) # s "superpiano"  -- AABA structure
+d1 $ note (arrange flow state2 0 (-9,9) melody) # s "superpiano"  -- ABAB structure
+```
+
+**Examples:**
+- **[live/examples/blue_in_green.tidal](live/examples/blue_in_green.tidal)** - Jazz progression with scale/melody separation and switch mechanism
+- **[live/examples/rosslyn_castle.tidal](live/examples/rosslyn_castle.tidal)** - AABA form with transformation support and note name syntax
+
+---
+
 ## Documentation
 
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Comprehensive technical reference (R→E→T framework, module structure, core concepts)

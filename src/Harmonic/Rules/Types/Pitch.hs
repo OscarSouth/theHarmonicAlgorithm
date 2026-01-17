@@ -28,6 +28,7 @@ module Harmonic.Rules.Types.Pitch
     -- * Enharmonic Note Names
   , NoteName(..)
   , pitchClass
+  , notesToPCs
   , sharp
   , flat
   , enharmFromNoteName
@@ -217,6 +218,11 @@ enharmFromNoteName n = case n of
   A' -> sharp
   Bb -> flat
   B  -> sharp
+
+-- |Convert a list of NoteNames to pitch-class integers
+-- Useful for defining chord progressions with note names
+notesToPCs :: [NoteName] -> [Int]
+notesToPCs = map (unPitchClass . pitchClass)
 
 -------------------------------------------------------------------------------
 -- Transposition (Group Actions on ℤ₁₂)
