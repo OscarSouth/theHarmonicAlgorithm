@@ -1275,9 +1275,9 @@ stepChainWithDiagV config verbosity entropy context composerWeights (chain, diag
   
   -- Fetch all transitions from current cadence
   transitions <- fetchTransitions currentShow
-  
+
   -- Apply R constraints (pure filter by HarmonicContext)
-  let filtered = applyRConstraints context transitions
+  let filtered = applyRConstraints context current transitions
 
   -- Score by composer blend
   -- Filter to confidence > 0 and sort highest first
@@ -1288,10 +1288,13 @@ stepChainWithDiagV config verbosity entropy context composerWeights (chain, diag
   -- Build candidate pool: graph candidates + consonanceFallback
   -- NO POOL SIZE LIMIT - use full 660-candidate fallback generation
   fallbackAll <- liftIO $ consonanceFallback current context
-  let fallbackCount = length fallbackAll
+  -- Apply R constraints to fallback candidates (same as graph candidates)
+  let unfilteredFallback = [(cad, score) | (cad, score, _, _, _) <- fallbackAll]
+      filteredFallback = filter (\(cad, _) -> matchesContext context current cad) unfilteredFallback
+      fallbackCount = length filteredFallback
       -- Create unified pool with (Cadence, score) format
-      -- Graph candidates first (preserves database priority), then all fallback
-      pool = graphCandidates ++ [(cad, score) | (cad, score, _, _, _) <- fallbackAll]
+      -- Graph candidates first (preserves database priority), then filtered fallback
+      pool = graphCandidates ++ filteredFallback
   
   -- Select next cadence using gamma sampling
   if null pool
@@ -1462,9 +1465,9 @@ stepChain config entropy context composerWeights chain _step = do
   
   -- Fetch all transitions from current cadence
   transitions <- fetchTransitions currentShow
-  
+
   -- Apply R constraints (pure filter by HarmonicContext)
-  let filtered = applyRConstraints context transitions
+  let filtered = applyRConstraints context current transitions
 
   -- Score by composer blend
   -- Filter to confidence > 0 and sort highest first
@@ -1478,7 +1481,10 @@ stepChain config entropy context composerWeights chain _step = do
               then liftIO $ consonanceFallback current context
               else pure []
   
-  let fallbackCandidates = take needed [(cad, score) | (cad, score, _, _, _) <- fallback]
+  -- Apply R constraints to fallback candidates (same as graph candidates)
+  let unfilteredFallback = [(cad, score) | (cad, score, _, _, _) <- fallback]
+      filteredFallback = filter (\(cad, _) -> matchesContext context current cad) unfilteredFallback
+      fallbackCandidates = take needed filteredFallback
       pool = graphCandidates ++ fallbackCandidates
   
   -- Select next cadence using gamma sampling
@@ -1531,17 +1537,13 @@ consonanceFallback currentState context =
                            else filter (`elem` keyPcs) overtones
       
       -- Generate all valid triads: all ROOT+PAIR combinations
-      -- For complete coverage with wildcard context: 12 roots × C(11,2) pairs = 660 structures
-      -- Each root gets all possible 2-note pairs from the remaining 11 pitches
+      -- For complete coverage: generate from effectiveOvertones (key-filtered overtone palette)
+      -- Each root gets all possible 2-note pairs from the remaining pitches
       -- This preserves inversion distinctions: [0,4,7], [4,0,7], [7,0,4] are three unique structures
-      triads = case (isWildcard (hcOvertones context), isWildcard (hcKey context), isWildcard (hcRoots context)) of
-        -- Full wildcard: for each root, generate all pairs from remaining pitches (660 total)
-        (True, True, True) -> 
-          let allRoots = effectiveOvertones
-          in concatMap (\r -> overtoneSets 3 [r] effectiveOvertones) allRoots
-        -- Otherwise use root-based generation: respects constraint structure
-        _ -> let roots = resolveRoots (hcOvertones context) (hcKey context) (hcRoots context)
-             in concatMap (\r -> overtoneSets 3 [r] effectiveOvertones) roots
+      -- NOTE: hcRoots is for BASS filtering (applied at line 1486), NOT for root generation!
+      -- Always generate from all effective overtones, let the filter handle bass note constraints
+      triads = let allRoots = effectiveOvertones
+               in concatMap (\r -> overtoneSets 3 [r] effectiveOvertones) allRoots
       
       -- No normalization deduplication: preserve ROOT+PAIR distinction for inversions
       -- Each triad is already distinct by its root position
@@ -1565,13 +1567,14 @@ triadToCadenceFrom :: P.PitchClass -> [Int] -> H.Cadence
 -- |Convert fallback triad (absolute pitch classes) to Cadence with zero-form normalization.
 -- Applies H.zeroFormPC to ensure all fallback-generated cadences store relative intervals,
 -- matching database format. This guarantees naming consistency across all cadence sources.
-triadToCadenceFrom currentRoot pitches = 
-  let sortedPitches = sort pitches
-      triadRoot = P.mkPitchClass (head sortedPitches)
+-- IMPORTANT: overtoneSets generates [root, note1, note2] with root FIRST.
+-- We must use the first element as root, not the minimum!
+triadToCadenceFrom currentRoot pitches =
+  let triadRoot = P.mkPitchClass (head pitches)  -- First element from overtoneSets is the root
       movement = H.toMovement currentRoot triadRoot
       -- Zero-form normalization: [P 4,P 7,P 11] → [P 0,P 3,P 7]
-      -- Enables transposition: posteriorChord = posteriorRootPC + cadenceIntervals
-      pcs = H.zeroFormPC (map P.mkPitchClass sortedPitches)
+      -- zeroFormPC subtracts first element and sorts, so don't pre-sort!
+      pcs = H.zeroFormPC (map P.mkPitchClass pitches)
       functionality = H.toFunctionality pcs
   in H.Cadence functionality movement pcs
 
@@ -1631,10 +1634,11 @@ extractMovementInterval movement = case movement of
       in if m <= 6 then m else 12 - m
 
 -- |Apply R constraints to filter transitions
-applyRConstraints :: HarmonicContext 
-                  -> [(H.Cadence, ComposerWeights)] 
+applyRConstraints :: HarmonicContext
+                  -> H.CadenceState
                   -> [(H.Cadence, ComposerWeights)]
-applyRConstraints context = filter (matchesContext context . fst)
+                  -> [(H.Cadence, ComposerWeights)]
+applyRConstraints context currentState = filter (matchesContext context currentState . fst)
 
 -- |Check if a cadence matches the harmonic context filters.
 -- 
@@ -1642,45 +1646,50 @@ applyRConstraints context = filter (matchesContext context . fst)
 --   1. Compute effective overtones: key-filtered overtone palette
 --   2. All chord pitches must be in effective overtones
 --   3. Root must be in resolved roots (handles "key"/"tones" options)
-matchesContext :: HarmonicContext -> H.Cadence -> Bool
-matchesContext context cadence =
+matchesContext :: HarmonicContext -> H.CadenceState -> H.Cadence -> Bool
+matchesContext context currentState cadence =
   let (movement, chord) = H.deconstructCadence cadence
-      
+
       -- Get effective overtone palette (key-filtered)
       rawOvertones = parseOvertones' 4 (hcOvertones context)
       keyPcs = parseKey (hcKey context)
       effectiveOvertones = if isWildcard (hcKey context)
                            then rawOvertones
                            else filter (`elem` keyPcs) rawOvertones
-      
-      -- Get allowed roots (handles "key", "tones", or explicit notes)
-      allowedRoots = resolveRoots (hcOvertones context) (hcKey context) (hcRoots context)
-      
-      -- Extract root from movement
-      rootPc = case movement of
-        H.Unison -> P.mkPitchClass 0
-        H.Tritone -> P.mkPitchClass 6
-        H.Asc pc -> pc
-        H.Desc pc -> pc
-        H.Empty -> P.mkPitchClass 0
-      
-      -- Convert chord to Int for comparison
-      chordInts = map (fromIntegral . P.unPitchClass) chord
-      rootInt = fromIntegral (P.unPitchClass rootPc)
 
-      -- Transpose relative intervals to absolute pitches
+      -- Get allowed bass notes (the "roots" parameter actually filters bass notes, not harmonic roots)
+      allowedBassNotes = resolveRoots (hcOvertones context) (hcKey context) (hcRoots context)
+
+      -- Compute current root from previous state + movement
+      prevRoot = P.pitchClass (H.stateCadenceRoot currentState)
+      currentRoot = case movement of
+        H.Unison -> prevRoot
+        H.Tritone -> P.transpose 6 prevRoot
+        H.Asc pc -> P.transpose (P.unPitchClass pc) prevRoot
+        H.Desc pc -> P.transpose (negate $ P.unPitchClass pc) prevRoot
+        H.Empty -> prevRoot
+
+      -- Convert chord intervals to Int for transposition
+      chordInts = map (fromIntegral . P.unPitchClass) chord
+      currentRootInt = fromIntegral (P.unPitchClass currentRoot)
+
+      -- Transpose relative intervals (zero-form) to absolute pitches
       -- Example: [0,4,7] + root 4 (E) = [4,8,11] mod 12
-      absolutePitches = map (\interval -> (interval + rootInt) `mod` 12) chordInts
+      absolutePitches = map (\interval -> (interval + currentRootInt) `mod` 12) chordInts
+
+      -- Bass note is the FIRST interval (fundamental), not minimum!
+      -- This matches how bassNotes and toTriad compute bass.
+      bassInt = if null absolutePitches then 0 else head absolutePitches
 
       -- All absolute chord pitches must be in effective overtones
       -- (effectiveOvertones already handles wildcard cases correctly)
       overtonesMatch = all (`elem` effectiveOvertones) absolutePitches
-      
-      -- Root must be in allowed roots (or wildcard)
-      rootsMatch = isWildcard (hcRoots context) 
-                   || rootInt `elem` allowedRoots
-      
-  in overtonesMatch && rootsMatch
+
+      -- Bass note must be in allowed bass notes (or wildcard)
+      bassMatch = isWildcard (hcRoots context)
+                  || bassInt `elem` allowedBassNotes
+
+  in overtonesMatch && bassMatch
 
 -- |Apply homing bias to scored candidates (disabled but kept for future use)
 applyHomingBias :: Set.Set Text -> Double -> [(H.Cadence, Double)] -> [(H.Cadence, Double)]

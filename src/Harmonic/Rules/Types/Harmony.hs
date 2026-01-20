@@ -580,12 +580,34 @@ fromCadenceStateTraced (CadenceState cadence root spelling) =
       tonesInts = map unPitchClass tones
       pitches = map (\t -> unPitchClass (t + rootPC)) tones
       
-      -- Trace toTriad internals
+      -- Trace toTriad internals (matching toTriad logic for correct functionality)
       fund = head pitches
       normalizedPs = normalizeWithFund fund pitches
-      zeroForm = map unPitchClass $ zeroFormPC (map mkPitchClass normalizedPs)
+      pcs = map mkPitchClass normalizedPs
+      bass = mkPitchClass (head normalizedPs)
+      invs = inversions pcs
+      headInv = head invs
+      -- Get root offset from inversion pattern (same as toTriad lines 452-465)
+      rootOffset = case headInv of
+        [P 0, P 4, P 7] -> 0   -- Root position major
+        [P 0, P 3, P 7] -> 0   -- Root position minor
+        [P 0, P 3, P 8] -> 8   -- 1st inv major
+        [P 0, P 4, P 9] -> 9   -- 1st inv minor
+        [P 0, P 5, P 9] -> 5   -- 2nd inv major
+        [P 0, P 5, P 8] -> 5   -- 2nd inv minor
+        [P 0, P 5, P 7] -> 0   -- Root position sus4
+        [P 0, P 5, P 10] -> 5  -- 2nd inv sus4
+        [P 0, P 2, P 7] -> 7   -- 1st inv sus4
+        [P 0, P 3, P 6] -> 0   -- Root position dim
+        [P 0, P 6, P 9] -> 6   -- 2nd inv dim
+        [P 0, P 3, P 9] -> 9   -- 1st inv dim
+        _ -> 0                 -- Fallback
+      rootPC_computed = bass + P rootOffset
+      -- Compute root-relative intervals for naming (same as toTriad line 468)
+      rootRelativePCs = sort $ map (\p -> p - rootPC_computed) pcs
+      zeroForm = map unPitchClass $ zeroFormPC pcs
       invResult = detectInversion enharm normalizedPs
-      functionality = nameFuncTriad zeroFormPC (map mkPitchClass normalizedPs) ""
+      functionality = nameFuncTriad zeroFormPC rootRelativePCs ""
       finalChord = Chord (fst invResult) (functionality ++ snd invResult) (map fromIntegral pitches)
       
       -- Raw DB data

@@ -340,9 +340,10 @@ showTriad f (Chord noteName functionality _)
     | all (`List.isInfixOf` functionality) ["_1stInv", "min"] =
       show (f $ pitchClass noteName) ++ " " ++ takeWhile Char.isAlphaNum functionality
       ++ "/" ++ show (f (pitchClass noteName + P 3))
-    -- 1st inversion sus4 -> sus2 equivalent
+    -- 1st inversion sus4 (4th in bass = root + 5 semitones)
     | all (`List.isInfixOf` functionality) ["_1stInv", "sus4"] =
-      show (f (pitchClass noteName - P 5)) ++ " sus2"
+      show (f $ pitchClass noteName) ++ " " ++ takeWhile Char.isAlphaNum functionality
+      ++ "/" ++ show (f (pitchClass noteName + P 5))
     -- 1st inversion dim (3rd in bass = root + 3 semitones)
     | all (`List.isInfixOf` functionality) ["_1stInv", "dim"] =
       show (f $ pitchClass noteName) ++ " " ++ takeWhile Char.isAlphaNum functionality ++

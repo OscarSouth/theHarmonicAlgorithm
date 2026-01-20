@@ -118,7 +118,8 @@ hush = mapM_ ($ silence) [
   p "moogDFAM",
   p "moogMother32",
   p "sh101",
-  p "juno"
+  p "juno",
+  p "drumbruteImpact"
   ]
 :}
 
@@ -203,14 +204,27 @@ putStrLn "theHarmonicAlgorithm V3 boot complete."
 -- additions
 
 kick pat = struct pat $ midinote "0" #ch 10 #sustain 0.05
+kick' pat = struct pat $ midinote "60" #ch 10 #sustain 0.05
+kick'' pat = struct pat $ midinote "70" #ch 10 #sustain 0.05
+kick2 pat = struct pat $ midinote "70" #ch 10 #sustain 0.05
+kick2' pat = struct pat $ midinote "80" #ch 10 #sustain 0.05
 snap pat = struct pat $ midinote "1" #ch 10 #sustain 0.05
 hhcl pat = struct pat $ midinote "2" #ch 10 #sustain 0.05
+hhcl' pat = struct pat $ midinote "62" #ch 10 #sustain 0.05
 hhop pat = struct pat $ midinote "3" #ch 10 #sustain 0.05
+hhop' pat = struct pat $ midinote "63" #ch 10 #sustain 0.05
 ride pat = struct pat $ midinote "4" #ch 10 #sustain 0.05
+ride' pat = struct pat $ midinote "64" #ch 10 #sustain 0.05
 crash pat = struct pat $ midinote "5" #ch 10 #sustain 0.05
 click pat = struct pat $ midinote "6" #ch 10 #sustain 0.05
+click' pat = struct pat $ midinote "66" #ch 10 #sustain 0.05
 snare pat = struct pat $ midinote "7" #ch 10 #sustain 0.05
+snare' pat = struct pat $ midinote "67" #ch 10 #sustain 0.05
+cowbell pat = struct pat $ midinote "8" #ch 10 #sustain 0.05
+fm pat = struct pat $ midinote "9" #ch 10 #sustain 0.05
+fm' pat = struct pat $ midinote "69" #ch 10 #sustain 0.05
 rimshot pat = struct pat $ midinote "[6,7]" #ch 10 #sustain 0.05
+rimshot' pat = struct pat $ midinote "[66,67]" #ch 10 #sustain 0.05
 
 :{
 hh pat = do
@@ -220,6 +234,19 @@ hh pat = do
             ("1", midinote 2 #ch 10 #sustain 0.05 #vel 0.5),
             ("o", midinote 3 #ch 10 #sustain 0.05 #vel 0.5),
             ("2", midinote 3 #ch 10 #sustain 0.05 #vel 0.5)
+            ]
+      fs   = []
+   in ur bars pat ps fs
+:}
+
+:{
+hh' pat = do
+  let bars = 1
+      ps = [
+            ("x", midinote 62 #ch 10 #sustain 0.05 #vel 0.5),
+            ("1", midinote 62 #ch 10 #sustain 0.05 #vel 0.5),
+            ("o", midinote 63 #ch 10 #sustain 0.05 #vel 0.5),
+            ("2", midinote 63 #ch 10 #sustain 0.05 #vel 0.5)
             ]
       fs   = []
    in ur bars pat ps fs

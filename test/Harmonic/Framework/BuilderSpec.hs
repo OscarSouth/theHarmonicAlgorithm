@@ -401,7 +401,9 @@ spec = do
             -- E major: root E (4), intervals [0,4,7] → absolute [4,8,11]
             -- 8 (G#) is NOT in D major
             emajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 4)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
-        matchesContext context emajCadence `shouldBe` False
+            -- Create a dummy CadenceState starting from C (root 0) for testing
+            dummyState = H.CadenceState (H.Cadence "maj" H.Unison [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]) P.C H.FlatSpelling
+        matchesContext context dummyState emajCadence `shouldBe` False
 
       it "A major chord rejected by D major key (contains C#)" $ do
         let context = harmonicContext "*" "2#" "*"  -- D major [1,2,4,6,7,9,11]
@@ -411,7 +413,8 @@ spec = do
             -- Let me use Bb major instead: root Bb (10), intervals [0,4,7] → absolute [10,2,5]
             -- 10 (Bb) is NOT in D major
             bbmajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 10)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
-        matchesContext context bbmajCadence `shouldBe` False
+            dummyState = H.CadenceState (H.Cadence "maj" H.Unison [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]) P.C H.FlatSpelling
+        matchesContext context dummyState bbmajCadence `shouldBe` False
 
       it "F major chord rejected by C major key (contains Bb)" $ do
         let context = harmonicContext "*" "C" "*"  -- C major [0,2,4,5,7,9,11]
@@ -419,7 +422,8 @@ spec = do
             -- Let me use F# major: root F# (6), intervals [0,4,7] → absolute [6,10,1]
             -- 6 (F#), 10 (Bb), 1 (Db) - F# and Bb are NOT in C major
             fsharpmajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 6)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
-        matchesContext context fsharpmajCadence `shouldBe` False
+            dummyState = H.CadenceState (H.Cadence "maj" H.Unison [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]) P.C H.FlatSpelling
+        matchesContext context dummyState fsharpmajCadence `shouldBe` False
 
     describe "accepts chords with all pitches in key filter" $ do
       it "D major chord accepted by D major key" $ do
@@ -427,36 +431,90 @@ spec = do
             -- D major: root D (2), intervals [0,4,7] → absolute [2,6,9]
             -- All in D major
             dmajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 2)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
-        matchesContext context dmajCadence `shouldBe` True
+            dummyState = H.CadenceState (H.Cadence "maj" H.Unison [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]) P.C H.FlatSpelling
+        matchesContext context dummyState dmajCadence `shouldBe` True
 
       it "E minor chord accepted by D major key" $ do
         let context = harmonicContext "*" "2#" "*"  -- D major [1,2,4,6,7,9,11]
             -- E minor: root E (4), intervals [0,3,7] → absolute [4,7,11]
             -- All in D major
             eminCadence = H.Cadence "min" (H.Asc (P.mkPitchClass 4)) [P.mkPitchClass 0, P.mkPitchClass 3, P.mkPitchClass 7]
-        matchesContext context eminCadence `shouldBe` True
+            dummyState = H.CadenceState (H.Cadence "maj" H.Unison [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]) P.C H.FlatSpelling
+        matchesContext context dummyState eminCadence `shouldBe` True
 
       it "A major chord accepted by D major key" $ do
         let context = harmonicContext "*" "2#" "*"  -- D major [1,2,4,6,7,9,11]
             -- A major: root A (9), intervals [0,4,7] → absolute [9,1,4]
             -- All in D major (C# is 1, which is in D major)
             amajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 9)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
-        matchesContext context amajCadence `shouldBe` True
+            dummyState = H.CadenceState (H.Cadence "maj" H.Unison [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]) P.C H.FlatSpelling
+        matchesContext context dummyState amajCadence `shouldBe` True
 
       it "C major chord accepted by C major key" $ do
         let context = harmonicContext "*" "C" "*"  -- C major [0,2,4,5,7,9,11]
             -- C major: root C (0), intervals [0,4,7] → absolute [0,4,7]
             -- All in C major
             cmajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 0)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
-        matchesContext context cmajCadence `shouldBe` True
+            dummyState = H.CadenceState (H.Cadence "maj" H.Unison [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]) P.C H.FlatSpelling
+        matchesContext context dummyState cmajCadence `shouldBe` True
 
     describe "wildcard key accepts all chords" $ do
       it "E major accepted with wildcard key" $ do
         let context = harmonicContext "*" "*" "*"  -- No key filter
             emajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 4)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
-        matchesContext context emajCadence `shouldBe` True
+            dummyState = H.CadenceState (H.Cadence "maj" H.Unison [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]) P.C H.FlatSpelling
+        matchesContext context dummyState emajCadence `shouldBe` True
 
       it "Bb major accepted with wildcard key" $ do
         let context = harmonicContext "*" "*" "*"  -- No key filter
             bbmajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 10)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
-        matchesContext context bbmajCadence `shouldBe` True
+            dummyState = H.CadenceState (H.Cadence "maj" H.Unison [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]) P.C H.FlatSpelling
+        matchesContext context dummyState bbmajCadence `shouldBe` True
+
+  describe "Roots (Bass Note) Filtering" $ do
+    describe "rejects chords with bass notes not in allowed set" $ do
+      it "C major rejected when only D bass allowed" $ do
+        let context = harmonicContext "*" "*" "D"  -- Only D bass notes
+            -- C major from D: movement desc 2, intervals [0,4,7] → absolute [0,4,7]
+            -- Bass note is 0 (C), not allowed
+            cmajCadence = H.Cadence "maj" (H.Desc (P.mkPitchClass 2)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
+            dState = H.CadenceState (H.Cadence "maj" H.Unison [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]) P.D H.FlatSpelling
+        matchesContext context dState cmajCadence `shouldBe` False
+
+      it "E major rejected when only D bass allowed" $ do
+        let context = harmonicContext "*" "*" "D"  -- Only D bass notes
+            -- E major from D: movement asc 2, intervals [0,4,7] → absolute [4,8,11]
+            -- Bass note is 4 (E), not allowed
+            emajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 2)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
+            dState = H.CadenceState (H.Cadence "maj" H.Unison [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]) P.D H.FlatSpelling
+        matchesContext context dState emajCadence `shouldBe` False
+
+    describe "accepts chords with bass notes in allowed set" $ do
+      it "D major accepted when only D bass allowed" $ do
+        let context = harmonicContext "*" "*" "D"  -- Only D bass notes
+            -- D major pedal: intervals [0,4,7] → absolute [2,6,9]
+            -- Bass note is 2 (D), allowed
+            dmajCadence = H.Cadence "maj" H.Unison [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
+            dState = H.CadenceState (H.Cadence "maj" H.Unison [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]) P.D H.FlatSpelling
+        matchesContext context dState dmajCadence `shouldBe` True
+
+      it "Chord with D in bass accepted (desc 5 movement to D root)" $ do
+        let context = harmonicContext "*" "*" "D"  -- Only D bass notes
+            -- From A (9), desc 5 → D (2), intervals [0,3,7] → absolute [2,5,9] → bass is 2 (D) ✓
+            -- D minor chord with D in the bass (first element)
+            chord = H.Cadence "min" (H.Desc (P.mkPitchClass 7)) [P.mkPitchClass 0, P.mkPitchClass 3, P.mkPitchClass 7]
+            aState = H.CadenceState (H.Cadence "maj" H.Unison [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]) P.A H.FlatSpelling
+        matchesContext context aState chord `shouldBe` True
+
+    describe "wildcard roots accepts all bass notes" $ do
+      it "C major accepted with wildcard roots" $ do
+        let context = harmonicContext "*" "*" "*"  -- All bass notes allowed
+            cmajCadence = H.Cadence "maj" (H.Desc (P.mkPitchClass 2)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
+            dState = H.CadenceState (H.Cadence "maj" H.Unison [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]) P.D H.FlatSpelling
+        matchesContext context dState cmajCadence `shouldBe` True
+
+      it "E major accepted with wildcard roots" $ do
+        let context = harmonicContext "*" "*" "*"  -- All bass notes allowed
+            emajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 2)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
+            dState = H.CadenceState (H.Cadence "maj" H.Unison [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]) P.D H.FlatSpelling
+        matchesContext context dState emajCadence `shouldBe` True
