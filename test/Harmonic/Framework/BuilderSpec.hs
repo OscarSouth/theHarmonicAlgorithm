@@ -28,7 +28,8 @@ import qualified Data.Text as T
 import Data.Text (Text)
 import Data.List (sort)
 
-import Harmonic.Framework.Builder (HarmonicContext(..), GeneratorConfig(..), defaultContext, defaultConfig, TransformTrace(..), AdvanceTrace(..), StepDiagnostic(..), harmonicContext, matchesContext)
+import Harmonic.Framework.Builder (HarmonicContext(..), GeneratorConfig(..), defaultContext, defaultConfig, TransformTrace(..), AdvanceTrace(..), StepDiagnostic(..), harmonicContext, matchesContext, parseComposersWithOrder, makePortmanteau, extractByPosition, takeFromBeginning, takeFromEnd, takeFromMiddle)
+import qualified Data.Map.Strict as Map
 import Harmonic.Rules.Constraints.Filter (parseOvertones, parseKey, parseFunds)
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as P
@@ -518,3 +519,124 @@ spec = do
             emajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 2)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
             dState = H.CadenceState (H.Cadence "maj" H.Unison [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]) P.D H.FlatSpelling
         matchesContext context dState emajCadence `shouldBe` True
+
+  describe "Portmanteau Generation" $ do
+    
+    describe "makePortmanteau" $ do
+      it "handles single composer" $ do
+        makePortmanteau "bach"
+          `shouldBe` Just "Bach"
+      
+      it "handles two composers equally (input order preserved)" $ do
+        makePortmanteau "bach debussy"
+          `shouldBe` Just "Baussy"
+      
+      it "handles two composers reversed (different result)" $ do
+        makePortmanteau "debussy bach"
+          `shouldBe` Just "Debuch"
+      
+      it "handles weighted blend (order matters, not weight)" $ do
+        makePortmanteau "bach:3 debussy:1"
+          `shouldBe` Just "Bacsy"
+      
+      it "handles weighted blend reversed" $ do
+        makePortmanteau "bach:1 debussy:3"
+          `shouldBe` Just "Bebussy"
+      
+      it "handles three composers (input order)" $ do
+        makePortmanteau "bach stravinsky debussy"
+          `shouldBe` Just "Baavinssy"
+      
+      it "handles wildcard" $ do
+        makePortmanteau "*"
+          `shouldBe` Nothing
+      
+      it "handles empty string" $ do
+        makePortmanteau ""
+          `shouldBe` Nothing
+      
+      it "capitalizes the result" $ do
+        case makePortmanteau "bach" of
+          Just result -> T.take 1 result `shouldBe` "B"
+          Nothing -> expectationFailure "Expected Just result"
+    
+    describe "parseComposersWithOrder" $ do
+      it "preserves input order with equal weights" $ do
+        parseComposersWithOrder "bach debussy"
+          `shouldBe` [("bach", 0.5), ("debussy", 0.5)]
+      
+      it "preserves input order with different weights" $ do
+        parseComposersWithOrder "bach:1 debussy:3"
+          `shouldBe` [("bach", 0.25), ("debussy", 0.75)]
+      
+      it "handles reversed order" $ do
+        parseComposersWithOrder "debussy bach"
+          `shouldBe` [("debussy", 0.5), ("bach", 0.5)]
+      
+      it "handles three composers with equal weights" $ do
+        let result = parseComposersWithOrder "bach stravinsky debussy"
+            expected = [("bach", 1/3), ("stravinsky", 1/3), ("debussy", 1/3)]
+        -- Use approximate equality for floating point
+        length result `shouldBe` 3
+        fst (result !! 0) `shouldBe` "bach"
+        fst (result !! 1) `shouldBe` "stravinsky"
+        fst (result !! 2) `shouldBe` "debussy"
+      
+      it "handles wildcard" $ do
+        parseComposersWithOrder "*"
+          `shouldBe` []
+      
+      it "handles empty string" $ do
+        parseComposersWithOrder ""
+          `shouldBe` []
+    
+    describe "extractByPosition" $ do
+      it "extracts from beginning for first position" $ do
+        extractByPosition 0 3 "stravinsky" 0.5
+          `shouldBe` "strav"
+      
+      it "extracts from middle for middle position" $ do
+        extractByPosition 1 3 "bach" 0.25
+          `shouldBe` "a"
+      
+      it "extracts from end for last position" $ do
+        extractByPosition 2 3 "debussy" 0.25
+          `shouldBe` "sy"
+    
+    describe "takeFromBeginning" $ do
+      it "takes proportional characters from start" $ do
+        takeFromBeginning "stravinsky" 0.5 `shouldBe` "strav"
+      
+      it "takes at least 1 character" $ do
+        takeFromBeginning "bach" 0.1 `shouldBe` "b"
+      
+      it "rounds up using ceiling" $ do
+        -- 4 * 0.3 = 1.2, ceiling = 2
+        takeFromBeginning "bach" 0.3 `shouldBe` "ba"
+    
+    describe "takeFromEnd" $ do
+      it "takes proportional characters from end" $ do
+        takeFromEnd "debussy" 0.25 `shouldBe` "sy"
+      
+      it "takes at least 1 character" $ do
+        takeFromEnd "bach" 0.1 `shouldBe` "h"
+      
+      it "rounds up using ceiling" $ do
+        -- 7 * 0.3 = 2.1, ceiling = 3
+        takeFromEnd "debussy" 0.3 `shouldBe` "ssy"
+    
+    describe "takeFromMiddle" $ do
+      it "takes proportional characters from middle" $ do
+        -- stravinsky has 10 chars, 50% = 5 chars
+        -- start = (10 - 5) / 2 = 2
+        -- take 5 from position 2 = "ravin"
+        takeFromMiddle "stravinsky" 0.5 `shouldBe` "ravin"
+      
+      it "takes at least 1 character" $ do
+        takeFromMiddle "bach" 0.1 `shouldBe` "a"
+      
+      it "favors earlier characters when ambiguous" $ do
+        -- bach has 4 chars, 25% = 1 char
+        -- start = (4 - 1) / 2 = 1 (integer division)
+        -- take 1 from position 1 = "a"
+        takeFromMiddle "bach" 0.25 `shouldBe` "a"

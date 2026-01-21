@@ -1,14 +1,10 @@
 tempo = 78
 
+start = initCadenceState 4 "B" [0,3,7] FlatSpelling
 
 ctx = hContext "D F# A E" "G D" "*"
 
-
-start = initCadenceState 4 "B" [0,3,7] FlatSpelling
-
-ctx = hContext "*" "*" "B D"
-
-next <- gen start 4 "debussy" 0.5 ctx
+next <- gen start 4 "bach debussy" 0.5 ctx
 
 state = rotate (0) next
 

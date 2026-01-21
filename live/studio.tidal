@@ -59,3 +59,11 @@ drum f d = p "drumbruteImpact" $ do
       ,hh "0 2?"
        -- --
     ]# o # legato 0.01 |* vel d |+ vel 0.2
+
+
+
+start = initCadenceState 4 "B" [0,3,7] FlatSpelling
+
+ctx = hContext "D F# A E" "G D" "*"
+
+next <- gen start 4 "" 0.5 ctx
