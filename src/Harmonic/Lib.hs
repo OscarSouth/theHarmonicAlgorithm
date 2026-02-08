@@ -128,6 +128,9 @@ module Harmonic.Lib (
   -- Explicit progression construction
   fromChords, prog, fromChordsFlat, fromChordsSharp,
 
+  -- Groove interface (drums/sub bass)
+  subKick, fund,
+
   -- Scale source (switch mechanism)
   ScaleSource(..), melodyStateFrom,
 
@@ -176,6 +179,7 @@ import Harmonic.Interface.Tidal.Arranger (
     fromChords, prog, fromChordsFlat, fromChordsSharp,
     ScaleSource(..), melodyStateFrom
   )
+import Harmonic.Interface.Tidal.Groove (subKick, fund)
 import Harmonic.Interface.Tidal.Instruments
 import Harmonic.Interface.Tidal.Utils
 import Harmonic.Config

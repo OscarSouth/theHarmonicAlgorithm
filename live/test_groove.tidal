@@ -1,0 +1,62 @@
+-- Groove Interface Test File
+-- MPC drum/sub program on MIDI channel 1
+-- C3-B3 (MIDI 48-59): Sub bass (sustained, note on/off controlled)
+-- C4 (MIDI 60): Kick drum (one-shot)
+--
+-- IMPORTANT: Velocity is applied EXTERNALLY via TidalCycles operators (|* vel d)
+-- This follows the launcher paradigm: pattern generation is separate from effects
+
+-- Setup
+let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+let ctx = hContext "*" "*" "*"
+s <- gen start 2 "*" 0.5 ctx
+
+-- Test 1: Bass strategy (respects inversions)
+d01 $ subKick bass s 1 (1/8, "[1(3,8)]", "[0 1]*2", "1*4") # ch 1 |* vel 0.8
+
+-- Test 2: Fund strategy (roots only, ignores inversions)
+d01 $ subKick fund s 1 (1/8, "1*4", "1*8", "1*4") # ch 1 |* vel 0.8
+
+-- Test 3: Kick only
+d01 $ subKick fund s 1 (1/8, "~", "~", "1*4") # ch 1 |* vel 0.8
+
+-- Test 4: Sub only (no kick)
+d01 $ subKick bass s 1 (1/8, "[1(3,8)]", "[0 1]*2", "~") # ch 1 |* vel 0.8
+
+-- Test 5: Longer cycle (2 bars)
+d01 $ subKick fund s 2 (1/8, "1*4", "1*8", "1*4") # ch 1 |* vel 0.8
+
+-- Test 6: Softer dynamics
+d01 $ subKick fund s 1 (1/8, "1*4", "1*8", "1*4") # ch 1 |* vel 0.4
+
+-- Test 7: Dynamic velocity pattern
+d01 $ subKick fund s 1 (1/8, "1*4", "1*8", "1*4") # ch 1 |* vel (lfo sine 0.3 1.0)
+
+-- Stop all
+hush
+
+{- Expected MIDI Output:
+
+   Test 1 (bass strategy):
+   - Sub bass: C3-B3 (MIDI 48-59) following progression with inversions
+   - Kick drum: C4 (MIDI 60) with pattern "1*4"
+   - Sub rhythm: "[1(3,8)]" note-ons, "[0 1]*2" note-offs
+   - Max sustain: 1/8 (but cut by note-offs)
+
+   Test 2 (fund strategy):
+   - Sub bass: Always uses harmonic roots (ignores inversions)
+   - Different rhythm: "1*4" note-ons, "1*8" note-offs
+
+   Key Differences:
+   - bass: First pitch of voicing (respects inversions) → varies with chord voicing
+   - fund: Harmonic root from CadenceState (ignores inversions) → consistent roots
+
+   Note-Off Behavior:
+   - Acts as global mute for all C3-B3 notes (mute group)
+   - Creates rhythmic boundaries that sustained subs cannot pass through
+   - Kick (C4) is independent and can overlap with subs
+
+   MIDI Note Mapping:
+   - 48 = C3, 49 = C#3, 50 = D3, ..., 59 = B3 (sub bass)
+   - 60 = C4 (kick drum)
+-}

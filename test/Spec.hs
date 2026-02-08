@@ -36,6 +36,7 @@ import qualified Harmonic.Traversal.ProbabilisticSpec as ProbabilisticSpec
 import qualified Harmonic.Framework.BuilderSpec as BuilderSpec
 import qualified Harmonic.Evaluation.Database.QuerySpec as QuerySpec
 import qualified Harmonic.Interface.Tidal.BridgeSpec as InterfaceSpec
+import qualified Harmonic.Interface.Tidal.GrooveSpec as GrooveSpec
 
 main :: IO ()
 main = hspec $ do
@@ -52,3 +53,4 @@ main = hspec $ do
   describe "Harmonic.Core.Probabilistic" ProbabilisticSpec.spec
   describe "Harmonic.Core.Builder" BuilderSpec.spec
   describe "Harmonic.Tidal.Interface" InterfaceSpec.spec
+  describe "Harmonic.Tidal.Groove" GrooveSpec.spec

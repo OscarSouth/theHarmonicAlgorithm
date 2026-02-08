@@ -34,9 +34,9 @@ s.reboot {
     // MIDI setup (unchanged)
     MIDIClient.init;
     try {
-  //    ~midiTHRU = MIDIOut.newByName("U2MIDI Pro", "U2MIDI Pro");
-  //    ~midiTHRU = MIDIOut.newByName("IAC Driver", "Bus 1");
-   ~midiTHRU = MIDIOut.newByName("iConnectAUDIO4+", "DIN");
+    ~midiTHRU = MIDIOut.newByName("U2MIDI Pro", "U2MIDI Pro");
+    // ~midiTHRU = MIDIOut.newByName("IAC Driver", "Bus 1");
+    // ~midiTHRU = MIDIOut.newByName("iConnectAUDIO4+", "DIN");
       ~midiTHRU.latency = 0.0;
       ~dirt.soundLibrary.addMIDI(\thru, ~midiTHRU);
     };

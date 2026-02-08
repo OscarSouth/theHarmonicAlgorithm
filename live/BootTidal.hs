@@ -119,7 +119,8 @@ hush = mapM_ ($ silence) [
   p "moogMother32",
   p "sh101",
   p "juno",
-  p "drumbruteImpact"
+  p "drumbruteImpact",
+  p "subKick"
   ]
 :}
 

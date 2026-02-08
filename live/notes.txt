@@ -1,0 +1,26 @@
+
+
+We're creating a plan to build a performance interface for a drum program on an mpc, listening for MIDI channel 1. The program contains very low sub pitches on C2 to B2, which sustain a looped single cycle sine wave pitched to the corresponding note, starting on note on and stopping on note off. C3 is a short kick drum, which triggers as a one shot. This is all the sounds on the patch. The performance interface should take the same arguments as melodic performance interfaces, including the state Progression s, and rather than the `arrange` block, use a custom `subKick`. Currently, the initial idea is that within a 4-tuple, four patterns are defined: max sub duration (the longest subdivision duration bass notes are allowed to sustain, ie. (1/8) is a quaver), kick placement (the locations of the kick sample starts), sub note on (boolean/struct of the locations where the subs are issued note on) and sub note off (boolean/struct of the locations where the subs are issued note off). When sub note on and sub note off are present on the same rhythmic placement, the note on should take priority. The notes should simply always be the (mono) pitches of the lowest notes of the chord progression with 2 viable strategies: `bass` (the mono bass notes of the Progression, respecting inversions) and `fund` (the mono bass notes of the Progression, disgarding inversions and only taking the roots). Implementation of `bass` should be reviewed and `fund` needs to be implemented. The only register available is this fixed set of pitches, so the pitches should always be normalised into C2-B2. The musical purpose of the instrument is to provide an interface to create rhythmic pulse/matrixes of extremely low frequencies and percussive punctuations using mathematical patterns defined in tidal pattern syntax, that generate the groove pulse and harmonic foundation.
+
+here is a sketched out example of what the block might look like:
+
+subk f s r d = p "subKick" $ do
+  let o = ch 1
+  f
+    $ subKick bass s r ( 1/8 -- sub max duration
+        ,"[1(3,8)]" -- sub notes on
+        ,"[0 1]*2" -- sub notes off
+        ,"1*4" -- kick placement
+      )#o
+
+investigate the requirements of this design and how they can be implemented, then create a plan to implement this interface.
+
+
+
+let's have the new module be named "Groove" rather than "Drums"
+
+"normalizeToSubRange [] = 36  -- Default to C2" -- perhaps the empty list should default to 35 -- there is no sample assigned, therefore the meaning is 'nothing'
+
+"Note off pattern unused initially - Uses maxDur for all sustains" -- I don't fully understand this -- note offs should be inferred from a mixture of note on plus the max duration, and the explicit note off pattern. it is ok to 'overload' the pattern with more note offs than necessary, as it will function as a matrix of boundaries that sustained notes cannot pass through. it is ok (perhaps necessary) to treat all note offs as a 'global note off' within the range of C2-B2 on the midi channel, since the sub bass is all mono and within a mute group. notably, the kick sound is only mono within itself and can overlap with the sub samples.
+
+don't worry about anything relating to register extension, velocity, enhanced polyphony etc -- limitations are by design

@@ -1,17 +1,17 @@
-tempo = 92
+tempo = 120
 
-start = initCadenceState 5 "B" [0,3,7] FlatSpelling
+start = initCadenceState 5 "D" [0,3,7] FlatSpelling
 
 ctx = hContext "D F# A E" "D G" "D E G B A"
 
-next <- gen start 16 "*" 0.3 ctx
+next <- gen start 4 "debussy ravel" 0.3 ctx
 
 state = rotate (0) next
 
 do
   let
-    dyn = slow 64 $ lfo tri 0.6 0.99
-    rep = 4
+    dyn = 1
+    rep = 1
     s = transposeP 0 state
     f = (swingBy 0.07 2)
     (d,r) = ((*dyn), rep)
@@ -20,16 +20,17 @@ do
     -- ,metronome $d 0.1
     -- ,count s r $d 0.5
     -- ,p01 f s r $ d 0.9
-    ,p03 f s r $ d 0.9
+    -- ,p03 f s r $ d 0.9
     -- ,juno f s r $ d 0.9
     -- ,moog f s r $ d 0.9
+    ,subk f s r $ d 1
     -- ,k909 f     $d 0.99
     -- ,kmpc f     $d 0.9
     -- ,drum f     $d 0.9
    ]
 
 d1 $ let
-  bar  = "[1 2 3 4]/16"
+  bar  = "[1 2]/16"
   line = "[1]"
   -- line = "[1 2]/32"
   -- line = "[1 2 3 4]/32"

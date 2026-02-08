@@ -1,6 +1,6 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.37.0.
+-- This file has been generated from package.yaml by hpack version 0.39.1.
 --
 -- see: https://github.com/sol/hpack
 
@@ -34,6 +34,7 @@ library
       Harmonic.Interface.Tidal.Instruments
       Harmonic.Interface.Tidal.Utils
   other-modules:
+      Harmonic.Interface.Tidal.Groove
       Paths_theHarmonicAlgorithm
   hs-source-dirs:
       src
@@ -102,6 +103,7 @@ test-suite theHarmonicAlgorithm-test
       Harmonic.Evaluation.Scoring.VoiceLeadingSpec
       Harmonic.Framework.BuilderSpec
       Harmonic.Interface.Tidal.BridgeSpec
+      Harmonic.Interface.Tidal.GrooveSpec
       Harmonic.Rules.Constraints.FilterSpec
       Harmonic.Rules.Constraints.OvertoneSpec
       Harmonic.Rules.Types.HarmonySpec
