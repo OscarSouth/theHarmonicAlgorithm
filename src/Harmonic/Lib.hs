@@ -115,7 +115,8 @@ module Harmonic.Lib (
   -- ========== TIDAL INTERFACE ==========
   -- Pattern-level operations
   VoiceFunction, rootNotes, bassNotes,
-  arrange, applyProg, voiceRange,
+  arrange, arrange', applyProg, applyProg', voiceRange,
+  expandBraces, bracket,
   lookupProgression, lookupChord, VoiceType(..), voiceBy, harmony,
   overlapF,
   
@@ -167,7 +168,8 @@ import Harmonic.Rules.Import.CSV
 import Harmonic.Rules.Import.Transform
 import Harmonic.Interface.Tidal.Bridge (
     VoiceFunction, rootNotes, bassNotes,
-    arrange, applyProg, voiceRange,
+    arrange, arrange', applyProg, applyProg', voiceRange,
+    expandBraces, bracket,
     lookupProgression, lookupChord, VoiceType(..), voiceBy, harmony,
     overlapF
   )

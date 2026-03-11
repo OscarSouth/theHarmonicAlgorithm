@@ -40,6 +40,8 @@ cabal.sandbox.config
 # Generated cabal file (regenerated from package.yaml)
 *.cabal
 
+.mcp.json
+
 .claude
 .serena
 notes

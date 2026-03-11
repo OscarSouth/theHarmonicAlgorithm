@@ -8,6 +8,7 @@ name:           theHarmonicAlgorithm
 version:        0.1.0
 author:         HarmAlgo Team
 license:        BSD3
+license-file:   LICENSE
 build-type:     Simple
 
 library

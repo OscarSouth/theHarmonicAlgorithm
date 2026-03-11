@@ -1,0 +1,21 @@
+-- ═══════════════════════════════════════════════════
+-- SECTION 1: QUICK START -- ═══════════════════════════════════════════════════
+-- Goal: Get sound in 30 seconds
+
+-- Step 1: Generate a 4-chord progression
+let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+    ctx = defaultContext
+
+prog <- gen start 4 "*" 0.5 ctx
+
+-- Step 2: Play on MIDI channel 1 (piano)
+d01 $ harmony prog "<0 1 2 3>" # ch 01
+
+-- Step 3: Stop playback
+hush
+
+
+-- ═══════════════════════════════════════════════════════════
+-- SECTION 2: CORE BUILDING BLOCKS
+-- ═══════════════════════════════════════════════════════════
+-- Goal: Understand the foundation

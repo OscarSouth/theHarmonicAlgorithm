@@ -31,14 +31,62 @@ s.reboot {
     s.sync;
     ~dirt.start(57120, [0, 1]);
 
-    // MIDI setup (unchanged)
+    // // MIDI setup (unchanged)
+    // MIDIClient.init;
+    // try {
+    // // ~midiTHRU = MIDIOut.newByName("U2MIDI Pro", "U2MIDI Pro");
+    // // ~midiTHRU = MIDIOut.newByName("IAC Driver", "Bus 1");
+    //  ~midiTHRU = MIDIOut.newByName("iConnectAUDIO4+", "DIN");
+    //  ~midiTHRU.latency = 0.0;
+    //  ~dirt.soundLibrary.addMIDI(\thru, ~midiTHRU);
+    // };
+
+    // MIDI setup: Auto-fallback through priority list
     MIDIClient.init;
-    try {
-    ~midiTHRU = MIDIOut.newByName("U2MIDI Pro", "U2MIDI Pro");
-    // ~midiTHRU = MIDIOut.newByName("IAC Driver", "Bus 1");
-    // ~midiTHRU = MIDIOut.newByName("iConnectAUDIO4+", "DIN");
-      ~midiTHRU.latency = 0.0;
-      ~dirt.soundLibrary.addMIDI(\thru, ~midiTHRU);
+
+    ~midiFound = false;
+
+    // Order of priority: [Device Name, Port Name]
+    ~midiPriorities = [
+      ["U2MIDI Pro", "U2MIDI Pro"],
+      ["iConnectAUDIO4+", "DIN"],
+      ["IAC Driver", "Bus 1"]
+    ];
+
+    ~midiPriorities.do { |pair|
+      var devName = pair[0];
+      var portName = pair[1];
+
+      // Only try connecting if we haven't found one yet
+      if(~midiFound.not) {
+        try {
+          // Check if the device is currently recognized by the system
+          var isAvailable = MIDIClient.destinations.any { |endpoint|
+            (endpoint.device == devName) && (endpoint.name == portName)
+          };
+
+          if(isAvailable) {
+            ~midiTHRU = MIDIOut.newByName(devName, portName);
+            ~midiTHRU.latency = 0.0;
+            ~dirt.soundLibrary.addMIDI(\thru, ~midiTHRU);
+
+            ~midiFound = true; // Stop looking
+
+            // Post a specific warning if we fell back to the IAC Driver
+            if(devName == "IAC Driver") {
+              "====> INFO: Using fallback IAC Driver. (External MIDI interfaces were not detected)".postln;
+            } {
+              ("====> SUCCESS: SuperDirt connected to MIDI interface: " ++ devName).postln;
+            };
+          };
+        } {
+          // Fail gracefully and silently if an unexpected error occurs
+        };
+      };
+    };
+
+    if(~midiFound.not) {
+      "====> WARNING: No priority MIDI interfaces were found. MIDI thru is disabled.".postln;
     };
 
     // OSC "Backdoor" (unchanged)

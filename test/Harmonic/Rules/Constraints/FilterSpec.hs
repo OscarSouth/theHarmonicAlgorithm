@@ -12,16 +12,14 @@
 -- * @"G E' A' A#'"@ → G overtones + individual pitches E, A, A#
 -- * @"*"@ → wildcard (all pitches)
 --
--- == Key Filter
--- * @"#"@, @"##"@, @"###"@ → sharps
--- * @"b"@, @"bb"@, @"bbb"@ → flats
--- * @"1#"@, @"2b"@, @"4b"@ → numbered key signatures
--- * @"C"@, @"G"@, @"F#"@, @"Bb"@ → named keys
+-- == Key Filter (and Roots Filter — same unified rules)
+-- * Note name: @"C"@ = single pitch C, @"Bb"@ = single pitch Bb (PC 10), @"b"@ = B note (PC 11)
+-- * Numbered key sig: @"0#"@ = C major, @"1#"@ = G major, @"2b"@ = Bb major, @"4b"@
 -- * @"*"@ → wildcard
 --
 -- == Root Notes Filter
--- * @"E F# G"@ → specific pitches
--- * @"1b"@, @"#"@ → key signature (roots from that key)
+-- * @"E F# G"@ → specific pitches (note names)
+-- * @"1b"@, @"2#"@ → key signature (roots from that key)
 -- * @"*"@ → wildcard
 
 module Harmonic.Rules.Constraints.FilterSpec (spec) where
@@ -126,48 +124,38 @@ spec = do
 
   describe "Key signature parsing (parseKey)" $ do
     
-    describe "Sharp key signatures" $ do
-      it "\"#\" = G major (1 sharp) contains F#, not F" $ do
-        let result = sort $ parseKey "#"
-        -- G major: G A B C D E F# = [7, 9, 11, 0, 2, 4, 6]
-        result `shouldBe` [0, 2, 4, 6, 7, 9, 11]
+    describe "Numbered sharp key signatures" $ do
+      it "\"1#\" = G major (1 sharp)" $ do
+        sort (parseKey "1#") `shouldBe` [0, 2, 4, 6, 7, 9, 11]
       
-      it "\"##\" = D major (2 sharps) contains F# and C#" $ do
-        let result = sort $ parseKey "##"
-        -- D major: D E F# G A B C# = [2, 4, 6, 7, 9, 11, 1]
-        result `shouldBe` [1, 2, 4, 6, 7, 9, 11]
-      
-      it "\"1#\" = G major" $ do
-        parseKey "1#" `shouldBe` parseKey "#"
-      
-      it "\"2#\" = D major" $ do
-        parseKey "2#" `shouldBe` parseKey "##"
+      it "\"2#\" = D major (2 sharps)" $ do
+        sort (parseKey "2#") `shouldBe` [1, 2, 4, 6, 7, 9, 11]
     
-    describe "Flat key signatures" $ do
-      it "\"b\" = F major (1 flat)" $ do
-        let result = sort $ parseKey "b"
-        result `shouldBe` [0, 2, 4, 5, 7, 9, 10]  -- F major scale
+    describe "Numbered flat key signatures" $ do
+      it "\"1b\" = F major (1 flat)" $ do
+        sort (parseKey "1b") `shouldBe` [0, 2, 4, 5, 7, 9, 10]
       
-      it "\"bb\" = Bb major (2 flats)" $ do
-        let result = sort $ parseKey "bb"
-        result `shouldBe` [0, 2, 3, 5, 7, 9, 10]  -- Bb major scale
+      it "\"2b\" = Bb major (2 flats)" $ do
+        sort (parseKey "2b") `shouldBe` [0, 2, 3, 5, 7, 9, 10]
       
-      it "\"1b\" = F major" $ do
-        parseKey "1b" `shouldBe` parseKey "b"
-      
-      it "\"2b\" = Bb major" $ do
-        parseKey "2b" `shouldBe` parseKey "bb"
+      it "\"0#\" = C major (no accidentals)" $ do
+        sort (parseKey "0#") `shouldBe` [0, 2, 4, 5, 7, 9, 11]
     
-    describe "Named keys" $ do
-      it "\"C\" = C major" $ do
-        let result = sort $ parseKey "C"
-        result `shouldBe` [0, 2, 4, 5, 7, 9, 11]  -- C major scale
+    describe "Note names in key context (single pitch)" $ do
+      it "\"b\" = B note (PC 11), not F major" $ do
+        parseKey "b" `shouldBe` [11]
       
-      it "\"G\" = G major" $ do
-        parseKey "G" `shouldBe` parseKey "#"
+      it "\"bb\" = Bb note (PC 10), not 2-flat key signature" $ do
+        parseKey "bb" `shouldBe` [10]
       
-      it "\"F\" = F major" $ do
-        parseKey "F" `shouldBe` parseKey "b"
+      it "\"C\" = single pitch C (PC 0), not C major scale" $ do
+        parseKey "C" `shouldBe` [0]
+      
+      it "\"G\" = single pitch G (PC 7), not G major scale" $ do
+        parseKey "G" `shouldBe` [7]
+      
+      it "\"F\" = single pitch F (PC 5), not F major scale" $ do
+        parseKey "F" `shouldBe` [5]
     
     describe "Wildcard" $ do
       it "\"*\" returns all 12 pitch classes" $ do
@@ -184,12 +172,14 @@ spec = do
         -- For single note, use just the note name
         parseFunds "C" `shouldBe` [0]
       
-      it "\"bb\" is parsed as key signature (2 flats), not Bb note" $ do
-        -- "bb" = 2 flats = Bb major key
-        -- For the single note Bb, legacy uses different notation
-        let result = sort $ parseFunds "bb"
-        -- Bb major: Bb C D Eb F G A = [10, 0, 2, 3, 5, 7, 9]
-        result `shouldBe` [0, 2, 3, 5, 7, 9, 10]
+      it "\"bb\" = Bb note (PC 10), not 2-flat key signature" $ do
+        parseFunds "bb" `shouldBe` [10]
+      
+      it "\"Bb\" = Bb note (PC 10), case-insensitive" $ do
+        parseFunds "Bb" `shouldBe` [10]
+      
+      it "\"D A G Bb F\" parses to individual pitches only (regression: C not included)" $ do
+        sort (parseFunds "D A G Bb F") `shouldBe` [2, 5, 7, 9, 10]
     
     describe "Key signature roots" $ do
       it "\"1b\" gives F major scale degrees as roots" $ do
@@ -217,11 +207,11 @@ spec = do
       it "wildcard matches any pitch set" $ do
         matchesKey "*" [0, 4, 7] `shouldBe` True
       
-      it "G major (#) contains G major triad" $ do
-        matchesKey "#" [7, 11, 2] `shouldBe` True
+      it "G major (1#) contains G major triad" $ do
+        matchesKey "1#" [7, 11, 2] `shouldBe` True
       
-      it "G major (#) does not contain F (5)" $ do
-        matchesKey "#" [5] `shouldBe` False
+      it "G major (1#) does not contain F (5)" $ do
+        matchesKey "1#" [5] `shouldBe` False
     
     describe "matchesRoots" $ do
       it "wildcard matches any root" $ do
@@ -251,8 +241,8 @@ spec = do
       it "wildcard preserves all pitches" $ do
         filterByKey "*" [0, 1, 2, 3] `shouldBe` [0, 1, 2, 3]
       
-      it "G major (#) removes F" $ do
-        sort (filterByKey "#" [0, 2, 4, 5, 7, 9, 11])
+      it "G major (1#) removes F" $ do
+        sort (filterByKey "1#" [0, 2, 4, 5, 7, 9, 11])
           `shouldBe` [0, 2, 4, 7, 9, 11]  -- removes F (5)
     
     describe "filterRoots" $ do
@@ -271,8 +261,8 @@ spec = do
       -- G major = G A B C D E F# = [0, 2, 4, 6, 7, 9, 11]
       keyPcs `shouldBe` [0, 2, 4, 6, 7, 9, 11]
     
-    it "harmonicContext \"*\" \"*\" \"##\" - D major roots only" $ do
-      let rootPcs = sort $ parseFunds "##"
+    it "harmonicContext \"*\" \"*\" \"2#\" - D major roots only" $ do
+      let rootPcs = sort $ parseFunds "2#"
       -- D major = D E F# G A B C# = [2, 4, 6, 7, 9, 11, 1]
       rootPcs `shouldBe` [1, 2, 4, 6, 7, 9, 11]
     

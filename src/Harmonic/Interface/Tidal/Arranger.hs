@@ -115,9 +115,16 @@ clone m n prog@(Progression seq)
         seq' = Seq.update n' csM seq
     in Progression seq'
 
--- |Extract a single CadenceState at index (1-indexed)
-extract :: Int -> Progression -> Maybe CadenceState
-extract n prog = getCadenceState prog n
+-- |Extract a single CadenceState at index (1-indexed, modulo wrap)
+extract :: Int -> Progression -> CadenceState
+extract n prog
+  | len == 0  = error "extract: empty progression"
+  | otherwise = case getCadenceState prog idx of
+      Just cs -> cs
+      Nothing -> error "extract: internal error"
+  where
+    len = progLength prog
+    idx = ((n - 1) `mod` len) + 1  -- 1-indexed with modulo wrap
 
 -------------------------------------------------------------------------------
 -- Transformation Operations

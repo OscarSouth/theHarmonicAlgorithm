@@ -13,7 +13,7 @@
 --   * "*" = wildcard (match all)
 --   * "1#" = G major (1 sharp), "2b" = Bb major (2 flats)
 --   * "c", "eb", "f#" = specific pitch classes
---   * "##" = D major (2 sharps)
+--   * "2#" = D major (2 sharps)
 --
 -- Note: Full integration tests require Neo4j connection, so these
 -- focus on the pure functions and configuration logic.
@@ -87,9 +87,9 @@ spec = do
         -- Verify parsed pitch classes: Bb major = [0,2,3,5,7,9,10]
         sort (parseKey $ hcKey ctx) `shouldBe` [0, 2, 3, 5, 7, 9, 10]
       
-      it "creates context with double sharp key (## = D major)" $ do
-        let ctx = harmonicContext "*" "##" "*"
-        hcKey ctx `shouldBe` "##"
+      it "creates context with double sharp key (2# = D major)" $ do
+        let ctx = harmonicContext "*" "2#" "*"
+        hcKey ctx `shouldBe` "2#"
         -- Verify parsed pitch classes: D major = [1,2,4,6,7,9,11]
         sort (parseKey $ hcKey ctx) `shouldBe` [1, 2, 4, 6, 7, 9, 11]
       
@@ -101,8 +101,8 @@ spec = do
         sort (parseFunds $ hcRoots ctx) `shouldBe` [0, 2, 4, 6, 7, 9, 11]
       
       it "creates context with double sharp roots" $ do
-        let ctx = harmonicContext "*" "*" "##"
-        hcRoots ctx `shouldBe` "##"
+        let ctx = harmonicContext "*" "*" "2#"
+        hcRoots ctx `shouldBe` "2#"
         -- Verify parsed pitch classes: D major scale roots
         sort (parseFunds $ hcRoots ctx) `shouldBe` [1, 2, 4, 6, 7, 9, 11]
       
@@ -120,10 +120,10 @@ spec = do
       
       it "allows overtones with wildcard key and roots" $ do
         -- From liveArchives/explore/1.tidal
-        let ctx = harmonicContext "*" "*" "##"
+        let ctx = harmonicContext "*" "*" "2#"
         hcOvertones ctx `shouldBe` "*"
         hcKey ctx `shouldBe` "*"
-        hcRoots ctx `shouldBe` "##"
+        hcRoots ctx `shouldBe` "2#"
         -- Verify parsed: wildcard overtones/key = all, roots = D major
         sort (parseOvertones $ hcOvertones ctx) `shouldBe` [0..11]
         sort (parseKey $ hcKey ctx) `shouldBe` [0..11]
@@ -418,7 +418,7 @@ spec = do
         matchesContext context dummyState bbmajCadence `shouldBe` False
 
       it "F major chord rejected by C major key (contains Bb)" $ do
-        let context = harmonicContext "*" "C" "*"  -- C major [0,2,4,5,7,9,11]
+        let context = harmonicContext "*" "0#" "*"  -- C major [0,2,4,5,7,9,11]
             -- Wait, F major is F A C = [5,9,0] which are all in C major
             -- Let me use F# major: root F# (6), intervals [0,4,7] → absolute [6,10,1]
             -- 6 (F#), 10 (Bb), 1 (Db) - F# and Bb are NOT in C major
@@ -452,7 +452,7 @@ spec = do
         matchesContext context dummyState amajCadence `shouldBe` True
 
       it "C major chord accepted by C major key" $ do
-        let context = harmonicContext "*" "C" "*"  -- C major [0,2,4,5,7,9,11]
+        let context = harmonicContext "*" "0#" "*"  -- C major [0,2,4,5,7,9,11]
             -- C major: root C (0), intervals [0,4,7] → absolute [0,4,7]
             -- All in C major
             cmajCadence = H.Cadence "maj" (H.Asc (P.mkPitchClass 0)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]

@@ -187,3 +187,49 @@ spec = do
     it "arrange function signature works with bassNotes" $ do
       let _ = arrange bassNotes testProgression
       True `shouldBe` True
+
+    it "arrange' function signature works with flow" $ do
+      let _ = arrange' A.flow testProgression
+      True `shouldBe` True
+
+  describe "expandBraces" $ do
+
+    it "expands single brace group with divisor" $ do
+      expandBraces "[0 {1 2 3}]/4" `shouldBe` "[0 1 0 2 0 3]/12"
+
+    it "expands two-element brace group with divisor" $ do
+      expandBraces "[0 {1 2}]/4" `shouldBe` "[0 1 0 2]/8"
+
+    it "passes through strings without braces" $ do
+      expandBraces "1*4" `shouldBe` "1*4"
+
+    it "expands brace group without divisor" $ do
+      expandBraces "[0 {1 2 3}]" `shouldBe` "[0 1 0 2 0 3]"
+
+    it "expands multiple brace groups with LCM repetitions" $ do
+      expandBraces "[{0 1} {2 3 4}]/4" `shouldBe` "[0 2 1 3 0 4 1 2 0 3 1 4]/24"
+
+  describe "bracket" $ do
+
+    it "produces a valid Pattern Int from brace notation" $ do
+      let p = bracket "[0 {1 2 3}]/4"
+      p `seq` True `shouldBe` True
+
+    it "produces a valid Pattern Int from plain notation" $ do
+      let p = bracket "[0 1 2 3]/4"
+      p `seq` True `shouldBe` True
+
+  describe "extract" $ do
+
+    it "returns CadenceState directly (no Maybe wrapper)" $ do
+      A.extract 1 testProgression `seq` True `shouldBe` True
+
+    it "index 1 returns first chord" $ do
+      let cs1 = A.extract 1 testProgression
+          cs5 = A.extract 5 testProgression  -- 5 mod 4 = 1 (1-indexed wrap)
+      cs1 `shouldBe` cs5
+
+    it "wraps around modulo progression length" $ do
+      let cs2 = A.extract 2 testProgression
+          cs6 = A.extract 6 testProgression  -- 6 mod 4 = 2 (1-indexed)
+      cs2 `shouldBe` cs6

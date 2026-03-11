@@ -67,10 +67,12 @@ type ComposerWeights = Map Text Double
 --   parseComposerWeights "bach:30 debussy:70" 
 --     == Map.fromList [("bach", 0.3), ("debussy", 0.7)]
 parseComposerWeights :: Text -> ComposerWeights
-parseComposerWeights input =
-  let tokens = filter (not . T.null) $ T.split isSeparator input
-      parsed = mapMaybe parseToken tokens
-   in normalizeWeights $ Map.fromList parsed
+parseComposerWeights input
+  | T.strip input == "*" = Map.empty  -- wildcard: empty → aggregate path
+  | otherwise =
+      let tokens = filter (not . T.null) $ T.split isSeparator input
+          parsed = mapMaybe parseToken tokens
+       in normalizeWeights $ Map.fromList parsed
   where
     isSeparator c = c == ' ' || c == ','
     
@@ -183,12 +185,16 @@ resolveWeights blend candidates =
    in sorted
   where
     scoreCandidate :: ComposerWeights -> (H.Cadence, ComposerWeights) -> (H.Cadence, Double)
-    scoreCandidate userBlend (cadence, edgeWeights) =
-      let score = sum 
-            [ userWeight * fromMaybe 0 (Map.lookup composer edgeWeights)
-            | (composer, userWeight) <- Map.toList userBlend
-            ]
-       in (cadence, score)
+    scoreCandidate userBlend (cadence, edgeWeights)
+      | Map.null userBlend =
+          -- Wildcard "*": use aggregate (sum of all composer weights = r.confidence equivalent)
+          (cadence, sum (Map.elems edgeWeights))
+      | otherwise =
+          let score = sum
+                [ userWeight * fromMaybe 0 (Map.lookup composer edgeWeights)
+                | (composer, userWeight) <- Map.toList userBlend
+                ]
+           in (cadence, score)
 
 -- |Apply composer blend to filter transitions, keeping only those with score > 0
 applyComposerBlend :: ComposerWeights -> [(H.Cadence, ComposerWeights)] -> [(H.Cadence, Double)]

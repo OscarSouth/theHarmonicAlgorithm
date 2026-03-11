@@ -1,4 +1,4 @@
-lmotif = "[1 . 0@3 1? . 0 1? . 0 1? 0@2]/4"
+lmotif = "[1 . 0@3 1? . 0 1? . 0 1? 0@2]"
 
 p03 f s r d = d03 $ do
   let o = ch 03
@@ -53,37 +53,18 @@ moog f s r d = p "moogMother32" $ do
 
 
 
-drum f d = p "drumbruteImpact" $ do
-  let o = ch 11
-  -- let lmotif = "[1 . 0@3 1? . 0 1? . 0 1? 0@2]/4"
-  f
-    $ stack [silence
-       -- --
-      -- ,kick' lmotif |* vel 0.9
-      -- ,kick "1"
-      ,kick'' "1/4"
-      -- ,kick "[1 1 0 1 0 1 0 1]/4"
-      -- ,fm "[1 1 0 1 0 1 0 1]/4"
-      -- ,click "[0 1]/2"
-      ,hh "0 1"
-      ,rimshot "[0 1]/2" |* vel 0.6
-      -- ,sometimesBy 0.1 (>>hh "2") $ sometimesBy 0.05 (fast 2) $ degradeBy 0.4 $ hh "[1]*4" |* vel (lfo saw 0.1 0.4)
-      -- ,degrade $ click "[0 0 1 0 0 1 0 0]/2" # vel 0.2
-      -- ,ride "0 1" #vel 0.4
-      -- ,fm "1(3,8)/2" #vel 0.4
-      ,hh "0 2?"
-       -- --
-    ]# o # legato 0.01 |* vel d |+ vel 0.2
-
 
 subk f s r d = p "subKick" $ do
   let o = ch 1
   f
     -- $ trunc 0.5
-    $ subKick fund s r ( 1/4 -- sub max sustain
-        ,"[1(3,8)]/2" -- sub note on
-        ,"[1(5,8,-2)]/2" -- sub note off
-        ,"[1(3,8)]/2" -- kick placement
+    $ subKick fund s r ( 1/8 -- sub max sustain
+        -- ,"[1(3,8)]/2" -- sub note on
+        ,lmotif
+        ,"~" -- sub note off
+        -- ,"[1(5,8,-2)]/2" -- sub note off
+        -- ,"[1(3,8)]/2" -- kick placement
+        ,lmotif
       )#o
 
 p02 f s r d = d02 $ do
@@ -96,3 +77,29 @@ p02 f s r d = d02 $ do
       ]# o |* vel 1
        -- --
     ] |* vel d
+
+k909 f d = p "909kit" $ do
+  let o = ch 9
+  f
+    $ stack [silence
+       -- --
+      ,snare "[0 1]/2"
+      ,hh "0 1"
+      -- ,hh "1 1 2 1"
+      -- ,click "1(3,8)/2"
+       -- --
+    ]# o # legato 0.01 |* vel d
+
+kmpc f d = p "mpckit" $ do
+  let o = ch 10
+  f
+    $ stack [silence
+       -- --
+      -- ,hh "1 1 2 1"
+      -- ,hh "0 1"
+      -- ,snare "[0 1]/2"
+      ,sometimesBy 0.1 (>>hh "2") $ sometimesBy 0.05 (fast 2) $ degradeBy 0.4 $ hh "[1]*4" |* vel (lfo saw 0.1 0.4)
+      ,hh "0 2?"
+      -- ,2 <~ (rarely (stut 4 0.5 0.5) $ click "[1(3,8) . 0 1 [0 1] 0]/4") |* vel 0.5
+       -- --
+    ]# o # legato 0.01 |* vel d

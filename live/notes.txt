@@ -1,0 +1,29 @@
+this is all working correctly now. while we have the understanding of how the Progression maps the pattern over the harmony in recent context, can an investigation/evaluation be performed to determine whether there might be any viable opportunities to modernize how this functionality is implemented.
+
+generally, the progression mapping has worked every well in the contexts it is used, but there are a few limitations:
+
+1. the {} brackets in patterns do not behave as expected (affecting other varied functionality too by the same vector, but this is the most obvious case). explained more below
+
+2. the intended logic will start to break down at very short fractional rep values (ie. 0.25 -- one harmony change per beat)
+
+3. the approach we are currently using was the result of manual tinkering until I found something that was 'good enough' -- perhaps with proper review, understanding, investigation and exploration, a more structurally sound, stable and extendable implementation can be designed
+
+we will want to keep the same 'concept of time' in the new implementation. ie. one base 'cycle' ("[1]") is one beat. 4 beats in one bar would be "[1*4]/4" etc. in terms of the {} brackets: in a pattern like "[1 {2 3}]/4" mapped over a length 2 Progression (2 harmonic states), we'd want the progression to map over the pattern like this: 1st state = "[1 2]/4", 2nd state "[1 3]/4"; I believe the current behaviour would be: 1st state = "[1 2]/4", 2nd state "[1 2]/4" and then choosing the next value on the next full repetition; essentially the note in the {} bracket could/should be used as 'map these values out throughout the chord progression while holding the others stable'
+
+in terms of theory and how to document or borrow abstract principles, consider the principle in weaving of the warp and the weft. use the warp as the analogy for the harmonic Progression, and the weft as the analogy for the intricate and varied threads (musical patterns) that are moving through it. we are 'weaving' evolving musical patterns through stable musical harmony structures. also, strongly adhere to the principles of the creative systems framework. are there any opportunities from these two practices/theories that I can generate opportunities for new creative functionality from?
+
+since this might introduce breaking changes to a core part of the operational code, can this be introduced as a 'new' interface (ie. `arrange'`) which we can swap in when it is ready.
+
+
+
+
+
+can we drop the naming based off weaving in the codebase -- this analogy is more for creativity and ideation than software architecture. keep the codebase interpretable.
+
+since it seems the only issue we're tackling is the behaviour of brackets, would an alternative approach to the issue simply to be a function which preprocesses the string and returns the constructed pattern mapped with correct bracket behaviour, that can then be applied to functions eg.:
+
+`p03 f s r d = d03 $ f $ arrange flow s r (-9,9) [degradeBy 0.2 $ bracket "[0 {1 2 3}]/4"] # ch 3 |* vel d`
+
+so `bracket "[0 {1 2 3}]/4"` would result in "[0 1 0 2 0 3 0 1]/16"
+
+looking at this example, how does this approach work with polyrhythms that don't repeat inside the duration of one `rep`, ie. would "[0 1 0 2 0 3 0 1]/16" repeat in a cyclic manner, or would it continue as "[0 2 0 3 0 1 0 2]/16" then "[0 3 0 1 0 2 0 3]/16" etc.? or could the scanner detect how many repetitions would be needed to complete the full length transformation then extend and apply the correct amount of slow? i can imagine that could be complex and there may be a lot of infinite or very long edge cases. I think that simplicity and understandability is valuable in this case, so if these kind of issues were a problem, I think it would be fine for bracket notation patterns to reset to the 'start' at the beginning of each state in the progression. How are these kind of decisions handled in the current design? this is all interrogative thoughts and brainstorming so take this as inspiration and suggestion from the user rather than strict suggestion. investigate the current implication and ramifications of this ideation and consider in what ways it would be suitable for the plan to evolve
