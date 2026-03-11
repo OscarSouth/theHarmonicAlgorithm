@@ -264,8 +264,7 @@ d1 $ note (arrange flow state2 0 (-9,9) melody) # s "superpiano"  -- ABAB struct
 
 - **[ARCHITECTURE.md](ARCHITECTURE.md)** - Comprehensive technical reference (R→E→T framework, module structure, core concepts)
 - **[live/USER_GUIDE.tidal](live/USER_GUIDE.tidal)** - Interactive TidalCycles tutorial with examples
-- **[CLAUDE.md](CLAUDE.md)** - Development guidelines for contributors (vertical slices, testing, legacy comparison)
-- **[IMPROVEMENTS.md](IMPROVEMENTS.md)** - Tracked opportunities for optimization and enhancement
+- **[CLAUDE.md](CLAUDE.md)** - Development guidelines for contributors (vertical slices, testing)
 
 ---
 
@@ -336,13 +335,11 @@ scripts/            - R scripts for corpus preprocessing
 See [CLAUDE.md](CLAUDE.md) for detailed development guidelines:
 - Vertical slice methodology (minimum deliverable units)
 - Mandatory verification (tests + REPL)
-- Legacy comparison workflow
 - Layer boundary enforcement
 
 **Before contributing**:
 1. Ensure Neo4j is running (`docker compose up -d neo4j`)
 2. Run full test suite (`stack test`)
-3. Verify behavior matches legacy implementation where applicable
 
 ---
 

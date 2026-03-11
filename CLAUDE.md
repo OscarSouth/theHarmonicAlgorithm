@@ -15,27 +15,24 @@ Four-layer system following the **Creative Systems Framework (R→E→T)**:
 **Note**: The "R" in Layer A refers to the R→E→T (Rules→Evaluation→Traversal) pipeline, not the R programming language.
 
 Key directories:
-- `src/Harmonic/Core/` - Music theory primitives (Pitch, Harmony, VoiceLeading, etc.)
-- `src/Harmonic/Database/` - Neo4j integration (Query.hs, Graph.hs)
-- `src/Harmonic/Tidal/` - TidalCycles interface
+- `src/Harmonic/Rules/Types/` - Music theory primitives (Pitch, Harmony, Progression)
+- `src/Harmonic/Rules/Constraints/` - Filtering and validity rules (Filter, Overtone)
+- `src/Harmonic/Rules/Import/` - Data ingestion pipeline (CSV, Transform, Graph)
+- `src/Harmonic/Evaluation/` - Scoring and database queries (Dissonance, VoiceLeading, Query, Markov)
+- `src/Harmonic/Traversal/` - Probabilistic selection
+- `src/Harmonic/Framework/` - Builder (R→E→T orchestration)
+- `src/Harmonic/Interface/Tidal/` - TidalCycles interface (Bridge, Arranger, Groove, Instruments, Utils)
 - `test/` - HSpec + QuickCheck test suite
 - `live/` - TidalCycles scripts and boot configuration
-- `theHarmonicAlgorithmLegacy/` - Legacy implementation (source of truth for behavior)
 
-## Codebase State & Guiding Principles
+## Guiding Principles
 
-**CRITICAL**: The codebase is in an intermediate refactoring state. Apply these principles:
-
-### 1. Legacy as Source of Truth
-The legacy implementation (`theHarmonicAlgorithmLegacy/`) functioned correctly and was thoroughly verified. When behavior is unclear or results seem wrong, **compare against legacy behavior**.
-
-### 2. Minimize Code and Complexity
+### 1. Minimize Code and Complexity
 The overarching goal is to minimize code and complexity while facilitating the core TidalCycles interfaces. Before adding code, ask:
 - Is this strictly necessary for the current functionality?
 - Can this be achieved more simply?
-- Does the legacy implementation have a simpler approach?
 
-### 3. Suspect All Existing Code
+### 2. Suspect All Existing Code
 Previous AI agents may have introduced:
 - Unnecessary/hallucinated logic
 - Stubbed-out required functionality
@@ -43,15 +40,13 @@ Previous AI agents may have introduced:
 
 **Every detail of structure, design, and implementation should be examined.** Nothing is concrete until final completion.
 
-### 4. Tests Are Not Infallible
+### 3. Tests Are Not Infallible
 Test suites should be **interrogated and changed** to accommodate actual requirements. Tests may:
 - Test incorrect behavior
 - Be missing critical cases
 - Have been added speculatively by previous agents
 
-When behavior differs from legacy, **trust legacy behavior over existing tests**.
-
-### 5. Incomplete Features
+### 4. Incomplete Features
 Some features are not yet implemented. Currently:
 - Composer specification (e.g., "bach", "debussy") is **not implemented** - use `"*"` for all operations
 - Use `"*"` to aggregate all composer intent from the deterministic graph
@@ -106,7 +101,6 @@ Tool: mcp__mem0__add-memory
 
 **Current memories include**:
 - Neo4j connection requirements and startup
-- Legacy codebase as source of truth
 - Vertical slice workflow preferences
 - Composer specification status (not implemented)
 - Architecture layers and boundaries
@@ -147,7 +141,7 @@ Tool: mcp__memory__create_relations
 ```
 
 **Current graph structure**:
-- **Entities**: Pitch, Harmony, VoiceLeading, Builder, Interface, Arranger, Neo4jDatabase, LegacyCodebase
+- **Entities**: Pitch, Harmony, VoiceLeading, Builder, Interface, Arranger, Neo4jDatabase
 - **Relations**: Shows dependency chains (e.g., Builder → Harmony → Pitch)
 
 ### Memory Workflow
@@ -225,15 +219,15 @@ cd /Users/oscarsouth/.stack/global-project && stack ghci << 'EOF'
 import Harmonic.Lib
 
 -- Example verification for Pitch module:
-import Harmonic.Core.Pitch
+import Harmonic.Rules.Types.Pitch
 transpose 5 (pc 7)  -- Should yield P 0 (wraps mod 12)
 
 -- Example verification for Harmony module:
-import Harmonic.Core.Harmony
+import Harmonic.Rules.Types.Harmony
 nameFuncTriad [0, 4, 7]  -- Should yield "maj"
 
 -- Example verification for generation:
-import Harmonic.Core.Builder
+import Harmonic.Framework.Builder
 ctx <- harmonicContext "*" "*" "*"
 -- Further generation tests as needed
 
@@ -241,59 +235,37 @@ ctx <- harmonicContext "*" "*" "*"
 EOF
 ```
 
-### Verification Method C: Compare Against Legacy
-
-When behavior is unclear or tests fail unexpectedly, compare against the legacy implementation:
-
-```bash
-# The legacy codebase is in theHarmonicAlgorithmLegacy/
-# Check how the same operation behaves in the legacy system
-```
-
-Key legacy files for reference:
-- `theHarmonicAlgorithmLegacy/src/MusicData.hs` - Original music data types and naming
-- `theHarmonicAlgorithmLegacy/src/Lib.hs` - Original interface and generation
-- `theHarmonicAlgorithmLegacy/src/Arranger.hs` - Original voicing/arrangement
-- `theHarmonicAlgorithmLegacy/src/GraphDB.hs` - Original Neo4j integration
-- `theHarmonicAlgorithmLegacy/src/Overtone.hs` - Original overtone filtering
-- `theHarmonicAlgorithmLegacy/src/Markov.hs` - Original Markov transitions
-- `theHarmonicAlgorithmLegacy/src/Utility.hs` - Original utility functions
-
-Compare function signatures, behaviors, and outputs between legacy and modernized implementations.
-
-**If modernized behavior differs from legacy, investigate why before assuming modernized is correct.**
-
 ### REPL Verification Examples by Module
 
-#### Pitch (src/Harmonic/Core/Pitch.hs)
+#### Pitch (src/Harmonic/Rules/Types/Pitch.hs)
 ```haskell
-import Harmonic.Core.Pitch
+import Harmonic.Rules.Types.Pitch
 pc 14           -- P 2 (wraps mod 12)
 transpose 7 (P 5)  -- P 0
 interval (P 3) (P 7)  -- 4
 ```
 
-#### Harmony (src/Harmonic/Core/Harmony.hs)
+#### Harmony (src/Harmonic/Rules/Types/Harmony.hs)
 ```haskell
-import Harmonic.Core.Harmony
+import Harmonic.Rules.Types.Harmony
 nameFuncTriad [0, 4, 7]   -- "maj"
 nameFuncTriad [0, 3, 7]   -- "min"
 nameFuncChord [0, 4, 7, 11]  -- "maj7"
 ```
 
-#### VoiceLeading (src/Harmonic/Core/VoiceLeading.hs)
+#### VoiceLeading (src/Harmonic/Evaluation/Scoring/VoiceLeading.hs)
 ```haskell
-import Harmonic.Core.VoiceLeading
+import Harmonic.Evaluation.Scoring.VoiceLeading
 -- Test voice leading cost calculations
 ```
 
-#### Progression (src/Harmonic/Core/Progression.hs)
+#### Progression (src/Harmonic/Rules/Types/Progression.hs)
 ```haskell
-import Harmonic.Core.Progression
+import Harmonic.Rules.Types.Progression
 -- Test progression combinators
 ```
 
-#### Builder (src/Harmonic/Core/Builder.hs)
+#### Builder (src/Harmonic/Framework/Builder.hs)
 ```haskell
 import Harmonic.Lib
 
@@ -310,7 +282,7 @@ prog' <- genStandard start 4 "*" 0.5 ctx  -- With diagnostics
 prog'' <- genVerbose start 4 "*" 0.5 ctx  -- Full traces
 ```
 
-#### Interface (src/Harmonic/Tidal/Interface.hs)
+#### Interface (src/Harmonic/Interface/Tidal/Bridge.hs)
 ```haskell
 import Harmonic.Lib
 
@@ -331,7 +303,7 @@ bassNotes prog        -- Extract bass notes
 arrange prog
 ```
 
-#### Arranger (src/Harmonic/Tidal/Arranger.hs)
+#### Arranger (src/Harmonic/Interface/Tidal/Arranger.hs)
 ```haskell
 import Harmonic.Lib
 
@@ -397,12 +369,18 @@ All Cadence objects store intervals in zero-form `[P 0, ...]` (relative, pitch-a
 ## Test Organization
 
 Tests mirror source structure:
-- `test/Harmonic/Core/PitchSpec.hs` - Z12 algebra properties
-- `test/Harmonic/Core/HarmonySpec.hs` - Chord naming
-- `test/Harmonic/Core/VoiceLeadingSpec.hs` - Voice leading costs
-- `test/Harmonic/Core/BuilderSpec.hs` - Generation engine
-- `test/Harmonic/Database/QuerySpec.hs` - Composer weight parsing
-- `test/Harmonic/Tidal/InterfaceSpec.hs` - Pattern interface
+- `test/Harmonic/Rules/Types/PitchSpec.hs` - Z12 algebra properties
+- `test/Harmonic/Rules/Types/HarmonySpec.hs` - Chord naming
+- `test/Harmonic/Rules/Types/ProgressionSpec.hs` - Progression monoid
+- `test/Harmonic/Rules/Constraints/FilterSpec.hs` - Filter constraints
+- `test/Harmonic/Rules/Constraints/OvertoneSpec.hs` - Overtone constraints
+- `test/Harmonic/Evaluation/Scoring/VoiceLeadingSpec.hs` - Voice leading costs
+- `test/Harmonic/Evaluation/Scoring/DissonanceSpec.hs` - Dissonance scoring
+- `test/Harmonic/Evaluation/Database/QuerySpec.hs` - Composer weight parsing
+- `test/Harmonic/Framework/BuilderSpec.hs` - Generation engine
+- `test/Harmonic/Interface/Tidal/BridgeSpec.hs` - Pattern interface
+- `test/Harmonic/Interface/Tidal/GrooveSpec.hs` - Groove interface
+- `test/Harmonic/Traversal/ProbabilisticSpec.hs` - Probabilistic selection
 
 When adding new functionality:
 1. Add corresponding test in the appropriate Spec file
@@ -418,7 +396,7 @@ stack test --test-arguments="--match Pitch"
 ```
 Then REPL verify:
 ```haskell
-import Harmonic.Core.Pitch
+import Harmonic.Rules.Types.Pitch
 -- Test your changes
 ```
 
@@ -428,9 +406,9 @@ stack test --test-arguments="--match Builder"
 ```
 Then REPL verify with actual generation (requires Neo4j).
 
-### After modifying Interface.hs
+### After modifying Bridge.hs
 ```bash
-stack test --test-arguments="--match Interface"
+stack test --test-arguments="--match Bridge"
 ```
 Then REPL verify pattern lookup behavior.
 
@@ -440,7 +418,7 @@ Then REPL verify pattern lookup behavior.
 
 **Slice 1**: Add the function signature and implementation
 ```haskell
--- In src/Harmonic/Core/Harmony.hs
+-- In src/Harmonic/Rules/Types/Harmony.hs
 invertChord :: Chord -> Int -> Chord
 invertChord (Chord intervals) n = Chord (rotate n intervals)
 ```
@@ -453,7 +431,7 @@ stack test
 # REPL verification
 cd /Users/oscarsouth/.stack/global-project && stack ghci << 'EOF'
 :set -XOverloadedStrings
-import Harmonic.Core.Harmony
+import Harmonic.Rules.Types.Harmony
 invertChord (Chord [P 0, P 4, P 7]) 1  -- Should show first inversion
 :quit
 EOF
@@ -461,7 +439,7 @@ EOF
 
 **Slice 2**: Add test case (only after Slice 1 verified)
 ```haskell
--- In test/Harmonic/Core/HarmonySpec.hs
+-- In test/Harmonic/Rules/Types/HarmonySpec.hs
 it "inverts chord correctly" $
   invertChord (Chord [P 0, P 4, P 7]) 1 `shouldBe` Chord [P 4, P 7, P 0]
 ```
@@ -478,7 +456,6 @@ Only after BOTH slices pass verification is the feature complete.
 - [ ] Change implemented in smallest possible slice
 - [ ] `stack test` passes
 - [ ] REPL verification confirms expected behavior
-- [ ] Behavior matches legacy implementation (if applicable)
 - [ ] No unnecessary code or complexity added
 - [ ] No unrelated changes included
 - [ ] Layer boundaries respected

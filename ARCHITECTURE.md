@@ -109,7 +109,7 @@ Traditional approaches mix constraints and preferences, making them brittle. The
 |-------|-----------|---------|----------------|
 | **Rules (R)** | Constraints | `Rules/Types/`, `Rules/Constraints/`, `Rules/Import/` | Define valid pitch-class sets, chord structures, filter specifications |
 | **Evaluation (E)** | Quality Scoring | `Evaluation/Scoring/`, `Evaluation/Database/`, `Evaluation/Analysis/` | Score dissonance, voice leading costs, query composer weights |
-| **Traversal (T)** | Selection | `Traversal/Probabilistic`, `Traversal/VoiceLeading` | Gamma sampling, voice leading optimization |
+| **Traversal (T)** | Selection | `Traversal/Probabilistic` | Gamma-distribution sampling, probabilistic selection |
 | **Framework** | Orchestration | `Framework/Builder` | Coordinate R→E→T pipeline |
 | **Interface** | External Systems | `Interface/Tidal/` | TidalCycles integration |
 
@@ -166,8 +166,8 @@ The codebase is organized into four vertical layers, inspired by the **Layer A (
 │  │    Queries   │  │    Sampling       │  │
 │  │  - Dissonance│  │  - Selection      │  │
 │  │    Scoring   │  │    Strategy       │  │
-│  │  - Markov    │  │  - Voice Leading  │  │
-│  │    Analysis  │  │    Optimization   │  │
+│  │  - Markov    │  │                   │  │
+│  │    Analysis  │  │                   │  │
 │  └──────────────┘  └───────────────────┘  │
 └────────────────┬───────────────────────────┘
                  │ depends on
@@ -271,7 +271,6 @@ Bach Chorales (CSV)
 
 **Modules**:
 - `Traversal/Probabilistic.hs` - Gamma distribution sampling (src/Harmonic/Traversal/Probabilistic.hs:1)
-- `Traversal/VoiceLeading.hs` - Dynamic programming optimization (src/Harmonic/Evaluation/Scoring/VoiceLeading.hs:155-200)
 
 **Selection Strategy**:
 1. Query Neo4j for candidates matching current cadence
@@ -346,6 +345,7 @@ src/Harmonic/
     └── Tidal/                [TidalCycles-specific bridge]
         ├── Bridge.hs         [Pattern lookup and modulo wrap]
         ├── Arranger.hs       [Voicing strategies (flow, root, lite)]
+        ├── Groove.hs         [Performance interfaces (subKick, fund)]
         ├── Instruments.hs    [Launcher definitions]
         └── Utils.hs          [Utility functions]
 ```
@@ -667,18 +667,17 @@ d1 $ juno flow prog 1 (-9,9) [run 4]
 **Principle**: Simplest solution wins. Before adding code, ask:
 - Is this strictly necessary?
 - Can this be achieved more simply?
-- Does the legacy implementation have a simpler approach?
 
 **Example**: Voice leading optimization uses cyclic DP (45 lines) instead of exhaustive search (exponential).
 
-### 8.2 Legacy as Source of Truth
+### 8.2 Test Suite and REPL as Verification
 
-**Principle**: The legacy implementation (`theHarmonicAlgorithmLegacy/`) functioned correctly and was verified. When behavior is unclear, compare against legacy.
+**Principle**: When behavior is unclear, verify against the test suite and interactive REPL. The current codebase is the source of truth.
 
 **Process**:
-1. Read legacy code (e.g., `theHarmonicAlgorithmLegacy/src/MusicData.hs`)
-2. Compare function signatures and outputs
-3. If modernized behavior differs, investigate why before assuming modernized is correct
+1. Run `stack test` to check against existing expectations
+2. Verify interactively in `stack ghci` with concrete examples
+3. If behavior seems wrong, investigate the implementation before changing tests
 
 ### 8.3 Suspect All Existing Code
 
@@ -687,7 +686,6 @@ d1 $ juno flow prog 1 (-9,9) [run 4]
 **Checklist**:
 - Does this code serve the current functionality?
 - Is this logic hallucinated or speculative?
-- Does the legacy implementation do this differently?
 
 ### 8.4 Tests Are Not Infallible
 
@@ -695,8 +693,8 @@ d1 $ juno flow prog 1 (-9,9) [run 4]
 
 **When tests fail**:
 1. Check if test expectation is correct
-2. Compare against legacy behavior
-3. Trust legacy behavior over existing tests if they conflict
+2. Verify expected behavior interactively in the REPL
+3. Update the test if the expectation was wrong
 
 ### 8.5 Vertical Slice Methodology
 
@@ -850,8 +848,6 @@ instance HarmonicDatabase PostgresConnection where
 
 **Implementation Complexity**: Medium
 
-**Tracked in**: IMPROVEMENTS.md [PO-1]
-
 ### 10.2 Haskell Lazy Evaluation
 
 **Progression Structure**: `Progression = Seq CadenceState`
@@ -916,7 +912,6 @@ Measured on M1 MacBook Pro (2021), Neo4j local Docker:
 - **Architecture**: `ARCHITECTURE.md` (this file)
 - **TidalCycles tutorial**: `live/USER_GUIDE.tidal`
 - **Development guidelines**: `CLAUDE.md`
-- **Improvements tracking**: `IMPROVEMENTS.md`
 
 ### Configuration
 - **Haskell package**: `package.yaml`
