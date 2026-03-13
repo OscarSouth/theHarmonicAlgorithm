@@ -89,6 +89,25 @@ s.reboot {
       "====> WARNING: No priority MIDI interfaces were found. MIDI thru is disabled.".postln;
     };
 
+    // 12 Step LED feedback (optional — no error if unplugged)
+    block {
+      var isAvailable = MIDIClient.destinations.any { |endpoint|
+        endpoint.device.containsi("12Step")
+      };
+      if(isAvailable) {
+        try {
+          ~midi12step = MIDIOut.newByName("12Step", "Port 1");
+          ~midi12step.latency = 0.0;
+          ~dirt.soundLibrary.addMIDI(\twelve, ~midi12step);
+          "====> SUCCESS: 12 Step LED output connected.".postln;
+        } {
+          "====> WARNING: 12 Step detected but connection failed.".postln;
+        };
+      } {
+        "====> INFO: 12 Step not found — LED feedback disabled.".postln;
+      };
+    };
+
     // OSC "Backdoor" (unchanged)
     OSCdef.new(
       \runCode,
