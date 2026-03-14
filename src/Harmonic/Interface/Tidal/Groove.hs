@@ -69,7 +69,7 @@ subKick voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
     -- Compensate inner patterns for rep factor so pattern speed
     -- stays constant per bar regardless of rep (matches arrange behavior).
     -- fast rep counteracts the rep portion of slow (4 * rep).
-    repFast p = fast (pure (max 1 rep)) p
+    repFast p = fast (pure rep) p
 
     -- Convert dynamics pattern to boolean gate for mask.
     -- Allows rhythmic gating: dyn "1 0 1 0" plays sub on beats 1,3 only.
@@ -150,7 +150,7 @@ subKickLed voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
                   # ctlNum (fromIntegral num)
                   # control (fromIntegral val)
 
-    repFast p = fast (pure (max 1 rep)) p
+    repFast p = fast (pure rep) p
 
     -- Convert dynamics pattern to boolean gate for mask.
     dynGate = fmap (> 0) dyn

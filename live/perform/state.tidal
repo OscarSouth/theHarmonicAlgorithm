@@ -4,14 +4,16 @@ start = initCadenceState 5 "D" [0,10,7] SharpSpelling
 
 ctx = hContext "D F A" "1b -B' - Bb'" "D A G Bb F"
 
-next <- gen start 4 "debussy"  0.4 ctx
+ctx = hContext "*" "*" "*"
+
+next <- gen start 8 "*" 0.9 ctx
 
 state = rotate (0) next
 
 do
   let
     dyn = slow 64 $ lfo tri 0.9 1
-    rep = 0.125
+    rep = "1 0.5"
     s = transposeP 0 state
     f = (swingBy 0.00 2)
     (d,r) = ((*dyn), rep)
@@ -19,10 +21,10 @@ do
   mapM_ id [hush, setbpm tempo
     -- ,metronome $d 0.1
     -- ,count s r $d 0.5
-    -- ,p03 f s r $ d 0.7
+    ,p03 f s r $ d 0.7
     -- ,p02 f s r $ d 1
     -- ,moog f s r $ d 0.9
-    ,subk f s r $ d 1
+    -- ,subk f s r $ d 1
     -- ,k909 f     $d 0.99
     -- ,kmpc f     $d 0.9
     -- ,drum f     $d 0.99
