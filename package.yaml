@@ -34,6 +34,10 @@ library:
     - Harmonic.Config
     # Framework (R→E→T Orchestration)
     - Harmonic.Framework.Builder
+    - Harmonic.Framework.Builder.Types
+    - Harmonic.Framework.Builder.Core
+    - Harmonic.Framework.Builder.Diagnostics
+    - Harmonic.Framework.Builder.Portmanteau
     # Rules (R Component + Layer A)
     - Harmonic.Rules.Types.Pitch
     - Harmonic.Rules.Types.Harmony

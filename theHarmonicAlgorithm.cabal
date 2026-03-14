@@ -16,6 +16,10 @@ library
       Harmonic.Lib
       Harmonic.Config
       Harmonic.Framework.Builder
+      Harmonic.Framework.Builder.Types
+      Harmonic.Framework.Builder.Core
+      Harmonic.Framework.Builder.Diagnostics
+      Harmonic.Framework.Builder.Portmanteau
       Harmonic.Rules.Types.Pitch
       Harmonic.Rules.Types.Harmony
       Harmonic.Rules.Types.Progression

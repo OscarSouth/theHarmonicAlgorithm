@@ -45,18 +45,12 @@ let ctx = defaultContext
 
 -------------------------------------------------------------------------------
 -- GENERATOR CONFIG
--- 
+--
 -- Controls the generation algorithm behavior:
---   homingThreshold: When to start homing (0.75 = last 25% of progression)
---   homingStrength: How strongly to pull toward target (0.0-1.0)
---   minCandidates: Minimum transitions to consider per step
+--   gcPoolSize: Candidate pool size (default 30)
 -------------------------------------------------------------------------------
 
-let cfg = defaultConfig { 
-  configHomingThreshold = 0.75,
-  configHomingStrength = 0.5,
-  configMinCandidates = 3
-  }
+let cfg = defaultConfig
 
 -------------------------------------------------------------------------------
 -- PROGRESSION SLOTS

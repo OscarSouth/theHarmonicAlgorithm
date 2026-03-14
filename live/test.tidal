@@ -180,7 +180,7 @@ let ctx = hContext "E A D G" "1#" "*"
 defaultConfig
 
 -- Custom config
-let cfg = defaultConfig { gcHomingThreshold = 0.8 }
+let cfg = defaultConfig { gcPoolSize = 50 }
 
 -------------------------------------------------------------------------------
 -- End test.tidal

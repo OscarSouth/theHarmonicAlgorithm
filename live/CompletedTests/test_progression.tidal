@@ -252,19 +252,11 @@ hContext "C E G" "0b" "C"
 -------------------------------------------------------------------------------
 
 defaultConfig
--- gcHomingThreshold = 0.75, gcHomingStrength = 1.0, gcMinCandidates = 1
+-- gcPoolSize = 30
 
--- Custom config: earlier homing
-let earlyHoming = defaultConfig { gcHomingThreshold = 0.5 }
-earlyHoming  -- Homing starts at 50%
-
--- Custom config: weaker homing
-let weakHoming = defaultConfig { gcHomingStrength = 0.5 }
-weakHoming  -- Less bias toward start
-
--- Custom config: more candidates required
-let moreChoice = defaultConfig { gcMinCandidates = 5 }
-moreChoice  -- Won't accept fewer than 5 candidates
+-- Custom config: larger pool
+let moreChoice = defaultConfig { gcPoolSize = 50 }
+moreChoice  -- More candidates to choose from
 
 -------------------------------------------------------------------------------
 -- TEST 10: Graph-Based Generation (Requires Neo4j)
@@ -300,10 +292,10 @@ let bassContext = hContext "E A D G" "*" "*"
 prog8_bass <- gen start 8 "debussy stravinsky" 1.0 bassContext
 prog8_bass
 
--- Generate with custom config (early homing)
-let earlyConfig = defaultConfig { gcHomingThreshold = 0.5 }
-prog8_early <- genWith earlyConfig start 8 "debussy stravinsky" 1.0 defaultContext
-prog8_early
+-- Generate with custom config (larger pool)
+let customConfig = defaultConfig { gcPoolSize = 50 }
+prog8_custom <- genWith customConfig start 8 "debussy stravinsky" 1.0 defaultContext
+prog8_custom
 
 -- Compare progression lengths
 progLength prog8         -- Should be 8

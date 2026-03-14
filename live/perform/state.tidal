@@ -11,9 +11,9 @@ state = rotate (0) next
 do
   let
     dyn = slow 64 $ lfo tri 0.9 1
-    rep = 4
+    rep = 0.125
     s = transposeP 0 state
-    f = (swingBy 0.04 2)
+    f = (swingBy 0.00 2)
     (d,r) = ((*dyn), rep)
   putStrLn $ "GO ¬¬" ++ show s
   mapM_ id [hush, setbpm tempo

@@ -19,7 +19,6 @@ module Harmonic.Evaluation.Database.Query
   
     -- * Graph Queries
   , fetchTransitions
-  , fetchHomingCandidates
   
     -- * Weight Resolution
   , resolveWeights
@@ -136,33 +135,6 @@ fetchTransitions cadenceShow = do
       let weights = parseWeightsJson weightsStr
       
       pure (cadence, weights)
-
--- |Fetch cadences that have a high transition probability INTO the target.
--- Used for homing logic: finding "feeder" cadences that lead to the start.
---
--- Query: MATCH (n:Cadence)-[r:NEXT]->(target:Cadence {show: $show})
---        RETURN n.show, r.confidence
-fetchHomingCandidates :: Text -> Bolt.BoltActionT IO [(Text, Double)]
-fetchHomingCandidates targetShow = do
-  let query = T.unlines
-        [ "MATCH (n:Cadence)-[r:NEXT]->(target:Cadence {show: $show})"
-        , "RETURN n.show AS fromShow, r.confidence AS confidence"
-        , "ORDER BY r.confidence DESC"
-        ]
-      params = Map.fromList [("show", Bolt.T targetShow)]
-  
-  records <- Bolt.queryP query params
-  pure $ mapMaybe parseHomingRecord records
-  where
-    parseHomingRecord :: Bolt.Record -> Maybe (Text, Double)
-    parseHomingRecord record = do
-      showVal <- Map.lookup "fromShow" record
-      confVal <- Map.lookup "confidence" record
-      
-      showStr <- extractText showVal
-      conf <- extractDouble confVal
-      
-      pure (showStr, conf)
 
 -------------------------------------------------------------------------------
 -- Weight Resolution

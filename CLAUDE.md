@@ -46,10 +46,12 @@ Test suites should be **interrogated and changed** to accommodate actual require
 - Be missing critical cases
 - Have been added speculatively by previous agents
 
-### 4. Incomplete Features
-Some features are not yet implemented. Currently:
-- Composer specification (e.g., "bach", "debussy") is **not implemented** - use `"*"` for all operations
-- Use `"*"` to aggregate all composer intent from the deterministic graph
+### 4. Composer Specification
+Composer specification is fully implemented end-to-end:
+- `"*"` aggregates all composers (sum of edge weights)
+- `"bach"` or `"debussy"` filters by single composer
+- `"bach:30 debussy:70"` blends multiple composers with weighted scoring
+- `parseComposerWeights` parses blend strings; `resolveWeights` multiplies blend × edge weights
 
 ## Pre-Work Checklist
 
@@ -102,7 +104,7 @@ Tool: mcp__mem0__add-memory
 **Current memories include**:
 - Neo4j connection requirements and startup
 - Vertical slice workflow preferences
-- Composer specification status (not implemented)
+- Composer specification (fully implemented: single, weighted blend, wildcard)
 - Architecture layers and boundaries
 - Zero-form invariant
 - Code minimization principles

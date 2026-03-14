@@ -15,14 +15,15 @@ module Harmonic.Traversal.Probabilistic
   ( -- * Gamma Sampling
     gammaIndex
   , gammaIndexScaled
+  , gammaIndexScaledWith
   , gammaSelect
   , gammaSelectFromPool
   , gammaSequence
-  
+
     -- * Weighted Selection
   , weightedSelect
   , pickWeighted
-  
+
     -- * Random Utilities
   , withRandomGen
   ) where
@@ -74,6 +75,21 @@ gammaIndexScaled :: Double  -- ^ Entropy in [0, 1] range
                  -> IO Int
 gammaIndexScaled entropy poolSize = do
   gen <- createSystemRandom
+  let clampedEntropy = max 0.0 (min 1.0 entropy)
+      shape = 1.0 + clampedEntropy * 9.0  -- Maps [0,1] -> [1,5]
+      safeShape = max 0.01 shape
+  x <- Dist.gamma safeShape 1.0 gen
+  let idx = floor x
+      maxIdx = poolSize - 1
+  pure $ max 0 (min idx maxIdx)
+
+-- |Like 'gammaIndexScaled' but uses an existing random generator instead of
+-- creating a new one. Avoids per-call overhead of reading /dev/urandom.
+gammaIndexScaledWith :: GenIO    -- ^ Shared random generator
+                     -> Double   -- ^ Entropy in [0, 1] range
+                     -> Int      -- ^ Pool size (e.g., 30)
+                     -> IO Int
+gammaIndexScaledWith gen entropy poolSize = do
   let clampedEntropy = max 0.0 (min 1.0 entropy)
       shape = 1.0 + clampedEntropy * 9.0  -- Maps [0,1] -> [1,5]
       safeShape = max 0.01 shape

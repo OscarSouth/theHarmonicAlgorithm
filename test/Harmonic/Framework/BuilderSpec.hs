@@ -132,22 +132,6 @@ spec = do
   describe "GeneratorConfig" $ do
     
     describe "defaultConfig" $ do
-      it "has homing threshold between 0 and 1" $ do
-        let thresh = gcHomingThreshold defaultConfig
-        thresh `shouldSatisfy` (>= 0)
-        thresh `shouldSatisfy` (<= 1)
-      
-      it "default homing threshold is 1.0 (disabled)" $ do
-        gcHomingThreshold defaultConfig `shouldBe` 1.0
-      
-      it "has reasonable homing strength" $ do
-        let strength = gcHomingStrength defaultConfig
-        strength `shouldSatisfy` (> 0)
-        strength `shouldSatisfy` (<= 2.0)
-      
-      it "default homing strength is 1.0" $ do
-        gcHomingStrength defaultConfig `shouldBe` 1.0
-      
       it "has reasonable pool size" $ do
         let poolSize = gcPoolSize defaultConfig
         poolSize `shouldSatisfy` (> 0)
@@ -156,9 +140,6 @@ spec = do
       it "default pool size is 30" $ do
         gcPoolSize defaultConfig `shouldBe` 30
       
-      it "homing is disabled by default (threshold = 1.0)" $ do
-        gcHomingThreshold defaultConfig `shouldBe` 1.0
-
   describe "Wildcard matching" $ do
     
     describe "isWildcard" $ do
@@ -200,30 +181,6 @@ spec = do
     it "generate returns IO Progression" $ do
       -- Type-level verification only
       True `shouldBe` True
-
-  describe "Homing phase logic" $ do
-    
-    describe "Homing threshold interpretation" $ do
-      it "threshold 0.75 means homing starts at 75%" $ do
-        -- With 16-bar progression:
-        -- Forward walk: 0-11 (indices 0 to 11, 75% of 16 = 12)
-        -- Homing phase: 12-15 (last 25%)
-        let threshold = 0.75  -- Explicit threshold since default is now 1.0
-            totalBars = 16
-            homingStart = floor (threshold * fromIntegral totalBars)
-        homingStart `shouldBe` 12
-      
-      it "threshold 0.5 means homing starts at 50%" $ do
-        let threshold = 0.5
-            totalBars = 16
-            homingStart = floor (threshold * fromIntegral totalBars)
-        homingStart `shouldBe` 8
-      
-      it "threshold 1.0 means no homing phase" $ do
-        let threshold = 1.0
-            totalBars = 16
-            homingStart = floor (threshold * fromIntegral totalBars)
-        homingStart `shouldBe` 16
 
   describe "Chain building logic" $ do
     

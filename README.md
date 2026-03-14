@@ -296,9 +296,14 @@ Architecture enforces clean dependency flow:
 
 ### Composer Specification
 
-Currently **not implemented** - use `"*"` for all operations to aggregate all composer intent from the deterministic graph.
+Composer specification enables filtering and blending by composer style:
 
-Planned for future release: per-composer filtering (e.g., `"bach"`, `"debussy"`) and weighted blending (e.g., `"bach:70 debussy:30"`).
+- `"*"` — aggregate all composers (wildcard, sum of all edge weights)
+- `"bach"` or `"debussy"` — filter by single composer
+- `"bach:30 debussy:70"` — weighted blend of multiple composers
+- `"bach debussy stravinsky"` — equal-weight blend of multiple composers
+
+Edge weights stored per-composer in Neo4j are multiplied by the user's blend weights to produce candidate scores.
 
 ---
 

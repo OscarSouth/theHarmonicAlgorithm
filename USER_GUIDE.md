@@ -127,17 +127,11 @@ Control the generation algorithm behavior:
 
 ```haskell
 data GeneratorConfig = GeneratorConfig
-  { configHomingThreshold :: Double  -- When to start homing (default: 0.75)
-  , configHomingStrength  :: Double  -- How strongly to pull (default: 0.5)
-  , configMinCandidates   :: Int     -- Minimum transitions per step (default: 3)
+  { gcPoolSize :: Int  -- Candidate pool size (default: 30)
   }
 
 -- Customize
-let cfg = defaultConfig { 
-  configHomingThreshold = 0.75,  -- Start homing at 75%
-  configHomingStrength = 0.8,    -- Strong pull toward target
-  configMinCandidates = 5        -- More variety
-}
+let cfg = defaultConfig { gcPoolSize = 50 }
 ```
 
 ## Generating Progressions
@@ -303,11 +297,7 @@ genVerbose'  :: GeneratorConfig -> CadenceState -> Int -> String -> Double -> Ha
 Customize generation behavior:
 
 ```haskell
-let cfg = defaultConfig 
-      { cfgHomingThreshold = 0.8     -- Start homing at 80% (default: 75%)
-      , cfgCompositionStrength = 0.8 -- Strong pull to resolution (default: 0.5)
-      , cfgMinCandidates = 5         -- More variety (default: 3)
-      }
+let cfg = defaultConfig { gcPoolSize = 50 }
 
 -- Silent with custom config
 prog1 <- genSilent' cfg start 16 "*" 0.5 ctx
@@ -320,9 +310,7 @@ prog3 <- genVerbose' cfg start 8 "*" 0.5 ctx
 ```
 
 **Configuration options:**
-- `cfgHomingThreshold` — When to start guiding toward resolution (0.0-1.0, default: 0.75)
-- `cfgCompositionStrength` — How strongly to pull toward resolution (0.0-1.0, default: 0.5)
-- `cfgMinCandidates` — Minimum candidates to keep per step (default: 3)
+- `gcPoolSize` — Candidate pool size (default: 30)
 
 ### Internal Tuple Functions (Advanced)
 

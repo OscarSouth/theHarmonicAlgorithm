@@ -723,7 +723,7 @@ readNoteName "A"  = A
 readNoteName "A#" = A'
 readNoteName "Bb" = Bb
 readNoteName "B"  = B
-readNoteName _    = C  -- Default
+readNoteName s    = error $ "readNoteName: unknown note name: " ++ show s
 
 -- Note: enharmFromNoteName is imported from Harmonic.Core.Pitch
 
@@ -754,14 +754,27 @@ possibleTriadsSimple _ fund ps =
       pairs = [[a, b] | a <- otherPCs, b <- otherPCs, a < b]
   in map (fundPC :) pairs
 
--- |Select most consonant option (placeholder - full logic in Dissonance module)
+-- |Select most consonant option from a list of pitch sets.
+-- Inline replica of Dissonance.mostConsonant (Layer B cannot import Layer C).
+-- Includes perfect fifth bonus (-1) and degenerate set penalty (27).
 mostConsonant :: [[Int]] -> [Int]
 mostConsonant [] = [0, 4, 7]  -- Default to major triad
-mostConsonant xs = head $ sortBy (compare `on` dissonanceScore) xs
+mostConsonant xs = snd . head . sortBy (compare `on` fst) $ map dissonanceLevel xs
   where
-    dissonanceScore ys = sum $ zipWith (*) [16,8,4,2,1,24] (intervalVector ys)
+    dissonanceLevel ys
+      | countElem iVect 0 == 5 = (27 :: Int, ys)
+      | hasPerfectFifth ys     = (baseDiss - 1, ys)
+      | otherwise              = (baseDiss, ys)
+      where
+        iVect    = intervalVector ys
+        baseDiss = sum $ zipWith (*) [16,8,4,2,1,24] iVect
     intervalVector ys = [countInterval i ys | i <- [1..6]]
     countInterval i ys = length [() | a <- ys, b <- ys, a < b, ((b - a) `mod` 12) `elem` [i, 12-i]]
+    countElem xs' x = length (filter (== x) xs')
+    hasPerfectFifth [] = False
+    hasPerfectFifth (root:rest) =
+      let p5 = (root + 7) `mod` 12
+      in any (\x -> x `mod` 12 == p5) rest
 
 -- |Detect chord inversion by pattern matching against known inversion forms
 -- Returns (root_note, inversion_suffix) where suffix is "", "_1stInv", or "_2ndInv"

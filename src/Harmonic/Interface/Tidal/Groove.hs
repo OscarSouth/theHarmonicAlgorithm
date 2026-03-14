@@ -69,7 +69,7 @@ subKick voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
     -- Compensate inner patterns for rep factor so pattern speed
     -- stays constant per bar regardless of rep (matches arrange behavior).
     -- fast rep counteracts the rep portion of slow (4 * rep).
-    repFast p = fast (pure rep) p
+    repFast p = fast (pure (max 1 rep)) p
 
     -- Convert dynamics pattern to boolean gate for mask.
     -- Allows rhythmic gating: dyn "1 0 1 0" plays sub on beats 1,3 only.
@@ -98,15 +98,15 @@ subKick voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
     sustainOn = (1/128) ~> segment 64 (midiCC 64 127)
 
     -- Auto note-off: CC 64 = 0 pulse at maxDur after each note-on.
-    -- Shifts the actual subOnPat by maxDur so every note-on gets
-    -- a corresponding note-off. When maxDur >= 1, notes sustain for
-    -- full segment (no auto-off needed). Longer shifts where on/off
-    -- events cross over produce emergent groove effects.
+    -- Shift (maxDur/rep) in cat-item coordinates gives constant outer delay
+    -- of 4*maxDur cycles. Clamped to (1 - 1/128) to prevent wrap-around
+    -- when rep <= maxDur (note sustains for full chord in that case).
+    -- When maxDur >= 1, notes sustain for full segment (no auto-off needed).
     -- Always fires regardless of dynGate to ensure notes are killed.
     autoOff
       | maxDur >= 1 = silence
       | otherwise   = slow (4 * pure rep) $ cat $
-          map (\_ -> struct ((pure (maxDur / rep)) ~> repFast subOnPat) $
+          map (\_ -> struct ((pure (min (maxDur / rep) (1 - 1/128))) ~> repFast subOnPat) $
             midiCC 64 0
           ) normPitches
 
@@ -150,7 +150,7 @@ subKickLed voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
                   # ctlNum (fromIntegral num)
                   # control (fromIntegral val)
 
-    repFast p = fast (pure rep) p
+    repFast p = fast (pure (max 1 rep)) p
 
     -- Convert dynamics pattern to boolean gate for mask.
     dynGate = fmap (> 0) dyn
@@ -170,7 +170,7 @@ subKickLed voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
     subLedAutoOff
       | maxDur >= 1 = silence
       | otherwise   = slow (4 * pure rep) $ cat $
-          map (\_ -> struct ((pure (maxDur / rep)) ~> repFast subOnPat) $
+          map (\_ -> struct ((pure (min (maxDur / rep) (1 - 1/128))) ~> repFast subOnPat) $
             allSubLedsOff
           ) normPitches
 
@@ -183,7 +183,7 @@ subKickLed voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
     kickLedOn = slow (4 * pure rep) $ struct (repFast kickPat) $
       ledCC 32 1
 
-    kickLedOff = slow (4 * pure rep) $ struct ((pure (1 / (16 * rep))) ~> repFast kickPat) $
+    kickLedOff = slow (4 * pure rep) $ struct ((pure (1/16)) ~> repFast kickPat) $
       ledCC 32 0
 
   in stack [subLedOn, subLedAutoOff, subLedManualOff, kickLedOn, kickLedOff]

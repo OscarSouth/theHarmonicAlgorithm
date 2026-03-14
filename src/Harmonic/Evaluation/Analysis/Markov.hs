@@ -1,3 +1,14 @@
+-- |
+-- Module      : Harmonic.Evaluation.Analysis.Markov
+-- Description : Markov transition probability computation (ingestion-only)
+--
+-- This module is used exclusively during data ingestion (app/Main.hs) to compute
+-- transition probabilities from the YCACL corpus. These probabilities are stored
+-- as edge weights in the Neo4j graph database.
+--
+-- This module is NOT used in the runtime generation path. At runtime, transition
+-- weights are read from Neo4j edges by Harmonic.Evaluation.Database.Query.
+
 module Harmonic.Evaluation.Analysis.Markov
   ( Edge
   , TransitionCounts

@@ -49,11 +49,13 @@ module Harmonic.Evaluation.Scoring.VoiceLeading
   , normalizeByFirstRoot
   ) where
 
-import Data.List (sort, minimumBy, nub)
+import Data.List (sort, minimumBy)
 import Data.Function (on)
 import Data.Maybe (catMaybes)
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
+import qualified Data.Set as Set
+import qualified Data.Vector as V
 import GHC.Generics (Generic)
 
 import Harmonic.Rules.Types.Pitch (PitchClass(..), mkPitchClass, unPitchClass, transpose)
@@ -189,16 +191,16 @@ pitchPlacements pc =
 allVoicings :: [Int] -> [[Int]]
 allVoicings pcs
   | length pcs /= 3 = [sort pcs]  -- Fallback for non-triads
-  | otherwise = 
+  | otherwise =
     let [pc0, pc1, pc2] = map (`mod` 12) pcs
         placements0 = pitchPlacements pc0
         placements1 = pitchPlacements pc1
         placements2 = pitchPlacements pc2
         -- Generate all combinations
         allCombos = [[p0, p1, p2] | p0 <- placements0, p1 <- placements1, p2 <- placements2]
-        -- Sort each voicing low-to-high
+        -- Sort each voicing low-to-high, deduplicate via Set (O(n log n) vs nub's O(n²))
         sorted = map sort allCombos
-    in nub sorted
+    in Set.toList (Set.fromList sorted)
 
 -- |Create initial compact voicing: root in bass in target octave (12-23),
 -- upper voices stacked compactly above.
@@ -238,31 +240,32 @@ solveCyclicDP _ _ [] = []
 solveCyclicDP _ _ [x] = [initialCompact (head x `mod` 12) x]
 solveCyclicDP filterCandidates rootPCs chords =
   let n = length chords
-      
+      rootPCsV = V.fromList rootPCs
+      chordsV = V.fromList chords
+
       -- Generate candidates for each position
       -- Position 0 is fixed to initial compact voicing
-      firstRootPC = head rootPCs
-      firstVoicing = initialCompact firstRootPC (head chords)
-      
+      firstRootPC = V.head rootPCsV
+      firstVoicing = initialCompact firstRootPC (V.head chordsV)
+
       -- For positions 1..n-1, generate all candidates filtered appropriately
-      -- Type: [[[Int]]] -- list of positions, each containing list of candidate voicings
-      candidatesPerPos :: [[[Int]]]
-      candidatesPerPos = [[firstVoicing]] ++ 
-        [filterCandidates (rootPCs !! i) (allVoicings (chords !! i)) | i <- [1..n-1]]
-      
-      getCandidates :: Int -> [[Int]]
-      getCandidates i = candidatesPerPos !! i
-      
-      numCandidates :: Int -> Int
-      numCandidates i = length (getCandidates i)
-      
+      -- Vector of Vectors for O(1) indexing
+      candidatesPerPos :: V.Vector (V.Vector [Int])
+      candidatesPerPos = V.generate n $ \i ->
+        if i == 0
+        then V.singleton firstVoicing
+        else V.fromList $ filterCandidates (rootPCsV V.! i) (allVoicings (chordsV V.! i))
+
+      getCandidates :: Int -> V.Vector [Int]
+      getCandidates i = candidatesPerPos V.! i
+
       -- Initial state: position 0, only candidate 0 (the fixed first voicing)
       initialDP :: DPState
       initialDP = Map.singleton 0 (0, -1)
-      
+
       -- Forward pass: for each position, compute min cost to reach each candidate
-      forwardPass :: [DPState]
-      forwardPass = scanl stepDP initialDP [1..n-1]
+      forwardPass :: V.Vector DPState
+      forwardPass = V.fromList $ scanl stepDP initialDP [1..n-1]
         where
           stepDP :: DPState -> Int -> DPState
           stepDP prevState pos =
@@ -271,41 +274,41 @@ solveCyclicDP filterCandidates rootPCs chords =
                 -- For each current candidate, find best predecessor
                 computeBest :: Int -> Maybe (Int, (Int, Int))
                 computeBest currIdx =
-                  let currVoicing = currCands !! currIdx
+                  let currVoicing = currCands V.! currIdx
                       -- Try each predecessor
                       costs = [(prevIdx, cost + voiceLeadingCost prevVoicing currVoicing, prevIdx)
                               | (prevIdx, (cost, _)) <- Map.toList prevState
-                              , let prevVoicing = prevCands !! prevIdx]
-                  in if null costs 
+                              , let prevVoicing = prevCands V.! prevIdx]
+                  in if null costs
                      then Nothing
                      else let (_, minCost, backPtr) = minimumBy (compare `on` (\(_,c,_) -> c)) costs
                           in Just (currIdx, (minCost, backPtr))
-            in Map.fromList $ catMaybes [computeBest j | j <- [0 .. length currCands - 1]]
-      
+            in Map.fromList $ catMaybes [computeBest j | j <- [0 .. V.length currCands - 1]]
+
       -- Get final DP state
       finalState :: DPState
-      finalState = last forwardPass
-      
+      finalState = V.last forwardPass
+
       -- Add wrap-around cost and find best ending
       lastCands = getCandidates (n - 1)
       bestEnding :: (Int, Int)  -- (candidate index, total cyclic cost)
-      bestEnding = minimumBy (compare `on` snd) 
-        [(lastIdx, cost + voiceLeadingCost (lastCands !! lastIdx) firstVoicing)
+      bestEnding = minimumBy (compare `on` snd)
+        [(lastIdx, cost + voiceLeadingCost (lastCands V.! lastIdx) firstVoicing)
         | (lastIdx, (cost, _)) <- Map.toList finalState]
-      
-      -- Backtrack to reconstruct path
-      backtrack :: [DPState] -> Int -> Int -> [Int]
-      backtrack states pos candIdx
-        | pos == 0 = [candIdx]
-        | otherwise = 
-          let (_, backPtr) = (states !! pos) Map.! candIdx
-          in backtrack states (pos - 1) backPtr ++ [candIdx]
-      
-      path = backtrack forwardPass (n - 1) (fst bestEnding)
-      
+
+      -- Backtrack to reconstruct path (accumulator-passing, O(n))
+      backtrack :: Int -> Int -> [Int] -> [Int]
+      backtrack pos candIdx acc
+        | pos == 0 = candIdx : acc
+        | otherwise =
+          let (_, backPtr) = (forwardPass V.! pos) Map.! candIdx
+          in backtrack (pos - 1) backPtr (candIdx : acc)
+
+      path = V.fromList $ backtrack (n - 1) (fst bestEnding) []
+
       -- Convert path to voicings
-      result = [getCandidates i !! (path !! i) | i <- [0..n-1]]
-      
+      result = [getCandidates i V.! (path V.! i) | i <- [0..n-1]]
+
   in result
 
 -- |Solve with root always in bass (root paradigm).

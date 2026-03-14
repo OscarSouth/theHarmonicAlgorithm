@@ -49,9 +49,8 @@ loadYCACLData :: FilePath -> IO YCACLData
 loadYCACLData fp = do
   csvData <- BL.readFile fp
   case Csv.decodeByName csvData of
-    Left err -> do
-      putStrLn $ "YCACL artifact parse error: " ++ err
-      pure Map.empty
+    Left err ->
+      error $ "YCACL artifact parse error: " ++ err
     Right (_, rows) ->
       let grouped = foldl' accumulate Map.empty (V.toList rows)
        in pure $ fmap (fmap finalize) grouped
