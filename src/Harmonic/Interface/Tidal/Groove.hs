@@ -3,7 +3,6 @@
 module Harmonic.Interface.Tidal.Groove
   ( fund
   , subKick
-  , subKickLed
   ) where
 
 import qualified Harmonic.Rules.Types.Pitch as Pitch
@@ -40,12 +39,12 @@ normalizeToSubRange (pc:_) = 48 + (pc `mod` 12)
 -- Takes:
 -- - Voice strategy (bass or fund)
 -- - Progression state
--- - Repetitions/cycle length (Time value, e.g., 1, 2, etc.)
+-- - Repetitions/cycle length (patternable, e.g. 1, "1 0.5")
 -- - Velocity/dynamics
 -- - (max sub duration, sub note on pattern, sub note off pattern, kick pattern)
 subKick :: (P.Progression -> [[Int]])  -- Voice strategy (bass or fund)
         -> P.Progression                -- State progression
-        -> Time                         -- Repetitions/cycle length (number of bars)
+        -> Pattern Time                 -- Repetitions/cycle length (patternable)
         -> Pattern Double               -- Dynamics pattern (> 0 = sub active, 0 = sub gated)
         -> (Time,                       -- Note duration before off (1/1 = 1 cycle, 1/2 = half cycle)
             String,                     -- Sub note on pattern string (e.g., "[1(3,8)]")
@@ -69,23 +68,26 @@ subKick voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
     -- Compensate inner patterns for rep factor so pattern speed
     -- stays constant per bar regardless of rep (matches arrange behavior).
     -- fast rep counteracts the rep portion of slow (4 * rep).
-    repFast p = fast (pure rep) p
+    repFast p = fast rep p
 
     -- Convert dynamics pattern to boolean gate for mask.
     -- Allows rhythmic gating: dyn "1 0 1 0" plays sub on beats 1,3 only.
     dynGate = fmap (> 0) dyn
 
+    -- MIDI routing: channel 7 (0-indexed = midichan 6) on "thru" device
+    thru = s "thru" # midichan 6
+
     -- Sub pattern: cat cycles through chords (mirrors applyProg/arrange).
     -- Each chord gets an equal segment of the cycle.
     -- Gated by dynGate: note-ons only fire where dyn > 0.
     -- Note-offs (autoOff/manualOff) always fire to ensure correct note kills.
-    subPattern = mask dynGate $ slow (4 * pure rep) $ cat $
+    subPattern = mask dynGate $ slow (4 * rep) $ cat $
       map (\pitch -> struct (repFast subOnPat) $
         midinote (pure $ fromIntegral pitch) # sustain 0.01
       ) normPitches
 
     -- Kick pattern: fixed C4 (MIDI 60) with short sustain (one-shot, unaffected by CC 64)
-    kickPattern = slow (4 * pure rep) $ struct (repFast kickPat) $
+    kickPattern = slow (4 * rep) $ struct (repFast kickPat) $
                   midinote 60 # sustain 0.01
 
     -- Sustain pedal: CC 64 = 127 continuous background stream.
@@ -105,85 +107,53 @@ subKick voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
     -- Always fires regardless of dynGate to ensure notes are killed.
     autoOff
       | maxDur >= 1 = silence
-      | otherwise   = slow (4 * pure rep) $ cat $
-          map (\_ -> struct ((pure (min (maxDur / rep) (1 - 1/128))) ~> repFast subOnPat) $
+      | otherwise   = slow (4 * rep) $ cat $
+          map (\_ -> struct (fmap (\r -> min (maxDur / r) (1 - 1/128)) rep ~> repFast subOnPat) $
             midiCC 64 0
           ) normPitches
 
     -- Manual note-off: CC 64 = 0 at user-specified boundaries.
     -- subOffStr controls explicit cut points (e.g., "[0 1]" = cut on beat 3).
     -- Always fires regardless of dynGate to ensure notes are killed.
-    manualOff = slow (4 * pure rep) $ struct (repFast subOffPat) $
+    manualOff = slow (4 * rep) $ struct (repFast subOffPat) $
                 midiCC 64 0
 
-  in stack [subPattern, kickPattern, sustainOn, autoOff, manualOff]
-
--- | LED feedback for Keith McMillen 12 Step foot controller.
--- CCs 20-32 control key LEDs (value 0 = off, 1 = on).
--- CC = midiNote - 28 (MIDI 48 → CC 20, MIDI 60 → CC 32).
---
--- LED timing mirrors subKick sustain behavior:
--- - LED on: fires at note-on time (matches subPattern)
--- - LED off: fires at CC 64 = 0 time (matches autoOff/manualOff)
---
--- CC 64 = 0 is a global sustain release, so LED-off turns off ALL sub LEDs.
--- Kick LED flashes briefly (1/16 cycle) on each hit.
---
--- Output routes to 12 Step via separate SuperDirt MIDI device (\twelve).
--- If 12 Step is unplugged, patterns sent to "twelve" produce no output.
-subKickLed :: (P.Progression -> [[Int]])
-           -> P.Progression
-           -> Time
-           -> Pattern Double
-           -> (Time, String, String, String)
-           -> Pattern ValueMap
-subKickLed voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
-  let
-    rawPitches = voiceFunc prog
-    normPitches = map normalizeToSubRange rawPitches
-
-    subOnPat  = parseBP_E subOnStr
-    subOffPat = parseBP_E subOffStr
-    kickPat   = parseBP_E kickStr
-
+    -- LED feedback for Keith McMillen 12 Step foot controller.
+    -- CCs 20-32 control key LEDs (value 0 = off, 1 = on).
+    -- CC = midiNote - 28 (MIDI 48 -> CC 20, MIDI 60 -> CC 32).
+    -- Output routes to 12 Step via separate SuperDirt MIDI device ("twelve").
+    -- If 12 Step is unplugged, patterns sent to "twelve" produce no output.
     ledCC num val = midicmd "control"
                   # ctlNum (fromIntegral num)
                   # control (fromIntegral val)
 
-    repFast p = fast (pure rep) p
+    twelve = s "twelve" # midichan 9
 
-    -- Convert dynamics pattern to boolean gate for mask.
-    dynGate = fmap (> 0) dyn
-
-    -- All sub LEDs off (mirrors CC 64 = 0 global release behavior)
-    allSubLedsOff = stack $ map (\pitch -> ledCC (pitch - 28) 0) normPitches
-
-    -- Sub LED on: light the current pitch's LED at note-on time.
-    -- Gated by dynGate: LEDs only light where dyn > 0 (mirrors subPattern gating).
-    subLedOn = mask dynGate $ slow (4 * pure rep) $ cat $
+    subLedOn = (1/128) ~> (mask dynGate $ slow (4 * rep) $ cat $
       map (\pitch -> struct (repFast subOnPat) $
         ledCC (pitch - 28) 1
-      ) normPitches
+      ) normPitches)
 
-    -- Sub LED off (auto): ALL LEDs off at maxDur after each note-on.
-    -- Always fires regardless of dynGate to prevent stuck LEDs.
     subLedAutoOff
       | maxDur >= 1 = silence
-      | otherwise   = slow (4 * pure rep) $ cat $
-          map (\_ -> struct ((pure (min (maxDur / rep) (1 - 1/128))) ~> repFast subOnPat) $
-            allSubLedsOff
+      | otherwise   = slow (4 * rep) $ cat $
+          map (\pitch -> struct (fmap (\r -> min (maxDur / r) (1 - 1/128)) rep ~> repFast subOnPat) $
+            ledCC (pitch - 28) 0
           ) normPitches
 
-    -- Sub LED off (manual): ALL LEDs off at user-specified boundaries.
-    -- Always fires regardless of dynGate to prevent stuck LEDs.
-    subLedManualOff = slow (4 * pure rep) $ struct (repFast subOffPat) $
-      allSubLedsOff
+    subLedManualOff = slow (4 * rep) $ cat $
+      map (\pitch -> struct (repFast subOffPat) $
+        ledCC (pitch - 28) 0
+      ) normPitches
 
-    -- Kick LED flash: on at kick hit, off 1/16 cycle later
-    kickLedOn = slow (4 * pure rep) $ struct (repFast kickPat) $
+    kickLedOn = slow (4 * rep) $ struct (repFast kickPat) $
       ledCC 32 1
 
-    kickLedOff = slow (4 * pure rep) $ struct ((pure (1/16)) ~> repFast kickPat) $
+    kickLedOff = slow (4 * rep) $ struct ((pure (1/16)) ~> repFast kickPat) $
       ledCC 32 0
 
-  in stack [subLedOn, subLedAutoOff, subLedManualOff, kickLedOn, kickLedOff]
+  in stack [ subPattern # thru, kickPattern # thru
+           , sustainOn # thru, autoOff # thru, manualOff # thru
+           , subLedOn # twelve, subLedAutoOff # twelve
+           , subLedManualOff # twelve, kickLedOn # twelve, kickLedOff # twelve
+           ]
