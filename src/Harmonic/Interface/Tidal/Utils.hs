@@ -17,6 +17,22 @@ pushBy t pat = (pure t) ~> pat
 humanise :: Double -> Pattern ValueMap
 humanise n = pF "amp" (range (pure (-0.09 * n)) (pure (0.09 * n)) rand)
 
+-- | Ensure every event is an onset by aligning whole start with part start,
+-- but only at cycle boundaries. Prevents TidalCycles' onset detection from
+-- filtering events in cat constructions where inner patterns have period > 1
+-- cycle, without causing MIDI flood from sub-cycle queries.
+onset :: Pattern a -> Pattern a
+onset pat = pat {query = q, pureValue = Nothing}
+  where
+    q st = map align (query pat st)
+    align ev = case whole ev of
+      Nothing -> ev
+      Just (Arc _ we) ->
+        let ps = start (part ev)
+        in if ps == sam ps
+           then ev {whole = Just (Arc ps (min we (nextSam ps)))}
+           else ev
+
 -- Time divisions
 hemidemisemiquaver, demisemiquaver, semiquaver, quaver, crotchet, minim :: Time
 hemidemisemiquaver = 1/64

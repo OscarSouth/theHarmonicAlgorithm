@@ -8,6 +8,7 @@ module Harmonic.Interface.Tidal.Groove
 import qualified Harmonic.Rules.Types.Pitch as Pitch
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Progression as P
+import Harmonic.Interface.Tidal.Utils (onset)
 import Data.Foldable (toList)
 import Sound.Tidal.Context
 
@@ -79,16 +80,18 @@ subKick voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
 
     -- Sub pattern: cat cycles through chords (mirrors applyProg/arrange).
     -- Each chord gets an equal segment of the cycle.
+    -- Wrapped with onset to ensure multi-cycle struct patterns produce
+    -- proper note-onsets in every cat window.
     -- Gated by dynGate: note-ons only fire where dyn > 0.
     -- Note-offs (autoOff/manualOff) always fire to ensure correct note kills.
     subPattern = mask dynGate $ slow (4 * rep) $ cat $
-      map (\pitch -> struct (repFast subOnPat) $
-        midinote (pure $ fromIntegral pitch) # sustain 0.01
+      map (\pitch -> onset $ struct (repFast subOnPat) $
+        midinote (pure $ fromIntegral pitch) # sustain 0.01 # amp (fmap (/127) dyn)
       ) normPitches
 
     -- Kick pattern: fixed C4 (MIDI 60) with short sustain (one-shot, unaffected by CC 64)
     kickPattern = slow (4 * rep) $ struct (repFast kickPat) $
-                  midinote 60 # sustain 0.01
+                  midinote 60 # sustain 0.01 # amp 1
 
     -- Sustain pedal: CC 64 = 127 continuous background stream.
     -- 1/128 offset places CC64=127 at odd multiples of 1/128 (1/128, 3/128, ...),
@@ -108,7 +111,7 @@ subKick voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
     autoOff
       | maxDur >= 1 = silence
       | otherwise   = slow (4 * rep) $ cat $
-          map (\_ -> struct (fmap (\r -> min (maxDur / r) (1 - 1/128)) rep ~> repFast subOnPat) $
+          map (\_ -> onset $ struct (fmap (\r -> min (maxDur / r) (1 - 1/128)) rep ~> repFast subOnPat) $
             midiCC 64 0
           ) normPitches
 
@@ -127,14 +130,14 @@ subKick voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
                   # control (fromIntegral val)
 
     subLedOn = (1/128) ~> (mask dynGate $ slow (4 * rep) $ cat $
-      map (\pitch -> struct (repFast subOnPat) $
+      map (\pitch -> onset $ struct (repFast subOnPat) $
         ledCC (pitch - 28) 1
       ) normPitches)
 
     subLedAutoOff
       | maxDur >= 1 = silence
       | otherwise   = slow (4 * rep) $ cat $
-          map (\_ -> struct (fmap (\r -> min (maxDur / r) (1 - 1/128)) rep ~> repFast subOnPat) $
+          map (\_ -> onset $ struct (fmap (\r -> min (maxDur / r) (1 - 1/128)) rep ~> repFast subOnPat) $
             stack [ledCC n 0 | n <- [20..31]]
           ) normPitches
 

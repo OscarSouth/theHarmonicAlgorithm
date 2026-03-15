@@ -10,9 +10,10 @@ p03 f s r d = d03 $ do
       ,arrange flow (overlapF 0 s) r (-9,9) ["~"
         -- ,trunc 0.9 $ slow 2 $ palindrome $ "[0 1 2 3]/2" |+ "[1 2 3 4]/4"
         -- ,palindrome $ trunc (choose [0.25, 0.5, 0.75]) $ degradeBy 0.2 $ stripe 2 $ slow (choose [2,4]) $ palindrome $ run 8
-        -- ,"[~ [1,2,3]]/4"
+        -- ,"[3]/4"
+        ,"[1,2,3]/4"
         -- ,stripe 2 $ "[0 0 0 0]/16" |+ irand 3
-        ,"[~ [1,2,3] ~ ~]/8"
+        -- ,"[~ [1,2,3] ~ ~]/8"
         -- ,"[0 1 2 1]/2" |+ 0
         -- ,"[0 1 2 3]" |+ "[0 1 2 3]/4" |+ "[4@4 3@4 ~@23 2]/8"
         -- ,fast 2 $ cat ["[0,2,4]/2" |+ "[0 2]/4" |- 1, "~", "~", "~"]
@@ -20,16 +21,16 @@ p03 f s r d = d03 $ do
        -- --
       ,arrange root (overlapF 0 s) r (-9,9) ["~"
         -- ,"[3 5 7 9]"
-        ,"[0,4]/8" |- 0
-        -- ,"[[0,4] ~@7]/8" |- 0
+        -- ,"[0,4]/8" |- 0
+        -- ,"[[0,4]]/4" |- 0
         -- ,"[0]/4"
-        -- ,"[3]"
+        ,"[3]/4"
         -- ,"[[4,5,6]]/4"
         -- ,iter 4 $ "[0 1 2 3]" |+ 3
       ]# o |* vel 0.5 |- oct 2 |= legato 0.99
        -- --
-      ,cc 64 "1" #o
-      -- ,cc 64 "[1@7 0]/4" #o
+      -- ,cc 64 "1" #o
+      ,cc 64 "[1@7 0]/4" #o
        -- --
     ] |* vel d
 
@@ -155,8 +156,8 @@ subk f s r d = p "subKick"
         ,"1(5,16)"
         -- ,"0 1 0 1"
         ,"1*16"
-        ,"1*4"
-        -- ,"~"
+        -- ,"1*4"
+        ,"1"
       )
 
 -- make kick always full volume
@@ -164,9 +165,6 @@ subk f s r d = p "subKick"
 -- hush send allNotesOff
 -- unreliable pattens
 -- randomness consistent through full phrase
-
-d1 $ midicmd "control" # ctlNum 20 # control "[0 1]/2" # ch 7
-  >> silence
 
 -- d1 $ cc 20 "[0 1]" # ch 7
 

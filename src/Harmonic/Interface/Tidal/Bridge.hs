@@ -54,6 +54,8 @@ import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as Pitch
 import qualified Harmonic.Interface.Tidal.Arranger as A
 
+import Harmonic.Interface.Tidal.Utils (onset)
+
 import Sound.Tidal.Context hiding (voice)  -- Hide to avoid conflict
 import qualified Data.List as L
 import Data.Foldable (toList)
@@ -98,14 +100,18 @@ voiceRange :: (Int, Int) -> Pattern Int -> Pattern Int
 voiceRange (lo, hi) = filterValues (\v -> v >= lo && v <= hi)
 
 -- |Apply progression to pattern with toScale and temporal stretching.
--- 
+--
 -- The key operation: for each chord in the progression, the input pattern
 -- is mapped through that chord's scale (toScale). The patterns are then
 -- concatenated with `cat` and slowed to span the desired cycle length.
+--
+-- The inner pattern is wrapped with 'onset' to ensure that multi-cycle
+-- patterns (period > 1 after @fast@) produce proper note-onsets in every
+-- @cat@ window, preventing silent bars from TidalCycles' onset detection.
 applyProg :: VoiceFunction -> P.Progression -> Pattern Time -> Pattern Int -> Pattern ValueMap
 applyProg voiceFunc prog len pat =
   slow (4 * len) (cat $ note <$>
-    (`toScale` fast (4 * len) pat) <$>
+    (`toScale` (onset $ fast (4 * len) pat)) <$>
     fmap fromIntegral <$> voiceFunc prog)
 
 -- |Main arrange function combining voice extraction and pattern application.
@@ -128,20 +134,10 @@ arrange voiceFunc prog rep register pats =
 
 -- |Apply progression with per-chord time rotation.
 --
--- Like 'applyProg' but adds @rotL i@ per chord entry, counteracting
--- TidalCycles' @cat@ time normalization. This means multi-cycle patterns
--- (e.g., @\<a b c\>@) distribute different values to different chords
--- rather than showing the same value to all chords.
---
--- For single-cycle patterns, @rotL@ has no effect — behavior is identical
--- to 'applyProg'.
+-- Now equivalent to 'applyProg', which includes rotation by default.
+-- Retained as an alias for backward compatibility.
 applyProg' :: VoiceFunction -> P.Progression -> Pattern Time -> Pattern Int -> Pattern ValueMap
-applyProg' voiceFunc prog len pat =
-  slow (4 * len) $ cat $
-    zipWith (\i voicing ->
-      note $ toScale (fmap fromIntegral voicing)
-                     (pure (fromIntegral i) <~ fast (4 * len) pat)
-    ) [0..] (voiceFunc prog)
+applyProg' = applyProg
 
 -- |Arrange with per-chord pattern distribution.
 --
