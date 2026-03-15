@@ -3,31 +3,33 @@ lmotif = "[1 . 0@3 1? . 0 1? . 0 1? 0@2]"
 p03 f s r d = d03 $ do
   let o = ch 01
   f
-    $ stut 2 0.125 1
-    $ mask "1(5,16,-3)/4"
+    -- $ stut 2 0.125 1
+    -- $ mask "1(5,16,-3)/4"
     $ stack [silence
        -- --
-      ,arrange flow (overlapF 0 s) r (5,9) ["~"
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
         -- ,trunc 0.9 $ slow 2 $ palindrome $ "[0 1 2 3]/2" |+ "[1 2 3 4]/4"
         -- ,palindrome $ trunc (choose [0.25, 0.5, 0.75]) $ degradeBy 0.2 $ stripe 2 $ slow (choose [2,4]) $ palindrome $ run 8
         -- ,"[~ [1,2,3]]/4"
         -- ,stripe 2 $ "[0 0 0 0]/16" |+ irand 3
-        -- ,"[1,2,3]/4"
+        ,"[~ [1,2,3] ~ ~]/8"
         -- ,"[0 1 2 1]/2" |+ 0
-        ,"[0 1 2 3]" |+ "[0 1 2 3]/4" |+ "[4@4 3@4 ~@23 2]/8"
+        -- ,"[0 1 2 3]" |+ "[0 1 2 3]/4" |+ "[4@4 3@4 ~@23 2]/8"
         -- ,fast 2 $ cat ["[0,2,4]/2" |+ "[0 2]/4" |- 1, "~", "~", "~"]
-      ]# o |* vel 0.6 |- oct 1 |* legato 0.9
+      ]# o |* vel 0.4 |- oct 1 |* legato 0.9
        -- --
       ,arrange root (overlapF 0 s) r (-9,9) ["~"
         -- ,"[3 5 7 9]"
-        ,"[[0] ~@3]/4" |- 0
+        ,"[0,4]/8" |- 0
+        -- ,"[[0,4] ~@7]/8" |- 0
         -- ,"[0]/4"
         -- ,"[3]"
         -- ,"[[4,5,6]]/4"
-        ,iter 4 $ "[0 1 2 3]" |+ 3
-      ]# o |* vel 0.2 |- oct 2 |= legato 0.99
+        -- ,iter 4 $ "[0 1 2 3]" |+ 3
+      ]# o |* vel 0.5 |- oct 2 |= legato 0.99
        -- --
-      ,cc 64 "[1@7 0]/4" #o
+      ,cc 64 "1" #o
+      -- ,cc 64 "[1@7 0]/4" #o
        -- --
     ] |* vel d
 
@@ -55,9 +57,6 @@ moog f s r d = p "moogMother32" $ do
       ,portamento 0.0
        -- --
     ] |* vel d
-
-
-
 
 
 subk f s r d = p "subKick" $
@@ -143,9 +142,9 @@ drum f d = p "drumbruteImpact" $ do
     ]# o # legato 0.01 |* vel d
 
 subk f s r d = p "subKick"
-  $ f $ subKick bass s r d ( 1/4
-        ,"[1 0]/2"
-        ,"0 1 0 -"
+  $ f $ subKick bass s r d ( 1/8
+        ,"[1 0 0 1 . 0 . 0 . 0]/2"
+        ,"[0 1 0 0]"
         ,"1*4"
       )
 
@@ -170,3 +169,10 @@ d1 $ midicmd "control" # ctlNum 20 # control "[0 1]/2" # ch 7
   >> silence
 
 -- d1 $ cc 20 "[0 1]" # ch 7
+
+subk f s r d = p "subKick"
+  $ f $ subKick bass s r d ( 1/4
+        ,"[1 0]/2"
+        ,"[0 1 0 0]/2"
+        ,"1*4"
+      )
