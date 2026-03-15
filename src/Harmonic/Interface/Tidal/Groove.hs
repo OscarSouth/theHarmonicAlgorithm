@@ -134,19 +134,17 @@ subKick voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
     subLedAutoOff
       | maxDur >= 1 = silence
       | otherwise   = slow (4 * rep) $ cat $
-          map (\pitch -> struct (fmap (\r -> min (maxDur / r) (1 - 1/128)) rep ~> repFast subOnPat) $
-            ledCC (pitch - 28) 0
+          map (\_ -> struct (fmap (\r -> min (maxDur / r) (1 - 1/128)) rep ~> repFast subOnPat) $
+            stack [ledCC n 0 | n <- [20..31]]
           ) normPitches
 
-    subLedManualOff = slow (4 * rep) $ cat $
-      map (\pitch -> struct (repFast subOffPat) $
-        ledCC (pitch - 28) 0
-      ) normPitches
+    subLedManualOff = slow (4 * rep) $ struct (repFast subOffPat) $
+      stack [ledCC n 0 | n <- [20..31]]
 
     kickLedOn = slow (4 * rep) $ struct (repFast kickPat) $
       ledCC 32 1
 
-    kickLedOff = slow (4 * rep) $ struct ((pure (1/16)) ~> repFast kickPat) $
+    kickLedOff = slow (4 * rep) $ struct ((pure (1/32)) ~> repFast kickPat) $
       ledCC 32 0
 
   in stack [ subPattern # thru, kickPattern # thru

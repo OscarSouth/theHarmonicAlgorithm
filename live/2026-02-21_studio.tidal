@@ -85,7 +85,8 @@ p02 f s r d = d02 $ do
     $ stack [silence
        -- --
       ,arrange flow (overlapF 0 s) r (-9,9) ["~"
-        ,"[[2,4,6]]/4" |- 6
+        -- ,"[[2,4,6]]/8" |- 6
+        ,"[[1,2,3]]/8" |- 6
       ]# o |* vel 1 |* legato 1
        -- --
     ] |* vel d
@@ -110,9 +111,10 @@ kmpc f d = p "mpckit" $ do
        -- --
       -- ,hh "1 1 2 1"
       -- ,hh "0 1"
-      ,snare "[0 1]/2" |*vel 0.4
+      ,rarely (palindrome) $ degradeBy 0.8 $ stut 2 (1/2) (1/4) $ click "[0 1]/2" |* vel 0.1
+      -- ,click "[0 1]/2" |*vel 0.2
       ,sometimesBy 0.1 (>>hh "2") $ sometimesBy 0.05 (fast 2) $ degradeBy 0.4 $ hh "[1]*4" |* vel (lfo saw 0.1 0.4)
-      -- ,hh "0 2?"
+      ,hh "0 2?" |* vel 0.2
       -- ,2 <~ (rarely (stut 4 0.5 0.5) $ click "[1(3,8) . 0 1 [0 1] 0]/4") |* vel 0.1
        -- --
     ]# o # legato 0.01 |* vel d
@@ -131,22 +133,21 @@ drum f d = p "drumbruteImpact" $ do
       -- ,fm "[1 1 0 1 0 1 0 1]/4"
       -- ,click "[0 1]/2"
       ,hh "0 1"
-      ,rimshot "[0 1]/2" |* vel 0.6
+      -- ,rimshot "[0 1]/2" |* vel 0.6
       ,sometimesBy 0.1 (>>hh "2") $ sometimesBy 0.05 (fast 2) $ degradeBy 0.4 $ hh "[1]*4" |* vel (lfo saw 0.1 0.4)
       -- ,degrade $ click "[0 0 1 0 0 1 0 0]/2" # vel 0.2
       ,ride "0 1" #vel 0.4
       -- ,fm "1(3,8)/2" #vel 0.4
       ,hh "0 2?"
        -- --
-    ]# o # legato 0.01 |* vel d |+ vel 0.2
+    ]# o # legato 0.01 |* vel d
 
 subk f s r d = p "subKick"
-  $ f $ subKick bass s r d ( 1/8
+  $ f $ subKick bass s r d ( 1/4
         ,"[1 0]/2"
         ,"0 1 0 -"
         ,"1*4"
       )
-
 
 subk f s r d = p "subKick"
   $ f $ subKick bass s r d ( 1/8
