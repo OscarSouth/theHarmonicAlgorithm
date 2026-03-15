@@ -121,13 +121,10 @@ subKick voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
     -- LED feedback for Keith McMillen 12 Step foot controller.
     -- CCs 20-32 control key LEDs (value 0 = off, 1 = on).
     -- CC = midiNote - 28 (MIDI 48 -> CC 20, MIDI 60 -> CC 32).
-    -- Output routes to 12 Step via separate SuperDirt MIDI device ("twelve").
-    -- If 12 Step is unplugged, patterns sent to "twelve" produce no output.
+    -- Routed via MPC (same port/channel as notes); MPC forwards to 12 Step.
     ledCC num val = midicmd "control"
                   # ctlNum (fromIntegral num)
                   # control (fromIntegral val)
-
-    twelve = s "twelve" # midichan 9
 
     subLedOn = (1/128) ~> (mask dynGate $ slow (4 * rep) $ cat $
       map (\pitch -> struct (repFast subOnPat) $
@@ -154,6 +151,6 @@ subKick voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
 
   in stack [ subPattern # thru, kickPattern # thru
            , sustainOn # thru, autoOff # thru, manualOff # thru
-           , subLedOn # twelve, subLedAutoOff # twelve
-           , subLedManualOff # twelve, kickLedOn # twelve, kickLedOff # twelve
+           , subLedOn # thru, subLedAutoOff # thru
+           , subLedManualOff # thru, kickLedOn # thru, kickLedOff # thru
            ]
