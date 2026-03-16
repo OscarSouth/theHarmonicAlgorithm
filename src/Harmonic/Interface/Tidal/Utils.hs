@@ -33,6 +33,7 @@ onset pat = pat {query = q, pureValue = Nothing}
            then ev {whole = Just (Arc ps (min we (nextSam ps)))}
            else ev
 
+
 -- Time divisions
 hemidemisemiquaver, demisemiquaver, semiquaver, quaver, crotchet, minim :: Time
 hemidemisemiquaver = 1/64

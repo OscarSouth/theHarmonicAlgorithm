@@ -8,6 +8,7 @@ next <- gen start 4 "*" 0.5 ctx
 
 state = rotate (0) next
 
+  -- '' ¬¬
 do
   let
     dyn = slow 64 $ lfo tri 0.9 1
@@ -22,7 +23,7 @@ do
     -- ,p03 f s r $ d 0.7
     -- ,p02 f s r $ d 1
     -- ,moog f s r $ d 0.9
-    ,subk f s r $ d 0
+    ,subk f s r $ d 1
     -- ,k909 f     $d 0.6
     -- ,kmpc f     $d 0.9
     -- ,drum f     $d 0.1
