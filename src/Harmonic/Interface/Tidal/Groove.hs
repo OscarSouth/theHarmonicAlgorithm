@@ -66,8 +66,7 @@ subKick voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
     midiCC num val = midicmd "control" # ctlNum num # control val
 
     -- Compensate inner patterns for rep factor: repeats pattern `rep` times per chord.
-    -- For non-cat patterns, cap at 1 to prevent period > 1 cycle at rep < 1.
-    repFast p = fast (fmap (max 1) rep) p
+    repFast p = fast rep p
 
     -- Convert dynamics pattern to boolean gate for mask.
     -- Allows rhythmic gating: dyn "1 0 1 0" plays sub on beats 1,3 only.
@@ -80,13 +79,13 @@ subKick voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
     -- Each chord gets an equal segment of the cycle.
     -- Gated by dynGate: note-ons only fire where dyn > 0.
     -- Note-offs (autoOff/manualOff) always fire to ensure correct note kills.
-    subPattern = mask dynGate $ slow 4 $ cat $
-      map (\pitch -> struct (fast rep subOnPat) $
+    subPattern = mask dynGate $ slow (4 * rep) $ cat $
+      map (\pitch -> struct (repFast subOnPat) $
         midinote (pure $ fromIntegral pitch) # sustain 0.01 # amp dyn
       ) normPitches
 
     -- Kick pattern: fixed C4 (MIDI 60) with short sustain (one-shot, unaffected by CC 64)
-    kickPattern = slow 4 $ struct (repFast kickPat) $
+    kickPattern = slow (4 * rep) $ struct (repFast kickPat) $
                   midinote 60 # sustain 0.01 # amp 1
 
     -- Sustain pedal: CC 64 = 127 continuous background stream.
@@ -105,15 +104,15 @@ subKick voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
     -- Always fires regardless of dynGate to ensure notes are killed.
     autoOff
       | maxDur >= 1 = silence
-      | otherwise   = slow 4 $ cat $
-          map (\_ -> struct (fmap (\r -> min maxDur ((1 - 1/128) / r)) rep ~> fast rep subOnPat) $
+      | otherwise   = slow (4 * rep) $ cat $
+          map (\_ -> struct (fmap (\r -> min (maxDur / r) (1 - 1/128)) rep ~> repFast subOnPat) $
             midiCC 64 0
           ) normPitches
 
     -- Manual note-off: CC 64 = 0 at user-specified boundaries.
     -- subOffStr controls explicit cut points (e.g., "[0 1]" = cut on beat 3).
     -- Always fires regardless of dynGate to ensure notes are killed.
-    manualOff = slow 4 $ struct (repFast subOffPat) $
+    manualOff = slow (4 * rep) $ struct (repFast subOffPat) $
                 midiCC 64 0
 
     -- LED feedback for Keith McMillen 12 Step foot controller.
@@ -124,25 +123,25 @@ subKick voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
                   # ctlNum (fromIntegral num)
                   # control (fromIntegral val)
 
-    subLedOn = (1/128) ~> (mask dynGate $ slow 4 $ cat $
-      map (\pitch -> struct (fast rep subOnPat) $
+    subLedOn = (1/128) ~> (mask dynGate $ slow (4 * rep) $ cat $
+      map (\pitch -> struct (repFast subOnPat) $
         ledCC (pitch - 28) 1
       ) normPitches)
 
     subLedAutoOff
       | maxDur >= 1 = silence
-      | otherwise   = slow 4 $ cat $
-          map (\_ -> struct (fmap (\r -> min maxDur ((1 - 1/128) / r)) rep ~> fast rep subOnPat) $
+      | otherwise   = slow (4 * rep) $ cat $
+          map (\_ -> struct (fmap (\r -> min (maxDur / r) (1 - 1/128)) rep ~> repFast subOnPat) $
             stack [ledCC cc 0 | cc <- [20..31]]
           ) normPitches
 
-    subLedManualOff = slow 4 $ struct (repFast subOffPat) $
+    subLedManualOff = slow (4 * rep) $ struct (repFast subOffPat) $
       stack [ledCC cc 0 | cc <- [20..31]]
 
-    kickLedOn = slow 4 $ struct (repFast kickPat) $
+    kickLedOn = slow (4 * rep) $ struct (repFast kickPat) $
       ledCC 32 1
 
-    kickLedOff = slow 4 $ struct ((pure (1/32)) ~> repFast kickPat) $
+    kickLedOff = slow (4 * rep) $ struct ((pure (1/32)) ~> repFast kickPat) $
       ledCC 32 0
 
   in stack [ subPattern # thru, kickPattern # thru

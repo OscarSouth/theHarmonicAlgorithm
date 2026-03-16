@@ -4,7 +4,7 @@ start = initCadenceState (-3) "D" [0,3,7] FlatSpelling
 
 ctx = hContext "*" "* -F# -Eb -Ab" "D C Bb"
 
-next <- gen start 4 "*" 0.5 ctx
+next <- gen start 2 "*" 0.5 ctx
 
 state = rotate (0) next
 

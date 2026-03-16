@@ -62,24 +62,24 @@ moog f s r d = p "moogMother32" $ do
     ] |* vel d
 
 
-subk f s r d = p "subKick" $
-  f
-    $ subKick bass s r d ( 1/8
-      -- ,"[1(3,8)]/2"
-      -- ,"~"
-      -- ,"1(3,8)"
-      ,lmotif
-      -- ,"1*4"
-      -- ,"[1(5,8,-2)]/2"
-      ,"[1(3,8)]/2"
-      -- ,lmotif
-      -- ,"1(5,16)"
-      -- ,"1*4"
-      -- ,"~"
-      -- ,"1(5,16)"
-      ,"1*4"
-      -- ,"1 0 0 1 0 0 0 0"
-    )
+-- subk f s r d = p "subKick" $
+--   f
+--     $ subKick bass s r d ( 1/8
+--       -- ,"[1(3,8)]/2"
+--       -- ,"~"
+--       -- ,"1(3,8)"
+--       ,lmotif
+--       -- ,"1*4"
+--       -- ,"[1(5,8,-2)]/2"
+--       ,"[1(3,8)]/2"
+--       -- ,lmotif
+--       -- ,"1(5,16)"
+--       -- ,"1*4"
+--       -- ,"~"
+--       -- ,"1(5,16)"
+--       ,"1*4"
+--       -- ,"1 0 0 1 0 0 0 0"
+--     )
 
 p02 f s r d = d02 $ do
   let o = ch 02
@@ -99,7 +99,8 @@ k909 f d = p "909kit" $ do
     $ stack [silence
        -- --
       -- ,snare "[0 1]/2"
-      ,hh "0 1"
+      -- ,hh "0 1"
+      ,hh "[0 1]/4"
       -- ,hh "1 1 2 1"
       -- ,click "1(3,8)/2"
        -- --
@@ -144,12 +145,12 @@ drum f d = p "drumbruteImpact" $ do
        -- --
     ]# o # legato 0.01 |* vel d
 
-subk f s r d = p "subKick"
-  $ f $ subKick bass s r d ( 1/8
-        ,"[1 0 0 1 . 0 . 0 . 0]/2"
-        ,"[0 1 0 0]"
-        ,"1*4"
-      )
+-- subk f s r d = p "subKick"
+--   $ f $ subKick bass s r d ( 1/8
+--         ,"[1 0 0 1 . 0 . 0 . 0]/2"
+--         ,"[0 1 0 0]"
+--         ,"1*4"
+--       )
 
 subk f s r d = p "subKick"
   $ f $ subKick bass s r d ( 1/8
@@ -171,9 +172,9 @@ subk f s r d = p "subKick"
 
 -- d1 $ cc 20 "[0 1]" # ch 7
 
-subk f s r d = p "subKick"
-  $ f $ subKick bass s r d ( 1/4
-        ,"[1 0]/2"
-        ,"[0 1 0 0]/2"
-        ,"1*4"
-      )
+-- subk f s r d = p "subKick"
+--   $ f $ subKick bass s r d ( 1/4
+--         ,"[1 0]/2"
+--         ,"[0 1 0 0]/2"
+--         ,"1*4"
+--       )
