@@ -47,3 +47,5 @@ mapM_ id [p "transport"
   ]
 
 hush
+
+d8 $ n "[1 2 3 4]/4"

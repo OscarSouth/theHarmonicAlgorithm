@@ -1,0 +1,382 @@
+--------------------------------------------------------------------------------
+-- arrangeDevTest.tidal
+-- Live verification for BridgeDev (arrangeDev, squeezeDev, arrangeStrict)
+-- and GrooveDev (subKickDev)
+--
+-- Prerequisites:
+--   1. Boot Tidal with live/BootTidal.hs
+--   2. Neo4j running (docker compose up -d neo4j)
+--   3. SuperDirt or MIDI output available
+--
+-- Evaluate each section independently. Compare old vs new side-by-side.
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+-- 0. SETUP
+--------------------------------------------------------------------------------
+
+-- Manual progression (no database needed)
+-- let s4 = fromChordsFlat [[0,4,7], [5,9,0], [7,11,2], [0,3,7]]
+
+let s4 = fromChordsFlat [[0,3,7], [1,5,8], [3,7,10], [5,8,0]]
+
+-- NOTE !! changed for easier differentiation
+
+-- Generated progression (requires Neo4j)
+ctx = hContext "*" "* -F# -Eb -Ab" "*"
+-- NOTE !! hContext needed for the shorthand builder
+
+start = initCadenceState (-3) "D" [0,3,7] FlatSpelling
+
+s8 <- gen start 8 "*" 0.5 ctx
+
+-- Chord selection patterns (1-indexed)
+let cp4 = parseBP_E "[1 2 3 4]/4" :: Pattern Int
+
+let cp8 = parseBP_E "[1 2 3 4 5 6 7 8]/8" :: Pattern Int
+
+-- NOTE !! various tweaks here to create a more diverse pattern
+
+--------------------------------------------------------------------------------
+-- 1. SMOKE TEST: arrangeDev produces sound
+--    Expect: 4 notes per cycle, one chord active per cycle
+--------------------------------------------------------------------------------
+
+d1 $ arrangeDev root s4 cp4 (-12,12) ["[0 1 2 3]"]
+  #ch 1 # legato 1
+
+-- NOTE !! changed s "superpiano" to ch 1
+
+-- NOTE !! changed flow to root for easier differentiation
+
+-- NOTE !! to my assumptions, the pattern states that notes should rise though each chord of the pattern, from bass on 0 through to the octave on 3, and the "[0 1 2 .." does, however the ".. 3]" is going back to a low note (it sounds like the 1st note of chord 1 for positions 1 and 2 and the 1st note of chord 3 for positions 3 and 4) rather than into the next octave. the exact sequence of absolute pitchclasses produced is: 0 3 7 0 , 1 4 8 1 , 3 7 10 3 , 0 5 8 0 (all matches the harmony, but shouldn't at least the 1st 3 notes of the last bar have been 5 8 12 ..? -- isn't the principle of root to maintain the defined root note, and [5,8,0] Fmin has a root of 5, not 0 -- or are my assumptions of root incorrect?)
+
+hush'
+
+-- NOTE !! changed hush to hush'
+
+--------------------------------------------------------------------------------
+-- 2. SMOKE TEST: squeezeDev produces sound
+--    Expect: same as above but pattern restarts per chord slot
+--------------------------------------------------------------------------------
+
+d1 $ squeezeDev root s4 cp4 (-12,12) ["[0 1 2 3]"]
+  # ch 1 # legato 1
+
+-- NOTE !! changed s "superpiano" to ch 1
+
+-- NOTE !! changed flow to root for easier differentiation
+
+-- NOTE !! the "[0 1 2 3]" pattern does extend to the upper octave as expected here. the exact sequence of absolute pitchclasses produced is: 0 3 7 12 , 1 4 8 13 , 3 7 10 15 , 0 5 8 12 (same voicing anomaly noted on last chord)
+
+hush'
+
+-- NOTE !! changed hush to hush'
+
+--------------------------------------------------------------------------------
+-- 3. SMOKE TEST: arrangeStrict produces sound
+--    Expect: same notes, but sustained notes re-trigger at chord boundaries
+--------------------------------------------------------------------------------
+
+d1 $ arrangeStrict root s4 cp4 (-12,12) ["[0 1 2 3]"]
+  # ch 1 # legato 1
+
+-- NOTE !! changed s "superpiano" to ch 1
+
+-- NOTE !! changed flow to root for easier differentiation
+
+-- NOTE !! the "[0 1 2 3]" pattern does extend to the upper octave as expected here. the exact sequence of absolute pitchclasses produced is: 0 3 7 12 , 1 4 8 13 , 3 7 10 15 , 0 5 8 12 (same voicing anomaly noted on last chord)
+
+hush'
+
+-- NOTE !! changed hush to hush'
+
+--------------------------------------------------------------------------------
+-- 4. LIMITATION 1 TEST: Pattern alternation
+--    OLD: With rep < 1 and fast inner patterns, different chord slots see
+--         different halves of the pattern across cycles
+--    NEW: Every chord slot gets the full pattern
+--
+--    Listen: Both cycles should sound identical with arrangeDev/squeezeDev.
+--    With old arrange, alternating cycles may differ.
+--------------------------------------------------------------------------------
+
+-- OLD (rep = 0.5, 2 chords cycle faster)
+d1 $ arrange root s4 0.5 (-12,12) ["[0 1 2 3]"]
+  # ch 1 # legato 1
+
+-- NOTE !! changed s "superpiano" to ch 1
+
+-- NOTE !! changed flow to root for easier differentiation
+
+-- NOTE !! the exact sequence of absolute pitchclasses produced is: 0 3 7 12 , 0 3 7 12 , 1 4 8 13 , 1 4 8 13 , 3 7 10 15 , 3 7 10 15 , 0 5 8 12 , 0 5 8 12
+
+-- NOTE !! even though the legacy behaviour is clearly anomalous here, I am not too concerned with comparisons against legacy implementations so no need to investigate this. i'd prefer to focus on developing the new behaviour as a 'clean sheet' design, rather than worry about reconciliating against the problematic legacy
+
+-- NEW: arrangeDev — onset-join, no alternation
+d2 $ arrangeDev root s4 (parseBP_E "[1 2]/2") (-12,12) ["[0 1 2 3]"]
+  # ch 1 # legato 1
+
+-- NOTE !! changed s "supervibe" to ch 1
+
+-- NOTE !! the exact sequence of absolute pitchclasses produced is: 0 3 7 0 , 1 4 8 1
+
+-- NOTE !! changed flow to root for easier differentiation
+-- NEW: squeezeDev — squeeze, pattern restarts per chord
+
+d3 $ squeezeDev root s4 (parseBP_E "[1 2]/2") (-12,12) ["[0 1 2 3]"]
+  # ch 1 # legato 1
+
+-- NOTE !! the exact sequence of absolute pitchclasses produced is: 0 3 7 12 , 1 4 8 13
+
+-- NOTE !! changed s "supermandolin" to ch 1
+
+-- NOTE !! changed flow to root for easier differentiation
+
+hush'
+
+-- NOTE !! changed hush to hush'
+
+--------------------------------------------------------------------------------
+-- 5. LIMITATION 2 TEST: Spurious onsets at chord boundaries
+--    OLD: A sustained note crossing a chord boundary gets re-mapped,
+--         creating an unwanted new note-on
+--    NEW (arrangeDev): Sustained note keeps its onset-time pitch
+--    NEW (arrangeStrict): Deliberately re-triggers (for when you want it)
+--
+--    Listen: d1 (old) and d3 (arrangeStrict) should have a pitch change
+--    mid-note. d2 (arrangeDev) should sustain smoothly.
+--------------------------------------------------------------------------------
+
+-- Slow note pattern: 1 note per 2 cycles, sustained through chord boundary
+let slowPat = ["[0]/2"]
+
+-- OLD: note re-triggers at chord boundary
+d1 $ arrange flow s4 0.5 (-12,12) slowPat
+  # s "superreese" # legato 2 # lpf 2000
+
+-- NEW: arrangeDev — no re-trigger, onset pitch sustained
+d2 $ arrangeDev flow s4 (parseBP_E "[1 2]/2") (-12,12) slowPat
+  # s "superreese" # legato 2 # lpf 2000
+
+-- NEW: arrangeStrict — deliberate re-trigger at boundary
+d3 $ arrangeStrict flow s4 (parseBP_E "[1 2]/2") (-12,12) slowPat
+  # s "superreese" # legato 2 # lpf 2000
+
+hush
+
+--------------------------------------------------------------------------------
+-- 6. LIMITATION 3 TEST: Temporal distortion
+--    OLD: slow (4 * rep) with rep < 1 shrinks total duration vs other
+--         instruments, causing timing misalignment
+--    NEW: Chord selection pattern is independent of note pattern timing
+--
+--    Listen: d1 (old) may drift against the drums. d2 (new) stays aligned.
+--------------------------------------------------------------------------------
+
+-- Drums for reference timing
+d4 $ s "bd*4" # gain 0.8
+
+-- OLD: rep = 0.5 causes temporal compression
+d1 $ arrange flow s4 0.5 (-12,12) ["[0 1 2 3]"]
+  # s "superpiano" # legato 1
+
+-- NEW: notes at natural speed, chords selected by pattern
+d2 $ arrangeDev flow s4 (parseBP_E "[1 2]/2") (-12,12) ["[0 1 2 3]"]
+  # s "superpiano" # legato 1
+
+hush
+
+--------------------------------------------------------------------------------
+-- 7. PATTERNED CHORD SELECTION: Musical forms
+--    The core new feature — mininotation patterns control which chord
+--    is active at any point in time
+--------------------------------------------------------------------------------
+
+-- AABA form: chord 1 repeated, chord 2 for the bridge
+d1 $ arrangeDev flow s4 (parseBP_E "[1 1 2 1]/4") (-12,12) ["[0 1 2 3]"]
+  # s "superpiano" # legato 1
+
+hush
+
+-- Random chord 2: probabilistic harmony
+d1 $ arrangeDev flow s4 (parseBP_E "[1 2? 3 4]/4") (-12,12) ["[0 1 2 3]"]
+  # s "superpiano" # legato 1
+
+hush
+
+-- Alternating across cycles: chord 1, then <chord 1 or chord 2>
+d1 $ arrangeDev flow s4 (parseBP_E "[1 <1 2>]") (-12,12) ["[0 1 2 3]"]
+  # s "superpiano" # legato 1
+
+hush
+
+-- Variable harmonic rhythm: chord 1 gets half, chord 1-2 split the other half
+d1 $ arrangeDev flow s4 (parseBP_E "[1 [1 2]]/2") (-12,12) ["[0 1 2 3]"]
+  # s "superpiano" # legato 1
+
+hush
+
+-- Static single chord (manual switching — evaluate different lines)
+d1 $ arrangeDev flow s4 (parseBP_E "1") (-12,12) ["[0 1 2 3]"]
+  # s "superpiano" # legato 1
+
+d1 $ arrangeDev flow s4 (parseBP_E "3") (-12,12) ["[0 1 2 3]"]
+  # s "superpiano" # legato 1
+
+hush
+
+--------------------------------------------------------------------------------
+-- 8. VOICING PARADIGMS: All voicing strategies work with arrangeDev
+--------------------------------------------------------------------------------
+
+-- flow: smoothest voice leading, any inversion
+d1 $ arrangeDev flow s4 cp4 (-12,12) ["[0 1 2 3]"]
+  # s "superpiano" # legato 1
+
+hush
+
+-- root: root always in bass
+d1 $ arrangeDev root s4 cp4 (-12,12) ["[0 1 2 3]"]
+  # s "superpiano" # legato 1
+
+hush
+
+-- lite: literal intervals, no voice leading
+d1 $ arrangeDev lite s4 cp4 (-12,12) ["[0 1 2 3]"]
+  # s "superpiano" # legato 1
+
+hush
+
+-- bass: bass note only
+d1 $ arrangeDev bass s4 cp4 (-24,-12) ["0"]
+  # s "superzow" # legato 1 # lpf 400
+
+hush
+
+--------------------------------------------------------------------------------
+-- 9. BACKWARDS COMPATIBILITY: repToChordPat
+--    Convert old (nChords, rep) style to chord selection pattern
+--------------------------------------------------------------------------------
+
+-- Old style
+d1 $ arrange flow s4 1 (-12,12) ["[0 1 2 3]"]
+  # s "superpiano" # legato 1
+
+-- Equivalent new style via repToChordPat
+d2 $ arrangeDev flow s4 (repToChordPat 4 1) (-12,12) ["[0 1 2 3]"]
+  # s "supervibe" # legato 1
+
+hush
+
+-- Old style with rep = 0.5
+d1 $ arrange flow s4 0.5 (-12,12) ["[0 1 2 3]"]
+  # s "superpiano" # legato 1
+
+-- Equivalent new style
+d2 $ squeezeDev flow s4 (repToChordPat 4 0.5) (-12,12) ["[0 1 2 3]"]
+  # s "supervibe" # legato 1
+
+hush
+
+--------------------------------------------------------------------------------
+-- 10. SUBKICKDEV: Chord-pattern-based sub/kick
+--     Same CC64 sustain mechanism, chord selection via pattern
+--------------------------------------------------------------------------------
+
+-- OLD subKick
+p "subKick" $ subKick fund s4 1 1 (1/4, "[1(3,8)]/2", "[1(5,8,-2)]/2", "[1(3,8)]/2")
+  # ch 1
+
+hush
+
+-- NEW subKickDev with same behaviour
+p "subKick" $ subKickDev fund s4 cp4 1 (1/4, "[1(3,8)]/2", "[1(5,8,-2)]/2", "[1(3,8)]/2")
+  # ch 1
+
+hush
+
+-- subKickDev with AABA chord form
+p "subKick" $ subKickDev fund s4 (parseBP_E "[1 1 2 1]/4") 1
+  (1/4, "[1(3,8)]/2", "[1(5,8,-2)]/2", "[1(3,8)]/2") # ch 1
+
+hush
+
+--------------------------------------------------------------------------------
+-- 11. FULL STACK: All pieces together
+--     arrangeDev for pitched instruments, subKickDev for groove
+--------------------------------------------------------------------------------
+
+do
+  let cp = parseBP_E "[1 2 3 4]/4" :: Pattern Int
+  -- Harmony: flow voicing, full chords
+  d02 $ arrangeDev flow s4 cp (-9,9)
+    ["[0 1 2 3]"] # ch 2 |* vel 0.5 # legato 2
+  -- Melody: root voicing, single notes
+  d03 $ arrangeDev root s4 cp (-9,9)
+    [degradeBy 0.4 $ "0*2" |+ irand 8] # ch 3 |* vel 0.7 # legato 1
+  -- Bass: bass notes
+  d04 $ arrangeDev bass s4 cp (-24,-12)
+    ["0"] # ch 4 |* vel 0.8 # legato 0.95
+  -- Sub/kick
+  p "subKick" $ subKickDev fund s4 cp 1
+    (1/4, "[1(3,8)]/2", "[1(5,8,-2)]/2", "[1(3,8)]/2") # ch 1
+
+hush
+
+--------------------------------------------------------------------------------
+-- 12. FULL STACK: 8-chord generated progression
+--------------------------------------------------------------------------------
+
+do
+  let cp = parseBP_E "[1 2 3 4 5 6 7 8]/8" :: Pattern Int
+  d02 $ arrangeDev flow s8 cp (-9,9)
+    ["[0 1 2 3]"] # ch 2 |* vel 0.5 # legato 2
+  d03 $ arrangeDev root s8 cp (-9,9)
+    [degradeBy 0.4 $ "0*2" |+ irand 8] # ch 3 |* vel 0.7 # legato 1
+  d04 $ arrangeDev bass s8 cp (-24,-12)
+    ["0"] # ch 4 |* vel 0.8 # legato 0.95
+  p "subKick" $ subKickDev fund s8 cp 1
+    (1/4, "[1(3,8)]/2", "[1(5,8,-2)]/2", "[1(3,8)]/2") # ch 1
+
+hush
+
+--------------------------------------------------------------------------------
+-- 13. LAUNCHER PARADIGM: arrangeDev in instrument launchers
+--     Template for defining per-instrument launchers with the new paradigm
+--------------------------------------------------------------------------------
+
+-- Launcher definition (paste into state.tidal for a session)
+:{
+let p03dev f s cp d = d03 $ do
+      let o = ch 03
+      f $ stack [
+        arrangeDev flow s cp (-9,9) [
+          fast 2 $ cat ["[0,2,4]/2" |+ "[0 2]/4" |- 2, "~", "~", "~"]
+        ] # o |* vel 0.3 |- oct 1 |= legato 4
+        ,
+        arrangeDev bass s cp (-9,9) [
+          "0"
+        ] # o |* vel 0.6 |- oct 3 |= legato 0.95
+        ] |* vel d
+:}
+
+-- Use the launcher
+p03dev id s4 cp4 0.8
+
+hush
+
+:{
+let subkdev f s cp d = p "subKick" $ do
+      let o = ch 1
+      f $ subKickDev fund s cp d
+        (1/4, "[1(3,8)]/2", "[1(5,8,-2)]/2", "[1(3,8)]/2") # o
+:}
+
+subkdev id s4 cp4 1
+
+hush
+
+--------------------------------------------------------------------------------
+-- END
+--------------------------------------------------------------------------------

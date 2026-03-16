@@ -131,6 +131,11 @@ module Harmonic.Lib (
 
   -- Groove interface (drums/sub bass)
   subKick, fund,
+  subKickDev,
+
+  -- Dev arrangement functions (patterned chord selection)
+  arrangeDev, squeezeDev, arrangeStrict,
+  lookupChordAt, repToChordPat,
 
   -- Scale source (switch mechanism)
   ScaleSource(..), melodyStateFrom,
@@ -182,6 +187,8 @@ import Harmonic.Interface.Tidal.Arranger (
     ScaleSource(..), melodyStateFrom
   )
 import Harmonic.Interface.Tidal.Groove (subKick, fund)
+import Harmonic.Interface.Tidal.GrooveDev (subKickDev)
+import Harmonic.Interface.Tidal.BridgeDev (arrangeDev, squeezeDev, arrangeStrict, lookupChordAt, repToChordPat)
 import Harmonic.Interface.Tidal.Instruments
 import Harmonic.Interface.Tidal.Utils
 import Harmonic.Config
