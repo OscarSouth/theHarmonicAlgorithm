@@ -150,6 +150,17 @@ spec = do
       (onsets !! 0) `shouldBe` (onsets !! 1)
       (onsets !! 0) `shouldBe` (onsets !! 3)
 
+    -- Octave extension: indices beyond scale length add +12 per octave
+    it "extends into higher octaves like toScale (index >= scale length)" $ do
+      -- Index 3 on a 3-note chord [0,4,7] should give 12 (0+12), not 0
+      let chordSel = parseBP_E "1" :: Pattern Int
+          result = arrangeDev A.flow testProgression chordSel (-24,24)
+                     [parseBP_E "[0 1 2 3]"]
+          notes = onsetNotes result (Arc 0 1)
+      length notes `shouldBe` 4
+      -- Notes should ascend: each higher than the last
+      (notes !! 3) `shouldSatisfy` (> (notes !! 2))
+
     -- Chord indices wrap modulo progression length
     it "chord indices wrap modulo progression length" $ do
       let chordSel = parseBP_E "[5 6 7 8]/4" :: Pattern Int

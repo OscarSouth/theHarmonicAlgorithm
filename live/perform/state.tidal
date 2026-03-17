@@ -12,7 +12,7 @@ state = rotate (0) next
 do
   let
     dyn = slow 64 $ lfo tri 0.9 1
-    rep = 1
+    rp = 1
     s = transposeP 0 state
     f = (swingBy 0.04 2)
     (d,r) = ((*dyn), rep)

@@ -87,8 +87,10 @@ arrangeDev voiceFunc prog chordPat register pats
                     ci      = lookupChordAt onsetT chordIdx
                     sc      = scales !! (ci `mod` nChords)
                     noteVal = value nEv
-                    idx     = noteVal `mod` max 1 (length sc)
-                in [nEv { value = sc !! idx }]
+                    scLen   = max 1 (length sc)
+                    octave  = noteVal `div` scLen
+                    idx     = noteVal `mod` scLen
+                in [nEv { value = (sc !! idx) + fromIntegral (octave * 12) }]
               ) noteEvs
             ) Nothing Nothing
 

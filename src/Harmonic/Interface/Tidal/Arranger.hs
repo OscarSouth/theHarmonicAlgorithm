@@ -299,17 +299,6 @@ literalVoicing' (Progression seq) =
 -- Explicit Progression Construction
 -------------------------------------------------------------------------------
 
--- |Convert pitch-class list to zero-form intervals (relative to root).
--- Zero-form means the lowest pitch class becomes 0, and all other pitch
--- classes are expressed as intervals from it.
--- Example: [5, 9, 0] (F major) becomes [0, 4, 7]
-toZeroForm :: [Int] -> [Int]
-toZeroForm [] = []
-toZeroForm pcs =
-  let sorted = sort pcs
-      root = head sorted
-   in map (\p -> (p - root) `mod` 12) sorted
-
 -- |Name a chord from its zero-form intervals.
 -- Uses legacy chord naming logic (toFunctionality for 3-note chords,
 -- toFunctionalityChord for extended harmonies).
@@ -341,10 +330,9 @@ fromChords spelling chordSets = Progression (Seq.fromList cadenceStates)
 
     toCadenceState :: [Int] -> CadenceState
     toCadenceState pcs =
-      let sorted = sort pcs
-          root = if null sorted then 0 else head sorted
+      let root = if null pcs then 0 else head pcs
           rootPC = mkPitchClass root
-          intervals = toZeroForm pcs
+          intervals = sort $ map (\p -> (p - root) `mod` 12) pcs
           intervalPCs = map mkPitchClass intervals
           chordName = nameChord intervals
           -- Create Cadence with record syntax
