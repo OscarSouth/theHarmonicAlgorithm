@@ -152,17 +152,17 @@ drum f d = p "drumbruteImpact" $ do
 --         ,"1*4"
 --       )
 
-subk f s r d = p "subKick"
-  $ f $ subKick bass s r d ( 1/8
-        ,"[1 0 0 1 0 1 1 0]"
-        -- ,"1(3,8)"
-        -- ,"~"
-        -- ,"1(5,16)"
-        -- ,"0 1 0 1"
-        ,"1*16"
-        -- ,"1*4"
-        ,"1"
-      )
+-- subk f s r d = p "subKick"
+--   $ f $ subKick bass s r d ( 1/8
+--         ,"[1 0 0 1 0 1 1 0]"
+--         -- ,"1(3,8)"
+--         -- ,"~"
+--         -- ,"1(5,16)"
+--         -- ,"0 1 0 1"
+--         ,"1*16"
+--         -- ,"1*4"
+--         ,"1"
+--       )
 
 -- make kick always full volume
 -- make sustain on always be functionally off for
@@ -172,9 +172,10 @@ subk f s r d = p "subKick"
 
 -- d1 $ cc 20 "[0 1]" # ch 7
 
--- subk f s r d = p "subKick"
---   $ f $ subKick bass s r d ( 1/4
---         ,"[1 0]/2"
---         ,"[0 1 0 0]/2"
---         ,"1*4"
---       )
+subk f s r d = p "subKick" $
+  f
+    $ subKick bass s r d ( 1/4
+      ,"[1 0]/2"
+      ,"[0 1 0 0]/2"
+      ,"1*4"
+    )

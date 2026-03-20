@@ -21,21 +21,23 @@
 --   2. Composition : generated progressions
 --   3. Instrumentation : pattern interfaces
 -- These combine in a launcher block.
---
--- Pulsar snippets: 'p' = pattern block,
---   'orch' = orchestrator (see snippets.cson)
 
 -- Step 1: Define tempo and tonal area
 let
   tempo = 120
   start = initCadenceState 0 "C" [0,4,7]
     FlatSpelling
-  ctx = defaultContext
+  ctx = hContext "*" "0#" "*"
 
 -- Step 2: Generate harmonic composition
-state <- gen start 4 "*" 0.5 ctx
+s4 <- gen start 4 "*" 0.5 ctx
 
--- Step 3: Define instrument interface
+-- Step 3: Define chord selection pattern
+-- warp parses a mininotation string into a Pattern Int
+-- rep auto-derives sequential selection from progression length
+let r = rep s4 1
+
+-- Step 4: Define instrument interface
 p01 f s r d = d01 $ do
   let o = ch 01
   f
@@ -47,21 +49,21 @@ p01 f s r d = d01 $ do
        -- --
     ] |* vel d
 
--- Step 4: Launch
+-- Step 5: Launch
 do
   let
     dyn = 1
-    rep = 1
-    s = transposeP 0 state
+    s = transposeP 0 s4
     f = id
-    (d,r) = ((*dyn), rep)
+    r = rep s4 1
+    d = (*dyn)
   putStrLn $ "GO ¬¬" ++ show s
   mapM_ id [hush, setbpm tempo
     ,p01 f s r $ d 0.9
    ]
 
--- Step 5: Stop playback
-hush
+-- Step 6: Stop playback
+hush'
 
 -- ══════════════════════════════════════════════════════════
 -- SECTION 2: CORE BUILDING BLOCKS
@@ -119,7 +121,7 @@ let
   guitarCtx = hContext "E A D G B E" "*" "*"
 
 -- KEY FILTERING
--- defines tonal area candiate pitches
+-- defines tonal area candidate pitches
 -- within overtone filter candidates
 -- Note name = single pitch
 -- Number of sharps/flats = key signature
@@ -131,7 +133,7 @@ let
   bbMajor = hContext "*" "2b" "*"
 
 -- ROOT FILTERING
--- defines root note candiates
+-- defines root note candidates
 -- independently of overtones/key
 let
   cAndG      = hContext "*" "*" "C G"
@@ -210,56 +212,21 @@ let
 --   gen''      :: full trace for dev/debug
 
 -- gen :: basic musical shorthand
--- Prints a musical header + progression grid
 do
   let
     start = initCadenceState 0 "C" [0,4,7]
       FlatSpelling
     ctx = hContext "*" "0#" "*"
-  state <- gen start 8 "*" 0.5 ctx
-  let s = transposeP 0 state
+  s4 <- gen start 4 "*" 0.5 ctx
+  let
+    s = transposeP 0 s4
+    r = rep s4 1
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
+    ,d01 $ arrange flow s r (-9,9)
+      ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
--- genSilent :: silences output
--- No printed output; use in performance
-do
-  let
-    start = initCadenceState 0 "C" [0,4,7]
-      FlatSpelling
-    ctx = hContext "*" "0#" "*"
-  state <- genSilent start 8 "*" 0.5 ctx
-  let s = transposeP 0 state
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
-
--- gen' :: deeper musical context
--- Prints per-step candidate and selection info
-do
-  let
-    start = initCadenceState 0 "C" [0,4,7]
-      FlatSpelling
-    ctx = hContext "*" "0#" "*"
-  state <- gen' start 8 "*" 0.5 ctx
-  let s = transposeP 0 state
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
-
--- gen'' :: full trace for dev/debug
--- Prints transform and advance traces
-do
-  let
-    start = initCadenceState 0 "C" [0,4,7]
-      FlatSpelling
-    ctx = hContext "*" "0#" "*"
-  state <- gen'' start 8 "*" 0.5 ctx
-  let s = transposeP 0 state
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
+hush'
 
 -- COMPOSER SPECIFICATION
 -- "*" = aggregate across all composers
@@ -296,9 +263,8 @@ state <- gen start 8 comp 0.5 ctx
 -- Four parameters:
 --   f = transformation (id, slow, fast, rev)
 --   s = progression (generated Progression)
---   r = repetitions per cycle (typically 1)
+--   r = chord selection pattern (Pattern Int, via warp or rep)
 --   d = dynamics scalar (Double -> Double)
--- Use the 'p' snippet in Pulsar (see snippets.cson)
 
 -- Minimal example (MIDI piano on channel 1):
 p01 f s r d = d01 $ do
@@ -309,12 +275,14 @@ p01 f s r d = d01 $ do
 
 -- Execute with minimal launcher:
 do
-  let s = transposeP 0 state
+  let
+    s = transposeP 0 state
+    r = rep state 1
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*0.8) 0.7
+    ,p01 id s r $ (*0.8) 0.7
    ]
 
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
@@ -340,12 +308,14 @@ p03 f s r d = d03 $ do
 
 -- Execute:
 do
-  let s = transposeP 0 state
+  let
+    s = transposeP 0 state
+    r = rep state 1
   mapM_ id [hush, setbpm 100
-    ,p03 id s 1 $ (*0.8) 0.7
+    ,p03 id s r $ (*0.8) 0.7
    ]
 
-hush
+hush'
 
 -- register/dynamics syntax notes:
 -- |- oct N = shift down by N octaves
@@ -359,7 +329,9 @@ hush
 
 -- The f parameter accepts global transformations:
 do
-  let s = transposeP 0 state
+  let
+    s = transposeP 0 state
+    r = rep state 1
   -- Try each:
   -- let f = id           -- no change
   -- let f = slow 2       -- half speed
@@ -368,11 +340,10 @@ do
   -- let f = slow 2 . rev -- compose functions
   let f = swingBy 0.1 2  -- swing
   mapM_ id [hush, setbpm 120
-    ,p01 f s 1 $ (*1) 0.9
+    ,p01 f s r $ (*1) 0.9
    ]
 
-hush
-
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
@@ -397,41 +368,23 @@ p01 f s r d = d01 $ do
       # o |* vel 0.6 |+ oct 1
   ] |* vel d
 
-
-p01 f s r d = d03 $ do
-  let o = ch 01
-  f
-    $ stack [silence
-        -- Voice 1: Melody (flow voicing, high octave)
-        ,arrange flow s r (-9,9) ["~"
-          ,"[2 4 5]@3" -- @3: spread over 3 cycles
-          ]# o |* vel 0.4 |+ oct 1
-        -- Voice 2: Flowing chords
-        ,arrange flow s r (-9,9) ["~"
-          ,"[0,1,2,3]/4"
-        ]# o |* vel 0.8
-        -- Voice 3: Root bass line (low octave)
-        ,arrange root s r (-9,9) ["~"
-          ,"0*2"
-        ]# o |* vel 1 |- oct 2
-      ] |* vel d
-
 -- Generate and perform:
 do
   let
     start = initCadenceState 0 "C" [0,4,7]
       FlatSpelling
     ctx = hContext "*" "0#" "*"
-  state <- gen start 8 "*" 0.5 ctx
+  s8 <- gen start 8 "*" 0.5 ctx
   let
-    s = transposeP 0 state
+    s = transposeP 0 s8
+    r = rep s8 1
     f = id
   putStrLn $ "LAUNCH¬¬" ++ show s
   mapM_ id [hush, setbpm 120
-    ,p01 f s 1 $ (*0.8) 0.7
+    ,p01 f s r $ (*0.8) 0.7
    ]
 
-hush
+hush'
 
 
 
@@ -453,7 +406,9 @@ let
     FlatSpelling
   ctx = hContext "*" "0#" "*"
 
-state <- gen start 4 "*" 0.5 ctx
+s4 <- gen start 4 "*" 0.5 ctx
+
+let r = rep s4 1
 
 
 -- ──────────────────────────────────────────────────────────
@@ -463,13 +418,13 @@ state <- gen start 4 "*" 0.5 ctx
 -- Minimal melodic movement between chords
 -- Best for: pads, harmonic beds, smooth melodies
 do
-  let s = transposeP 0 state
+  let s = transposeP 0 s4
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange flow s 1 (-9,9)
+    ,d01 $ arrange flow s r (-9,9)
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
@@ -479,13 +434,13 @@ hush
 -- Root note always in bass (lowest voice)
 -- Best for: bass instruments, rooted chords
 do
-  let s = transposeP 0 state
+  let s = transposeP 0 s4
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange root s 1 (-9,9)
+    ,d01 $ arrange root s r (-9,9)
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
@@ -495,13 +450,13 @@ hush
 -- Chords as-is (first-root normalized)
 -- Best for: exact reproduction, debugging
 do
-  let s = transposeP 0 state
+  let s = transposeP 0 s4
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange lite s 1 (-9,9)
+    ,d01 $ arrange lite s r (-9,9)
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
@@ -511,13 +466,13 @@ hush
 -- Extracts only the bass note (lowest voice)
 -- Best for: bass lines, percussion
 do
-  let s = transposeP 0 state
+  let s = transposeP 0 s4
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange bass s 1 (-9,9)
+    ,d01 $ arrange bass s r (-9,9)
       ["0*2"] # ch 01 |- oct 2 |* vel 0.9
    ]
 
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
@@ -527,9 +482,9 @@ hush
 -- Always returns harmonic root, regardless of inversion
 -- Best for: kicks, alternate bass patterns
 do
-  let s = transposeP 0 state
+  let s = transposeP 0 s4
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange fund s 1 (-9,9)
+    ,d01 $ arrange fund s r (-9,9)
       ["0*2"] # ch 01 |- oct 2 |* vel 0.9
    ]
 
@@ -537,7 +492,7 @@ do
 --   bass = generated lowest pitch (may be 3rd, 5th)
 --   fund = always the harmonic root
 
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
@@ -546,66 +501,34 @@ hush
 
 -- Five voicings side-by-side on MIDI ch 01:
 
-let
-  start = initCadenceState 0 "C" [0,4,7]
-    FlatSpelling
-  ctx = hContext "*" "0#" "*"
-
-state <- gen start 4 "*" 0.5 ctx
-
 do
-  let s = transposeP 0 state
+  let s = transposeP 0 s4
   setbpm 80
   -- flow: smoothest voice leading
-  d01 $ arrange flow s 1 (-9,9)
+  d01 $ arrange flow s r (-9,9)
     ["0 1 2 3"] # ch 01
   -- root: root always in bass
-  d02 $ arrange root s 1 (-9,9)
+  d02 $ arrange root s r (-9,9)
     ["0 1 2 3"] # ch 01
   -- lite: literal (no optimization)
-  d03 $ arrange lite s 1 (-9,9)
+  d03 $ arrange lite s r (-9,9)
     ["0 1 2 3"] # ch 01
   -- bass: bass note only
-  d04 $ arrange bass s 1 (-9,9)
+  d04 $ arrange bass s r (-9,9)
     ["0*2"] # ch 01 |- oct 1
   -- fund: harmonic root (inversion-invariant)
-  d05 $ arrange fund s 1 (-9,9)
+  d05 $ arrange fund s r (-9,9)
     ["0*2"] # ch 01 |- oct 2
 
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
--- 4.7 When to Use Which Voicing
--- ──────────────────────────────────────────────────────────
-
--- flow:
---   Pads, textures, harmonic beds, melodies
---   Most versatile for general use
---   Be aware bass note can be changed
-
--- root:
---   bass instruments, rooted chords
---   Clear harmonic structure, maintains root
-
--- lite:
---   Exact reproduction, debugging
-
--- bass:
---   Bass lines following harmonic inversion
-
--- fund:
---   Kick drum patterns (inversion-invariant)
---   Sub bass following harmonic root
-
-
-
--- ──────────────────────────────────────────────────────────
--- 4.8 Voicing in arrange Function
+-- 4.7 Voicing in arrange Function
 -- ──────────────────────────────────────────────────────────
 
 -- arrange :: VoiceFunction -> Progression
---   -> Pattern Time -> (Int, Int)
+--   -> Pattern Int -> (Int, Int)
 --   -> [Pattern Int] -> ControlPattern
 -- VoiceFunction: flow, root, lite, bass, fund
 
@@ -633,17 +556,18 @@ do
     start = initCadenceState 0 "C" [0,4,7]
       FlatSpelling
     ctx = hContext "*" "0#" "*"
-  state <- gen start 8 "*" 0.5 ctx
-  let s = transposeP 0 state
+  s8 <- gen start 8 "*" 0.5 ctx
+  let
+    s = transposeP 0 s8
+    r = rep s8 1
   putStrLn $ "LAUNCH¬¬" ++ show s
   mapM_ id [hush, setbpm 100
-    ,p01 id s 1 $ (*0.8) 0.7
+    ,p01 id s r $ (*0.8) 0.7
    ]
 
-hush
+hush'
 
 
--- ══════════════════════════════════════════════════════════
 -- ══════════════════════════════════════════════════════════
 -- SECTION 5: PROGRESSION MANIPULATION
 -- ══════════════════════════════════════════════════════════
@@ -671,7 +595,7 @@ let
     FlatSpelling
   ctx = hContext "*" "0#" "*"
 
-state <- gen start 8 "*" 0.5 ctx
+s8 <- gen start 8 "*" 0.5 ctx
 
 p01 f s r d = d01 $ do
   let o = ch 01
@@ -685,102 +609,70 @@ p01 f s r d = d01 $ do
 -- 5.1 rotate - Cycle Starting Position
 -- ──────────────────────────────────────────────────────────
 
--- Rotate progression by N positions (positive or negative)
--- Useful for: starting at different points, creating variation
-
 -- Rotate by 2 (start at chord 3):
 do
-  let s = transposeP 0 $ rotate 2 state
+  let
+    s = transposeP 0 $ rotate 2 s8
+    r = rep s8 1
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
+    ,p01 id s r $ (*1) 0.9
    ]
 
--- Rotate by -1 (start at last chord):
-do
-  let s = transposeP 0 $ rotate (-1) state
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
-
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
 -- 5.2 excerpt - Extract Range
 -- ──────────────────────────────────────────────────────────
 
--- Extract subsection of progression (start, end inclusive)
--- Useful for: verse/chorus separation, loop creation
-
-state16 <- gen start 16 "*" 0.5 ctx
-
--- Extract bars 4-7 (indices 4-7):
+-- Extract bars 4-7:
 do
   let
-    verse = excerpt 4 7 state16
-    s = transposeP 0 verse
+    sub = excerpt 4 7 s8
+    s = transposeP 0 sub
+    r = rep sub 1
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
+    ,p01 id s r $ (*1) 0.9
    ]
 
--- Extract bars 8-11 (indices 8-11):
-do
-  let
-    chorus = excerpt 8 11 state16
-    s = transposeP 0 chorus
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
-
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
 -- 5.3 transposeP - Shift Pitch
 -- ──────────────────────────────────────────────────────────
 
--- Transpose entire progression by N semitones
--- Useful for: key changes, harmonic variation
-
 -- Transpose up 5 semitones (to F):
 do
-  let s = transposeP 5 state
+  let
+    s = transposeP 5 s8
+    r = rep s8 1
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
+    ,p01 id s r $ (*1) 0.9
    ]
 
--- Transpose down 3 semitones (to A):
-do
-  let s = transposeP (-3) state
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
-
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
 -- 5.4 reverse - Reverse Order
 -- ──────────────────────────────────────────────────────────
 
--- Reverse progression order (last chord first)
--- Useful for: retrograde, creating variation
-
 do
-  let s = transposeP 0 $ reverse state
+  let
+    s = transposeP 0 $ reverse s8
+    r = rep s8 1
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
+    ,p01 id s r $ (*1) 0.9
    ]
 
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
 -- 5.5 fuse - Concatenate Progressions
 -- ──────────────────────────────────────────────────────────
 
--- Concatenate a list of progressions into one
--- Useful for: joining verse + chorus, building longer forms
 -- fuse  :: [Progression] -> Progression  (list version)
 -- fuse2 :: Progression -> Progression -> Progression (binary)
 
@@ -791,283 +683,213 @@ let
 state1 <- gen start1 4 "*" 0.5 ctx
 state2 <- gen start2 4 "*" 0.5 ctx
 
--- Concatenated (state1 then state2, 8 chords total):
 do
   let
     fused = fuse [state1, state2]
     s = transposeP 0 fused
+    r = rep fused 1
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
+    ,p01 id s r $ (*1) 0.9
    ]
 
--- Binary convenience alias:
-do
-  let
-    fused2 = fuse2 state1 state2
-    s = transposeP 0 fused2
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
-
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
 -- 5.6 expandP - Repeat Chords
 -- ──────────────────────────────────────────────────────────
 
--- Repeat each chord N times
--- Useful for: slowing harmonic rhythm, creating space
-
--- Expand by 2 (each chord twice, 16 total from 8):
+-- Each chord twice (16 total from 8):
 do
-  let s = transposeP 0 $ expandP 2 state
+  let
+    expanded = expandP 2 s8
+    s = transposeP 0 expanded
+    r = rep expanded 1
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
+    ,p01 id s r $ (*1) 0.9
    ]
 
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
 -- 5.7 progOverlapF - Add Passing Tones
 -- ──────────────────────────────────────────────────────────
 
--- Add overlap/passing tones between chords
--- Parameter: number of semitones to overlap forward
--- Useful for: chromatic movement, melodic interest
-
--- Add 1-semitone overlap (chromatic approach):
+-- Add 1-bar overlap (forward):
 do
-  let s = transposeP 0 $ progOverlapF 1 state
+  let
+    s = transposeP 0 $ progOverlapF 1 s8
+    r = rep s8 1
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
+    ,p01 id s r $ (*1) 0.9
    ]
 
--- Add 2-semitone overlap (whole-step approach):
-do
-  let s = transposeP 0 $ progOverlapF 2 state
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
-
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
 -- 5.8 Additional Manipulation Functions
 -- ──────────────────────────────────────────────────────────
 
--- interleave - Alternate Chords from Two Progressions
--- Creates [a0, b0, a1, b1, ...] pattern
-do
-  let
-    woven = interleave state1 state2
-    s = transposeP 0 woven
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
-
-hush
-
--- progOverlapB - Backward Overlap (merge pitches from n bars behind)
-do
-  let s = transposeP 0 $ progOverlapB 1 state
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
-
--- progOverlap - Bidirectional (both directions)
-do
-  let s = transposeP 0 $ progOverlap 1 state
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
-
--- insert / switch / clone / extract (1-indexed, modulo wrap)
+-- interleave, progOverlapB, progOverlap, insert, switch, clone, extract
+-- (1-indexed, modulo wrap)
 let
-  cs       = extract 1 state      -- grab first chord
-  modified = insert cs 3 state    -- insert at position 3
-  switched = switch 2 5 state     -- swap positions 2 and 5
-  cloned   = clone 1 4 state      -- copy position 1 to 4
-  cs3      = extract 3 state      -- third chord
-  cs1      = extract 9 state      -- wraps to 1 in 8-chord progression
+  cs       = extract 1 s8      -- grab first chord
+  modified = insert cs 3 s8    -- insert at position 3
+  switched = switch 2 5 s8     -- swap positions 2 and 5
+  cloned   = clone 1 4 s8      -- copy position 1 to 4
+  cs3      = extract 3 s8      -- third chord
+  cs1      = extract 9 s8      -- wraps to 1 in 8-chord progression
 
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
 -- 5.9 Combining Transformations
 -- ──────────────────────────────────────────────────────────
 
--- Chain transformations for complex results:
-
 -- Rotate, then transpose, then reverse:
 do
-  let s = transposeP 0 $ reverse $ transposeP 5 $ rotate 2 state
+  let
+    s = transposeP 0 $ reverse $ transposeP 5 $ rotate 2 s8
+    r = rep s8 1
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
+    ,p01 id s r $ (*1) 0.9
    ]
 
 -- Extract section, expand, add overlap:
 do
-  let s = transposeP 0 $ progOverlapF 1 $ expandP 2 $ excerpt 2 5 state
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
-
-hush
-
-
--- ──────────────────────────────────────────────────────────
--- 5.10 Live Performance Example
--- ──────────────────────────────────────────────────────────
-
--- Use transformations in launcher blocks for live control:
-
-p01 f s r d = d01 $ do
-  let o = ch 01
-  f
-    $ stack [silence
-      -- Chords (original):
-      ,arrange flow s r (-9,9) ["~"
-        ,"[0,1,2,3]/4"
-      ]# o |* vel 0.8
-      -- Bass (transposed version):
-      ,arrange root (transposeP 7 s) r (-9,9) ["~"
-        ,"0*2"
-      ]# o |* vel 1 |- oct 2
-    ] |* vel d
-
-do
   let
-    start = initCadenceState 0 "C" [0,4,7]
-      FlatSpelling
-    ctx = hContext "*" "0#" "*"
-  state <- gen start 8 "*" 0.5 ctx
-  putStrLn $ "LAUNCH¬¬" ++ show state
-  mapM_ id [hush, setbpm 100
-    ,p01 id (transposeP 0 state) 1 $ (*0.8) 0.7
+    modified = progOverlapF 1 $ expandP 2 $ excerpt 2 5 s8
+    s = transposeP 0 modified
+    r = rep modified 1
+  mapM_ id [hush, setbpm 120
+    ,p01 id s r $ (*1) 0.9
    ]
 
--- Play rotated (shift starting position):
-do
-  let s = transposeP 0 $ rotate 2 state
-  mapM_ id [hush, setbpm 100
-    ,p01 id s 1 $ (*0.8) 0.7
-   ]
-
--- Play reversed (retrograde):
-do
-  let s = transposeP 0 $ reverse state
-  mapM_ id [hush, setbpm 100
-    ,p01 id s 1 $ (*0.8) 0.7
-   ]
-
--- Play section only:
-do
-  let s = transposeP 0 $ excerpt 2 5 state
-  mapM_ id [hush, setbpm 100
-    ,p01 id s 1 $ (*0.8) 0.7
-   ]
-
-hush
+hush'
 
 
 -- ══════════════════════════════════════════════════════════
--- SECTION 6: PER-CHORD PATTERN DISTRIBUTION
+-- SECTION 6: CHORD SELECTION PATTERNS
 -- ══════════════════════════════════════════════════════════
--- Goal: Distribute different pattern values to different chords
+-- Goal: Control which chord is active at any point in time
 
 let
   start = initCadenceState 0 "C" [0,4,7] FlatSpelling
-  ctx = defaultContext
+  ctx = hContext "*" "0#" "*"
 
-state <- gen start 4 "*" 0.5 ctx
-
-
--- ──────────────────────────────────────────────────────────
--- 6.1 The Problem with arrange and <> Syntax
--- ──────────────────────────────────────────────────────────
-
--- arrange treats all chords identically within a TidalCycles cycle.
--- TidalCycles' `cat` normalises all chord slots to the same local time,
--- so "<2 1 3>" gives EVERY chord the same value (whichever cycle it is).
-
--- All four chords see the same value from "<2 1 3>" each cycle:
-do
-  let s = transposeP 0 state
-  mapM_ id [hush, setbpm 120
-    ,d01 $ arrange flow s 1 (-9,9)
-      ["[0 <2 1 3>]/4"] # ch 01 |* vel 0.9
-   ]
-
-hush
+s4 <- gen start 4 "*" 0.5 ctx
 
 
 -- ──────────────────────────────────────────────────────────
--- 6.2 arrange' - Per-Chord Distribution
+-- 6.1 warp - Parse Mininotation Chord Selection
 -- ──────────────────────────────────────────────────────────
 
--- arrange' counteracts cat's time normalisation with rotL per chord.
--- "<2 1 3>" now distributes: chord 0 → 2, chord 1 → 1, chord 2 → 3
+-- warp :: String -> Pattern Int
+-- Parses a TidalCycles mininotation string into a chord selection pattern.
+-- Values are 1-indexed: "1" selects the first chord.
 
--- chord 0 sees [0, 2], chord 1 sees [0, 1], chord 2 sees [0, 4 or 3]
-do
-  let s = transposeP 0 state
-  mapM_ id [hush, setbpm 120
-    ,d01 $ arrange' flow s 1 (-9,9)
-      ["[0 <2 1 [4 3]>]/4"] # ch 01 |* vel 0.9
-   ]
+-- Sequential: one chord per bar over 4 bars
+d1 $ arrange flow s4 (warp "[1 2 3 4]/4") (-9,9)
+  ["[0 1 2 3]"] # ch 01
 
--- Compare directly:
-do
-  let s = transposeP 0 state
-  setbpm 120
-  d01 $ arrange  flow s 1 (-9,9) ["[0 <2 1 [4 3]>]/4"] # ch 01
-  d02 $ arrange' flow s 1 (-9,9) ["[0 <2 1 [4 3]>]/4"] # ch 01
+hush'
 
-hush
+-- All chords in one bar
+d1 $ arrange flow s4 (warp "[1 2 3 4]") (-9,9)
+  ["[0 1 2 3]"] # ch 01
+
+hush'
+
+-- Static single chord
+d1 $ arrange flow s4 (warp "1") (-9,9)
+  ["[0 1 2 3]"] # ch 01
+
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
--- 6.3 bracket - Distribute {} Syntax Across Chords
+-- 6.2 rep - Auto-Derive Sequential Pattern
 -- ──────────────────────────────────────────────────────────
 
--- In TidalCycles, {} is identical to [] (single cycle, no distribution).
--- bracket preprocesses {} into a multi-cycle pattern that arrange' distributes.
+-- rep :: Progression -> Pattern Time -> Pattern Int
+-- Generates a sequential chord selection pattern from a progression's length.
+-- rep s4 1   = "[1 2 3 4]/4" (for a 4-chord progression, 1 bar each)
+-- rep s4 0.5 = half bar per chord (twice as fast)
 
--- bracket "[0 {1 2 3}]/4" expands to "[0 1 0 2 0 3]/12"
--- chord 0 sees [0, 1], chord 1 sees [0, 2], chord 2 sees [0, 3]
-do
-  let s = transposeP 0 state
-  mapM_ id [hush, setbpm 120
-    ,d01 $ arrange' flow s 1 (-9,9)
-      [bracket "[0 {1 2 3}]/4"] # ch 01 |* vel 0.9
-   ]
+d1 $ arrange flow s4 (rep s4 1) (-9,9)
+  ["[0 1 2 3]"] # ch 01
 
-hush
+hush'
 
--- Compose with TidalCycles pattern operators:
-do
-  let s = transposeP 0 state
-  mapM_ id [hush, setbpm 120
-    ,d01 $ arrange' flow s 1 (-9,9)
-      [degradeBy 0.2 $ bracket "[0 {1 2 3}]/4" |+ irand 3] # ch 01
-   ]
+-- Faster harmonic rhythm (half bar per chord):
+d1 $ arrange flow s4 (rep s4 0.5) (-9,9)
+  ["[0 1 2 3]"] # ch 01
 
-hush
+hush'
 
--- Two brace groups (LCM expansion):
--- bracket "[{0 1} {2 3 4}]/4" → "[0 2 1 3 0 4 1 2 0 3 1 4]/24"
-do
-  let s = transposeP 0 state
-  mapM_ id [hush, setbpm 120
-    ,d01 $ arrange' flow s 1 (-9,9)
-      [bracket "[{0 1} {2 3 4}]/4"] # ch 01
-   ]
 
-hush
+-- ──────────────────────────────────────────────────────────
+-- 6.3 Musical Forms via Chord Patterns
+-- ──────────────────────────────────────────────────────────
+
+-- The core power of warp: mininotation controls harmonic form.
+
+-- AABA form: chord 1 repeated, chord 2 for the bridge
+d1 $ arrange flow s4 (warp "[1 1 2 1]/4") (-9,9)
+  ["[0 1 2 3]"] # ch 01 # legato 1
+
+hush'
+
+-- Probabilistic: chord 2 appears randomly
+d1 $ arrange flow s4 (warp "[1 2? 3 4]/4") (-9,9)
+  ["[0 1 2 3]"] # ch 01 # legato 1
+
+hush'
+
+-- Alternating across bars: chord 1, then <chord 1 or chord 2>
+d1 $ arrange flow s4 (warp "[1 <1 2>]") (-9,9)
+  ["[0 1 2 3]"] # ch 01 # legato 1
+
+hush'
+
+-- Variable harmonic rhythm: chord 1 gets half, chords 1-2 split the other half
+d1 $ arrange flow s4 (warp "[1 [1 2]]/2") (-9,9)
+  ["[0 1 2 3]"] # ch 01 # legato 1
+
+hush'
+
+
+-- ──────────────────────────────────────────────────────────
+-- 6.4 arrange vs arrange' - Two Arrangement Strategies
+-- ──────────────────────────────────────────────────────────
+
+-- arrange  (onset-join):
+--   Each note maps through the chord active at its onset time.
+--   Sustained notes keep their pitch across chord boundaries.
+--   No spurious re-triggering. Best for melodic instruments.
+
+-- arrange' (squeeze):
+--   Each chord slot gets the full input pattern compressed to fit.
+--   Pattern restarts for each chord. No temporal distortion.
+--   Best for rhythmic patterns that should repeat per chord.
+
+-- Compare:
+let r = warp "[1 2 3 4]/4"
+
+-- arrange: notes sustain through chord boundaries
+d1 $ arrange flow s4 r (-9,9)
+  ["[0 1 2 3]"] # ch 01 # legato 2
+
+hush'
+
+-- arrange': pattern restarts per chord slot
+d1 $ arrange' flow s4 r (-9,9)
+  ["[0 1 2 3]"] # ch 01 # legato 2
+
+hush'
 
 
 -- ══════════════════════════════════════════════════════════
@@ -1075,17 +897,22 @@ hush
 -- ══════════════════════════════════════════════════════════
 -- Goal: MPC-style drum patterns following harmonic roots
 
--- subKick :: VoiceFunction -> Progression -> Time
+-- subKick :: (Progression -> [[Int]]) -> Progression
+--         -> Pattern Int -> Pattern Double
 --         -> (Time, String, String, String) -> ControlPattern
 --
--- Parameters: (rep, sampleLib, kickPat, haPat)
--- Sends kick + hi-hat patterns with pitches following harmonic roots
+-- Parameters:
+--   voice strategy (fund or bass)
+--   progression
+--   chord selection pattern (1-indexed, via warp or rep)
+--   dynamics pattern (> 0 = sub active)
+--   (maxDur, subOnPat, subOffPat, kickPat)
 
 let
   start = initCadenceState 0 "C" [0,4,7] FlatSpelling
   ctx = defaultContext
 
-state <- gen start 4 "*" 0.5 ctx
+s4 <- gen start 4 "*" 0.5 ctx
 
 
 -- ──────────────────────────────────────────────────────────
@@ -1093,15 +920,10 @@ state <- gen start 4 "*" 0.5 ctx
 -- ──────────────────────────────────────────────────────────
 
 -- fund ensures kick follows the true harmonic root (not bass note)
--- useful when chords are inverted
-do
-  let s = transposeP 0 state
-  mapM_ id [hush, setbpm 120
-    ,d01 $ subKick fund s 1
-      (1, "mpc", "1 ~ ~ ~", "~ [1 1] ~ 1")
-   ]
+p "subKick" $ subKick fund s4 (rep s4 1) 1
+  (1/4, "[1(3,8)]/2", "[1(5,8,-2)]/2", "[1(3,8)]/2")
 
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
@@ -1110,81 +932,38 @@ hush
 
 -- fund: always follows the harmonic root (inversion-invariant)
 -- bass: follows the lowest voice (may change with inversions)
--- For kick drums, fund is the correct choice:
-do
-  let s = transposeP 0 state
-  mapM_ id [hush, setbpm 120
-    ,d01 $ subKick fund s 1
-      (1, "mpc", "1 ~ 1 ~", "~ 1 ~ ~")
-   ]
+-- For kick drums, fund is the correct choice.
 
--- Compare with bass (may be wrong for inverted chords):
-do
-  let s = transposeP 0 state
-  mapM_ id [hush, setbpm 120
-    ,d01 $ subKick bass s 1
-      (1, "mpc", "1 ~ 1 ~", "~ 1 ~ ~")
-   ]
+-- Using warp for AABA form:
+p "subKick" $ subKick fund s4 (warp "[1 1 2 1]/4") 1
+  (1/4, "[1(3,8)]/2", "[1(5,8,-2)]/2", "[1(3,8)]/2")
 
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
 -- 7.3 Groove Patterns
 -- ──────────────────────────────────────────────────────────
 
--- Vary the kickPat and haPat for different groove feels:
+-- Vary the patterns for different groove feels:
 
--- Four-on-the-floor:
-do
-  let s = transposeP 0 state
-  mapM_ id [hush, setbpm 120
-    ,d01 $ subKick fund s 1
-      (1, "mpc", "1 1 1 1", "~ ~ ~ ~")
-   ]
+-- Sparse euclidean:
+p "subKick" $ subKick fund s4 (rep s4 1) 1
+  (1/4, "[1(3,8)]", "[1(5,8,-2)]", "[1(3,8)]")
 
--- Classic rock:
-do
-  let s = transposeP 0 state
-  mapM_ id [hush, setbpm 120
-    ,d01 $ subKick fund s 1
-      (1, "mpc", "1 ~ ~ 1", "~ 1 ~ 1")
-   ]
+hush'
 
--- Syncopated:
-do
-  let s = transposeP 0 state
-  mapM_ id [hush, setbpm 120
-    ,d01 $ subKick fund s 1
-      (1, "mpc", "1 ~ 1 ~", "~ [1 1] ~ 1")
-   ]
+-- Dense with dynamics:
+p "subKick" $ subKick fund s4 (rep s4 1) (range 0.5 1 rand)
+  (1/4, "[1(5,8)]", "[1(3,8,-1)]", "[1(4,8)]")
 
-hush
+hush'
 
 
 -- ══════════════════════════════════════════════════════════
--- SECTION 8: B2 - CHORD/SCALE/MELODY PARADIGM
+-- SECTION 8: EXPLICIT COMPOSITION
 -- ══════════════════════════════════════════════════════════
--- Goal: Master explicit construction and composition workflow
-
--- The B2 paradigm separates three musical layers:
--- 1. HARMONY - Chord progressions (pitch-class lists)
--- 2. SCALE   - Available pitches for melody (independent)
--- 3. MELODY  - Scale-relative patterns (transformable)
-
--- Benefits:
--- ✓ Compose without probabilistic generation
--- ✓ Transform melody while preserving harmonic structure
--- ✓ Experiment with form (AABA → ABAB) without rewriting
--- ✓ Manual scale composition (independent of harmony)
--- ✓ Switch mechanism (harmony becomes scale source)
-
-p01 f s r d = d01 $ do
-  let o = ch 01
-  f $ arrange flow s r (-9,9) ["~"
-      ,"[0,1,2,3]/4"
-    ]# o |* vel d
-
+-- Goal: Compose without probabilistic generation
 
 -- ──────────────────────────────────────────────────────────
 -- 8.1 fromChords - Explicit Construction
@@ -1205,41 +984,15 @@ simpleProg = fromChordsFlat [
   ]
 
 do
-  let s = simpleProg
+  let
+    s = simpleProg
+    r = rep simpleProg 1
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
+    ,d01 $ arrange flow s r (-9,9)
+      ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
-hush
-
--- Method 2: Sharp spelling preference
-sharpProg = fromChordsSharp [
-    [0, 4, 7],    -- C major
-    [2, 6, 9],    -- D major
-    [7, 11, 2]    -- G major
-  ]
-
-do
-  let s = sharpProg
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
-
-hush
-
--- Method 3: Legacy alias (explicit spelling)
-legacyProg = prog FlatSpelling [
-    [0, 4, 7],
-    [5, 9, 0]
-  ]
-
-do
-  let s = legacyProg
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
-
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
@@ -1254,11 +1007,6 @@ hush
 -- notesToPCs converts note lists to pitch-class integers:
 -- notesToPCs :: [NoteName] -> [Int]
 
--- Examples:
--- notesToPCs [C, E, G]     -> [0, 4, 7]
--- notesToPCs [D, F', A]    -> [2, 6, 9]
--- notesToPCs [Bb, D, F]    -> [10, 2, 5]
-
 -- Use with fromChords for readable progressions:
 readableProg = fromChordsSharp [
     notesToPCs [C, E, G],     -- C major
@@ -1267,27 +1015,15 @@ readableProg = fromChordsSharp [
   ]
 
 do
-  let s = readableProg
+  let
+    s = readableProg
+    r = rep readableProg 1
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
+    ,d01 $ arrange flow s r (-9,9)
+      ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
-hush
-
--- Mix notations (names + pitch classes):
-mixedProg = fromChordsFlat [
-    notesToPCs [C, E, G],     -- Note names
-    [5, 9, 0],                -- Pitch classes
-    notesToPCs [G, B, D]      -- Note names
-  ]
-
-do
-  let s = mixedProg
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
-
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
@@ -1296,13 +1032,13 @@ hush
 
 -- Define sections separately, then assemble different forms:
 
--- Define A section (2 chords):
+-- A section (2 chords):
 aSection = [
     notesToPCs [C, E, G],     -- C major
     notesToPCs [F, A, C]      -- F major
   ]
 
--- Define B section (2 chords):
+-- B section (2 chords):
 bSection = [
     notesToPCs [G, B, D],     -- G major
     notesToPCs [D, F', A]     -- D major
@@ -1310,280 +1046,41 @@ bSection = [
 
 -- Assemble different forms:
 form1 = concat [aSection, aSection, bSection, aSection]
-  -- AABA (original, 8 chords)
+  -- AABA (8 chords)
 
 form2 = concat [aSection, bSection, aSection, bSection]
-  -- ABAB (alternate, 8 chords)
-
-form3 = concat [aSection, aSection, bSection, bSection]
-  -- AABB (variation, 8 chords)
+  -- ABAB (8 chords)
 
 -- Create progressions from forms:
 state1 = fromChordsSharp form1  -- AABA
 state2 = fromChordsSharp form2  -- ABAB
-state3 = fromChordsSharp form3  -- AABB
 
--- Play different forms:
+-- Play AABA:
 do
-  let s = state1
+  let
+    s = state1
+    r = rep state1 1
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
+    ,d01 $ arrange flow s r (-9,9)
+      ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
+hush'
+
+-- Or use warp for AABA over the base sections:
+-- Define 4-chord base and use chord selection for form
+baseProg = fromChordsSharp (aSection ++ bSection)
+
 do
-  let s = state2
+  let
+    s = baseProg
+    r = warp "[1 2 1 2 3 4 1 2]/8"  -- AABA via chord selection
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
+    ,d01 $ arrange flow s r (-9,9)
+      ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
-do
-  let s = state3
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
-
-hush
-
-
--- ──────────────────────────────────────────────────────────
--- 8.4 Switch Mechanism - Harmony as Scale Source
--- ──────────────────────────────────────────────────────────
-
--- Three approaches to mapping melody:
---   1. Explicit scales (manual scale definitions)
---   2. Use harmony as scales (chord tones = scale)
---   3. Harmony with overlap (chord + passing tones)
-
--- Create harmony progression first:
-harmonyProg = fromChordsFlat [
-    [0, 4, 7],    -- C major
-    [5, 9, 0],    -- F major
-    [7, 11, 2]    -- G major
-  ]
-
-
--- APPROACH 1: Explicit scales (independent)
--- Define scales manually (can differ from harmony):
-scales = [
-    [0, 2, 4, 7, 9],      -- C major pentatonic
-    [0, 2, 4, 5, 9],      -- F major pentatonic
-    [0, 2, 4, 7, 9]       -- G major pentatonic
-  ]
-
-melodyState1 = fromChordsFlat scales
-
--- Play harmony + melody separately:
-do
-  setbpm 120
-  d01 $ harmony harmonyProg "<0 1 2>" # ch 01
-  d02 $ harmony melodyState1 "[0 2 4]"
-        # ch 02 |+ oct 1
-
-hush
-
-
--- APPROACH 2: Use harmony as scales (switch!)
--- Melody maps directly to chord tones:
-melodyState2 = harmonyProg  -- Same progression
-
-do
-  setbpm 120
-  d01 $ harmony harmonyProg "<0 1 2>" # ch 01
-  d02 $ harmony melodyState2 "[0 1 2]"
-        # ch 02 |+ oct 1
-
-hush
-
-
--- APPROACH 3: Harmony with overlap (passing tones)
--- Adds chromatic approach tones between chords:
-melodyState3 = progOverlapF 1 harmonyProg
-
-do
-  setbpm 120
-  d01 $ harmony harmonyProg "<0 1 2>" # ch 01
-  d02 $ harmony melodyState3 "[0 1 2 3]"
-        # ch 02 |+ oct 1
-
-hush
-
--- NOTE: ScaleSource / melodyStateFrom typed API
--- These three approaches have typed equivalents via ScaleSource:
---   melodyStateFrom (ExplicitScale scales)     -- approach 1
---   melodyStateFrom (HarmonyAsScale harmonyProg)  -- approach 2
---   melodyStateFrom (HarmonyWithOverlap harmonyProg progOverlapF) -- approach 3
--- Use ScaleSource when you need programmatic scale source selection.
--- The direct forms above are idiomatic for most live-coding work.
-
-
--- ──────────────────────────────────────────────────────────
--- 8.5 Complete Example 1 - Simple Diatonic Progression
--- ──────────────────────────────────────────────────────────
-
--- I-vi-IV-V progression in C major with melody
-
--- Step 1: Define harmony (chords)
--- Note: use a distinct variable name to avoid shadowing `harmony` function
-harmonyProg = fromChordsFlat [
-    notesToPCs [C, E, G],     -- I  (C major)
-    notesToPCs [A, C, E],     -- vi (A minor)
-    notesToPCs [F, A, C],     -- IV (F major)
-    notesToPCs [G, B, D]      -- V  (G major)
-  ]
-
--- Step 2: Define scale (C major pentatonic for all 4 chords)
-scaleProg = fromChordsFlat [
-    [0, 2, 4, 7, 9],    -- C major pentatonic (for chord 1)
-    [0, 2, 4, 7, 9],    -- C major pentatonic (for chord 2)
-    [0, 2, 4, 7, 9],    -- C major pentatonic (for chord 3)
-    [0, 2, 4, 7, 9]     -- C major pentatonic (for chord 4)
-  ]
-
--- Step 3: Define melody pattern (scale-relative indices)
-melody = slow 4 $ slowcat [
-    "0 2 4 2",       -- C E G E
-    "0 -2 0 2",      -- C A C E
-    "4 2 0 -2",      -- G E C A
-    "0 2 4 7"        -- C E G B (reaching up)
-  ]
-
--- Step 4: Perform
-do
-  mapM_ id [hush, setbpm 100
-    ,d01 $ harmony harmonyProg "<0 1 2 3>" # ch 01
-    ,d02 $ harmony scaleProg melody
-          # ch 02 |+ oct 1 |* vel 0.8
-   ]
-
-hush
-
-
--- ──────────────────────────────────────────────────────────
--- 8.6 Complete Example 2 - Jazz Progression
--- ──────────────────────────────────────────────────────────
-
--- Simplified blue_in_green style progression
-
--- Step 1: Define harmony (4 jazz chords)
-jazzHarmony = fromChordsFlat [
-    [10, 2, 9, 4],    -- Bbmaj7#11
-    [9, 1, 7, 10],    -- A7#9
-    [2, 5, 0, 11],    -- Dm13
-    [1, 5, 11, 3]     -- Db9
-  ]
-
--- Step 2: Define scales (modal choices per chord)
-jazzScales = fromChordsFlat [
-    [10, 0, 2, 4, 5, 7, 9],       -- Bb Lydian
-    [9, 11, 1, 3, 5, 7, 8],       -- A altered
-    [2, 4, 5, 7, 9, 11, 0],       -- D Dorian
-    [1, 3, 5, 6, 8, 10, 0]        -- Db Mixolydian
-  ]
-
--- Step 3: Define melody (simple modal exploration)
-jazzMelody = slow 4 $ slowcat [
-    "0 2 4 2",       -- Lydian motif
-    "0 3 6 3",       -- Altered tension
-    "0 2 4 6",       -- Dorian ascent
-    "0 -2 -4 0"      -- Mixolydian resolution
-  ]
-
--- Step 4: Perform
-do
-  mapM_ id [hush, setbpm 60
-    ,d01 $ harmony jazzHarmony "<0 1 2 3>"
-          # ch 01 |* vel 0.7
-    ,d02 $ harmony jazzScales jazzMelody
-          # ch 02 |+ oct 1 |* vel 0.6
-   ]
-
-hush
-
-
--- ──────────────────────────────────────────────────────────
--- 8.7 Complete Example 3 - AABA Form
--- ──────────────────────────────────────────────────────────
-
--- Simplified rosslyn_castle style with form transformation
-
--- Step 1: Define sections
-
--- A section (4 chords):
-aHarmony = [
-    notesToPCs [C, E, G],
-    notesToPCs [F, A, C],
-    notesToPCs [G, B, D],
-    notesToPCs [C, E, G]
-  ]
-
-aScale = [
-    [0, 2, 4, 7, 9],    -- C major pentatonic
-    [0, 2, 4, 5, 9],    -- F major pentatonic
-    [0, 2, 4, 7, 9],    -- G major pentatonic
-    [0, 2, 4, 7, 9]     -- C major pentatonic
-  ]
-
--- B section (4 chords, contrasting):
-bHarmony = [
-    notesToPCs [A, C, E],
-    notesToPCs [D, F', A],
-    notesToPCs [G, B, D],
-    notesToPCs [C, E, G]
-  ]
-
-bScale = [
-    [0, 2, 3, 7, 9],    -- A minor pentatonic
-    [2, 4, 6, 9, 11],   -- D major pentatonic
-    [0, 2, 4, 7, 9],    -- G major pentatonic
-    [0, 2, 4, 7, 9]     -- C major pentatonic
-  ]
-
--- Step 2: Assemble AABA form (16 chords total)
-aabaHarmony = concat [aHarmony, aHarmony, bHarmony, aHarmony]
-aabaScale   = concat [aScale, aScale, bScale, aScale]
-
--- Create progressions:
-formHarmony = fromChordsFlat aabaHarmony
-formScale   = fromChordsFlat aabaScale
-
--- Step 3: Define melody (same pattern, different scales)
-formMelody = slow 16 $ slowcat [
-    "[0 2 4 2]*4",      -- A section motif (repeated)
-    "[0 2 4 2]*4",      -- A section motif (repeated)
-    "[0 3 5 3]*4",      -- B section motif (contrast)
-    "[0 2 4 7]*4"       -- A section motif (resolution)
-  ]
-
--- Step 4: Perform AABA
-do
-  mapM_ id [hush, setbpm 100
-    ,d01 $ harmony formHarmony
-          "<0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15>"
-          # ch 01 |* vel 0.7
-    ,d02 $ harmony formScale formMelody
-          # ch 02 |+ oct 1 |* vel 0.6
-   ]
-
-hush
-
--- Step 5: Transform to ABAB (same sections, new order)
-ababHarmony = concat [aHarmony, bHarmony, aHarmony, bHarmony]
-ababScale   = concat [aScale, bScale, aScale, bScale]
-
-formHarmony2 = fromChordsFlat ababHarmony
-formScale2   = fromChordsFlat ababScale
-
--- Perform ABAB (same melody, different form):
-do
-  mapM_ id [hush, setbpm 100
-    ,d01 $ harmony formHarmony2
-          "<0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15>"
-          # ch 01 |* vel 0.7
-    ,d02 $ harmony formScale2 formMelody
-          # ch 02 |+ oct 1 |* vel 0.6
-   ]
-
-hush
+hush'
 
 
 -- ══════════════════════════════════════════════════════════
@@ -1625,12 +1122,15 @@ prog4 <- gen start 8 "ravel:2 stravinsky:1 mozart:1" 0.5 ctx
 
 -- Play and compare:
 do
-  let s = transposeP 0 prog3
+  let
+    s = transposeP 0 prog3
+    r = rep prog3 1
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
+    ,d01 $ arrange flow s r (-9,9)
+      ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
@@ -1647,12 +1147,15 @@ let
 jazzProg <- gen start 16 "debussy ravel" 0.6 jazzCtx
 
 do
-  let s = transposeP 0 jazzProg
+  let
+    s = transposeP 0 jazzProg
+    r = rep jazzProg 1
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
+    ,d01 $ arrange flow s r (-9,9)
+      ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
-hush
+hush'
 
 -- BLUES CONTEXT (F major, I-IV-V roots only)
 let
@@ -1662,12 +1165,15 @@ let
 bluesProg <- gen start 12 "*" 0.4 bluesCtx
 
 do
-  let s = transposeP 0 bluesProg
+  let
+    s = transposeP 0 bluesProg
+    r = rep bluesProg 1
   mapM_ id [hush, setbpm 100
-    ,p01 id s 1 $ (*1) 0.9
+    ,d01 $ arrange flow s r (-9,9)
+      ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
-hush
+hush'
 
 -- MODAL CONTEXT (no key filter, specific roots)
 let
@@ -1677,12 +1183,15 @@ let
 modalProg <- gen start 8 "debussy" 0.7 modalCtx
 
 do
-  let s = transposeP 0 modalProg
+  let
+    s = transposeP 0 modalProg
+    r = rep modalProg 1
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
+    ,d01 $ arrange flow s r (-9,9)
+      ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
-hush
+hush'
 
 -- BASS-TUNED CONTEXT (overtones only, no key)
 let
@@ -1692,12 +1201,15 @@ let
 bassProg <- gen start 8 "*" 0.5 bassCtx
 
 do
-  let s = transposeP 0 bassProg
+  let
+    s = transposeP 0 bassProg
+    r = rep bassProg 1
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
+    ,d01 $ arrange flow s r (-9,9)
+      ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
@@ -1715,102 +1227,24 @@ let
   ctx = hContext "*" "0#" "*"
 
 -- Conservative (entropy 0.3):
-prog1 <- gen start 8 "*" 0.3 ctx
-
-do
-  let s = transposeP 0 prog1
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
+p1 <- gen start 8 "*" 0.3 ctx
 
 -- Balanced (entropy 0.5):
-prog2 <- gen start 8 "*" 0.5 ctx
-
-do
-  let s = transposeP 0 prog2
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
+p2 <- gen start 8 "*" 0.5 ctx
 
 -- Exploratory (entropy 0.8):
-prog3 <- gen start 8 "*" 0.8 ctx
+p3 <- gen start 8 "*" 0.8 ctx
 
 do
-  let s = transposeP 0 prog3
+  let
+    s = transposeP 0 p2
+    r = rep p2 1
   mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
+    ,d01 $ arrange flow s r (-9,9)
+      ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
--- Highly experimental (entropy 1.5):
-prog4 <- gen start 8 "*" 1.5 ctx
-
-do
-  let s = transposeP 0 prog4
-  mapM_ id [hush, setbpm 120
-    ,p01 id s 1 $ (*1) 0.9
-   ]
-
-hush
-
-
--- ──────────────────────────────────────────────────────────
--- 9.4 Live Transformation Examples
--- ──────────────────────────────────────────────────────────
-
--- Combine techniques for live performance control:
-
-let
-  start = initCadenceState 0 "C" [0,4,7] FlatSpelling
-  ctx = hContext "*" "0#" "*"
-  comp = "debussy:0.75 bach:0.25"
-
-state <- gen start 16 comp 0.6 ctx
-
--- Performance pattern with live transformations:
-p01 f s r d = d01 $ do
-  let o = ch 01
-  f
-    $ stack [silence
-      -- Chords (original):
-      ,arrange flow s r (-9,9) ["~"
-        ,"[0,1,2,3]/4"
-      ]# o |* vel 0.8
-      -- Bass (transposed):
-      ,arrange root (transposeP 7 s) r (-9,9) ["~"
-        ,"0*2"
-      ]# o |* vel 1 |- oct 2
-    ] |* vel d
-
--- Original:
-do
-  let s = transposeP 0 state
-  putStrLn $ "LAUNCH¬¬" ++ show s
-  mapM_ id [hush, setbpm 100
-    ,p01 id s 1 $ (*0.8) 0.7
-   ]
-
--- Rotated (shift starting position):
-do
-  let s = transposeP 0 $ rotate 4 state
-  mapM_ id [hush, setbpm 100
-    ,p01 id s 1 $ (*0.8) 0.7
-   ]
-
--- Section only (bars 4-11):
-do
-  let s = transposeP 0 $ excerpt 4 11 state
-  mapM_ id [hush, setbpm 100
-    ,p01 id s 1 $ (*0.8) 0.7
-   ]
-
--- Reversed with overlap:
-do
-  let s = transposeP 0 $ progOverlapF 1 $ reverse state
-  mapM_ id [hush, setbpm 100
-    ,p01 id s 1 $ (*0.8) 0.7
-   ]
-
-hush
+hush'
 
 
 -- ══════════════════════════════════════════════════════════
@@ -1823,10 +1257,8 @@ hush
 -- 10.1 Setup and Context
 -- ──────────────────────────────────────────────────────────
 
--- Set tempo:
 setbpm 100
 
--- Define context (C major):
 let
   ctx = hContext "*" "0#" "*"
 
@@ -1869,7 +1301,7 @@ p01 f s r d = d01 $ do
       ]# o |* vel 0.8
       -- Melody (flow voicing, high octave):
       ,arrange flow s r (-9,9) ["~"
-        ,"[2 4 5]@3" -- @3: spread over 3 cycles
+        ,"[2 4 5]@3"
       ]# o |* vel 0.6 |+ oct 1
     ] |* vel d
 
@@ -1894,72 +1326,80 @@ p03 f s r d = d03 $ do
 
 -- INTRO (verse, sparse)
 do
-  let s = transposeP 0 verse
+  let
+    s = transposeP 0 verse
+    r = rep verse 1
   putStrLn $ "LAUNCH¬¬" ++ show s
   mapM_ id [hush, setbpm 90
-    ,p01 id s 1 $ (*0.8) 0.5
+    ,p01 id s r $ (*0.8) 0.5
    ]
 
-hush
+hush'
 
 -- VERSE (full texture)
 do
-  let s = transposeP 0 verse
+  let
+    s = transposeP 0 verse
+    r = rep verse 1
   putStrLn $ "LAUNCH¬¬" ++ show s
   mapM_ id [hush, setbpm 100
-    ,p01 id s 1 $ (*0.8) 0.7
-    ,p02 id s 1 $ (*0.8) 0.7
+    ,p01 id s r $ (*0.8) 0.7
+    ,p02 id s r $ (*0.8) 0.7
    ]
 
-hush
+hush'
 
 -- CHORUS (transposed to F)
 do
-  let s = transposeP 5 chorus
+  let
+    s = transposeP 5 chorus
+    r = rep chorus 1
   putStrLn $ "LAUNCH¬¬" ++ show s
   mapM_ id [hush, setbpm 105
-    ,p01 id s 1 $ (*0.8) 0.8
-    ,p02 id s 1 $ (*0.8) 0.8
-    ,p03 id s 1 $ (*0.8) 0.6
+    ,p01 id s r $ (*0.8) 0.8
+    ,p02 id s r $ (*0.8) 0.8
+    ,p03 id s r $ (*0.8) 0.6
    ]
 
-hush
+hush'
 
 -- BRIDGE (contrasting, reversed)
 do
-  let s = transposeP 0 $ reverse bridge
+  let
+    s = transposeP 0 $ reverse bridge
+    r = rep bridge 1
   putStrLn $ "LAUNCH¬¬" ++ show s
   mapM_ id [hush, setbpm 80
-    ,p01 (slow 2) s 1 $ (*0.8) 0.7
-    ,p02 (slow 2) s 1 $ (*0.8) 0.7
+    ,p01 (slow 2) s r $ (*0.8) 0.7
+    ,p02 (slow 2) s r $ (*0.8) 0.7
    ]
 
-hush
+hush'
 
 -- OUTRO (verse, fading)
 do
-  let s = transposeP 0 verse
+  let
+    s = transposeP 0 verse
+    r = rep verse 1
   putStrLn $ "LAUNCH¬¬" ++ show s
   mapM_ id [hush, setbpm 90
-    ,p01 id s 1 $ (*0.8) 0.5
-    ,p02 id s 1 $ (*0.8) 0.3
+    ,p01 id s r $ (*0.8) 0.5
+    ,p02 id s r $ (*0.8) 0.3
    ]
 
-hush
+hush'
 
 
 -- ──────────────────────────────────────────────────────────
 -- 10.5 Live Improvisation Template
 -- ──────────────────────────────────────────────────────────
 
--- Quick session with flexible control:
-
 -- Generate one long progression:
 let
   start = initCadenceState 0 "C" [0,4,7] FlatSpelling
   ctx = hContext "*" "0#" "*"
 
-state <- gen start 32 "*" 0.5 ctx
+s32 <- gen start 32 "*" 0.5 ctx
 
 -- Launcher with transformation support:
 p01 f s r d = d01 $ do
@@ -1971,29 +1411,28 @@ p01 f s r d = d01 $ do
       ]# o |* vel 0.8
     ] |* vel d
 
--- Perform with live transformations:
+-- Live: excerpt different sections, use warp for form
 do
-  let s = transposeP 0 $ excerpt 0 7 state
+  let
+    sub = excerpt 0 7 s32
+    s = transposeP 0 sub
+    r = rep sub 1
   putStrLn $ "LAUNCH¬¬" ++ show s
   mapM_ id [hush, setbpm 100
-    ,p01 id s 1 $ (*0.8) 0.7
+    ,p01 id s r $ (*0.8) 0.7
    ]
 
 do
-  let s = transposeP 0 $ excerpt 8 15 state
+  let
+    sub = excerpt 8 15 s32
+    s = transposeP 0 sub
+    r = warp "[1 1 2 1 3 4 5 6]/8"  -- AABA-style form
   putStrLn $ "LAUNCH¬¬" ++ show s
   mapM_ id [hush, setbpm 100
-    ,p01 id s 1 $ (*0.8) 0.7
+    ,p01 id s r $ (*0.8) 0.7
    ]
 
-do
-  let s = transposeP 0 $ rotate 4 state
-  putStrLn $ "LAUNCH¬¬" ++ show s
-  mapM_ id [hush, setbpm 100
-    ,p01 id s 1 $ (*0.8) 0.7
-   ]
-
-hush
+hush'
 
 
 -- ══════════════════════════════════════════════════════════
@@ -2024,21 +1463,20 @@ hush
 
 
 -- ──────────────────────────────────────────────────────────
--- 11.2 Explicit Construction (B2)
+-- 11.2 Chord Selection
 -- ──────────────────────────────────────────────────────────
 
--- fromChords
---   :: EnharmonicSpelling -> [[Int]] -> Progression
+-- warp :: String -> Pattern Int
+--   Parse mininotation to chord selection pattern (1-indexed, bar-relative).
+--   warp "[1 2 3 4]/4"        -- 4 chords over 4 bars (1 per bar)
+--   warp "[1 1 2 1]/4"        -- AABA form over 4 bars
+--   warp "[1 <1 2>]"          -- alternating per bar
+--   warp "[1 2? 3 4]/4"       -- probabilistic over 4 bars
 
--- fromChordsFlat  :: [[Int]] -> Progression
--- fromChordsSharp :: [[Int]] -> Progression
-
--- prog :: EnharmonicSpelling -> [[Int]] -> Progression
---   (legacy alias)
-
--- notesToPCs :: [NoteName] -> [Int]
---   Available: C, C', Db, D, D', Eb, E, F, F', Gb, G, G', Ab,
---              A, A', Bb, B
+-- rep :: Progression -> Pattern Time -> Pattern Int
+--   Auto-derive sequential selection from progression length (bar-relative).
+--   rep s4 1    -- 1 bar per chord (equivalent to warp "[1 2 3 4]/4")
+--   rep s4 0.5  -- half bar per chord
 
 
 -- ──────────────────────────────────────────────────────────
@@ -2052,10 +1490,6 @@ hush
 -- bass :: VoiceFunction  -- Mono, bass note only (first pitch)
 -- fund :: VoiceFunction  -- Mono, harmonic root (inversion-invariant)
 --   VoiceFunction = Progression -> [[Int]]
-
--- Index-based lookup (use with pattern indices):
--- harmony :: Progression -> Pattern Int -> ControlPattern
---   Uses flow voicing internally; returns head note per chord
 
 
 -- ──────────────────────────────────────────────────────────
@@ -2083,28 +1517,43 @@ hush
 -- 11.5 Pattern Interface
 -- ──────────────────────────────────────────────────────────
 
--- arrange :: VoiceFunction -> Progression -> Pattern Time
+-- arrange :: VoiceFunction -> Progression -> Pattern Int
 --         -> (Int, Int) -> [Pattern Int] -> ControlPattern
---   All chords see the same pattern content each cycle.
+--   Onset-join: notes sustain through chord boundaries.
 --   VoiceFunction: flow, root, lite, bass, fund
 --   Register: (-9, 9) typical
 --   Patterns: ["~", "[0,1,2,3]/4"] etc.
 
--- arrange' :: VoiceFunction -> Progression -> Pattern Time
+-- arrange' :: VoiceFunction -> Progression -> Pattern Int
 --          -> (Int, Int) -> [Pattern Int] -> ControlPattern
---   Per-chord distribution: <> and bracket distribute across chords.
+--   Squeeze: pattern restarts per chord slot.
 
--- bracket :: String -> Pattern Int
---   Preprocesses {} groups for per-chord distribution via arrange'.
---   bracket "[0 {1 2 3}]/4"  ->  parseBP_E "[0 1 0 2 0 3]/12"
-
--- subKick :: VoiceFunction -> Progression -> Time
+-- subKick :: (Progression -> [[Int]]) -> Progression
+--         -> Pattern Int -> Pattern Double
 --         -> (Time, String, String, String) -> ControlPattern
---   Kick + hi-hat patterns following harmonic roots. Use fund.
+--   Sub/kick groove following harmonic roots. Use fund.
 
 
 -- ──────────────────────────────────────────────────────────
--- 11.6 MIDI Helpers (BootTidal.hs)
+-- 11.6 Explicit Construction
+-- ──────────────────────────────────────────────────────────
+
+-- fromChords
+--   :: EnharmonicSpelling -> [[Int]] -> Progression
+
+-- fromChordsFlat  :: [[Int]] -> Progression
+-- fromChordsSharp :: [[Int]] -> Progression
+
+-- prog :: EnharmonicSpelling -> [[Int]] -> Progression
+--   (legacy alias)
+
+-- notesToPCs :: [NoteName] -> [Int]
+--   Available: C, C', Db, D, D', Eb, E, F, F', Gb, G, G', Ab,
+--              A, A', Bb, B
+
+
+-- ──────────────────────────────────────────────────────────
+-- 11.7 MIDI Helpers (BootTidal.hs)
 -- ──────────────────────────────────────────────────────────
 
 -- ch :: Int -> Pattern ValueMap
@@ -2116,33 +1565,30 @@ hush
 -- oct :: Int -> Pattern ValueMap
 --   Octave shift (|+ oct 1, |- oct 2)
 
--- bpm :: Double -> Pattern Time
---   Tempo (deprecated, use setbpm)
-
 -- setbpm :: Double -> IO ()
 --   Set tempo (setbpm 120)
 
 
 -- ──────────────────────────────────────────────────────────
--- 11.7 Common Patterns
+-- 11.8 Common Patterns
 -- ──────────────────────────────────────────────────────────
 
--- Play harmony (index-based, head note per chord):
--- d01 $ harmony prog "<0 1 2 3>" # ch 01
-
 -- Full chords (flow voicing):
--- d01 $ arrange flow prog 1 (-9,9) ["[0,1,2,3]/4"] # ch 01
+-- d01 $ arrange flow prog (rep prog 1) (-9,9) ["[0,1,2,3]/4"] # ch 01
 
 -- Bass line (root voicing, low octave):
--- d02 $ arrange root prog 1 (-9,9) ["0*2"] # ch 01 |- oct 2
+-- d02 $ arrange root prog (rep prog 1) (-9,9) ["0*2"] # ch 01 |- oct 2
 
 -- Arpeggios (flow voicing):
--- d03 $ arrange flow prog 1 (-9,9) ["0 1 2 3 4 5 6 7"] # ch 01
+-- d03 $ arrange flow prog (rep prog 1) (-9,9) ["0 1 2 3 4 5 6 7"] # ch 01
+
+-- AABA form via warp:
+-- d01 $ arrange flow prog (warp "[1 1 2 1]/4") (-9,9) ["[0,1,2,3]/4"] # ch 01
 
 -- Multi-voice stack:
 -- d01 $ stack [
---   arrange flow prog 1 (-9,9) ["[0,1,2,3]/4"] # ch 01,
---   arrange root prog 1 (-9,9) ["0*2"] # ch 01 |- oct 2
+--   arrange flow prog r (-9,9) ["[0,1,2,3]/4"] # ch 01,
+--   arrange root prog r (-9,9) ["0*2"] # ch 01 |- oct 2
 -- ]
 
 -- Launcher block pattern:
@@ -2150,16 +1596,13 @@ hush
 --   let o = ch 01
 --   f $ arrange flow s r (-9,9) ["pattern"] # o |* vel d
 
--- Per-chord distribution:
--- d01 $ arrange' flow prog 1 (-9,9)
---        [bracket "[0 {1 2 3}]/4"] # ch 01
-
--- Groove (kick + hi-hat following harmonic root):
--- d01 $ subKick fund prog 1 (1, "mpc", "1 ~ ~ ~", "~ [1 1] ~ 1")
+-- Groove (sub/kick following harmonic root):
+-- p "subKick" $ subKick fund prog (rep prog 1) 1
+--   (1/4, "[1(3,8)]/2", "[1(5,8,-2)]/2", "[1(3,8)]/2")
 
 
 -- ──────────────────────────────────────────────────────────
--- 11.8 Troubleshooting
+-- 11.9 Troubleshooting
 -- ──────────────────────────────────────────────────────────
 
 -- Neo4j not running:
@@ -2175,16 +1618,15 @@ hush
 
 -- Pattern not playing:
 --   Check pattern syntax (use "" for strings)
---   Verify progression index range (<0 1 2 3> for 4 chords)
---   Try hush and restart
+--   Verify chord selection pattern (warp "[1 2 3 4]/4")
+--   Try hush' and restart
 
 
 -- ══════════════════════════════════════════════════════════
 -- END OF USER GUIDE
 -- ══════════════════════════════════════════════════════════
 -- For more examples, see:
---   live/examples/blue_in_green.tidal
---   live/examples/rosslyn_castle.tidal
+--   live/arrangeDevTest.tidal
 --   live/test.tidal
 --   live/studio.tidal
 --

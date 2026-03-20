@@ -23,10 +23,10 @@
 --
 -- -- Silent: Just get the progression
 -- prog1 <- genSilent start 8 "*" 0.5 ctx
--- 
+--
 -- -- Standard: See per-step candidates and selections
 -- prog2 <- genStandard start 8 "*" 0.5 ctx
--- 
+--
 -- -- Verbose: Debug chord naming and voice leading
 -- prog3 <- genVerbose start 8 "*" 0.5 ctx
 -- @
@@ -72,15 +72,15 @@ module Harmonic.Lib (
   --   gen'  - compact summary
   --   gen'' - verbose traces
   gen, gen', gen'',
-  
+
   -- ========== ALTERNATIVE UNIFIED INTERFACE ==========
   -- Same as above but with descriptive names
   genSilent, genStandard, genVerbose,
-  
+
   -- ========== CONTEXT & CONFIGURATION ==========
   HarmonicContext(..), harmonicContext, hContext, defaultContext,
   GeneratorConfig(..), defaultConfig,
-  
+
   -- ========== PHASE B: CORE MUSIC TYPES ==========
   module Harmonic.Rules.Types.Pitch,
   module Harmonic.Rules.Types.Harmony,
@@ -97,13 +97,13 @@ module Harmonic.Lib (
 
   -- ========== PHASE C: INTERACTIVE BEHAVIOUR ==========
   module Harmonic.Traversal.Probabilistic,
-  
+
   -- ========== FILTER FUNCTIONS ==========
   -- String-friendly versions for TidalCycles
   overtones, Harmonic.Rules.Constraints.Filter.key, funds, tuning, wildcard,
   -- Text versions
   parseOvertones, parseKey, parseFunds, parseTuning, isWildcard,
-  
+
   -- ========== DATABASE INTERFACE ==========
   module Harmonic.Evaluation.Database.Query,
   connectNeo4j,
@@ -111,31 +111,25 @@ module Harmonic.Lib (
   -- ========== INGESTION PIPELINE ==========
   module Harmonic.Rules.Import.CSV,
   module Harmonic.Rules.Import.Transform,
-  
+
   -- ========== TIDAL INTERFACE ==========
   -- Pattern-level operations
-  VoiceFunction, rootNotes, bassNotes,
-  arrange, arrange', applyProg, applyProg', voiceRange,
-  expandBraces, bracket,
-  lookupProgression, lookupChord, VoiceType(..), voiceBy, harmony,
+  VoiceFunction, voiceRange,
+  arrange, arrange', warp, rep, lookupChordAt,
+  lookupChord, lookupProgression, VoiceType(..), voiceBy, harmony,
   overlapF,
-  
+
   -- Arranger functions (voicing paradigms)
   rotate, excerpt, insert, switch, clone, extract,
   transposeP, Harmonic.Interface.Tidal.Arranger.reverse, fuse, fuse2, interleave, expandP,
   progOverlap, progOverlapF, progOverlapB,
-  root, flow, lite, literal,
+  root, flow, lite, literal, bass,
 
   -- Explicit progression construction
   fromChords, prog, fromChordsFlat, fromChordsSharp,
 
   -- Groove interface (drums/sub bass)
   subKick, fund,
-  subKickDev,
-
-  -- Dev arrangement functions (patterned chord selection)
-  arrangeDev, squeezeDev, arrangeStrict,
-  lookupChordAt, repToChordPat,
 
   -- Scale source (switch mechanism)
   ScaleSource(..), melodyStateFrom,
@@ -143,7 +137,7 @@ module Harmonic.Lib (
   module Harmonic.Interface.Tidal.Instruments,
   module Harmonic.Interface.Tidal.Utils,
   module Harmonic.Config,
-  
+
   -- ========== INTERNAL FUNCTIONS (advanced use only) ==========
   -- Tuple-returning versions for manual diagnostics extraction
   generate, generateWith, genWith,
@@ -172,23 +166,20 @@ import Harmonic.Rules.Import.Graph (connectNeo4j)
 import Harmonic.Rules.Import.CSV
 import Harmonic.Rules.Import.Transform
 import Harmonic.Interface.Tidal.Bridge (
-    VoiceFunction, rootNotes, bassNotes,
-    arrange, arrange', applyProg, applyProg', voiceRange,
-    expandBraces, bracket,
-    lookupProgression, lookupChord, VoiceType(..), voiceBy, harmony,
+    VoiceFunction, voiceRange,
+    arrange, arrange', warp, rep, lookupChordAt,
+    lookupChord, lookupProgression, VoiceType(..), voiceBy, harmony,
     overlapF
   )
 import Harmonic.Interface.Tidal.Arranger (
     rotate, excerpt, insert, switch, clone, extract,
     transposeP, reverse, fuse, fuse2, interleave, expandP,
     progOverlap, progOverlapF, progOverlapB,
-    root, flow, lite, literal,
+    root, flow, lite, literal, bass,
     fromChords, prog, fromChordsFlat, fromChordsSharp,
     ScaleSource(..), melodyStateFrom
   )
 import Harmonic.Interface.Tidal.Groove (subKick, fund)
-import Harmonic.Interface.Tidal.GrooveDev (subKickDev)
-import Harmonic.Interface.Tidal.BridgeDev (arrangeDev, squeezeDev, arrangeStrict, lookupChordAt, repToChordPat)
 import Harmonic.Interface.Tidal.Instruments
 import Harmonic.Interface.Tidal.Utils
 import Harmonic.Config

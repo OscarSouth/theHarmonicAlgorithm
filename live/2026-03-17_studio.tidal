@@ -1,0 +1,89 @@
+p03 f s r d = d03 $ do
+  let o = ch 01
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,"[1,2,3]/8"
+        -- ,"[1]/8"
+      ]# o |* vel 0.4 |- oct 1 |* legato 0.99
+       -- --
+      ,arrange root (overlapF 0 s) r (-9,9) ["~"
+        -- ,"[~ [4 ~]]/8"
+        ,"[0 [0,4]]/8"
+      ]# o |* vel 0.9 |- oct 2 |= legato 0.99
+       -- --
+      -- ,cc 64 "[1@15 0]/4" #o
+       -- --
+    ] |* vel d
+
+k909 f d = p "909kit" $ do
+  let o = ch 9
+  f
+    $ stack [silence
+       -- --
+      -- ,kick "[1]"
+      -- ,snap "[0 1]/2"
+      -- ,snap "[0 1]"
+      -- ,hh "[0 1]/4"
+      ,hh "[0 1]"
+      -- ,hh "1 1 2 1"
+      -- ,click "1(3,8)/2"
+       -- --
+    ]# o # legato 0.01 |* vel d
+
+kmpc f d = p "mpckit" $ do
+  let o = ch 10
+  f
+    -- $ mask "0 1 0 1"
+    $ stack [silence
+       -- --
+      -- ,hh "1 1 2 1"
+      -- ,hh "0 1"
+      ,rarely (palindrome) $ degradeBy 0.8 $ stut 2 (1/2) (1/4) $ click "[0 1]/2" |* vel 0.1
+      -- ,click "[0 1]/2" |*vel 0.2
+      ,sometimesBy 0.1 (>>hh "2") $ sometimesBy 0.05 (fast 2) $ degradeBy 0.4 $ hh "[1]*4" |* vel (lfo saw 0.1 0.4)
+      ,hh "0 2?" |* vel 0.2
+      -- ,2 <~ (rarely (stut 4 0.5 0.5) $ click "[1(3,8) . 0 1 [0 1] 0]/4") |* vel 0.1
+       -- --
+    ]# o # legato 0.01 |* vel d
+
+
+drum f d = p "drumbruteImpact" $ do
+  let o = ch 11
+  -- let lmotif = "[1 . 0@3 1? . 0 1? . 0 1? 0@2]/4"
+  f
+    $ stack [silence
+       -- --
+      -- ,kick' lmotif |* vel 0.9
+      -- ,kick "1"
+      -- ,kick'' "1/4"
+      -- ,kick "[1 1 0 1 0 1 0 1]/4"
+      -- ,fm "[1 1 0 1 0 1 0 1]/4"
+      -- ,click "[0 1]/2"
+      ,hh "0 1"
+      -- ,rimshot "[0 1]/2" |* vel 0.6
+      ,sometimesBy 0.1 (>>hh "2") $ sometimesBy 0.05 (fast 2) $ degradeBy 0.4 $ hh "[1]*4" |* vel (lfo saw 0.1 0.4)
+      -- ,degrade $ click "[0 0 1 0 0 1 0 0]/2" # vel 0.2
+      ,ride "0 1" #vel 0.4
+      -- ,fm "1(3,8)/2" #vel 0.4
+      ,hh "0 2?"
+       -- --
+    ]# o # legato 0.01 |* vel d
+
+subk f s r d = p "subKick"
+  $ f
+    $ subKick bass s r d ( 1/4
+      -- ,"[1*4]"
+      ,"[1]/2"
+      ,"[0 1 0 0]"
+      -- ,"[~]"
+      -- ,"[~]"
+      ,"1*4"
+    )
+
+-- count
+-- sync hardware
+-- cc input
+-- readme
+-- finish user guide

@@ -137,6 +137,10 @@ setCC c n val = once $ control (val) #io n c where io n c = (midi #midicmd "cont
 ped = cc 64
 vel = pF "amp"
 
+allNotesOff = setCC "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]" "[123,64]" 0
+panic = allNotesOff >> hush'
+hush'' = panic
+
 -------------------------------------------------------------------------------
 -- Pattern Helpers
 -------------------------------------------------------------------------------
@@ -228,29 +232,17 @@ rimshot pat = struct pat $ midinote "[6,7]" #ch 10 #sustain 0.05
 rimshot' pat = struct pat $ midinote "[66,67]" #ch 10 #sustain 0.05
 
 :{
-hh pat = do
-  let bars = 1
-      ps = [
-            ("x", midinote 2 #ch 10 #sustain 0.05 #vel 0.5),
-            ("1", midinote 2 #ch 10 #sustain 0.05 #vel 0.5),
-            ("o", midinote 3 #ch 10 #sustain 0.05 #vel 0.5),
-            ("2", midinote 3 #ch 10 #sustain 0.05 #vel 0.5)
-            ]
-      fs   = []
-   in ur bars pat ps fs
+hh pat = stack [
+  struct (fmap (`elem` ["x","1"]) pat) $ midinote 2 #ch 10 #sustain 0.05 #vel 0.5,
+  struct (fmap (`elem` ["o","2"]) pat) $ midinote 3 #ch 10 #sustain 0.05 #vel 0.5
+  ]
 :}
 
 :{
-hh' pat = do
-  let bars = 1
-      ps = [
-            ("x", midinote 62 #ch 10 #sustain 0.05 #vel 0.5),
-            ("1", midinote 62 #ch 10 #sustain 0.05 #vel 0.5),
-            ("o", midinote 63 #ch 10 #sustain 0.05 #vel 0.5),
-            ("2", midinote 63 #ch 10 #sustain 0.05 #vel 0.5)
-            ]
-      fs   = []
-   in ur bars pat ps fs
+hh' pat = stack [
+  struct (fmap (`elem` ["x","1"]) pat) $ midinote 62 #ch 10 #sustain 0.05 #vel 0.5,
+  struct (fmap (`elem` ["o","2"]) pat) $ midinote 63 #ch 10 #sustain 0.05 #vel 0.5
+  ]
 :}
 
 -------------------------------------------------------------------------------

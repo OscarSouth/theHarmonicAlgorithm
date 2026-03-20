@@ -68,7 +68,7 @@ s.reboot {
           if(isAvailable) {
             ~midiTHRU = MIDIOut.newByName(devName, portName);
             ~midiTHRU.latency = 0.0;
-            ~dirt.soundLibrary.addMIDI(\thru, ~midiTHRU);
+            ~dirt.soundLibrary.addMIDI(\thru, SafeMIDIOut(~midiTHRU));
 
             ~midiFound = true; // Stop looking
 
@@ -102,3 +102,92 @@ s.reboot {
   };
 };
 )
+
+// ============================================================================
+// SafeMIDIOut — Precautionary Note Off + Reference-Counted Note Off Suppression
+// ============================================================================
+//
+// This class wraps MIDIOut to fix MIDI note collisions when multiple
+// TidalCycles patterns produce the same MIDI note simultaneously.
+//
+// Without this wrapper, SuperDirt schedules each event's Note Off independently.
+// When two patterns overlap on the same pitch, the earlier pattern's Note Off
+// kills the later pattern's still-active note. Synths that ignore duplicate
+// Note Ons for already-sounding pitches compound the problem.
+//
+// SafeMIDIOut fixes this with two behaviors:
+//   1. Precautionary Note Off before every Note On (ensures clean retrigger)
+//   2. Reference-counted Note Off suppression (only the last Note Off fires)
+//
+// SETUP:
+//   1. Copy the class below (without the leading //) to a new file:
+//      ~/Library/Application Support/SuperCollider/Extensions/SafeMIDIOut.sc
+//   2. Recompile SuperCollider's class library (Cmd+Shift+L or reboot)
+//   3. In this startup script, use SafeMIDIOut(~midiTHRU) instead of ~midiTHRU
+//      when calling ~dirt.soundLibrary.addMIDI
+//
+// ----------------------------------------------------------------------------
+//
+// SafeMIDIOut {
+//     var <>midiOut;
+//     var <>noteOnCounts;
+//
+//     *new { |midiOut|
+//         ^super.new.init(midiOut);
+//     }
+//
+//     init { |mo|
+//         midiOut = mo;
+//         noteOnCounts = Dictionary.new;
+//     }
+//
+//     noteOn { |chan, note, vel|
+//         var key = (chan * 128) + note;
+//         var count = noteOnCounts[key] ? 0;
+//         // Precautionary noteOff: clear any sounding note at this pitch
+//         midiOut.noteOff(chan, note, 0);
+//         // Send the actual noteOn
+//         midiOut.noteOn(chan, note, vel);
+//         // Track reference count
+//         noteOnCounts[key] = count + 1;
+//     }
+//
+//     noteOff { |chan, note, vel|
+//         var key = (chan * 128) + note;
+//         var count = (noteOnCounts[key] ? 0) - 1;
+//         if(count <= 0) {
+//             // Last reference — send the real noteOff
+//             midiOut.noteOff(chan, note, vel);
+//             noteOnCounts[key] = 0;
+//         } {
+//             // Other patterns still hold this pitch — suppress
+//             noteOnCounts[key] = count;
+//         };
+//     }
+//
+//     // Handle CC 123 (All Notes Off) and CC 120 (All Sound Off)
+//     control { |chan, ctlNum, val|
+//         if((ctlNum == 123) or: { ctlNum == 120 }) {
+//             // Reset all counts for this channel
+//             noteOnCounts.keysValuesDo { |key, count|
+//                 if((key div: 128) == chan) {
+//                     noteOnCounts[key] = 0;
+//                 };
+//             };
+//         };
+//         midiOut.control(chan, ctlNum, val);
+//     }
+//
+//     // Forward all other MIDIOut methods transparently
+//     doesNotUnderstand { |selector ... args|
+//         ^midiOut.performList(selector, args);
+//     }
+//
+//     // Explicit forwarding for properties accessed directly by SuperDirt
+//     latency { ^midiOut.latency }
+//     latency_ { |val| midiOut.latency = val }
+//     uid { ^midiOut.uid }
+//     port { ^midiOut.port }
+// }
+//
+// ============================================================================

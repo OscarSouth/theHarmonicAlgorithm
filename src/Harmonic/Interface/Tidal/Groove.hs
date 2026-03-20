@@ -32,120 +32,97 @@ normalizeToSubRange :: [Int] -> Int
 normalizeToSubRange [] = 47  -- B2: no sample (silence)
 normalizeToSubRange (pc:_) = 48 + (pc `mod` 12)
 
--- | Groove interface for MPC drum/sub program (MIDI channel 1).
--- C3-B3 (MIDI 48-59): Sub bass (sustained, note on/off controlled)
--- C4 (MIDI 60): Kick drum (one-shot)
+-- | Groove interface using patterned chord selection.
 --
--- Takes:
--- - Voice strategy (bass or fund)
--- - Progression state
--- - Repetitions/cycle length (patternable, e.g. 1, "1 0.5")
--- - Velocity/dynamics
--- - (max sub duration, sub note on pattern, sub note off pattern, kick pattern)
-subKick :: (P.Progression -> [[Int]])  -- Voice strategy (bass or fund)
-        -> P.Progression                -- State progression
-        -> Pattern Time                 -- Repetitions/cycle length (patternable)
-        -> Pattern Double               -- Dynamics pattern (> 0 = sub active, 0 = sub gated)
-        -> (Time,                       -- Note duration before off (1/1 = 1 cycle, 1/2 = half cycle)
-            String,                     -- Sub note on pattern string (e.g., "[1(3,8)]")
-            String,                     -- Manual note off boundary pattern string (e.g., "[0 1]*2")
-            String)                     -- Kick placement pattern string (e.g., "1*4")
+-- CC64 sustain mechanism with chord selection via @Pattern Int@.
+-- Sub on\/off patterns and kick pattern are bar-relative:
+-- @\"[1]/2\"@ = one onset every 2 bars, @\"1*4\"@ = 4 kicks per bar.
+--
+-- Chord selection uses 'innerJoin' — we WANT new note-ons when the
+-- chord changes (unlike melodic instruments where sustain across
+-- boundaries is desirable).
+--
+-- @chordPat@ is 1-indexed: @\"[1 2 3 4]/4\"@ selects chords 1-4.
+subKick :: (P.Progression -> [[Int]])  -- ^ Voice strategy (fund or bass)
+        -> P.Progression               -- ^ Progression
+        -> Pattern Int                  -- ^ Chord selection pattern (1-indexed)
+        -> Pattern Double               -- ^ Dynamics pattern (> 0 = sub active)
+        -> (Time,                       -- ^ Max sub duration before auto-off
+            String,                     -- ^ Sub note on pattern string
+            String,                     -- ^ Manual note off pattern string
+            String)                     -- ^ Kick placement pattern string
         -> Pattern ValueMap
-subKick voiceFunc prog rep dyn (maxDur, subOnStr, subOffStr, kickStr) =
+subKick voiceFunc prog chordPat dyn (maxDur, subOnStr, subOffStr, kickStr)
+  | null normPitches = silence
+  | otherwise =
   let
-    -- Extract and normalize pitches
-    rawPitches = voiceFunc prog
-    normPitches = map normalizeToSubRange rawPitches
-
     -- Parse pattern strings
-    subOnPat  = parseBP_E subOnStr
-    subOffPat = parseBP_E subOffStr
-    kickPat   = parseBP_E kickStr
+    subOnPat  = slow 4 $ parseBP_E subOnStr
+    subOffPat = slow 4 $ parseBP_E subOffStr
+    kickPat   = slow 4 $ parseBP_E kickStr
 
-    -- CC helper using proven midicmd approach (ccn/ccv doesn't work)
+    -- CC helper
     midiCC num val = midicmd "control" # ctlNum num # control val
 
-    -- Compensate inner patterns for rep factor: repeats pattern `rep` times per chord.
-    repFast p = fast rep p
-
-    -- Convert dynamics pattern to boolean gate for mask.
-    -- Allows rhythmic gating: dyn "1 0 1 0" plays sub on beats 1,3 only.
+    -- Convert dynamics to boolean gate for mask
     dynGate = fmap (> 0) dyn
 
     -- MIDI routing: channel 7 (0-indexed = midichan 6) on "thru" device
     thru = s "thru" # midichan 6
 
-    -- Sub pattern: cat cycles through chords (mirrors applyProg/arrange).
-    -- Each chord gets an equal segment of the cycle.
-    -- Gated by dynGate: note-ons only fire where dyn > 0.
-    -- Note-offs (autoOff/manualOff) always fire to ensure correct note kills.
-    subPattern = mask dynGate $ slow (4 * rep) $ cat $
-      map (\pitch -> struct (repFast subOnPat) $
-        midinote (pure $ fromIntegral pitch) # sustain 0.01 # amp dyn
-      ) normPitches
+    -- 0-indexed chord index from 1-indexed input, wrapping modulo nChords
+    chordIdx = fmap (\i -> (i - 1) `mod` nChords) chordPat
 
-    -- Kick pattern: fixed C4 (MIDI 60) with short sustain (one-shot, unaffected by CC 64)
-    kickPattern = slow (4 * rep) $ struct (repFast kickPat) $
-                  midinote 60 # sustain 0.01 # amp 1
+    -- Sub pattern: note-ons gated by dynamics and structured by subOnPat
+    subPattern = mask dynGate $ struct subOnPat $
+      innerJoin (fmap (\ci ->
+        midinote (pure $ fromIntegral (normPitches !! (ci `mod` nChords)))
+        # sustain 0.01 # amp dyn
+      ) chordIdx)
 
-    -- Sustain pedal: CC 64 = 127 continuous background stream.
-    -- 1/128 offset places CC64=127 at odd multiples of 1/128 (1/128, 3/128, ...),
-    -- which never collide with note-on, autoOff, or manualOff events (all at
-    -- even fractions). This eliminates the timestamp race condition where
-    -- CC64=127 and CC64=0 (or note-on) share a logical timestamp, causing
-    -- nondeterministic MIDI event ordering.
-    -- NOT gated by dynGate — continuous background regardless of dynamics.
+    -- Kick pattern: fixed C4 (MIDI 60), one-shot
+    kickPattern = struct kickPat $ midinote 60 # sustain 0.01 # amp 1
+
+    -- Sustain pedal: CC 64 = 127 continuous background
+    -- 1/128 offset avoids timestamp collision with note-on events
     sustainOn = (1/128) ~> segment 64 (midiCC 64 127)
 
-    -- Auto note-off: CC 64 = 0 pulse at maxDur after each note-on.
-    -- Shift maxDur gives constant outer note duration of 4*maxDur/n cycles.
-    -- Clamped to (1-1/128)/r to prevent wrap-around when maxDur*rep approaches 1.
-    -- When maxDur >= 1, notes sustain for full segment (no auto-off needed).
-    -- Always fires regardless of dynGate to ensure notes are killed.
+    -- Auto note-off: CC 64 = 0 shifted by maxDur after each note-on
     autoOff
       | maxDur >= 1 = silence
-      | otherwise   = slow (4 * rep) $ cat $
-          map (\_ -> struct (fmap (\r -> min (maxDur / r) (1 - 1/128)) rep ~> repFast subOnPat) $
-            midiCC 64 0
-          ) normPitches
+      | otherwise   = struct ((pure (maxDur * 4)) ~> subOnPat) $ midiCC 64 0
 
-    -- Manual note-off: CC 64 = 0 at user-specified boundaries.
-    -- subOffStr controls explicit cut points (e.g., "[0 1]" = cut on beat 3).
-    -- Always fires regardless of dynGate to ensure notes are killed.
-    manualOff = slow (4 * rep) $ struct (repFast subOffPat) $
-                midiCC 64 0
+    -- Manual note-off: CC 64 = 0 at user-specified boundaries
+    manualOff = struct subOffPat $ midiCC 64 0
 
-    -- LED feedback for Keith McMillen 12 Step foot controller.
-    -- CCs 20-32 control key LEDs (value 0 = off, 1 = on).
-    -- CC = midiNote - 28 (MIDI 48 -> CC 20, MIDI 60 -> CC 32).
-    -- Routed via MPC (same port/channel as notes); MPC forwards to 12 Step.
+    -- LED feedback for Keith McMillen 12 Step foot controller
     ledCC num val = midicmd "control"
                   # ctlNum (fromIntegral num)
                   # control (fromIntegral val)
 
-    subLedOn = (1/128) ~> (mask dynGate $ slow (4 * rep) $ cat $
-      map (\pitch -> struct (repFast subOnPat) $
-        ledCC (pitch - 28) 1
-      ) normPitches)
+    subLedOn = (1/128) ~> (mask dynGate $ struct subOnPat $
+      innerJoin (fmap (\ci ->
+        ledCC (normPitches !! (ci `mod` nChords) - 28) 1
+      ) chordIdx))
 
     subLedAutoOff
       | maxDur >= 1 = silence
-      | otherwise   = slow (4 * rep) $ cat $
-          map (\_ -> struct (fmap (\r -> min (maxDur / r) (1 - 1/128)) rep ~> repFast subOnPat) $
-            stack [ledCC cc 0 | cc <- [20..31]]
-          ) normPitches
+      | otherwise   = struct ((pure (maxDur * 4)) ~> subOnPat) $
+          stack [ledCC cc 0 | cc <- [20..31]]
 
-    subLedManualOff = slow (4 * rep) $ struct (repFast subOffPat) $
+    subLedManualOff = struct subOffPat $
       stack [ledCC cc 0 | cc <- [20..31]]
 
-    kickLedOn = slow (4 * rep) $ struct (repFast kickPat) $
-      ledCC 32 1
+    kickLedOn = struct kickPat $ ledCC 32 1
 
-    kickLedOff = slow (4 * rep) $ struct ((pure (1/32)) ~> repFast kickPat) $
-      ledCC 32 0
+    kickLedOff = struct ((pure (1/32)) ~> kickPat) $ ledCC 32 0
 
   in stack [ subPattern # thru, kickPattern # thru
            , sustainOn # thru, autoOff # thru, manualOff # thru
            , subLedOn # thru, subLedAutoOff # thru
            , subLedManualOff # thru, kickLedOn # thru, kickLedOff # thru
            ]
+  where
+    rawPitches  = voiceFunc prog
+    normPitches = map normalizeToSubRange rawPitches
+    nChords     = length normPitches

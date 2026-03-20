@@ -4,7 +4,7 @@ start = initCadenceState (-3) "D" [0,3,7] FlatSpelling
 
 ctx = hContext "*" "* -F# -Eb -Ab" "D C Bb"
 
-next <- gen start 2 "*" 0.5 ctx
+next <- gen start 4 "*" 0.5 ctx
 
 state = rotate (0) next
 
@@ -12,20 +12,20 @@ state = rotate (0) next
 do
   let
     dyn = slow 64 $ lfo tri 0.9 1
-    rp = 1
     s = transposeP 0 state
+    r = warp "[1 2 3 4]/8"
     f = (swingBy 0.04 2)
-    (d,r) = ((*dyn), rep)
+    d = (*dyn)
   putStrLn $ "GO ¬¬" ++ show s
   mapM_ id [hush, setbpm tempo
     -- ,metronome $d 0.1
     -- ,count s r $d 0.5
-    -- ,p03 f s r $ d 0.7
+    ,p03 f s r $ d 0.9
     -- ,p02 f s r $ d 1
     -- ,moog f s r $ d 0.9
-    ,subk f s r $ d 1
-    -- ,k909 f     $d 0.6
-    -- ,kmpc f     $d 0.9
+    ,subk f s r $ d 0
+    ,k909 f     $d 0.4
+    ,kmpc f     $d 0.9
     -- ,drum f     $d 0.1
    ]
 
@@ -46,6 +46,4 @@ mapM_ id [p "transport"
   -- ,setcps (tempo/60)
   ]
 
-hush
-
-d8 $ n "[1 2 3 4]/4"
+hush''

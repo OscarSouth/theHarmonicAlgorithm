@@ -57,8 +57,6 @@ library:
     - Harmonic.Traversal.Probabilistic
     # Interface (Layer D)
     - Harmonic.Interface.Tidal.Bridge
-    - Harmonic.Interface.Tidal.BridgeDev
-    - Harmonic.Interface.Tidal.GrooveDev
     - Harmonic.Interface.Tidal.Arranger
     - Harmonic.Interface.Tidal.Instruments
     - Harmonic.Interface.Tidal.Utils
