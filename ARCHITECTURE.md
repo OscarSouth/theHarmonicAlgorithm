@@ -290,7 +290,7 @@ Bach Chorales (CSV)
 
 **Modules**:
 - `Interface/Tidal/Bridge.hs` - Pattern-based lookup with modulo wrap (src/Harmonic/Interface/Tidal/Bridge.hs:1)
-- `Interface/Tidal/Arranger.hs` - Voicing strategies (flow, root, lite, etc.)
+- `Interface/Tidal/Arranger.hs` - Voicing strategies (flow, root, lite, literal, bass) and progression combinators
 - `Interface/Tidal/Instruments.hs` - Launcher definitions (juno, moog, etc.)
 - `Interface/Tidal/Utils.hs` - Utility functions
 
@@ -313,7 +313,12 @@ src/Harmonic/
 ├── Config.hs                 [Neo4j configuration]
 │
 ├── Framework/                [R→E→T Orchestration]
-│   └── Builder.hs            [Generation engine, coordinates R→E→T]
+│   ├── Builder.hs            [Facade re-export]
+│   └── Builder/
+│       ├── Types.hs          [Context and diagnostics types]
+│       ├── Core.hs           [Core generation logic]
+│       ├── Diagnostics.hs    [Diagnostic printing]
+│       └── Portmanteau.hs    [Composer name blending]
 │
 ├── Rules/                    [R Component + Layer A (Memory)]
 │   ├── Types/                [Foundational music theory types]
@@ -485,16 +490,15 @@ Output: Progression (Seq CadenceState)
 **State Threading**: Builder maintains `CadenceState` through generation:
 ```haskell
 data CadenceState = CadenceState
-  { csRoot      :: NoteName      -- Absolute root (e.g., C, F#, Bb)
-  , csFunc      :: String        -- Function name ("maj", "min7", etc.)
-  , csIntervals :: [PitchClass]  -- Absolute intervals [0,4,7]
-  , csSpelling  :: EnharmonicSpelling  -- FlatSpelling or SharpSpelling
+  { stateCadence     :: Cadence             -- Function, movement, zero-form intervals
+  , stateCadenceRoot :: NoteName            -- Absolute root (e.g., C, F#, Bb)
+  , stateSpelling    :: EnharmonicSpelling  -- FlatSpelling or SharpSpelling
   }
 ```
 
 ### 5.3 HarmonicContext
 
-The `HarmonicContext` type encodes the three-filter system (src/Harmonic/Framework/Builder.hs:68-72):
+The `HarmonicContext` type encodes the three-filter system (src/Harmonic/Framework/Builder/Types.hs:54-58):
 
 ```haskell
 data HarmonicContext = HarmonicContext
@@ -568,8 +572,8 @@ transitionProbabilities cadences =
 
 ### 6.2 YCACL Corpus
 
-**Dataset**: Yale Classical Archives Corpus of Bach chorales
-- **Size**: 60 chorales, ~5000 chords
+**Dataset**: Yale Classical Archives Corpus (YCACL)
+- **Size**: 80+ composers, ~5000 chords
 - **Format**: CSV with columns `[pitch1, pitch2, pitch3, pitch4, ...]`
 - **Preprocessing** (src/Harmonic/Rules/Import/Transform.hs:21-63):
   1. Extract fundamental (lowest pitch-class)
@@ -647,6 +651,13 @@ lite prog = literalVoicing prog
 ```haskell
 bass :: Progression -> [[Int]]
 bass prog = map (\chord -> [head (chordIntervals chord)]) (progChords prog)
+```
+
+**Fund Extraction** (harmonic root, inversion-invariant):
+```haskell
+fund :: Progression -> [[Int]]
+-- Always returns the true harmonic root, regardless of chord inversion
+-- Used primarily with subKick for kick drums and sub bass
 ```
 
 **Launcher Paradigm** (from legacy theHarmonicAlgorithm):
@@ -908,7 +919,8 @@ Measured on M1 MacBook Pro (2021), Neo4j local Docker:
 - **Interface tests**: `test/Harmonic/Interface/Tidal/BridgeSpec.hs`
 
 ### Documentation
-- **User guide**: `README.md`
+- **Project overview**: `README.md`
+- **User guide**: `USER_GUIDE.md`
 - **Architecture**: `ARCHITECTURE.md` (this file)
 - **TidalCycles tutorial**: `live/USER_GUIDE.tidal`
 - **Development guidelines**: `CLAUDE.md`
@@ -937,6 +949,6 @@ Measured on M1 MacBook Pro (2021), Neo4j local Docker:
 
 ---
 
-**Document Version**: 1.0
-**Last Updated**: 2026-01-14
+**Document Version**: 1.1
+**Last Updated**: 2026-03-20
 **For Questions**: See README.md or open GitHub issue

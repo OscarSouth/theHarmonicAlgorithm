@@ -1,432 +1,222 @@
-# theHarmonicAlgorithm
+# The Harmonic Algorithm
 
-**Generate harmonic progressions trained on the Yale Classical Archives Corpus**
+> *"My music of today is so much based on the new musical technology. We use the technology as a material for our musical art"*
+> — Igor Stravinsky, 1957
 
-A Haskell library that combines music theory, graph databases, and probabilistic selection to create musically coherent chord progressions for live coding with TidalCycles.
+![Header](img/header.png)
 
----
+___
+### Welcome to The Harmonic Algorithm :)
+###### this is an expression of my musical mind — it feels kind of like an 'LLM' (but there's no AI here, just old school counting and music theory) for navigating through and interacting with musical harmonic state in real time, while experiencing it.
+___
 
-## What It Does
+The Harmonic Algorithm, written in Haskell, using Neo4j as a backend
+and integrated highly with TidalCycles, generates musical domain
+specific data inside user defined constraints then filters it down and
+probabilistically ranks it using a tailored Markov Chain model trained on
+ingested musical data from the Yale Classical Archives Corpus. This presents
+a unique tool in the hands of the composer or performer which can be used
+as a writing aid, analysis device, for instrumental study or even in live
+performance.
 
-theHarmonicAlgorithm generates harmonic progressions by learning from Bach chorales in the Yale Classical Archives Corpus (YCACL). It stores cadence transitions in Neo4j, applies harmonic constraints, and selects chords probabilistically.
+This open-source project is based on a long term research agenda that I've
+pursued for many years, originating from an interest as an electric bass player
+in performance and composition, utilising the overtones of the instrument.
 
-**Key Features:**
-- **Training on classical repertoire**: Learn harmonic patterns from 60 Bach chorales
-- **Flexible constraints**: Filter by overtones, key signatures, and root motion
-- **Probabilistic selection**: Gamma-distribution sampling balances exploration and exploitation
-- **TidalCycles integration**: Pattern-based lookup with infinite cycling for live coding
-- **Voice leading optimization**: Dynamic programming for smooth chord progressions
-- **Comprehensive test suite**: 379 examples validating music theory and generation
+The Harmonic Algorithm takes the underpinning theoretical ideas from this
+research and realises them as a Haskell library with deep TidalCycles
+integration for live coding. Under the hood, harmonic transitions from over
+80 composers are stored in a Neo4j graph database. The system learns how
+harmony moves — not just what chords exist, but how they lead into one
+another — and uses this knowledge to generate progressions that feel
+musically coherent while remaining endlessly surprising.
 
-**Who It's For:**
-- Live coders using TidalCycles and SuperCollider
-- Composers exploring algorithmic harmony
-- Music researchers interested in computational creativity
+The core idea draws on Geraint Wiggins' Creative Systems Framework: define
+the *rules* of what's harmonically possible, *evaluate* the quality of each
+option using voice leading and dissonance scoring, then *traverse* the space
+probabilistically — balancing between the familiar and the unexpected.
 
----
+`[video: 60-second overview — generating a progression from a single chord,`
+`hearing it come to life through TidalCycles and SuperCollider, the harmony`
+`unfolding in real time as patterns evolve and layer]`
 
-## Quick Start (5 Minutes)
+___
 
-### Prerequisites
+## Research
 
-- **Haskell Stack**: [Install Stack](https://docs.haskellstack.org/) with GHC 9.6.7
-- **Docker**: For running Neo4j database
-- **TidalCycles** (optional): For live coding integration
+The original 2016 research documents on which The Harmonic Algorithm draws
+influence can be accessed at the following links:
 
-### Installation
+Core document:
+[original core document (2016)](documents/The_Harmonic_Algorithm_2016.pdf)
+
+Reflective document:
+[original reflective document (2016)](documents/Harmonic_Algorithm_Reflections_2016.pdf)
+
+The accompanying document for this project which discusses The Harmonic Algorithm
+as a creative system can be accessed here:
+[creative system document (2018)](documents/Data_Science_In_The_Creative_Process_2018.pdf)
+
+___
+
+## What It Sounds Like
+
+The same starting chord can lead to radically different musical outcomes.
+A single parameter — entropy — controls the balance between familiar harmonic
+motion and surprising, exploratory leaps:
+
+`[audio: a progression generated with low entropy (0.2) — smooth, conventional`
+`voice leading, the kind of movement Bach would recognise]`
+
+`[audio: the same starting chord with high entropy (0.8) — unexpected turns,`
+`distant modulations, the algorithm venturing into unfamiliar harmonic territory]`
+
+The system also lets you blend the harmonic sensibilities of different composers.
+These aren't presets — they're weighted combinations of learned transition
+probabilities:
+
+`[audio: a progression weighted "bach" — strong functional harmony,`
+`clear cadential motion]`
+
+`[audio: the same starting point weighted "debussy" — more colourful,`
+`less predictable, modal inflections creeping in]`
+
+`[audio: a weighted blend "bach:30 debussy:70" — functional foundations`
+`with impressionistic colour, a stylistic fusion that neither composer`
+`would have written alone]`
+
+`[video: a live coding session — building a piece from scratch in TidalCycles,`
+`generating progressions on the fly, layering rhythm and melody over`
+`algorithmically generated harmony, the music evolving in real time]`
+
+___
+
+## What It Looks Like
+
+Let's start simple. Here's what it looks like to generate your first
+progression — just a starting chord, a length, and an entropy value:
+
+`[gif: launching stack ghci, creating a harmonic context, generating`
+`an 8-chord progression from C major — watching the output appear,`
+`each chord following naturally from the last]`
+
+Now let's apply some constraints. The Harmonic Algorithm lets you filter
+by key signature, overtone series, and root motion — narrowing the
+harmonic possibilities to match your musical context:
+
+`[gif: applying a key filter and an overtone filter based on bass guitar`
+`tuning (E A D G), watching the available harmonic choices narrow to`
+`structures that ring naturally on the instrument]`
+
+Things get interesting when you bring this into TidalCycles. The library
+integrates directly — generated progressions become patterns you can
+manipulate, voice, and perform live:
+
+`[gif: TidalCycles in action — using arrange and voiceBy to transform`
+`a generated progression into layered patterns, bass notes separated`
+`from upper voicings, everything cycling and evolving]`
+
+You don't always need the algorithm to generate for you. Sometimes you
+want to build progressions by hand — the changes to a standard, a
+specific harmonic idea — and use the library's voicing and arrangement
+tools to bring them to life:
+
+`[gif: constructing the chord changes to a jazz standard explicitly`
+`using note names, then arranging and voicing them through TidalCycles,`
+`hearing the piece take shape]`
+
+And here's the composer blending in action — switching between learned
+styles and hearing how the same harmonic starting point leads to
+completely different musical journeys:
+
+`[gif: generating progressions with "bach", then "debussy", then a`
+`weighted blend — the terminal output side by side with the sound,`
+`the character of each composer's harmonic language audible in the`
+`generated movement]`
+
+___
+
+## Installation
+
+### Dependencies
+
+1. [Haskell Stack](https://docs.haskellstack.org/en/latest/install_and_upgrade/)
+2. [Docker](https://www.docker.com/) (for the Neo4j graph database)
+3. [TidalCycles](https://tidalcycles.org/) (optional — for live coding integration)
+
+Once dependencies have been installed, the following steps can be used to
+build and run:
+
+### Setup
 
 ```bash
-# Step 1: Clone and build
+# Clone the repository
 git clone https://github.com/OscarSouth/theHarmonicAlgorithm
 cd theHarmonicAlgorithm
+
+# Build the library
 stack build
 
-# Step 2: Start Neo4j database
+# Start the Neo4j database
 docker compose up -d neo4j
 
-# Step 3: Populate database with Bach chorales
+# Populate the database with the YCACL corpus
 stack run
-# Expected: "Cadence count: ~5000, Transition count: ~15000"
 
-# Step 4: Run tests to verify everything works
+# Verify everything works
 stack test
-# Expected: "379 examples, 0 failures"
 ```
 
-### First Progression
+You can now start exploring with `stack ghci` or integrate with TidalCycles
+using the boot file in `live/BootTidal.hs`.
 
-```bash
-stack ghci
-```
+___
 
-```haskell
-:set -XOverloadedStrings
-import Harmonic.Lib
+## Going Deeper
 
--- Create context and starting point
-ctx <- harmonicContext "*" "*" "*"  -- No filtering (wildcard)
-let start = initCadenceState 0 "C" [0,4,7] FlatSpelling  -- C major
+Once you're up and running, there's plenty to explore:
 
--- Generate 4-chord progression
-prog <- genSilent start 4 "*" 0.5 ctx
-print prog
-```
+**[Interactive User Guide](live/USER_GUIDE.tidal)** — a hands-on tutorial
+that walks through everything from your first chord to live performance,
+with examples you can run directly in TidalCycles.
 
-**Expected output**:
-```
-C maj → F maj → G maj → C maj
-```
+**[Worked Examples](live/examples/)** — complete pieces you can play with
+immediately, including a jazz standard arrangement and a traditional tune
+with form transformation.
 
----
+**[Architecture Guide](ARCHITECTURE.md)** — the technical deep dive into
+how the system works: the four-layer architecture, the R→E→T pipeline,
+zero-form cadence storage, and the graph database model.
 
-## Architecture Overview
+**[Contributor Guidelines](CLAUDE.md)** — for anyone who'd like to
+contribute: the vertical slice workflow, mandatory verification steps,
+and layer boundary rules.
 
-theHarmonicAlgorithm implements the **Creative Systems Framework (R→E→T)**:
-
-```
-   RULES (R)              EVALUATION (E)          TRAVERSAL (T)
-Define valid chords ───▶ Score chord quality ───▶ Select probabilistically
-```
-
-- **Rules (R)**: Defines valid harmonic possibilities (overtones, key signatures, root motion)
-- **Evaluation (E)**: Scores quality using dissonance and voice leading costs
-- **Traversal (T)**: Selects next chord using gamma-distribution sampling
-
-**Four-Layer Architecture:**
-
-```
-Layer D: VOICE       ─ TidalCycles interface, pattern lookup
-         │
-Layer C: HANDS       ─ Evaluation (scoring) + Traversal (selection)
-         │
-Layer B: BRAIN       ─ Music theory types (Pitch, Harmony, Progression)
-         │
-Layer A: MEMORY      ─ Data ingestion (CSV parsing, Neo4j writes)
-```
-
-**For detailed architecture**, see [ARCHITECTURE.md](ARCHITECTURE.md).
-
----
-
-## Usage Examples
-
-### Generate Progressions
-
-```haskell
-import Harmonic.Lib
-
--- Create context and starting state
-ctx <- harmonicContext "*" "*" "*"
-let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
-
--- Different verbosity levels
-prog1 <- genSilent start 8 "*" 0.5 ctx    -- No diagnostics
-prog2 <- genStandard start 8 "*" 0.5 ctx  -- Standard logging
-prog3 <- genVerbose start 8 "*" 0.5 ctx   -- Full trace
-
--- Control entropy (exploration vs exploitation)
-lowEntropy  <- genSilent start 8 "*" 0.2 ctx  -- Conservative (high-weight cadences)
-highEntropy <- genSilent start 8 "*" 0.8 ctx  -- Exploratory (deeper sampling)
-```
-
-### Apply Constraints
-
-```haskell
--- Key filtering (G major - 1 sharp)
-let gMajorCtx = harmonicContext "*" "1#" "*"
-prog <- genSilent start 8 "*" 0.5 gMajorCtx
-
--- Overtone filtering (bass guitar tuning E-A-D-G)
-let bassCtx = harmonicContext "E A D G" "*" "*"
-prog <- genSilent start 8 "*" 0.5 bassCtx
-
--- Combined: D major key and roots
-let dMajorCtx = harmonicContext "*" "##" "##"
-prog <- genSilent start 8 "*" 0.5 dMajorCtx
-
--- Prime notation (exact pitch-classes without overtones)
-let bluesCtx = harmonicContext "G E' A' A#'" "*" "E G"
-prog <- genSilent start 8 "*" 0.5 bluesCtx
-```
-
-**Filter Notation:**
-- **Overtones**: `"E A D G"` (fundamentals), `"C"` (single overtone series), `"*"` (wildcard)
-- **Prime**: `"C'"` (exact pitch-class C, no overtones), `"E'"` (exact E)
-- **Key signatures**: `"1#"` (G major), `"2b"` (Bb major), `"##"` (D major)
-- **Roots**: `"E F# G"` (specific roots), `"1#"` (G major scale roots)
-
-### TidalCycles Integration
-
-```haskell
--- Generate a progression
-ctx <- harmonicContext "*" "*" "*"
-let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
-prog <- genSilent start 16 "*" 0.5 ctx
-
--- Use in TidalCycles patterns
-d1 $ note (harmony prog "<0 1 2 3>") # s "superpiano"
-
--- Pattern-based lookup with modulo wrap
--- Index 16 on a 16-chord progression wraps to 0 (infinite cycling)
-d1 $ note (harmony prog (run 16)) # s "superpiano"
-
--- Extract different voices
-d1 $ note (voiceBy Roots prog (run 8)) # s "bass"
-d1 $ note (voiceBy Harmony prog "<0 2 4 6>") # s "superpiano"
-```
-
-**Full TidalCycles guide**: [live/USER_GUIDE.tidal](live/USER_GUIDE.tidal)
-
----
-
-## Explicit Progression Construction
-
-In addition to generating progressions from the database, you can explicitly construct progressions for composition and arrangement workflows:
-
-```haskell
-import Harmonic.Lib
-
--- Method 1: Direct pitch-class lists
-myProg = fromChordsFlat [
-    [0, 4, 7],    -- C major
-    [5, 9, 0],    -- F major
-    [7, 11, 2],   -- G major
-    [0, 4, 7]     -- C major
-  ]
-
--- Method 2: Note names for readability
-myProg2 = fromChordsSharp [
-    notesToPCs [C, E, G],     -- C major
-    notesToPCs [D, F', A],    -- D major
-    notesToPCs [G, B, D]      -- G major
-  ]
-
--- Use in TidalCycles
-d1 $ note (arrange flow myProg 0 (-9,9) "0 1 2 3") # s "superpiano"
-```
-
-### Switch Mechanism (Harmony as Scale Source)
-
-The switch mechanism allows harmony to serve as the scale source for melody, enabling flexible melodic construction:
-
-```haskell
--- Create harmony progression
-harmonyProg = fromChordsFlat [[0,4,7], [5,9,0], [7,11,2]]
-
--- Option 1: Explicit scales (traditional)
-scales = [[0,2,4,7,9], [0,2,4,5,9], [0,2,4,7,9]]
-melodyState1 = fromChordsFlat scales
-
--- Option 2: Use harmony as scales (switch!)
-melodyState2 = harmonyProg  -- Same progression, used for melody
-
--- Option 3: Use harmony with overlap (passing tones)
-melodyState3 = progOverlapF 1 harmonyProg
-
--- Usage in patterns:
-d1 $ note (arrange flow harmonyProg 0 (-9,9) "0 1 2") # s "superpiano"     -- Harmony
-d2 $ note (arrange flow melodyState1 0 (-9,9) "[0 2 4]") # s "supersaw"    -- Melody (explicit scales)
-d2 $ note (arrange flow melodyState2 0 (-9,9) "[0 1 2]") # s "supersaw"    -- Melody (harmony as scale)
-d2 $ note (arrange flow melodyState3 0 (-9,9) "[0 1 2 3]") # s "supersaw"  -- Melody (with passing tones)
-```
-
-### Form Transformation
-
-Define musical sections and transform them by changing the form structure:
-
-```haskell
--- Define sections
-a = [notesToPCs [C, E, G], notesToPCs [F, A, C]]
-b = [notesToPCs [G, B, D], notesToPCs [D, F', A]]
-
--- Change form by changing the assembly
-form1 = concat [a, a, b, a]  -- AABA (original)
-form2 = concat [a, b, a, b]  -- ABAB (alternate)
-form3 = concat [a, a, b, b]  -- AABB (variation)
-
-state1 = fromChordsSharp form1
-state2 = fromChordsSharp form2
-state3 = fromChordsSharp form3
-
--- Same melody, different forms
-melody = "[0 2 4 0 1 2 3 1]"
-d1 $ note (arrange flow state1 0 (-9,9) melody) # s "superpiano"  -- AABA structure
-d1 $ note (arrange flow state2 0 (-9,9) melody) # s "superpiano"  -- ABAB structure
-```
-
-**Examples:**
-- **[live/examples/blue_in_green.tidal](live/examples/blue_in_green.tidal)** - Jazz progression with scale/melody separation and switch mechanism
-- **[live/examples/rosslyn_castle.tidal](live/examples/rosslyn_castle.tidal)** - AABA form with transformation support and note name syntax
-
----
-
-## Documentation
-
-- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Comprehensive technical reference (R→E→T framework, module structure, core concepts)
-- **[live/USER_GUIDE.tidal](live/USER_GUIDE.tidal)** - Interactive TidalCycles tutorial with examples
-- **[CLAUDE.md](CLAUDE.md)** - Development guidelines for contributors (vertical slices, testing)
-
----
-
-## Key Concepts
-
-### Zero-Form Invariant
-
-All cadences are stored as **relative intervals** starting at pitch-class 0, making the graph transposition-invariant:
-
-```
-C major → F major  =  Up 5 semitones + [0,4,7]
-G major → C major  =  Up 5 semitones + [0,4,7]
-                      ↑ Same relative movement!
-```
-
-**Why?**
-- Dataset not biased toward common keys
-- Smaller transition matrix (12× fewer states)
-- Emphasizes cadence movement not chord identity
-
-### Layer Boundaries
-
-Architecture enforces clean dependency flow:
-- Layer B (Types) **cannot** import from C or D
-- Layer C (Evaluation/Traversal) may import from B but **not** D
-- Layer D (Interface) may import from B and C
-
-**Prevents** circular dependencies and ensures unidirectional data flow.
-
-### Composer Specification
-
-Composer specification enables filtering and blending by composer style:
-
-- `"*"` — aggregate all composers (wildcard, sum of all edge weights)
-- `"bach"` or `"debussy"` — filter by single composer
-- `"bach:30 debussy:70"` — weighted blend of multiple composers
-- `"bach debussy stravinsky"` — equal-weight blend of multiple composers
-
-Edge weights stored per-composer in Neo4j are multiplied by the user's blend weights to produce candidate scores.
-
----
-
-## Development
-
-### Build Commands
-
-```bash
-stack build      # Compile library and executable
-stack test       # Run test suite (379 examples)
-stack ghci       # Interactive REPL for testing
-stack run        # Populate Neo4j with YCACL corpus
-stack haddock    # Generate API documentation
-```
-
-### Project Structure
-
-```
-src/Harmonic/
-├── Framework/      - Builder and orchestration (R→E→T pipeline)
-├── Rules/          - Types and constraints (validity)
-├── Evaluation/     - Scoring (dissonance, voice leading, database)
-├── Traversal/      - Selection (probabilistic sampling)
-└── Interface/      - TidalCycles integration
-
-test/               - HSpec + QuickCheck test suite
-live/               - TidalCycles boot scripts and examples
-musicdata/          - Yale Classical Archives Corpus (Bach chorales)
-scripts/            - R scripts for corpus preprocessing
-```
-
-### Contributing
-
-See [CLAUDE.md](CLAUDE.md) for detailed development guidelines:
-- Vertical slice methodology (minimum deliverable units)
-- Mandatory verification (tests + REPL)
-- Layer boundary enforcement
-
-**Before contributing**:
-1. Ensure Neo4j is running (`docker compose up -d neo4j`)
-2. Run full test suite (`stack test`)
-
----
-
-## Data Preparation (Optional)
-
-The repository includes preprocessed YCACL data. To regenerate from source:
-
-```bash
-# Requires R with tidyverse
-Rscript scripts/export_ycacl.R \
-  musicdata/YCACL \
-  musicdata/YCAC-metadata.csv \
-  data/ycacl_sequences.csv
-```
-
-The exporter:
-- Filters to triads/quartal voicings (3-7 voices)
-- Normalizes composer names
-- Extracts fundamentals (lowest pitch-class)
-- Writes tall CSV format (`composer,piece,order,pitches,fundamental`)
-
----
-
-## License
-
-MIT License - see [LICENSE](LICENSE) for details.
-
----
+___
 
 ## Acknowledgments
 
-- **Geraint A. Wiggins** - Creative Systems Framework (R→E→T)
-- **Alex McLean** - TidalCycles live coding environment
-- **UCI Machine Learning Repository** - Yale Classical Archives Corpus (Bach chorales dataset)
-- **Paul Hindemith** - Interval dissonance theory (The Craft of Musical Composition, 1937)
+This project wouldn't exist without the work of:
 
----
+- **Geraint A. Wiggins** — the Creative Systems Framework that underpins
+  the algorithm's architecture
+- **Alex McLean** — TidalCycles, which gave this project its voice
+- **Paul Hindemith** — interval dissonance theory from The Craft of Musical
+  Composition (1937), which informs the evaluation scoring
+- **UCI Machine Learning Repository** — the Yale Classical Archives Corpus
+  that trains the model
 
-## Troubleshooting
+___
 
-**Neo4j connection fails:**
-```bash
-# Check Neo4j is running
-curl -s http://localhost:7474
-# Expected: HTML page
+Let me know if you have any feature suggestions or comments in general and
+feel free to get in touch through this repository's
+[Issues](https://github.com/OscarSouth/theHarmonicAlgorithm/issues) section.
 
-# Verify credentials in src/Harmonic/Config.hs
--- default: bolt://localhost:7687 with neo4j/password
-```
+Alternatively, use the contact form for my main performance project UDAGAN:
+https://UDAGANuniverse.com/contact
 
-**Build errors:**
-```bash
-# Clean and rebuild
-stack clean
-stack build
+Oscar
 
-# Update package index
-stack update
-```
+___
 
-**Tests fail:**
-```bash
-# Ensure Neo4j is running (some tests require database)
-docker compose up -d neo4j
-
-# Run specific test suite
-stack test --test-arguments="--match Pitch"
-```
-
-**Generation returns empty progressions:**
-```bash
-# Verify database is populated
-docker exec -it theHarmonicAlgorithm-neo4j \
-  cypher-shell -u neo4j -p password \
-  "MATCH (c:Cadence) RETURN count(c)"
-
-# Expected: ~5000 cadences
-# If 0, run: stack run
-```
-
----
-
-**Version**: 3.0.0
-**Last Updated**: 2026-01-14
-**Repository**: https://github.com/OscarSouth/theHarmonicAlgorithm
+MIT License — see [LICENSE](LICENSE) for details.

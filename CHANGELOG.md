@@ -2,47 +2,82 @@
 
 ## V3 (2026-03-13)
 
-### Architecture
-- **R->E->T Framework**: Rules->Evaluation->Traversal pipeline with four layers:
-  - Layer A (Memory): CSV parsing, Neo4j writes, constraints
-  - Layer B (Brain): Pitch-class algebra, harmony naming, voice leading
-  - Layer C (Hands): Database queries, probabilistic selection, Markov analysis
-  - Layer D (Voice): TidalCycles bridge, arrangement, groove interface
-- **Builder module split**: Monolithic Builder.hs (~1900 lines) split into Types, Core, Diagnostics, Portmanteau sub-modules with facade re-export
+V3 is a ground-up rebuild of The Harmonic Algorithm. What started as a
+command line interface for navigating harmonic space has become a live
+performance instrument — deeply integrated with TidalCycles, capable of
+channelling the harmonic sensibilities of over 80 composers from the Yale
+Classical Archives Corpus, and designed to be played in real time.
 
-### Generation Engine
-- **Unified generation interface**: `genSilent`, `genStandard`, `genVerbose` with identical type signatures differing only in diagnostic output
-- **Composer blend specification**: `"bach:30 debussy:70"` weighted blend, single composer, or `"*"` wildcard aggregation over YCACL corpus (600+ composers)
-- **HarmonicContext filtering**: Three-part R-constraint system (overtones, key, roots) applied before database evaluation
-- **Multiplicative fallback scoring**: `badness = chordDiss * motionDiss * (gammaDraw + 1)` with gamma perturbation for organic randomness
-- **Consonance fallback**: Constructive generation from overtone palette when graph candidates are insufficient
-- **Diagnostic trace system**: TransformTrace and AdvanceTrace for step-by-step debugging of chord rendering and root motion
+### New Musical Possibilities
 
-### Voice Leading
-- **Cyclic DP optimization**: `solveRoot` (root position) and `solveFlow` (free inversion) paradigms with wrap-around cost
-- **Parallel motion penalties**: Parallel fifths/octaves detection with configurable penalty
-- **Large leap penalties**: Movement > 4 semitones penalized proportionally
+**Composer Blending** — You can now channel different composers' harmonic
+sensibilities and blend them with weighted ratios. `"bach"` gives you strong
+functional harmony. `"debussy"` brings colourful modal movement.
+`"debussy:0.75 bach:0.25"` creates a stylistic fusion that neither would
+have written alone. The wildcard `"*"` aggregates across the entire corpus.
+Blended composers even get a creative portmanteau name in the output.
 
-### TidalCycles Interface
-- **Bridge**: Pattern lookup with modulo wrap (`lookupChord`), voice extraction (`rootNotes`, `bassNotes`, `flow`)
-- **Arranger**: Progression combinators (`rotate`, `excerpt`, `fuse`, `transpose`, `expand`, `insert`)
-- **Groove**: Performance interface with `fund` voice strategy for harmonic root extraction
-- **Instruments**: Instrument definitions and utilities
-- **Voicing strategies**: `root`, `flow`, `lite`, `literal` via `voiceBy`
+**Five Voicing Strategies** — Each one reshapes how a progression sounds
+without changing the harmony itself. `flow` finds the smoothest voice leading
+using cyclic dynamic programming. `root` keeps the root in the bass with
+optimised upper voices. `lite` gives you the raw intervals. `bass` extracts
+just the lowest voice as a melodic line. `fund` always returns the harmonic
+root regardless of inversion — essential for kick drums and sub bass.
 
-### Performance
-- **Shared RNG**: Single `GenIO` threaded through generation run (eliminated ~4600 `/dev/urandom` reads per 8-chord progression)
-- **O(1) chain building**: Reverse-cons accumulator with explicit current state (was O(n^2) list append)
-- **Pre-parsed context**: `ParsedContext` with `IntSet` for O(1) membership tests (was reparsing text ~690 times/step)
-- **Vector-ified DP solver**: `Data.Vector` for O(1) indexing in voice leading solver (was O(n) list indexing)
+**Entropy as a Creativity Dial** — A single parameter controls the balance
+between the familiar and the surprising. At 0.3, the algorithm follows the
+most common cadences — safe, consonant, Bach-approved. At 0.8, it reaches
+deeper into the probability space for unexpected harmonic turns and distant
+modulations. The same starting chord can lead to radically different
+musical outcomes.
 
-### Correctness
-- **`mostConsonant` fix**: Inline implementation now matches canonical Dissonance module (added perfect fifth bonus and degenerate set penalty)
-- **`readNoteName` fix**: Unknown note names now throw error instead of silently defaulting to C
-- **Candidate pool alignment**: `genSilent` and `genStandard`/`genVerbose` now use identical candidate pools
-- **CSV parse error handling**: Parse failures now throw instead of silently returning empty data
+**Groove Interface** — `subKick` creates MPC-style kick and sub bass patterns
+that follow the harmonic root of the current chord. Rhythm and harmony
+unified — the low end always locks to the harmony, even as the progression
+changes underneath.
 
-### Cleanup
-- Removed dead homing mechanism scaffold (`gcHomingThreshold`, `gcHomingStrength`, `fetchHomingCandidates`, `applyHomingBias`)
-- `GeneratorConfig` reduced to single field: `gcPoolSize`
-- Documented Markov.hs as ingestion-only (not used in runtime generation path)
+**Explicit Construction** — You don't always need the algorithm to generate
+for you. Build progressions by hand with pitch-class lists or readable note
+names (`notesToPCs [C, E, G]`). Define musical sections (A, B) and assemble
+them into different forms — AABA, ABAB, AABB — hearing the same material
+create different structures.
+
+**Progression Manipulation** — Reshape generated harmony in real time:
+`rotate` shifts the starting point, `excerpt` pulls out a section,
+`transposeP` shifts everything to a new key, `reverse` plays it backwards,
+`fuse` joins progressions end to end, `expandP` slows the harmonic rhythm.
+All composable — chain them together for complex transformations.
+
+**Three-Part Filtering** — Constrain the harmonic space with overtones,
+key signatures, and root motion filters. Bass guitar tuning (`"E A D G"`),
+jazz contexts (`"*" "2#" "D F# A"`), blues roots (`"*" "1b" "F Bb C"`) —
+the filtering system shapes the musical character as much as the notes
+themselves. Removal syntax (`"-Bb'"`) subtracts specific pitches.
+
+**Pattern Launcher Paradigm** — Define reusable instrument blocks with
+four parameters: transformation, progression, chord selection, and dynamics.
+Stack multiple voices with independent voicing, register, and rhythm.
+Launch and relaunch through a session with different progressions and
+transformations.
+
+### Under the Hood
+
+The generation engine was rebuilt for reliability and performance:
+- Voice leading uses cyclic dynamic programming for globally optimal
+  voicings across the full progression (including wrap-around)
+- A shared RNG eliminates thousands of `/dev/urandom` reads per generation
+- Pre-parsed harmonic contexts use `IntSet` for O(1) membership tests
+- The Builder module was split into focused sub-modules (Types, Core,
+  Diagnostics, Portmanteau) with a facade re-export preserving the API
+- Several correctness fixes ensure the algorithm produces what it claims —
+  `mostConsonant` now matches the canonical Dissonance module, unknown
+  note names throw errors instead of silently defaulting, and all
+  generation functions use identical candidate pools
+
+### Migration from V2
+
+- The public API is preserved through facade re-exports — existing code
+  should work unchanged
+- `GeneratorConfig` has been simplified to a single field (`gcPoolSize`)
+- The experimental homing mechanism has been removed (it was never
+  part of the musical interface)
