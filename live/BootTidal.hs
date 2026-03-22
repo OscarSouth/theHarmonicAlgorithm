@@ -246,5 +246,44 @@ hh' pat = stack [
 :}
 
 -------------------------------------------------------------------------------
+-- Q-Link Controller Bridge (CC 100-110 via qlink-bridge.scd → OSC port 6010)
+-------------------------------------------------------------------------------
+
+qlink1 = cF 0 "100"
+qlink2 = cF 0 "101"
+qlink3 = cF 0 "102"
+qlink4 = cF 0 "103"
+
+tgl1 = cF 0 "104"
+tgl2 = cF 0 "105"
+tgl3 = cF 0 "106"
+tgl4 = cF 0 "107"
+tgl5 = cF 0 "108"
+
+xyX = cF 0 "109"
+xyY = cF 0 "110"
+
+:{
+let setI = streamSetI tidal
+    setF = streamSetF tidal
+    setS = streamSetS tidal
+    setB = streamSetB tidal
+:}
+
+:{
+let over :: Pattern Double -> [a] -> Pattern a
+    over _ [] = silence
+    over ctrl xs =
+      let n = length xs
+          step = 1 / fromIntegral n
+      in fmap (\x -> xs !! max 0 (floor (min (fromIntegral (n - 1)) (x / step)))) ctrl
+    (-->) = over
+:}
+
+(q1,q2,q3,q4) = (qlink1,qlink2,qlink3,qlink4)
+(t1,t2,t3,t4) = (tgl1,tgl2,tgl3,tgl4)
+(o1,o2,o3,o4) = (o,o,o,o) where o = slow 16 $ lfo tri 0 1
+
+-------------------------------------------------------------------------------
 -- End BootTidal.hs
 -------------------------------------------------------------------------------

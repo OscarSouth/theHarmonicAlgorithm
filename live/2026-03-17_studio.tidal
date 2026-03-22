@@ -84,6 +84,3 @@ subk f s r d = p "subKick"
 -- cc input
 -- readme
 -- finish user guide
-
-
-:t kinetic

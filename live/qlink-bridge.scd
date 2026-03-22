@@ -60,3 +60,61 @@
 
 	"✅ Qlink Bridge with Absolute CCs is active.".postln;
 )
+
+// ============================================================================
+// Shell Setup — add to ~/.zshrc
+// ============================================================================
+//
+// start_qlinks() {
+//   cd /Users/oscarsouth/.stack/global-project/live || return 1
+//
+//   echo "Waiting for SuperCollider (boot TidalCycles first)..."
+//   while ! lsof -nP -iUDP:57121 2>/dev/null | grep -q UDP; do
+//     sleep 2
+//   done
+//   sleep 1
+//
+//   python3 osc-send.py localhost 57121 /run-code s --file qlink-bridge.scd
+//   echo "Q-Link bridge active. Monitoring encoders (Ctrl-C to stop)..."
+//
+//   local status_file="$HOME/Library/Application Support/SuperCollider/sc_status.line"
+//   touch "$status_file"
+//   trap 'echo "\nStopped."; return 0' INT TERM
+//   while true; do
+//     printf "\r%s" "$(cat "$status_file" 2>/dev/null)"
+//     sleep 0.05
+//   done
+// }
+//
+// liveCode() {
+//   cd /Users/oscarsouth/.stack/global-project/live || return 1
+//
+//   /Applications/Pulsar.app/Contents/MacOS/Pulsar . > /dev/null 2>&1 &
+//   local pulsar_pid=$!
+//
+//   cleanup() { kill $pulsar_pid 2>/dev/null; wait $pulsar_pid 2>/dev/null; echo "\nStopped."; }
+//   trap cleanup EXIT INT TERM
+//
+//   echo "Waiting for SuperCollider (boot TidalCycles in Pulsar)..."
+//   while ! lsof -nP -iUDP:57121 2>/dev/null | grep -q UDP; do
+//     kill -0 $pulsar_pid 2>/dev/null || { echo "Pulsar exited."; return 1; }
+//     sleep 2
+//   done
+//   sleep 1
+//
+//   python3 osc-send.py localhost 57121 /run-code s --file qlink-bridge.scd
+//   echo "Q-Link bridge active. Monitoring encoders (Ctrl-C to stop)..."
+//
+//   local status_file="$HOME/Library/Application Support/SuperCollider/sc_status.line"
+//   touch "$status_file"
+//   while kill -0 $pulsar_pid 2>/dev/null; do
+//     printf "\r%s" "$(cat "$status_file" 2>/dev/null)"
+//     sleep 0.05
+//   done
+// }
+//
+// Usage:
+//   liveCode     — Opens Pulsar, waits for SC, injects bridge, monitors.
+//                   Ctrl-C or closing Pulsar stops everything.
+//   start_qlinks — Standalone: injects bridge into already-running SC.
+// ============================================================================
