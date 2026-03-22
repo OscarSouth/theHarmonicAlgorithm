@@ -13,19 +13,19 @@ do
   let
     dyn = slow 64 $ lfo tri 0.9 1
     s = transposeP 0 state
-    r = warp "[1 2 3 4]/8"
+    r = warp "[1 2]/4"
     f = (swingBy 0.04 2)
     d = (*dyn)
   putStrLn $ "GO ¬¬" ++ show s
   mapM_ id [hush, setbpm tempo
     -- ,metronome $d 0.1
     -- ,count s r $d 0.5
-    ,p03 f s r $ d 0.9
+    -- ,p03 f s r $ d 0.1
     -- ,p02 f s r $ d 1
     -- ,moog f s r $ d 0.9
-    ,subk f s r $ d 0
+    -- ,subk f s r $ d 1
     ,k909 f     $d 0.4
-    ,kmpc f     $d 0.9
+    -- ,kmpc f     $d 0.9
     -- ,drum f     $d 0.1
    ]
 

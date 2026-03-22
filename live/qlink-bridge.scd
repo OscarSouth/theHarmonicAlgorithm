@@ -55,6 +55,14 @@
 			// Update the display (only shows encoders) and send the OSC message
 			~updateStatusLine.value;
 			~osc.sendMsg("/ctrl", num.asString, oscValue);
+			("CC" ++ num.asString ++ " → " ++ oscValue.round(0.001).asString).postln;
+		};
+
+		// Additional absolute CCs (outside 100-110 range)
+		if (chan == 0 and: { [111].includes(num) }) {
+			oscValue = val / 127.0;
+			~osc.sendMsg("/ctrl", num.asString, oscValue);
+			("CC" ++ num.asString ++ " → " ++ oscValue.round(0.001).asString).postln;
 		};
 	});
 
@@ -68,11 +76,13 @@
 // start_qlinks() {
 //   cd /Users/oscarsouth/.stack/global-project/live || return 1
 //
+//   local ready_file="$HOME/Library/Application Support/SuperCollider/sc_ready"
+//   rm -f "$ready_file"
+//
 //   echo "Waiting for SuperCollider (boot TidalCycles first)..."
-//   while ! lsof -nP -iUDP:57121 2>/dev/null | grep -q UDP; do
+//   while [[ ! -f "$ready_file" ]]; do
 //     sleep 2
 //   done
-//   sleep 1
 //
 //   python3 osc-send.py localhost 57121 /run-code s --file qlink-bridge.scd
 //   echo "Q-Link bridge active. Monitoring encoders (Ctrl-C to stop)..."
@@ -95,12 +105,14 @@
 //   cleanup() { kill $pulsar_pid 2>/dev/null; wait $pulsar_pid 2>/dev/null; echo "\nStopped."; }
 //   trap cleanup EXIT INT TERM
 //
+//   local ready_file="$HOME/Library/Application Support/SuperCollider/sc_ready"
+//   rm -f "$ready_file"
+//
 //   echo "Waiting for SuperCollider (boot TidalCycles in Pulsar)..."
-//   while ! lsof -nP -iUDP:57121 2>/dev/null | grep -q UDP; do
+//   while [[ ! -f "$ready_file" ]]; do
 //     kill -0 $pulsar_pid 2>/dev/null || { echo "Pulsar exited."; return 1; }
 //     sleep 2
 //   done
-//   sleep 1
 //
 //   python3 osc-send.py localhost 57121 /run-code s --file qlink-bridge.scd
 //   echo "Q-Link bridge active. Monitoring encoders (Ctrl-C to stop)..."

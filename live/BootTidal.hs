@@ -263,6 +263,9 @@ tgl5 = cF 0 "108"
 xyX = cF 0 "109"
 xyY = cF 0 "110"
 
+exP = cF 0 "111"
+exp = exp
+
 :{
 let setI = streamSetI tidal
     setF = streamSetF tidal
@@ -280,9 +283,9 @@ let over :: Pattern Double -> [a] -> Pattern a
     (-->) = over
 :}
 
-(q1,q2,q3,q4) = (qlink1,qlink2,qlink3,qlink4)
-(t1,t2,t3,t4) = (tgl1,tgl2,tgl3,tgl4)
-(o1,o2,o3,o4) = (o,o,o,o) where o = slow 16 $ lfo tri 0 1
+(o1,o2,o3) = (o,o,o) where o = slow 16 $ lfo tri 0 1
+(q1,q2,q3,p4) = (qlink1, qlink2, qlink3, qlink4)
+(t1,t2,t3,t4,t5) = (tgl1, tgl2, tgl3, tgl4, tgl5)
 
 -------------------------------------------------------------------------------
 -- End BootTidal.hs

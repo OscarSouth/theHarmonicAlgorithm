@@ -99,6 +99,7 @@ s.reboot {
     );
 
     "SuperDirt is ready.".postln;
+    File(Platform.userAppSupportDir ++ "/sc_ready", "w").write(Date.getDate.stamp).close;
   };
 };
 )

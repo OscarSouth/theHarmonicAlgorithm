@@ -22,10 +22,12 @@ k909 f d = p "909kit" $ do
   f
     $ stack [silence
        -- --
-      ,kick "[1]"
-      ,hh "[0 1]"
-      ,snap "[0 1]/2"
-      ,hh "1 1 2 1"
+      -- ,kick "[1]"
+      -- ,hh "[0 1]"
+      -- ,snap "[0 1]/2"
+      -- ,hh "1 1 2 1"
+      ,ride "[1 . 1 1]" #vel (1-exP) |* vel (lfo tri 0.08 0.5) |+ humanise 0.2
+      ,hh "[~ 1]" #vel exP
        -- --
     ]# o # legato 0.01 |* vel d
 
@@ -72,9 +74,10 @@ subk f s r d = p "subKick"
   $ f
     $ subKick bass s r d ( 1/4
       -- ,"[1*4]"
-      ,"[1]/2"
-      ,"[0 1 0 0]"
-      -- ,"[~]"
+      ,"[1(3,8)]*2"
+      -- ,"[1]/2"
+      -- ,"[0 1 0 0]"
+      ,"[~]"
       -- ,"[~]"
       ,"1*4"
     )
@@ -84,3 +87,6 @@ subk f s r d = p "subKick"
 -- cc input
 -- readme
 -- finish user guide
+
+
+hush
