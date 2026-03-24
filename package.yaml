@@ -58,6 +58,8 @@ library:
     # Interface (Layer D)
     - Harmonic.Interface.Tidal.Bridge
     - Harmonic.Interface.Tidal.Arranger
+    - Harmonic.Interface.Tidal.Form
+    - Harmonic.Interface.Tidal.Groove
     - Harmonic.Interface.Tidal.Instruments
     - Harmonic.Interface.Tidal.Utils
   source-dirs: src

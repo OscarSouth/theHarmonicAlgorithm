@@ -37,6 +37,7 @@ import qualified Harmonic.Framework.BuilderSpec as BuilderSpec
 import qualified Harmonic.Evaluation.Database.QuerySpec as QuerySpec
 import qualified Harmonic.Interface.Tidal.BridgeSpec as InterfaceSpec
 import qualified Harmonic.Interface.Tidal.GrooveSpec as GrooveSpec
+import qualified Harmonic.Interface.Tidal.FormSpec as FormSpec
 
 main :: IO ()
 main = hspec $ do
@@ -54,3 +55,4 @@ main = hspec $ do
   describe "Harmonic.Core.Builder" BuilderSpec.spec
   describe "Harmonic.Tidal.Interface" InterfaceSpec.spec
   describe "Harmonic.Tidal.Groove" GrooveSpec.spec
+  describe "Harmonic.Tidal.Form" FormSpec.spec

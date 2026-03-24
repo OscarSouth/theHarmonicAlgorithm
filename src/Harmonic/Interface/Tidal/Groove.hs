@@ -8,6 +8,7 @@ module Harmonic.Interface.Tidal.Groove
 import qualified Harmonic.Rules.Types.Pitch as Pitch
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Progression as P
+import Harmonic.Interface.Tidal.Form (Kinetics(..), ki)
 import Data.Foldable (toList)
 import Sound.Tidal.Context
 
@@ -32,7 +33,7 @@ normalizeToSubRange :: [Int] -> Int
 normalizeToSubRange [] = 47  -- B2: no sample (silence)
 normalizeToSubRange (pc:_) = 48 + (pc `mod` 12)
 
--- | Groove interface using patterned chord selection.
+-- | Groove interface using patterned chord selection with kinetics gating.
 --
 -- CC64 sustain mechanism with chord selection via @Pattern Int@.
 -- Sub on\/off patterns and kick pattern are bar-relative:
@@ -42,17 +43,33 @@ normalizeToSubRange (pc:_) = 48 + (pc `mod` 12)
 -- chord changes (unlike melodic instruments where sustain across
 -- boundaries is desirable).
 --
+-- The progression is read from @kProg k@ via @innerJoin@.
+-- Sub is gated at @(0.1, 1)@ and kick at @(0.2, 1)@ via @ki@.
+--
 -- @chordPat@ is 1-indexed: @\"[1 2 3 4]/4\"@ selects chords 1-4.
 subKick :: (P.Progression -> [[Int]])  -- ^ Voice strategy (fund or bass)
-        -> P.Progression               -- ^ Progression
         -> Pattern Int                  -- ^ Chord selection pattern (1-indexed)
         -> Pattern Double               -- ^ Dynamics pattern (> 0 = sub active)
+        -> Kinetics                     -- ^ Form context
         -> (Time,                       -- ^ Max sub duration before auto-off
             String,                     -- ^ Sub note on pattern string
             String,                     -- ^ Manual note off pattern string
             String)                     -- ^ Kick placement pattern string
         -> Pattern ValueMap
-subKick voiceFunc prog chordPat dyn (maxDur, subOnStr, subOffStr, kickStr)
+subKick voiceFunc chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr) =
+  innerJoin $ fmap (\prog ->
+    subKickCore voiceFunc prog chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr)
+  ) (kProg k)
+
+-- |Internal: subKick logic with ki gating on sub/kick groups.
+subKickCore :: (P.Progression -> [[Int]])
+            -> P.Progression
+            -> Pattern Int
+            -> Pattern Double
+            -> Kinetics
+            -> (Time, String, String, String)
+            -> Pattern ValueMap
+subKickCore voiceFunc prog chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr)
   | null normPitches = silence
   | otherwise =
   let
@@ -117,11 +134,20 @@ subKick voiceFunc prog chordPat dyn (maxDur, subOnStr, subOffStr, kickStr)
 
     kickLedOff = struct ((pure (1/32)) ~> kickPat) $ ledCC 32 0
 
-  in stack [ subPattern # thru, kickPattern # thru
-           , sustainOn # thru, autoOff # thru, manualOff # thru
-           , subLedOn # thru, subLedAutoOff # thru
-           , subLedManualOff # thru, kickLedOn # thru, kickLedOff # thru
-           ]
+    -- Sub group: sub pattern + CC64 sustain + sub LEDs
+    subGroup = ki (0.1, 1) k $ stack
+      [ subPattern # thru
+      , sustainOn # thru, autoOff # thru, manualOff # thru
+      , subLedOn # thru, subLedAutoOff # thru, subLedManualOff # thru
+      ]
+
+    -- Kick group: kick pattern + kick LEDs
+    kickGroup = ki (0.2, 1) k $ stack
+      [ kickPattern # thru
+      , kickLedOn # thru, kickLedOff # thru
+      ]
+
+  in stack [subGroup, kickGroup]
   where
     rawPitches  = voiceFunc prog
     normPitches = map normalizeToSubRange rawPitches

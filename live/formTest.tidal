@@ -1,0 +1,49 @@
+-- Performance interfaces with form integration
+-- Load this first, then load stateFormTest.tidal
+
+let cresc = (0, 1)
+let upper = (0.5, 1)
+let peak  = (0.8, 1)
+
+p03 f r d k = d03 $ do
+  let o = ch 01
+  f
+    $ stack [silence
+      ,arrange upper flow (overlapF 0) r k (-9,9) ["~"
+        ,"[1,2,3]/8"
+      ]# o |* vel 0.4 |- oct 1 |* legato 0.99
+      ,arrange cresc root (overlapF 0) r k (-9,9) ["~"
+        ,"[0 [0,4]]/8"
+      ]# o |* vel 0.9 |- oct 2 |= legato 0.99
+    ] |* vel (kDynamic k) |* vel d
+
+k909 f d k = p "909kit" $ do
+  let o = ch 9
+  f
+    $ stack [silence
+      ,slate cresc k [silence
+        ,hh "[0 1]"
+        ]
+      ,slate upper k [silence
+        ,hh "1 1 2 1"
+        ]
+    ]# o # legato 0.01 |* vel (kDynamic k) |* vel d
+
+kmpc f d k = p "mpckit" $ do
+  let o = ch 10
+  f
+    $ stack [silence
+      ,slate cresc k [silence
+        ,rarely (palindrome) $ degradeBy 0.8 $ stut 2 (1/2) (1/4) $ click "[0 1]/2" |* vel 0.1
+        ,sometimesBy 0.1 (>> hh "2") $ sometimesBy 0.05 (fast 2) $ degradeBy 0.4 $ hh "[1]*4" |* vel (lfo saw 0.1 0.4)
+        ,hh "0 2?" |* vel 0.2
+        ]
+    ]# o # legato 0.01 |* vel (kDynamic k) |* vel d
+
+subk f r d k = p "subKick"
+  $ f
+    $ subKick bass r d k ( 1/4
+      ,"[1]/2"
+      ,"[0 1 0 0]"
+      ,"1*4"
+    )

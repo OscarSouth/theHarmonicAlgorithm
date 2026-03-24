@@ -119,6 +119,11 @@ module Harmonic.Lib (
   lookupChord, lookupProgression, VoiceType(..), voiceBy, harmony,
   overlapF,
 
+  -- Form / Kinetics
+  FormNode(..), Kinetics(..), at, formK,
+  ki, slate, withForm,
+  form444, form720, form1164,
+
   -- Arranger functions (voicing paradigms)
   rotate, excerpt, insert, switch, clone, extract,
   transposeP, Harmonic.Interface.Tidal.Arranger.reverse, fuse, fuse2, interleave, expandP,
@@ -180,6 +185,11 @@ import Harmonic.Interface.Tidal.Arranger (
     ScaleSource(..), melodyStateFrom
   )
 import Harmonic.Interface.Tidal.Groove (subKick, fund)
+import Harmonic.Interface.Tidal.Form (
+    FormNode(..), Kinetics(..), at, formK,
+    ki, slate, withForm,
+    form444, form720, form1164
+  )
 import Harmonic.Interface.Tidal.Instruments
 import Harmonic.Interface.Tidal.Utils
 import Harmonic.Config

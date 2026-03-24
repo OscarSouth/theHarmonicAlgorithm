@@ -9,11 +9,14 @@
 --
 -- Two arrangement strategies:
 --
--- * 'arrange' — onset-join: each note maps through the chord active at its
---   onset time. Sustained notes keep their pitch across chord boundaries.
+-- * 'arrange' — onset-join with kinetics range gating: each note maps
+--   through the chord active at its onset time, masked by kinetics signal.
 --
--- * 'arrange'' — squeeze: each chord slot gets the full input pattern
---   compressed to fit. Pattern restarts per chord.
+-- * 'arrange'' — squeeze with kinetics range gating: each chord slot
+--   gets the full input pattern compressed to fit.
+--
+-- Both take a progression modifier @(P.Progression -> P.Progression)@
+-- and read the base progression from @kProg k@ via @innerJoin@.
 
 module Harmonic.Interface.Tidal.Bridge
   ( -- * Voice Functions
@@ -25,8 +28,8 @@ module Harmonic.Interface.Tidal.Bridge
   , rep
 
     -- * Arrangement
-  , arrange       -- onset-join
-  , arrange'      -- squeeze
+  , arrange       -- onset-join with kinetics
+  , arrange'      -- squeeze with kinetics
 
     -- * Chord Lookup
   , lookupChordAt
@@ -48,6 +51,7 @@ module Harmonic.Interface.Tidal.Bridge
 import qualified Harmonic.Rules.Types.Progression as P
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Interface.Tidal.Arranger as A
+import Harmonic.Interface.Tidal.Form (Kinetics(..))
 
 import Sound.Tidal.Context hiding (voice)
 
@@ -92,21 +96,37 @@ rep prog repVal =
 -- Arrangement: arrange (onset-join)
 -------------------------------------------------------------------------------
 
--- |Map notes through chords using onset-time lookup.
+-- |Map notes through chords using onset-time lookup, with kinetics range gating.
 --
--- Each note event is mapped through the chord that is active at its onset
--- time. Notes that sustain through chord boundaries keep their onset-time
--- pitch — no spurious re-triggering.
+-- The base progression is read from @kProg k@ via @innerJoin@.
+-- The modifier function transforms the progression (e.g. @overlapF 0@, @id@).
+-- Events are masked by the kinetics signal: only active when kSignal is
+-- within the @(lo, hi)@ range.
 --
 -- @chordPat@ is 1-indexed: @\"[1 2 3 4]/4\"@ selects chords 1-4.
 -- Indices wrap modulo the number of chords in the progression.
-arrange :: VoiceFunction
-        -> P.Progression
-        -> Pattern Int        -- ^ Chord selection pattern (1-indexed)
-        -> (Int, Int)         -- ^ MIDI note range filter
-        -> [Pattern Int]      -- ^ Input patterns to harmonize
+arrange :: (Double, Double)                     -- ^ Kinetics range
+        -> VoiceFunction                         -- ^ Voice function (flow, root, etc.)
+        -> (P.Progression -> P.Progression)      -- ^ Progression modifier (overlapF 0, id, etc.)
+        -> Pattern Int                           -- ^ Chord selection pattern (1-indexed)
+        -> Kinetics                              -- ^ Form context
+        -> (Int, Int)                            -- ^ MIDI note range filter
+        -> [Pattern Int]                         -- ^ Input patterns to harmonize
         -> Pattern ValueMap
-arrange voiceFunc prog chordPat register pats
+arrange (lo, hi) voiceFunc modifier chordPat k register pats =
+  mask (fmap (\x -> x >= lo && x <= hi) (kSignal k)) $
+    innerJoin $ fmap (\prog ->
+      arrangeCore voiceFunc (modifier prog) chordPat register pats
+    ) (kProg k)
+
+-- |Internal: onset-join arrangement logic (unchanged from original arrange).
+arrangeCore :: VoiceFunction
+            -> P.Progression
+            -> Pattern Int        -- ^ Chord selection pattern (1-indexed)
+            -> (Int, Int)         -- ^ MIDI note range filter
+            -> [Pattern Int]      -- ^ Input patterns to harmonize
+            -> Pattern ValueMap
+arrangeCore voiceFunc prog chordPat register pats
   | null voicings = silence
   | otherwise =
       let chordIdx = fmap (\i -> (i - 1) `mod` nChords) chordPat
@@ -139,20 +159,34 @@ arrange voiceFunc prog chordPat register pats
 -- Arrangement: arrange' (squeeze)
 -------------------------------------------------------------------------------
 
--- |Map notes through chords using squeeze (pattern restart per chord).
+-- |Map notes through chords using squeeze, with kinetics range gating.
 --
--- Each chord slot gets the full input pattern compressed to fit its
--- time span. Patterns restart for each chord — no temporal distortion,
--- and each chord sees the complete pattern.
+-- Same kinetics/modifier pattern as 'arrange', but uses squeeze strategy:
+-- each chord slot gets the full input pattern compressed to fit.
 --
 -- @chordPat@ is 1-indexed, same as 'arrange'.
-arrange' :: VoiceFunction
-         -> P.Progression
-         -> Pattern Int        -- ^ Chord selection pattern (1-indexed)
-         -> (Int, Int)         -- ^ MIDI note range filter
-         -> [Pattern Int]      -- ^ Input patterns to harmonize
+arrange' :: (Double, Double)                     -- ^ Kinetics range
+         -> VoiceFunction                         -- ^ Voice function
+         -> (P.Progression -> P.Progression)      -- ^ Progression modifier
+         -> Pattern Int                           -- ^ Chord selection pattern (1-indexed)
+         -> Kinetics                              -- ^ Form context
+         -> (Int, Int)                            -- ^ MIDI note range filter
+         -> [Pattern Int]                         -- ^ Input patterns to harmonize
          -> Pattern ValueMap
-arrange' voiceFunc prog chordPat register pats
+arrange' (lo, hi) voiceFunc modifier chordPat k register pats =
+  mask (fmap (\x -> x >= lo && x <= hi) (kSignal k)) $
+    innerJoin $ fmap (\prog ->
+      arrangeCore' voiceFunc (modifier prog) chordPat register pats
+    ) (kProg k)
+
+-- |Internal: squeeze arrangement logic (unchanged from original arrange').
+arrangeCore' :: VoiceFunction
+             -> P.Progression
+             -> Pattern Int        -- ^ Chord selection pattern (1-indexed)
+             -> (Int, Int)         -- ^ MIDI note range filter
+             -> [Pattern Int]      -- ^ Input patterns to harmonize
+             -> Pattern ValueMap
+arrangeCore' voiceFunc prog chordPat register pats
   | null voicings = silence
   | otherwise =
       let chordIdx  = fmap (\i -> (i - 1) `mod` nChords) chordPat
