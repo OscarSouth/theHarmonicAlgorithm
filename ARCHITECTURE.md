@@ -289,8 +289,10 @@ Bach Chorales (CSV)
 **Purpose**: Bridge between harmonic engine and TidalCycles live coding
 
 **Modules**:
-- `Interface/Tidal/Bridge.hs` - Pattern-based lookup with modulo wrap (src/Harmonic/Interface/Tidal/Bridge.hs:1)
+- `Interface/Tidal/Form.hs` - Kinetics framework: form-driven range gating, macro compositional arc
+- `Interface/Tidal/Bridge.hs` - Pattern-based lookup with modulo wrap, arrange/arrange' with kinetics (src/Harmonic/Interface/Tidal/Bridge.hs:1)
 - `Interface/Tidal/Arranger.hs` - Voicing strategies (flow, root, lite, literal, bass) and progression combinators
+- `Interface/Tidal/Groove.hs` - Performance interfaces (subKick with kinetics gating, fund extraction)
 - `Interface/Tidal/Instruments.hs` - Launcher definitions (juno, moog, etc.)
 - `Interface/Tidal/Utils.hs` - Utility functions
 
@@ -348,7 +350,8 @@ src/Harmonic/
 │
 └── Interface/                [Layer D (Voice) - TidalCycles]
     └── Tidal/                [TidalCycles-specific bridge]
-        ├── Bridge.hs         [Pattern lookup and modulo wrap]
+        ├── Form.hs           [Kinetics framework (form-driven range gating)]
+        ├── Bridge.hs         [Pattern lookup, arrange/arrange' with kinetics]
         ├── Arranger.hs       [Voicing strategies (flow, root, lite)]
         ├── Groove.hs         [Performance interfaces (subKick, fund)]
         ├── Instruments.hs    [Launcher definitions]
@@ -592,9 +595,9 @@ transitionProbabilities cadences =
 
 ### 7.1 Pattern Bridge
 
-The `Interface.Tidal.Bridge` module provides pattern-based lookup (src/Harmonic/Interface/Tidal/Bridge.hs:1):
+The `Interface.Tidal.Bridge` module provides pattern-based lookup and arrangement with kinetics-driven form control (src/Harmonic/Interface/Tidal/Bridge.hs:1).
 
-**Key Function**:
+**Chord Lookup**:
 ```haskell
 lookupChord :: Progression -> Int -> Chord
 lookupChord prog idx =
@@ -608,6 +611,14 @@ lookupChord prog idx =
 - `lookupChord prog 0` → first chord
 - `lookupChord prog 16` → chord at `(16 mod len)`
 - Enables infinite cycling: `run 4` on 16-bar progression loops first 4
+
+**Arrangement with Kinetics**:
+```haskell
+arrange :: (Double, Double) -> VoiceFunction -> (Progression -> Progression)
+        -> Pattern Int -> Kinetics -> (Int, Int) -> [Pattern Int] -> Pattern ValueMap
+```
+
+`arrange` reads the active progression from `kProg k` via `innerJoin`, applies a progression modifier (e.g. `overlapF 0` or `id`), and masks events by the kinetics signal range. The kinetics context replaces the old direct progression parameter, enabling form-driven range gating and reactive progression switching.
 
 **Pattern Syntax** (TidalCycles):
 ```haskell
@@ -660,13 +671,14 @@ fund :: Progression -> [[Int]]
 -- Used primarily with subKick for kick drums and sub bass
 ```
 
-**Launcher Paradigm** (from legacy theHarmonicAlgorithm):
+**Launcher Paradigm** (kinetics-driven):
 ```haskell
--- Example: Juno synthesizer with flow voicing
-juno f s r d = p "juno" $ f $ arrange flow s r (-9,9) ["pattern"]
+-- Example: Juno synthesizer with flow voicing and kinetics
+juno f r d k = p "juno" $ f $ arrange (0,1) flow id r k (-9,9) ["pattern"]
+  |* vel (kDynamic k) |* vel d
 
--- Usage in TidalCycles
-d1 $ juno flow prog 1 (-9,9) [run 4]
+-- Usage in TidalCycles (k = formK tempo form)
+juno id (rep s4 1) 0.9 k
 ```
 
 ---
@@ -910,6 +922,8 @@ Measured on M1 MacBook Pro (2021), Neo4j local Docker:
 - **Probabilistic**: `src/Harmonic/Traversal/Probabilistic.hs`
 - **Tidal bridge**: `src/Harmonic/Interface/Tidal/Bridge.hs`
 - **Arranger**: `src/Harmonic/Interface/Tidal/Arranger.hs`
+- **Form/Kinetics**: `src/Harmonic/Interface/Tidal/Form.hs`
+- **Groove**: `src/Harmonic/Interface/Tidal/Groove.hs`
 
 ### Test Files
 - **Test runner**: `test/Spec.hs`
@@ -917,6 +931,8 @@ Measured on M1 MacBook Pro (2021), Neo4j local Docker:
 - **Harmony tests**: `test/Harmonic/Rules/Types/HarmonySpec.hs`
 - **Builder tests**: `test/Harmonic/Framework/BuilderSpec.hs`
 - **Interface tests**: `test/Harmonic/Interface/Tidal/BridgeSpec.hs`
+- **Groove tests**: `test/Harmonic/Interface/Tidal/GrooveSpec.hs`
+- **Form tests**: `test/Harmonic/Interface/Tidal/FormSpec.hs`
 
 ### Documentation
 - **Project overview**: `README.md`
@@ -945,10 +961,14 @@ Measured on M1 MacBook Pro (2021), Neo4j local Docker:
 - **Overtone Series**: Harmonic series of a fundamental pitch (C → [C, E, G, Bb, ...])
 - **PitchClass**: ℤ₁₂ cyclic group element representing pitch-class (0=C, 1=C#, ..., 11=B)
 - **Progression**: Monoid-wrapped sequence of CadenceState
+- **FormNode**: A point in a form definition: wall-clock time, kinetics level (0–1), dynamic level (0–1), and active progression
+- **Kinetics**: Realized form signals: kSignal (continuous kinetics 0–1), kDynamic (continuous dynamics 0–1), kProg (discrete progression step function)
+- **ki (range gating)**: `ki (lo, hi) k pat` — masks pattern events by kinetics signal level, only passing when kSignal is within the specified range
+- **slate**: Gated stack — `slate range k [pats]` — combines ki range gating with stack for layered drum/instrument activation
 - **Zero-Form**: Intervals shifted so first pitch = 0 (transposition-invariant)
 
 ---
 
-**Document Version**: 1.1
-**Last Updated**: 2026-03-20
+**Document Version**: 1.2
+**Last Updated**: 2026-03-24
 **For Questions**: See README.md or open GitHub issue

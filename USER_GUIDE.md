@@ -34,8 +34,9 @@ let ctx = hContext "*" "0#" "*"
 -- Generate a 4-chord progression
 s4 <- gen start 4 "*" 0.5 ctx
 
--- Launch on an instrument
-p01 id s4 (rep s4 1) $ (*1) 0.9
+-- Launch on an instrument (single-state form = no arc)
+let k = formK tempo [at 0 1 1 s4]
+p01 id (rep s4 1) 0.9 k
 ```
 
 That's it. Everything else in this guide is about the musical choices you
@@ -160,19 +161,24 @@ The launcher paradigm is the core of the TidalCycles interface. A pattern
 block is a function with four parameters:
 
 - **f** — a transformation function (id, slow 2, fast 2, rev, swingBy)
-- **s** — the progression to play
 - **r** — a chord selection pattern (which chord is active when)
 - **d** — dynamics (velocity scaling)
+- **k** — kinetics context (form, progression, dynamics envelope)
+
+The progression is no longer passed directly — it comes from the kinetics
+context (`kProg k`), which also carries the form's kinetics and dynamic
+signals.
 
 A minimal launcher looks like this:
 
 ```haskell
-p01 f s r d = d01 $ do
+p01 f r d k = d01 $ do
   let o = ch 01
-  f $ arrange flow s r (-9,9) ["~", "0 1 2 3"] # o |* vel d
+  f $ arrange (0,1) flow id r k (-9,9) ["~", "0 1 2 3"]
+    # o |* vel (kDynamic k) |* vel d
 ```
 
-You define the launcher once, then call it with different progressions,
+You define the launcher once, then call it with different kinetics contexts,
 transformations, and dynamics throughout a session.
 
 `[video: a minimal launcher block — defining p01, generating a progression,
@@ -183,16 +189,22 @@ a piano sound]`
 
 You can stack multiple `arrange` blocks inside a single launcher for
 layered textures — each voice with its own voicing strategy, register,
-dynamics, and note pattern:
+dynamics, kinetics range, and note pattern:
 
 ```haskell
-p03 f s r d = d03 $ do
+p03 f r d k = d03 $ do
   let o = ch 01
   f $ stack [silence
-    ,arrange flow s r (-9,9) ["~", "[0,1,2,3]/4"] # o |* vel 0.8
-    ,arrange root s r (-9,9) ["~", "0*2"] # o |* vel 1 |- oct 2
-  ] |* vel d
+    ,arrange (0.5,1) flow id r k (-9,9) ["~", "[0,1,2,3]/4"]
+      # o |* vel 0.8
+    ,arrange (0,1) root id r k (-9,9) ["~", "0*2"]
+      # o |* vel 1 |- oct 2
+  ] |* vel (kDynamic k) |* vel d
 ```
+
+The kinetics range (first argument to `arrange`) controls when each voice
+activates — `(0.5,1)` means the flow chords only play when the form's
+kinetics signal is above 0.5, while `(0,1)` plays always.
 
 `[video: building up layers — starting with flow chords alone, then adding
 a root bass line an octave below, hearing the texture grow from sparse
@@ -206,11 +218,11 @@ harmony itself:
 
 ```haskell
 -- Try each:
-p01 id s r d          -- no change
-p01 (slow 2) s r d    -- half speed
-p01 (fast 2) s r d    -- double speed
-p01 rev s r d         -- reversed
-p01 (swingBy 0.1 2) s r d  -- swing feel
+p01 id r d k          -- no change
+p01 (slow 2) r d k    -- half speed
+p01 (fast 2) r d k    -- double speed
+p01 rev r d k         -- reversed
+p01 (swingBy 0.1 2) r d k  -- swing feel
 ```
 
 You can compose transformations: `slow 2 . rev` plays the progression
@@ -224,8 +236,8 @@ musical character each time]`
 ### 3.4 Complete Launcher
 
 A production launcher typically has three voices — chords, bass, and melody —
-each with their own voicing, register, and rhythmic pattern. See
-[Section 3.4 of USER_GUIDE.tidal](live/USER_GUIDE.tidal) for the full
+each with their own voicing, register, kinetics range, and rhythmic pattern.
+See [Section 3.4 of USER_GUIDE.tidal](live/USER_GUIDE.tidal) for the full
 example.
 
 `[video: a complete production launcher with flow chords in the mid range,
@@ -297,14 +309,18 @@ musical quality to the same underlying harmony]`
 ### 4.7 Voicing in arrange
 
 In practice, you combine voicings in a single launcher — flow for chords,
-root for bass, bass or fund for a kick pattern:
+root for bass, bass or fund for a kick pattern. Each voice can have its
+own kinetics range for form-driven activation:
 
 ```haskell
 f $ stack [silence
-  ,arrange flow s r (-9,9) ["~", "[0,1,2,3]/4"] # o |* vel 0.8
-  ,arrange root s r (-9,9) ["~", "0*2"] # o |* vel 1 |- oct 1
-  ,arrange bass s r (-9,9) ["~", "0*4"] # o |* vel 1.2 |- oct 2
-] |* vel d
+  ,arrange (0.5,1) flow id r k (-9,9) ["~", "[0,1,2,3]/4"]
+    # o |* vel 0.8
+  ,arrange (0,1) root id r k (-9,9) ["~", "0*2"]
+    # o |* vel 1 |- oct 1
+  ,arrange (0,1) bass id r k (-9,9) ["~", "0*4"]
+    # o |* vel 1.2 |- oct 2
+] |* vel (kDynamic k) |* vel d
 ```
 
 `[video: a full launcher combining flow chords, root bass, and bass kick
@@ -465,7 +481,7 @@ emerging purely from how the chords are sequenced in time]`
 
 ### 6.4 arrange vs arrange'
 
-Two arrangement strategies:
+Two arrangement strategies, both with kinetics range gating:
 
 - **arrange** (onset-join) — each note maps through the chord active at
   its onset time. Sustained notes keep their pitch across chord boundaries.
@@ -474,29 +490,162 @@ Two arrangement strategies:
 - **arrange'** (squeeze) — the full pattern restarts for each chord slot.
   Best for rhythmic patterns that should repeat per chord.
 
+Both take the same parameters: `(lo, hi)` kinetics range, voice function,
+progression modifier, chord pattern, kinetics context, register, and
+input patterns.
+
 `[video: arrange vs arrange' — the same pattern through both strategies,
 hearing sustained notes glide through chord changes with arrange, and
 the pattern restart cleanly at each new chord with arrange']`
 
 ___
 
-## 7. Groove / Drums Interface
+## 7. Form & Kinetics
 
-### 7.1 Basic subKick Usage
+### 7.1 Overview
 
-`subKick` creates MPC-style drum patterns that follow the harmonic root.
-It layers a sub bass, a kick-off pattern, and a kick pattern:
+The Kinetics framework encodes macro-level compositional arc as programmable
+structure. A form is defined in wall-clock seconds, realized as TidalCycles
+patterns, and loops endlessly. It carries three signals:
+
+- **kSignal** — kinetics level (0–1), continuous piecewise linear
+  interpolation. Used for range gating: controlling which voices are active.
+- **kDynamic** — dynamic envelope (0–1), continuous piecewise linear
+  interpolation. Used for velocity scaling across the form.
+- **kProg** — active progression, discrete step function. Switches between
+  progressions at form boundaries.
+
+### 7.2 Defining a Form
+
+A form is a list of `FormNode` values, each constructed with `at`:
 
 ```haskell
-p "subKick" $ subKick fund s4 (rep s4 1) 1
+at :: Double -> Double -> Double -> Progression -> FormNode
+at time kinetics dynamic progression
+```
+
+For example, a 30-second three-layer form:
+
+```haskell
+form =
+  [ at  0  0.0  0.3 s0    -- low: root only
+  , at 10  0.5  0.6 s0    -- mid: + upper voices
+  , at 20  1.0  1.0 s1    -- high: full, new harmony
+  , at 30  0.0  0.3 s0    -- loop back to low
+  ]
+```
+
+Between nodes, kinetics and dynamic values interpolate linearly. The
+progression holds as a step function — `s0` plays from 0–20s, `s1` from
+20–30s. At the end of the form (30s), it loops back to the beginning.
+
+### 7.3 Realizing a Form
+
+`formK` converts a form definition and a BPM into a `Kinetics` value:
+
+```haskell
+k = formK tempo form
+```
+
+This produces looping TidalCycles patterns for all three signals.
+
+### 7.4 Single-State Form (Formless)
+
+A single `at` node produces constant signals — equivalent to having no
+form at all. This is the simplest way to use the kinetics system:
+
+```haskell
+let k = formK tempo [at 0 1 1 s]
+```
+
+Here `kSignal = pure 1`, `kDynamic = pure 1`, `kProg = pure s`. Everything
+passes, everything plays at full level.
+
+### 7.5 Range Gating with ki
+
+`ki` masks a pattern by the kinetics signal level:
+
+```haskell
+ki :: (Double, Double) -> Kinetics -> Pattern a -> Pattern a
+ki (lo, hi) k pat
+```
+
+Events only pass when `kSignal` is within `[lo, hi]` (inclusive). This
+is how voices activate at different points in the form:
+
+```haskell
+ki (0.5, 1.0) k chordPattern   -- only plays in upper half of form
+ki (0.0, 0.3) k bassPattern    -- only plays in quiet sections
+```
+
+### 7.6 slate — Gated Stack
+
+`slate` combines `ki` and `stack` — gate a list of patterns by a kinetics
+range:
+
+```haskell
+slate :: (Double, Double) -> Kinetics -> [Pattern a] -> Pattern a
+slate range k pats = ki range k $ stack pats
+```
+
+Useful for drum layers that activate at different intensity levels.
+
+### 7.7 withForm — Progression Access
+
+`withForm` applies a function taking `Progression` to the kinetics context,
+reactively switching when the form changes progressions:
+
+```haskell
+withForm :: Kinetics -> (Progression -> Pattern ValueMap) -> Pattern ValueMap
+```
+
+### 7.8 Pre-built Forms
+
+Three pre-built forms follow a Fichtean dramatic arc (exposition → inciting
+event → development → cumulation → peak → convergence → resolution):
+
+| Form | Duration | Use |
+|------|----------|-----|
+| `form444 a b` | 7m 24s | Short sets, quick arc |
+| `form720 a b` | 12m | Standard set length |
+| `form1164 a b` | 19m 24s | Long-form performance |
+
+Each takes two progressions (`a` for home, `b` for development) and
+produces 10 nodes with proportionally spaced dramatic arc.
+
+### 7.9 Range Naming Conventions
+
+When defining launcher blocks, a common pattern is naming kinetics ranges:
+
+```haskell
+let cresc = (0, 1)      -- always on, building
+let upper = (0.5, 1)    -- upper half only
+let peak  = (0.8, 1)    -- near peak only
+```
+
+___
+
+## 8. Groove / Drums Interface
+
+### 8.1 Basic subKick Usage
+
+`subKick` creates MPC-style drum patterns that follow the harmonic root.
+It reads the progression from the kinetics context and layers a sub bass,
+a kick-off pattern, and a kick pattern with built-in ki gating:
+
+```haskell
+p "subKick" $ subKick fund (rep s4 1) 1 k
   (1/4, "[1(3,8)]/2", "[1(5,8,-2)]/2", "[1(3,8)]/2")
 ```
+
+The sub group gates at `(0.1, 1)` and the kick group at `(0.2, 1)`,
+so both gradually activate as the form builds.
 
 `[video: subKick with a basic euclidean pattern — a kick drum that follows
 the harmonic root, the low end locking to whatever chord is active,
 creating a groove that's harmonically aware]`
 
-### 7.2 fund vs bass for Kick Patterns
+### 8.2 fund vs bass for Kick Patterns
 
 For kick drums, use `fund` rather than `bass`. When chords are inverted,
 `bass` follows the lowest voice (which might be a third or fifth), while
@@ -506,7 +655,7 @@ For kick drums, use `fund` rather than `bass`. When chords are inverted,
 the kick stay on the root with fund, and wander to the inversion's bass
 note with bass — fund is the right choice for drums]`
 
-### 7.3 Groove Patterns
+### 8.3 Groove Patterns
 
 The euclidean pattern strings and dynamics offer a wide range of groove
 feels:
@@ -516,7 +665,7 @@ feels:
 (1/4, "[1(3,8)]", "[1(5,8,-2)]", "[1(3,8)]")
 
 -- Dense with random dynamics:
-subKick fund s4 (rep s4 1) (range 0.5 1 rand)
+subKick fund (rep s4 1) (range 0.5 1 rand) k
   (1/4, "[1(5,8)]", "[1(3,8,-1)]", "[1(4,8)]")
 ```
 
@@ -526,9 +675,9 @@ progression, completely different rhythmic energy]`
 
 ___
 
-## 8. Explicit Composition
+## 9. Explicit Composition
 
-### 8.1 fromChords — Building by Hand
+### 9.1 fromChords — Building by Hand
 
 You don't always need the algorithm to generate for you. `fromChords`
 lets you build progressions explicitly from pitch-class lists:
@@ -546,7 +695,7 @@ simpleProg = fromChordsFlat [
 pitch classes, launching it through a piano, hearing the most fundamental
 cadence in Western harmony]`
 
-### 8.2 Note Name Syntax
+### 9.2 Note Name Syntax
 
 For readability, use note names instead of pitch-class integers:
 
@@ -563,7 +712,7 @@ Primes indicate sharps: `C'` = C#, `F'` = F#, `G'` = G#.
 `[video: the same progression built with note names — more readable,
 same result, hearing the chords play through the piano]`
 
-### 8.3 Form Transformation — AABA Paradigm
+### 9.3 Form Transformation — AABA Paradigm
 
 Define sections separately, then assemble different forms from the same
 material:
@@ -585,9 +734,9 @@ structures, the form shaping how the listener experiences the harmony]`
 
 ___
 
-## 9. Advanced Techniques
+## 10. Advanced Techniques
 
-### 9.1 Composer Blending
+### 10.1 Composer Blending
 
 The composer specification isn't just a filter — it's a way of channelling
 different harmonic sensibilities through the same system:
@@ -608,7 +757,7 @@ harmony) vs "debussy" (colourful modal movement) vs the weighted blend
 personalities, hearing how the learned transitions of different composers
 shape the harmonic journey]`
 
-### 9.2 Custom Context Patterns
+### 10.2 Custom Context Patterns
 
 Combine overtone, key, and root filtering for genre-specific contexts:
 
@@ -624,7 +773,7 @@ roots, blues in F locked to I-IV-V, modal on C with no key filter, and
 bass-tuned overtones — hearing how context defines musical character as
 much as the notes themselves]`
 
-### 9.3 Entropy Tuning
+### 10.3 Entropy Tuning
 
 Entropy is the single most expressive parameter. Small changes produce
 audible differences in the character of the generated harmony:
@@ -642,9 +791,9 @@ into the probability space with each increase]`
 
 ___
 
-## 10. Complete Performance Template
+## 11. Complete Performance Template
 
-### 10.1 Setup
+### 11.1 Setup
 
 A performance session starts with a tempo and a harmonic context:
 
@@ -653,7 +802,7 @@ setbpm 100
 let ctx = hContext "*" "0#" "*"
 ```
 
-### 10.2 Generate Sections
+### 11.2 Generate Sections
 
 Generate different sections with different starting chords, composers,
 and entropy levels:
@@ -664,14 +813,15 @@ chorus <- gen (initCadenceState 0 "F" [0,4,7] FlatSpelling) 8 "*" 0.6 ctx
 bridge <- gen (initCadenceState 0 "A" [0,3,7] FlatSpelling) 8 "debussy:0.75 bach:0.25" 0.5 ctx
 ```
 
-### 10.3 Launcher Blocks
+### 11.3 Launcher Blocks
 
 Define launchers for each instrument — chords, bass, arpeggios — using
-the voicing and stacking techniques from Sections 3 and 4. See
-[Section 10.3 of USER_GUIDE.tidal](live/USER_GUIDE.tidal) for complete
+the voicing and stacking techniques from Sections 3 and 4, with kinetics
+range gating from Section 7. See
+[Section 11.3 of USER_GUIDE.tidal](live/USER_GUIDE.tidal) for complete
 launcher definitions.
 
-### 10.4 Performance Flow
+### 11.4 Performance Flow
 
 Move through sections by launching with different progressions:
 
@@ -686,7 +836,7 @@ bridge, and outro, each section with different progressions, textures,
 and dynamics, hearing a full piece develop from individual generated
 sections into a coherent musical arc]`
 
-### 10.5 Live Improvisation
+### 11.5 Live Improvisation
 
 Generate one long progression and excerpt different sections on the fly,
 using `warp` for form and transformations for variety:
@@ -706,7 +856,7 @@ harmonic material, the performer sculpting the form]`
 
 ___
 
-## 11. Quick Reference
+## 12. Quick Reference
 
 ### Generation
 
@@ -766,9 +916,25 @@ ___
 
 | Function | Strategy |
 |----------|----------|
-| `arrange` | Onset-join (notes sustain through chord changes) |
-| `arrange'` | Squeeze (pattern restarts per chord) |
-| `subKick` | Sub/kick groove following harmonic root |
+| `arrange range voice modifier r k register pats` | Onset-join with kinetics range gating |
+| `arrange' range voice modifier r k register pats` | Squeeze with kinetics range gating |
+| `subKick voice r dyn k tuple` | Sub/kick groove with kinetics gating |
+
+### Form & Kinetics
+
+| Function | Purpose |
+|----------|---------|
+| `at time kin dyn prog` | Construct a form node |
+| `formK bpm nodes` | Realize form into Kinetics signals |
+| `ki (lo, hi) k pat` | Range gate: mask by kinetics signal |
+| `slate range k pats` | Gated stack (ki + stack) |
+| `withForm k f` | Apply function with reactive progression |
+| `kSignal k` | Kinetics level pattern (0–1) |
+| `kDynamic k` | Dynamic envelope pattern (0–1) |
+| `kProg k` | Active progression pattern |
+| `form444 a b` | Pre-built 7m24s Fichtean arc |
+| `form720 a b` | Pre-built 12m Fichtean arc |
+| `form1164 a b` | Pre-built 19m24s Fichtean arc |
 
 ### MIDI Helpers (BootTidal.hs)
 

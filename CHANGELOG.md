@@ -74,6 +74,33 @@ The generation engine was rebuilt for reliability and performance:
   note names throw errors instead of silently defaulting, and all
   generation functions use identical candidate pools
 
+**Form & Kinetics Framework** — Macro-level compositional arc is now
+programmable structure. Define forms in wall-clock seconds that loop
+endlessly, with continuous interpolation for kinetics and dynamics, and
+discrete step functions for progression switching.
+
+- `FormNode` and `Kinetics` types encode form as data: time, kinetics
+  level (0–1), dynamic level (0–1), and active progression at each node
+- `at` constructor and `formK` realization: define nodes with `at`,
+  realize them into looping TidalCycles patterns with `formK bpm nodes`
+- `ki` range gating: `ki (lo, hi) k` masks patterns by kinetics signal
+  level — elements only active when `kSignal` is within range
+- `slate` gated stack: combine `ki` + `stack` for drum layers that
+  activate at different intensity levels
+- `withForm` reactive switching: apply a function taking `Progression`
+  to a `Kinetics` context via `innerJoin`
+- Pre-built Fichtean arc forms: `form444` (7m24s), `form720` (12m),
+  `form1164` (19m24s) — dramatic narrative arcs for long-form performance
+- Single-state forms produce constant signals, recreating "formless"
+  behaviour: `formK tempo [at 0 1 1 s]`
+- `arrange` and `arrange'` now take a kinetics range, progression
+  modifier, and `Kinetics` context — enabling form-driven range gating
+  and reactive progression switching within arrangement blocks
+- `subKick` now takes `Kinetics` instead of a raw `Progression`,
+  with built-in ki gating on sub (0.1–1) and kick (0.2–1) groups
+- Launcher paradigm updated: `f s r d` → `f r d k` — progression is
+  read from kinetics context, not passed directly
+
 ### Migration from V2
 
 - The public API is preserved through facade re-exports — existing code

@@ -301,8 +301,9 @@ lookupChord prog 4    -- Wraps to index 0 (infinite cycling)
 rootNotes prog        -- Extract root notes
 bassNotes prog        -- Extract bass notes
 
--- Test arrange (preserves launcher paradigm)
-arrange prog
+-- Test arrange with kinetics (single-state form = constant signals)
+let k = formK 120 [at 0 1 1 prog]
+arrange (0,1) flow id (rep prog 1) k (-9,9) ["0 1 2 3"]
 ```
 
 #### Arranger (src/Harmonic/Interface/Tidal/Arranger.hs)
@@ -382,6 +383,7 @@ Tests mirror source structure:
 - `test/Harmonic/Framework/BuilderSpec.hs` - Generation engine
 - `test/Harmonic/Interface/Tidal/BridgeSpec.hs` - Pattern interface
 - `test/Harmonic/Interface/Tidal/GrooveSpec.hs` - Groove interface
+- `test/Harmonic/Interface/Tidal/FormSpec.hs` - Form/Kinetics framework
 - `test/Harmonic/Traversal/ProbabilisticSpec.hs` - Probabilistic selection
 
 When adding new functionality:
