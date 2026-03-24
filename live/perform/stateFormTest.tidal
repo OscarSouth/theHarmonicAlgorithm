@@ -1,14 +1,16 @@
 tempo = 97
 
-start = initCadenceState (-3) "D" [0,3,7] FlatSpelling
+start0 = initCadenceState (-3) "D" [0,3,7] FlatSpelling
+
+start1 = initCadenceState (5) "C" [0,4,7] FlatSpelling
 
 ctx = hContext "*" "* -F# -Eb -Ab" "D C Bb"
 
-s0 <- gen start 4 "*" 0.5 ctx
-s1 <- gen start 4 "*" 0.5 ctx
+s0 <- gen start0 4 "*" 0.5 ctx
+s1 <- gen start1 4 "*" 0.5 ctx
 
 form =
-  [ at  0  0.0  0.3  s0    -- low: root only
+  [ at  0  0.0  0.3 s0    -- low: root only
   , at 10  0.5  0.6  s0    -- mid: + upper voices
   , at 20  1.0  1.0  s1    -- high: full, new harmony
   , at 30  0.0  0.3  s0    -- loop back to low
