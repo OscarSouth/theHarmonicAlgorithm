@@ -88,12 +88,12 @@ toMovement (P 0) (P 6)  -- tritone
 -------------------------------------------------------------------------------
 
 -- Create a simple progression for testing using initCadenceState
--- initCadenceState :: Int -> String -> [Int] -> EnharmonicSpelling -> CadenceState
--- Args: movement interval, root note name, quality intervals, spelling
-let testCs1 = initCadenceState 5 "C" [0, 4, 7] FlatSpelling   -- C major, arrived by asc 5th
-let testCs2 = initCadenceState 7 "G" [0, 3, 7] FlatSpelling   -- G minor, arrived by desc 5th
-let testCs3 = initCadenceState 0 "C" [0, 4, 7] FlatSpelling   -- C major, pedal
-let testCs4 = initCadenceState 2 "A" [0, 3, 7] FlatSpelling   -- A minor, arrived by asc 2nd
+-- initCadenceState :: Int -> String -> [Int] -> CadenceState
+-- Args: movement interval, root note name, quality intervals
+let testCs1 = initCadenceState 5 "C" [0, 4, 7]   -- C major, arrived by asc 5th
+let testCs2 = initCadenceState 7 "G" [0, 3, 7]   -- G minor, arrived by desc 5th
+let testCs3 = initCadenceState 0 "C" [0, 4, 7]   -- C major, pedal
+let testCs4 = initCadenceState 2 "A" [0, 3, 7]   -- A minor, arrived by asc 2nd
 
 let testProg = fromCadenceStates [testCs1, testCs2, testCs3, testCs4]
 

@@ -28,7 +28,7 @@ progression, set up an instrument, and launch. Here's the essence of it:
 
 ```haskell
 -- Define your starting point and tonal area
-let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+let start = initCadenceState 0 "C" [0,4,7]
 let ctx = hContext "*" "0#" "*"
 
 -- Generate a 4-chord progression
@@ -57,7 +57,7 @@ A `CadenceState` is your starting chord. You define the root movement
 chord, and whether you prefer flat or sharp notation:
 
 ```haskell
-let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+let start = initCadenceState 0 "C" [0,4,7]
 ```
 
 The intervals define the chord quality — `[0,4,7]` is major, `[0,3,7]` is
@@ -683,7 +683,7 @@ You don't always need the algorithm to generate for you. `fromChords`
 lets you build progressions explicitly from pitch-class lists:
 
 ```haskell
-simpleProg = fromChordsFlat [
+simpleProg = fromChords [
     [0, 4, 7],    -- C major
     [5, 9, 0],    -- F major
     [7, 11, 2],   -- G major
@@ -700,7 +700,7 @@ cadence in Western harmony]`
 For readability, use note names instead of pitch-class integers:
 
 ```haskell
-readableProg = fromChordsSharp [
+readableProg = fromChords [
     notesToPCs [C, E, G],     -- C major
     notesToPCs [D, F', A],    -- D major (F' = F#)
     notesToPCs [G, B, D]      -- G major
@@ -721,8 +721,8 @@ material:
 aSection = [notesToPCs [C, E, G], notesToPCs [F, A, C]]
 bSection = [notesToPCs [G, B, D], notesToPCs [D, F', A]]
 
-form1 = fromChordsSharp $ concat [aSection, aSection, bSection, aSection]  -- AABA
-form2 = fromChordsSharp $ concat [aSection, bSection, aSection, bSection]  -- ABAB
+form1 = fromChords $ concat [aSection, aSection, bSection, aSection]  -- AABA
+form2 = fromChords $ concat [aSection, bSection, aSection, bSection]  -- ABAB
 ```
 
 You can also define form through chord selection with `warp` — both
@@ -808,9 +808,9 @@ Generate different sections with different starting chords, composers,
 and entropy levels:
 
 ```haskell
-verse  <- gen (initCadenceState 0 "C" [0,4,7] FlatSpelling) 8 "*" 0.4 ctx
-chorus <- gen (initCadenceState 0 "F" [0,4,7] FlatSpelling) 8 "*" 0.6 ctx
-bridge <- gen (initCadenceState 0 "A" [0,3,7] FlatSpelling) 8 "debussy:0.75 bach:0.25" 0.5 ctx
+verse  <- gen (initCadenceState 0 "C" [0,4,7]) 8 "*" 0.4 ctx
+chorus <- gen (initCadenceState 0 "F" [0,4,7]) 8 "*" 0.6 ctx
+bridge <- gen (initCadenceState 0 "A" [0,3,7]) 8 "debussy:0.75 bach:0.25" 0.5 ctx
 ```
 
 ### 11.3 Launcher Blocks
@@ -908,9 +908,9 @@ ___
 
 | Function | Example |
 |----------|---------|
-| `fromChordsFlat` | `fromChordsFlat [[0,4,7], [5,9,0]]` |
-| `fromChordsSharp` | `fromChordsSharp [notesToPCs [C, E, G]]` |
-| `prog` | `prog FlatSpelling [[0,4,7]]` (legacy) |
+| `fromChords` | `fromChords [[0,4,7], [5,9,0]]` |
+| `fromChords` | `fromChords [notesToPCs [C, E, G]]` |
+| `prog` | `prog [[0,4,7]]` (alias for fromChords) |
 
 ### Pattern Interface
 

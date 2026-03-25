@@ -211,10 +211,10 @@ cyclicCost flowVoices   -- Flow (often lowest, any inversion)
 -------------------------------------------------------------------------------
 
 -- Create a test progression
-let cs1 = initCadenceState 0 "C" [0, 4, 7] FlatSpelling
-let cs2 = initCadenceState 7 "G" [0, 3, 7] FlatSpelling  -- G minor
-let cs3 = initCadenceState 5 "F" [0, 4, 7] FlatSpelling
-let cs4 = initCadenceState 0 "C" [0, 4, 7] FlatSpelling
+let cs1 = initCadenceState 0 "C" [0, 4, 7]
+let cs2 = initCadenceState 7 "G" [0, 3, 7]  -- G minor
+let cs3 = initCadenceState 5 "F" [0, 4, 7]
+let cs4 = initCadenceState 0 "C" [0, 4, 7]
 let prog = fromCadenceStates [cs1, cs2, cs3, cs4]
 
 -- Extract voicings with different paradigms:
@@ -253,10 +253,10 @@ bassVoicing jazzInput
 -- Expected: [[2], [7], [0]]
 
 -- Using on progression directly
-let cs1 = initCadenceState 0 "C" [0, 4, 7] FlatSpelling
-let cs2 = initCadenceState 7 "G" [0, 3, 7] FlatSpelling
-let cs3 = initCadenceState 5 "F" [0, 4, 7] FlatSpelling
-let cs4 = initCadenceState 0 "C" [0, 4, 7] FlatSpelling
+let cs1 = initCadenceState 0 "C" [0, 4, 7]
+let cs2 = initCadenceState 7 "G" [0, 3, 7]
+let cs3 = initCadenceState 5 "F" [0, 4, 7]
+let cs4 = initCadenceState 0 "C" [0, 4, 7]
 let jazzProg = fromCadenceStates [cs1, cs2, cs3, cs4]
 bass jazzProg
 -- Returns root notes of each chord in [0-11] range

@@ -41,8 +41,9 @@ module Harmonic.Rules.Types.Harmony
   , defaultEnharm
   , spellingToPreference
   , enharmonicFunc
-  
-    -- * Concrete State Types  
+  , inferSpelling
+
+    -- * Concrete State Types
   , ChordState(..)
   , CadenceState(..)
   
@@ -84,6 +85,10 @@ import GHC.Generics (Generic)
 import Data.Function (on)
 import Data.List (sort, sortBy)
 import qualified Data.List as List
+import Data.Maybe (fromMaybe, listToMaybe)
+import Control.Applicative ((<|>))
+import qualified Data.IntMap.Strict as IM
+import qualified Data.IntSet as IS
 
 import Harmonic.Rules.Types.Pitch
 
@@ -193,6 +198,368 @@ spellingToPreference SharpSpelling = SharpPref
 enharmonicFunc :: EnharmonicSpelling -> (PitchClass -> NoteName)
 enharmonicFunc SharpSpelling = sharp
 enharmonicFunc FlatSpelling  = flat
+
+-- |Infer enharmonic spelling from absolute pitches (bass first).
+-- Three-layer system:
+--   Layer 1: 3-set match — bass matches AND remaining 2 PCs are subset of chord
+--   Layer 2: 2-set match — bass matches AND remaining 1 PC is subset of chord
+--   Layer 3: Root fallback — defaultEnharm on bass PC
+inferSpelling :: [Int] -> EnharmonicSpelling
+inferSpelling [] = FlatSpelling
+inferSpelling pcs =
+  let bassNorm = head pcs `mod` 12
+      restSet = IS.fromList (map (`mod` 12) (tail pcs))
+      tryTable table = case IM.lookup bassNorm table of
+        Nothing -> Nothing
+        Just entries ->
+          listToMaybe [s | (upperSet, s) <- entries, upperSet `IS.isSubsetOf` restSet]
+  in fromMaybe (defaultEnharm (mkPitchClass bassNorm))
+       (tryTable layer1Table <|> tryTable layer2Table)
+
+-- Layer 1: 3-set rules (bass PC → [(set of required upper PCs, spelling)])
+-- Covers triads (maj/min/sus4/dim/aug) in all inversions,
+-- plus maj7/min7 omit-5 and omit-3 in all inversions.
+layer1Table :: IM.IntMap [(IS.IntSet, EnharmonicSpelling)]
+layer1Table = IM.fromListWith (++) $ concatMap expandRoot
+  --             bass offsets from root   spelling
+  -- Root position major
+  [ rootEntry  0 [4, 7]   FlatSpelling    -- C maj
+  , rootEntry  1 [5, 8]   FlatSpelling    -- Db maj
+  , rootEntry  2 [6, 9]   SharpSpelling   -- D maj
+  , rootEntry  3 [7, 10]  FlatSpelling    -- Eb maj
+  , rootEntry  4 [8, 11]  SharpSpelling   -- E maj
+  , rootEntry  5 [9, 0]   FlatSpelling    -- F maj
+  , rootEntry  6 [10, 1]  SharpSpelling   -- F# maj
+  , rootEntry  7 [11, 2]  SharpSpelling   -- G maj
+  , rootEntry  8 [0, 3]   FlatSpelling    -- Ab maj
+  , rootEntry  9 [1, 4]   SharpSpelling   -- A maj
+  , rootEntry 10 [2, 5]   FlatSpelling    -- Bb maj
+  , rootEntry 11 [3, 6]   SharpSpelling   -- B maj
+  -- 1st inversion major
+  , rootEntry  4 [7, 0]   FlatSpelling    -- C maj 1st inv
+  , rootEntry  5 [8, 1]   FlatSpelling    -- Db maj 1st inv
+  , rootEntry  6 [9, 2]   SharpSpelling   -- D maj 1st inv
+  , rootEntry  7 [10, 3]  FlatSpelling    -- Eb maj 1st inv
+  , rootEntry  8 [11, 4]  SharpSpelling   -- E maj 1st inv
+  , rootEntry  9 [0, 5]   FlatSpelling    -- F maj 1st inv
+  , rootEntry 10 [1, 6]   SharpSpelling   -- F# maj 1st inv
+  , rootEntry 11 [2, 7]   SharpSpelling   -- G maj 1st inv
+  , rootEntry  0 [3, 8]   FlatSpelling    -- Ab maj 1st inv
+  , rootEntry  1 [4, 9]   SharpSpelling   -- A maj 1st inv
+  , rootEntry  2 [5, 10]  FlatSpelling    -- Bb maj 1st inv
+  , rootEntry  3 [6, 11]  SharpSpelling   -- B maj 1st inv
+  -- 2nd inversion major
+  , rootEntry  7 [0, 4]   FlatSpelling    -- C maj 2nd inv
+  , rootEntry  8 [1, 5]   FlatSpelling    -- Db maj 2nd inv
+  , rootEntry  9 [2, 6]   SharpSpelling   -- D maj 2nd inv
+  , rootEntry 10 [3, 7]   FlatSpelling    -- Eb maj 2nd inv
+  , rootEntry 11 [4, 8]   SharpSpelling   -- E maj 2nd inv
+  , rootEntry  0 [5, 9]   FlatSpelling    -- F maj 2nd inv
+  , rootEntry  1 [6, 10]  SharpSpelling   -- F# maj 2nd inv
+  , rootEntry  2 [7, 11]  SharpSpelling   -- G maj 2nd inv
+  , rootEntry  3 [8, 0]   FlatSpelling    -- Ab maj 2nd inv
+  , rootEntry  4 [9, 1]   SharpSpelling   -- A maj 2nd inv
+  , rootEntry  5 [10, 2]  FlatSpelling    -- Bb maj 2nd inv
+  , rootEntry  6 [11, 3]  SharpSpelling   -- B maj 2nd inv
+  -- Root position minor
+  , rootEntry  0 [3, 7]   FlatSpelling    -- C min
+  , rootEntry  1 [4, 8]   SharpSpelling   -- C# min
+  , rootEntry  2 [5, 9]   FlatSpelling    -- D min
+  , rootEntry  3 [6, 10]  FlatSpelling    -- Eb min
+  , rootEntry  4 [7, 11]  SharpSpelling   -- E min
+  , rootEntry  5 [8, 0]   FlatSpelling    -- F min
+  , rootEntry  6 [9, 1]   SharpSpelling   -- F# min
+  , rootEntry  7 [10, 2]  FlatSpelling    -- G min
+  , rootEntry  8 [11, 3]  SharpSpelling   -- G# min
+  , rootEntry  9 [0, 4]   FlatSpelling    -- A min
+  , rootEntry 10 [1, 5]   FlatSpelling    -- Bb min
+  , rootEntry 11 [2, 6]   SharpSpelling   -- B min
+  -- 1st inversion minor
+  , rootEntry  3 [7, 0]   FlatSpelling    -- C min 1st inv
+  , rootEntry  4 [8, 1]   SharpSpelling   -- C# min 1st inv
+  , rootEntry  5 [9, 2]   FlatSpelling    -- D min 1st inv
+  , rootEntry  6 [10, 3]  FlatSpelling    -- Eb min 1st inv
+  , rootEntry  7 [11, 4]  SharpSpelling   -- E min 1st inv
+  , rootEntry  8 [0, 5]   FlatSpelling    -- F min 1st inv
+  , rootEntry  9 [1, 6]   SharpSpelling   -- F# min 1st inv
+  , rootEntry 10 [2, 7]   FlatSpelling    -- G min 1st inv
+  , rootEntry 11 [3, 8]   SharpSpelling   -- G# min 1st inv
+  , rootEntry  0 [4, 9]   FlatSpelling    -- A min 1st inv
+  , rootEntry  1 [5, 10]  FlatSpelling    -- Bb min 1st inv
+  , rootEntry  2 [6, 11]  SharpSpelling   -- B min 1st inv
+  -- 2nd inversion minor
+  , rootEntry  7 [0, 3]   FlatSpelling    -- C min 2nd inv
+  , rootEntry  8 [1, 4]   SharpSpelling   -- C# min 2nd inv
+  , rootEntry  9 [2, 5]   FlatSpelling    -- D min 2nd inv
+  , rootEntry 10 [3, 6]   FlatSpelling    -- Eb min 2nd inv
+  , rootEntry 11 [4, 7]   SharpSpelling   -- E min 2nd inv
+  , rootEntry  0 [5, 8]   FlatSpelling    -- F min 2nd inv
+  , rootEntry  1 [6, 9]   SharpSpelling   -- F# min 2nd inv
+  , rootEntry  2 [7, 10]  FlatSpelling    -- G min 2nd inv
+  , rootEntry  3 [8, 11]  SharpSpelling   -- G# min 2nd inv
+  , rootEntry  4 [9, 0]   FlatSpelling    -- A min 2nd inv
+  , rootEntry  5 [10, 1]  FlatSpelling    -- Bb min 2nd inv
+  , rootEntry  6 [11, 2]  SharpSpelling   -- B min 2nd inv
+  -- Root position sus4
+  , rootEntry  0 [5, 7]   FlatSpelling    -- C sus4
+  , rootEntry  1 [6, 8]   FlatSpelling    -- Db sus4
+  , rootEntry  2 [7, 9]   SharpSpelling   -- D sus4
+  , rootEntry  3 [8, 10]  FlatSpelling    -- Eb sus4
+  , rootEntry  4 [9, 11]  SharpSpelling   -- E sus4
+  , rootEntry  5 [10, 0]  FlatSpelling    -- F sus4
+  , rootEntry  6 [11, 1]  SharpSpelling   -- F# sus4
+  , rootEntry  7 [0, 2]   SharpSpelling   -- G sus4
+  , rootEntry  8 [1, 3]   FlatSpelling    -- Ab sus4
+  , rootEntry  9 [2, 4]   SharpSpelling   -- A sus4
+  , rootEntry 10 [3, 5]   FlatSpelling    -- Bb sus4
+  , rootEntry 11 [4, 6]   SharpSpelling   -- B sus4
+  -- 1st inversion sus4
+  , rootEntry  5 [7, 0]   FlatSpelling    -- C sus4 1st inv
+  , rootEntry  6 [8, 1]   FlatSpelling    -- Db sus4 1st inv
+  , rootEntry  7 [9, 2]   SharpSpelling   -- D sus4 1st inv
+  , rootEntry  8 [10, 3]  FlatSpelling    -- Eb sus4 1st inv
+  , rootEntry  9 [11, 4]  SharpSpelling   -- E sus4 1st inv
+  , rootEntry 10 [0, 5]   FlatSpelling    -- F sus4 1st inv
+  , rootEntry 11 [1, 6]   SharpSpelling   -- F# sus4 1st inv
+  , rootEntry  0 [2, 7]   SharpSpelling   -- G sus4 1st inv
+  , rootEntry  1 [3, 8]   FlatSpelling    -- Ab sus4 1st inv
+  , rootEntry  2 [4, 9]   SharpSpelling   -- A sus4 1st inv
+  , rootEntry  3 [5, 10]  FlatSpelling    -- Bb sus4 1st inv
+  , rootEntry  4 [6, 11]  SharpSpelling   -- B sus4 1st inv
+  -- 2nd inversion sus4
+  , rootEntry  7 [0, 5]   FlatSpelling    -- C sus4 2nd inv
+  , rootEntry  8 [1, 6]   FlatSpelling    -- Db sus4 2nd inv
+  , rootEntry  9 [2, 7]   SharpSpelling   -- D sus4 2nd inv
+  , rootEntry 10 [3, 8]   FlatSpelling    -- Eb sus4 2nd inv
+  , rootEntry 11 [4, 9]   SharpSpelling   -- E sus4 2nd inv
+  , rootEntry  0 [5, 10]  FlatSpelling    -- F sus4 2nd inv
+  , rootEntry  1 [6, 11]  SharpSpelling   -- F# sus4 2nd inv
+  , rootEntry  2 [7, 0]   SharpSpelling   -- G sus4 2nd inv
+  , rootEntry  3 [8, 1]   FlatSpelling    -- Ab sus4 2nd inv
+  , rootEntry  4 [9, 2]   SharpSpelling   -- A sus4 2nd inv
+  , rootEntry  5 [10, 3]  FlatSpelling    -- Bb sus4 2nd inv
+  , rootEntry  6 [11, 4]  SharpSpelling   -- B sus4 2nd inv
+  -- Root position dim
+  , rootEntry  0 [3, 6]   FlatSpelling    -- C dim
+  , rootEntry  1 [4, 7]   SharpSpelling   -- C# dim
+  , rootEntry  2 [5, 8]   FlatSpelling    -- D dim
+  , rootEntry  3 [6, 9]   SharpSpelling   -- Eb dim
+  , rootEntry  4 [7, 10]  FlatSpelling    -- E dim
+  , rootEntry  5 [8, 11]  FlatSpelling    -- F dim
+  , rootEntry  6 [9, 0]   SharpSpelling   -- F# dim
+  , rootEntry  7 [10, 1]  FlatSpelling    -- G dim
+  , rootEntry  8 [11, 2]  SharpSpelling   -- G# dim
+  , rootEntry  9 [0, 3]   FlatSpelling    -- A dim
+  , rootEntry 10 [1, 4]   SharpSpelling   -- Bb dim
+  , rootEntry 11 [2, 5]   FlatSpelling    -- B dim
+  -- Root position aug
+  , rootEntry  0 [4, 8]   FlatSpelling    -- C aug
+  , rootEntry  1 [5, 9]   SharpSpelling   -- C# aug
+  , rootEntry  2 [6, 10]  FlatSpelling    -- D aug
+  , rootEntry  3 [7, 11]  SharpSpelling   -- Eb aug
+  , rootEntry  4 [8, 0]   FlatSpelling    -- E aug
+  , rootEntry  5 [9, 1]   FlatSpelling    -- F aug
+  , rootEntry  6 [10, 2]  SharpSpelling   -- F# aug
+  , rootEntry  7 [11, 3]  FlatSpelling    -- G aug
+  , rootEntry  8 [0, 4]   SharpSpelling   -- G# aug
+  , rootEntry  9 [1, 5]   FlatSpelling    -- A aug
+  , rootEntry 10 [2, 6]   FlatSpelling    -- Bb aug
+  , rootEntry 11 [3, 7]   SharpSpelling   -- B aug
+  -- Root position maj7 omit 5
+  , rootEntry  0 [4, 11]  FlatSpelling    -- C maj7o5
+  , rootEntry  1 [5, 0]   FlatSpelling    -- Db maj7o5
+  , rootEntry  2 [6, 1]   SharpSpelling   -- D maj7o5
+  , rootEntry  3 [7, 2]   FlatSpelling    -- Eb maj7o5
+  , rootEntry  4 [8, 3]   SharpSpelling   -- E maj7o5
+  , rootEntry  5 [9, 4]   FlatSpelling    -- F maj7o5
+  , rootEntry  6 [10, 5]  SharpSpelling   -- F# maj7o5
+  , rootEntry  7 [11, 6]  SharpSpelling   -- G maj7o5
+  , rootEntry  8 [0, 7]   FlatSpelling    -- Ab maj7o5
+  , rootEntry  9 [1, 8]   SharpSpelling   -- A maj7o5
+  , rootEntry 10 [2, 9]   FlatSpelling    -- Bb maj7o5
+  , rootEntry 11 [3, 10]  SharpSpelling   -- B maj7o5
+  -- 1st inversion maj7 omit 5
+  , rootEntry  4 [11, 0]  FlatSpelling    -- C maj7o5 1st inv
+  , rootEntry  5 [0, 1]   FlatSpelling    -- Db maj7o5 1st inv
+  , rootEntry  6 [1, 2]   SharpSpelling   -- D maj7o5 1st inv
+  , rootEntry  7 [2, 3]   FlatSpelling    -- Eb maj7o5 1st inv
+  , rootEntry  8 [3, 4]   SharpSpelling   -- E maj7o5 1st inv
+  , rootEntry  9 [4, 5]   FlatSpelling    -- F maj7o5 1st inv
+  , rootEntry 10 [5, 6]   SharpSpelling   -- F# maj7o5 1st inv
+  , rootEntry 11 [6, 7]   SharpSpelling   -- G maj7o5 1st inv
+  , rootEntry  0 [7, 8]   FlatSpelling    -- Ab maj7o5 1st inv
+  , rootEntry  1 [8, 9]   SharpSpelling   -- A maj7o5 1st inv
+  , rootEntry  2 [9, 10]  FlatSpelling    -- Bb maj7o5 1st inv
+  , rootEntry  3 [10, 11] SharpSpelling   -- B maj7o5 1st inv
+  -- 2nd inversion maj7 omit 5
+  , rootEntry 11 [0, 4]   FlatSpelling    -- C maj7o5 2nd inv
+  , rootEntry  0 [1, 5]   FlatSpelling    -- Db maj7o5 2nd inv
+  , rootEntry  1 [2, 6]   SharpSpelling   -- D maj7o5 2nd inv
+  , rootEntry  2 [3, 7]   FlatSpelling    -- Eb maj7o5 2nd inv
+  , rootEntry  3 [4, 8]   SharpSpelling   -- E maj7o5 2nd inv
+  , rootEntry  4 [5, 9]   FlatSpelling    -- F maj7o5 2nd inv
+  , rootEntry  5 [6, 10]  SharpSpelling   -- F# maj7o5 2nd inv
+  , rootEntry  6 [7, 11]  SharpSpelling   -- G maj7o5 2nd inv
+  , rootEntry  7 [8, 0]   FlatSpelling    -- Ab maj7o5 2nd inv
+  , rootEntry  8 [9, 1]   SharpSpelling   -- A maj7o5 2nd inv
+  , rootEntry  9 [10, 2]  FlatSpelling    -- Bb maj7o5 2nd inv
+  , rootEntry 10 [11, 3]  SharpSpelling   -- B maj7o5 2nd inv
+  -- Root position maj7 omit 3
+  , rootEntry  0 [7, 11]  FlatSpelling    -- C maj7o3
+  , rootEntry  1 [8, 0]   FlatSpelling    -- Db maj7o3
+  , rootEntry  2 [9, 1]   SharpSpelling   -- D maj7o3
+  , rootEntry  3 [10, 2]  FlatSpelling    -- Eb maj7o3
+  , rootEntry  4 [11, 3]  SharpSpelling   -- E maj7o3
+  , rootEntry  5 [0, 4]   FlatSpelling    -- F maj7o3
+  , rootEntry  6 [1, 5]   SharpSpelling   -- F# maj7o3
+  , rootEntry  7 [2, 6]   SharpSpelling   -- G maj7o3
+  , rootEntry  8 [3, 7]   FlatSpelling    -- Ab maj7o3
+  , rootEntry  9 [4, 8]   SharpSpelling   -- A maj7o3
+  , rootEntry 10 [5, 9]   FlatSpelling    -- Bb maj7o3
+  , rootEntry 11 [6, 10]  SharpSpelling   -- B maj7o3
+  -- 1st inversion maj7 omit 3
+  , rootEntry  7 [11, 0]  FlatSpelling    -- C maj7o3 1st inv
+  , rootEntry  8 [0, 1]   FlatSpelling    -- Db maj7o3 1st inv
+  , rootEntry  9 [1, 2]   SharpSpelling   -- D maj7o3 1st inv
+  , rootEntry 10 [2, 3]   FlatSpelling    -- Eb maj7o3 1st inv
+  , rootEntry 11 [3, 4]   SharpSpelling   -- E maj7o3 1st inv
+  , rootEntry  0 [4, 5]   FlatSpelling    -- F maj7o3 1st inv
+  , rootEntry  1 [5, 6]   SharpSpelling   -- F# maj7o3 1st inv
+  , rootEntry  2 [6, 7]   SharpSpelling   -- G maj7o3 1st inv
+  , rootEntry  3 [7, 8]   FlatSpelling    -- Ab maj7o3 1st inv
+  , rootEntry  4 [8, 9]   SharpSpelling   -- A maj7o3 1st inv
+  , rootEntry  5 [9, 10]  FlatSpelling    -- Bb maj7o3 1st inv
+  , rootEntry  6 [10, 11] SharpSpelling   -- B maj7o3 1st inv
+  -- 2nd inversion maj7 omit 3
+  , rootEntry 11 [0, 7]   FlatSpelling    -- C maj7o3 2nd inv
+  , rootEntry  0 [1, 8]   FlatSpelling    -- Db maj7o3 2nd inv
+  , rootEntry  1 [2, 9]   SharpSpelling   -- D maj7o3 2nd inv
+  , rootEntry  2 [3, 10]  FlatSpelling    -- Eb maj7o3 2nd inv
+  , rootEntry  3 [4, 11]  SharpSpelling   -- E maj7o3 2nd inv
+  , rootEntry  4 [5, 0]   FlatSpelling    -- F maj7o3 2nd inv
+  , rootEntry  5 [6, 1]   SharpSpelling   -- F# maj7o3 2nd inv
+  , rootEntry  6 [7, 2]   SharpSpelling   -- G maj7o3 2nd inv
+  , rootEntry  7 [8, 3]   FlatSpelling    -- Ab maj7o3 2nd inv
+  , rootEntry  8 [9, 4]   SharpSpelling   -- A maj7o3 2nd inv
+  , rootEntry  9 [10, 5]  FlatSpelling    -- Bb maj7o3 2nd inv
+  , rootEntry 10 [11, 6]  SharpSpelling   -- B maj7o3 2nd inv
+  -- Root position min7 omit 5
+  , rootEntry  0 [3, 10]  FlatSpelling    -- C min7o5
+  , rootEntry  1 [4, 11]  SharpSpelling   -- C# min7o5
+  , rootEntry  2 [5, 0]   FlatSpelling    -- D min7o5
+  , rootEntry  3 [6, 1]   FlatSpelling    -- Eb min7o5
+  , rootEntry  4 [7, 2]   SharpSpelling   -- E min7o5
+  , rootEntry  5 [8, 3]   FlatSpelling    -- F min7o5
+  , rootEntry  6 [9, 4]   SharpSpelling   -- F# min7o5
+  , rootEntry  7 [10, 5]  FlatSpelling    -- G min7o5
+  , rootEntry  8 [11, 6]  SharpSpelling   -- G# min7o5
+  , rootEntry  9 [0, 7]   FlatSpelling    -- A min7o5
+  , rootEntry 10 [1, 8]   FlatSpelling    -- Bb min7o5
+  , rootEntry 11 [2, 9]   SharpSpelling   -- B min7o5
+  -- 1st inversion min7 omit 5
+  , rootEntry  3 [10, 0]  FlatSpelling    -- C min7o5 1st inv
+  , rootEntry  4 [11, 1]  SharpSpelling   -- C# min7o5 1st inv
+  , rootEntry  5 [0, 2]   FlatSpelling    -- D min7o5 1st inv
+  , rootEntry  6 [1, 3]   FlatSpelling    -- Eb min7o5 1st inv
+  , rootEntry  7 [2, 4]   SharpSpelling   -- E min7o5 1st inv
+  , rootEntry  8 [3, 5]   FlatSpelling    -- F min7o5 1st inv
+  , rootEntry  9 [4, 6]   SharpSpelling   -- F# min7o5 1st inv
+  , rootEntry 10 [5, 7]   FlatSpelling    -- G min7o5 1st inv
+  , rootEntry 11 [6, 8]   SharpSpelling   -- G# min7o5 1st inv
+  , rootEntry  0 [7, 9]   FlatSpelling    -- A min7o5 1st inv
+  , rootEntry  1 [8, 10]  FlatSpelling    -- Bb min7o5 1st inv
+  , rootEntry  2 [9, 11]  SharpSpelling   -- B min7o5 1st inv
+  -- 2nd inversion min7 omit 5
+  , rootEntry 10 [0, 3]   FlatSpelling    -- C min7o5 2nd inv
+  , rootEntry 11 [1, 4]   SharpSpelling   -- C# min7o5 2nd inv
+  , rootEntry  0 [2, 5]   FlatSpelling    -- D min7o5 2nd inv
+  , rootEntry  1 [3, 6]   FlatSpelling    -- Eb min7o5 2nd inv
+  , rootEntry  2 [4, 7]   SharpSpelling   -- E min7o5 2nd inv
+  , rootEntry  3 [5, 8]   FlatSpelling    -- F min7o5 2nd inv
+  , rootEntry  4 [6, 9]   SharpSpelling   -- F# min7o5 2nd inv
+  , rootEntry  5 [7, 10]  FlatSpelling    -- G min7o5 2nd inv
+  , rootEntry  6 [8, 11]  SharpSpelling   -- G# min7o5 2nd inv
+  , rootEntry  7 [9, 0]   FlatSpelling    -- A min7o5 2nd inv
+  , rootEntry  8 [10, 1]  FlatSpelling    -- Bb min7o5 2nd inv
+  , rootEntry  9 [11, 2]  SharpSpelling   -- B min7o5 2nd inv
+  -- Root position min7 omit 3
+  , rootEntry  0 [7, 10]  FlatSpelling    -- C min7o3
+  , rootEntry  1 [8, 11]  SharpSpelling   -- C# min7o3
+  , rootEntry  2 [9, 0]   FlatSpelling    -- D min7o3
+  , rootEntry  3 [10, 1]  FlatSpelling    -- Eb min7o3
+  , rootEntry  4 [11, 2]  SharpSpelling   -- E min7o3
+  , rootEntry  5 [0, 3]   FlatSpelling    -- F min7o3
+  , rootEntry  6 [1, 4]   SharpSpelling   -- F# min7o3
+  , rootEntry  7 [2, 5]   FlatSpelling    -- G min7o3
+  , rootEntry  8 [3, 6]   SharpSpelling   -- G# min7o3
+  , rootEntry  9 [4, 7]   FlatSpelling    -- A min7o3
+  , rootEntry 10 [5, 8]   FlatSpelling    -- Bb min7o3
+  , rootEntry 11 [6, 9]   SharpSpelling   -- B min7o3
+  -- 1st inversion min7 omit 3
+  , rootEntry  7 [10, 0]  FlatSpelling    -- C min7o3 1st inv
+  , rootEntry  8 [11, 1]  SharpSpelling   -- C# min7o3 1st inv
+  , rootEntry  9 [0, 2]   FlatSpelling    -- D min7o3 1st inv
+  , rootEntry 10 [1, 3]   FlatSpelling    -- Eb min7o3 1st inv
+  , rootEntry 11 [2, 4]   SharpSpelling   -- E min7o3 1st inv
+  , rootEntry  0 [3, 5]   FlatSpelling    -- F min7o3 1st inv
+  , rootEntry  1 [4, 6]   SharpSpelling   -- F# min7o3 1st inv
+  , rootEntry  2 [5, 7]   FlatSpelling    -- G min7o3 1st inv
+  , rootEntry  3 [6, 8]   SharpSpelling   -- G# min7o3 1st inv
+  , rootEntry  4 [7, 9]   FlatSpelling    -- A min7o3 1st inv
+  , rootEntry  5 [8, 10]  FlatSpelling    -- Bb min7o3 1st inv
+  , rootEntry  6 [9, 11]  SharpSpelling   -- B min7o3 1st inv
+  -- 2nd inversion min7 omit 3
+  , rootEntry 10 [0, 7]   FlatSpelling    -- C min7o3 2nd inv
+  , rootEntry 11 [1, 8]   SharpSpelling   -- C# min7o3 2nd inv
+  , rootEntry  0 [2, 9]   FlatSpelling    -- D min7o3 2nd inv
+  , rootEntry  1 [3, 10]  FlatSpelling    -- Eb min7o3 2nd inv
+  , rootEntry  2 [4, 11]  SharpSpelling   -- E min7o3 2nd inv
+  , rootEntry  3 [5, 0]   FlatSpelling    -- F min7o3 2nd inv
+  , rootEntry  4 [6, 1]   SharpSpelling   -- F# min7o3 2nd inv
+  , rootEntry  5 [7, 2]   FlatSpelling    -- G min7o3 2nd inv
+  , rootEntry  6 [8, 3]   SharpSpelling   -- G# min7o3 2nd inv
+  , rootEntry  7 [9, 4]   FlatSpelling    -- A min7o3 2nd inv
+  , rootEntry  8 [10, 5]  FlatSpelling    -- Bb min7o3 2nd inv
+  , rootEntry  9 [11, 6]  SharpSpelling   -- B min7o3 2nd inv
+  ]
+  where
+    rootEntry bass upper s = (bass, upper, s)
+    expandRoot (bass, upper, s) = [(bass, [(IS.fromList upper, s)])]
+
+-- Layer 2: 2-set rules (bass PC → [(set of required upper PC, spelling)])
+-- Covers major and minor double stops as intermediate fallback.
+layer2Table :: IM.IntMap [(IS.IntSet, EnharmonicSpelling)]
+layer2Table = IM.fromListWith (++) $ concatMap expandRoot
+  -- Major double stop (root + major 3rd)
+  [ rootEntry  0 [4]   FlatSpelling    -- C maj
+  , rootEntry  1 [5]   FlatSpelling    -- Db maj
+  , rootEntry  2 [6]   SharpSpelling   -- D maj
+  , rootEntry  3 [7]   FlatSpelling    -- Eb maj
+  , rootEntry  4 [8]   SharpSpelling   -- E maj
+  , rootEntry  5 [9]   FlatSpelling    -- F maj
+  , rootEntry  6 [10]  SharpSpelling   -- F# maj
+  , rootEntry  7 [11]  SharpSpelling   -- G maj
+  , rootEntry  8 [0]   FlatSpelling    -- Ab maj
+  , rootEntry  9 [1]   SharpSpelling   -- A maj
+  , rootEntry 10 [2]   FlatSpelling    -- Bb maj
+  , rootEntry 11 [3]   SharpSpelling   -- B maj
+  -- Minor double stop (root + minor 3rd)
+  , rootEntry  0 [3]   FlatSpelling    -- C min
+  , rootEntry  1 [4]   SharpSpelling   -- C# min
+  , rootEntry  2 [5]   FlatSpelling    -- D min
+  , rootEntry  3 [6]   FlatSpelling    -- Eb min
+  , rootEntry  4 [7]   SharpSpelling   -- E min
+  , rootEntry  5 [8]   FlatSpelling    -- F min
+  , rootEntry  6 [9]   SharpSpelling   -- F# min
+  , rootEntry  7 [10]  FlatSpelling    -- G min
+  , rootEntry  8 [11]  SharpSpelling   -- G# min
+  , rootEntry  9 [0]   FlatSpelling    -- A min
+  , rootEntry 10 [1]   FlatSpelling    -- Bb min
+  , rootEntry 11 [2]   SharpSpelling   -- B min
+  ]
+  where
+    rootEntry bass upper s = (bass, upper, s)
+    expandRoot (bass, upper, s) = [(bass, [(IS.fromList upper, s)])]
 
 -------------------------------------------------------------------------------
 -- Functionality (Chord Quality as String)
@@ -535,15 +902,21 @@ fromCadenceState (CadenceState cadence root spelling) =
       pitches = map (\t -> unPitchClass (t + rootPC)) tones
   in toTriad enharm pitches
 
--- |Initialize a CadenceState from movement, note name, quality intervals, and spelling
-initCadenceState :: Int -> String -> [Int] -> EnharmonicSpelling -> CadenceState
-initCadenceState movement note quality spelling =
+-- |Initialize a CadenceState from movement, note name, and quality intervals.
+-- Enharmonic spelling is inferred from the chord's absolute pitch content.
+initCadenceState :: Int -> String -> [Int] -> CadenceState
+initCadenceState movement note quality =
   let approach = toMovement (P 0) (mkPitchClass movement)
       from = flatTriad [0]
       toIntervals = map (+ unPitchClass (fromMovement approach)) $ zeroFormInts quality
       to = flatTriad toIntervals
       root = readNoteName note
       cad = toCadence (from, to)
+      -- Infer spelling from absolute pitches
+      rootPC = pitchClass root
+      tones = cadenceIntervals cad
+      absolutePitches = map (\t -> unPitchClass (t + rootPC)) tones
+      spelling = inferSpelling absolutePitches
   in CadenceState cad root spelling
   where
     zeroFormInts xs = let m = minimum xs in sort $ map (\n -> (n - m) `mod` 12) xs

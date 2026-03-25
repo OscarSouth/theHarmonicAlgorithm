@@ -18,7 +18,7 @@
 -- @
 -- import Harmonic.Lib
 --
--- let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+-- let start = initCadenceState 0 "C" [0,4,7]
 --     ctx = defaultContext
 --
 -- -- Silent: Just get the progression
@@ -131,7 +131,7 @@ module Harmonic.Lib (
   root, flow, lite, literal, bass,
 
   -- Explicit progression construction
-  fromChords, prog, fromChordsFlat, fromChordsSharp,
+  fromChords, prog,
 
   -- Groove interface (drums/sub bass)
   subKick, fund,
@@ -181,7 +181,7 @@ import Harmonic.Interface.Tidal.Arranger (
     transposeP, reverse, fuse, fuse2, interleave, expandP,
     progOverlap, progOverlapF, progOverlapB,
     root, flow, lite, literal, bass,
-    fromChords, prog, fromChordsFlat, fromChordsSharp,
+    fromChords, prog,
     ScaleSource(..), melodyStateFrom
   )
 import Harmonic.Interface.Tidal.Groove (subKick, fund)

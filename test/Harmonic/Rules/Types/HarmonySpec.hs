@@ -139,11 +139,11 @@ spec = do
   describe "State Types" $ do
     
     it "CadenceState preserves root information" $ do
-      let cs = initCadenceState 5 "C" [0,4,7] FlatSpelling
+      let cs = initCadenceState 5 "C" [0,4,7]
       stateCadenceRoot cs `shouldBe` C
     
     it "fromCadenceState produces valid Chord" $ do
-      let cs = initCadenceState 0 "G" [0,4,7] FlatSpelling
+      let cs = initCadenceState 0 "G" [0,4,7]
       let chord = fromCadenceState cs
       chordNoteName chord `shouldBe` G
     

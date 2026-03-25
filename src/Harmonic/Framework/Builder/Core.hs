@@ -524,21 +524,20 @@ advanceState currentState newCadence =
 
 -- |Advance the CadenceState with full trace of intermediate values
 -- Used for maximum verbosity diagnostics (gen'')
--- Enharmonic spelling is determined by selectEnharm: prior's preference wins if definite,
--- C (ambiguous) adopts posterior's preference, both C preserves current spelling.
+-- Enharmonic spelling is inferred from the new chord's absolute pitch content
+-- using the 3-layer inferSpelling system (3-set match → 2-set match → root fallback).
 advanceStateTraced :: H.CadenceState -> H.Cadence -> (H.CadenceState, AdvanceTrace)
 advanceStateTraced currentState newCadence =
   let currentRoot = H.stateCadenceRoot currentState
-      spelling = H.stateSpelling currentState
       currentRootPC = P.pitchClass currentRoot
       movement = H.cadenceMovement newCadence
       movementInterval = H.fromMovement movement
       newRootPC = currentRootPC + movementInterval
-      enharm = P.enharmFromNoteName currentRoot
-      newRoot = enharm newRootPC
-      -- Apply enharmonic preference: prior's spelling preference wins if definite,
-      -- C (ambiguous) defers to posterior's preferred spelling
-      newSpelling = H.selectEnharm spelling currentRootPC newRootPC
+      -- Infer spelling from the new chord's absolute pitches
+      tones = map P.unPitchClass $ H.cadenceIntervals newCadence
+      absolutePitches = map (\t -> (t + P.unPitchClass newRootPC) `mod` 12) tones
+      newSpelling = H.inferSpelling absolutePitches
+      newRoot = H.enharmonicFunc newSpelling newRootPC
       newState = H.CadenceState newCadence newRoot newSpelling
 
       -- Build trace

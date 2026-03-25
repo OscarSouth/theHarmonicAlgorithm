@@ -26,7 +26,6 @@
 let
   tempo = 120
   start = initCadenceState 0 "C" [0,4,7]
-    FlatSpelling
   ctx = hContext "*" "0#" "*"
 
 -- Step 2: Generate harmonic composition
@@ -74,30 +73,21 @@ hush'
 -- ──────────────────────────────────────────────────────────
 
 -- CadenceState: your starting chord
--- initCadenceState :: Int -> String -> [Int]
---   -> EnharmonicSpelling -> CadenceState
+-- initCadenceState :: Int -> String -> [Int] -> CadenceState
 let
   start = initCadenceState 0 "C" [0,4,7]
-    FlatSpelling
     -- 0        = movement (semitones, 0=pedal)
     -- "C"      = root note name
     -- [0,4,7]  = intervals (major triad)
-    -- FlatSpelling = prefer flats in output
 
 -- Common chord qualities:
 let
   maj  = initCadenceState 0 "C" [0,4,7]
-    FlatSpelling
   min  = initCadenceState 0 "A" [0,3,7]
-    FlatSpelling
   dim  = initCadenceState 0 "B" [0,3,6]
-    SharpSpelling
   sus4 = initCadenceState 0 "D" [0,5,7]
-    FlatSpelling
   aug  = initCadenceState 0 "C" [0,4,8]
-    FlatSpelling
   dom7 = initCadenceState 0 "G" [0,4,10]
-    FlatSpelling
 
 
 -- ──────────────────────────────────────────────────────────
@@ -214,7 +204,6 @@ let
 do
   let
     start = initCadenceState 0 "C" [0,4,7]
-      FlatSpelling
     ctx = hContext "*" "0#" "*"
   s4 <- gen start 4 "*" 0.5 ctx
   let
@@ -242,7 +231,7 @@ hush'
 
 -- Breaking long lines:
 let
-  start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+  start = initCadenceState 0 "C" [0,4,7]
   ctx = hContext "*" "0#" "*"
   comp = "debussy:0.75 bach:0.25"
 
@@ -371,7 +360,6 @@ p01 f r d k = d01 $ do
 do
   let
     start = initCadenceState 0 "C" [0,4,7]
-      FlatSpelling
     ctx = hContext "*" "0#" "*"
   s8 <- gen start 8 "*" 0.5 ctx
   let
@@ -402,7 +390,6 @@ hush'
 -- Generate once, reuse for all voicing examples:
 let
   start = initCadenceState 0 "C" [0,4,7]
-    FlatSpelling
   ctx = hContext "*" "0#" "*"
 
 s4 <- gen start 4 "*" 0.5 ctx
@@ -550,7 +537,6 @@ p01 f r d k = d01 $ do
 do
   let
     start = initCadenceState 0 "C" [0,4,7]
-      FlatSpelling
     ctx = hContext "*" "0#" "*"
   s8 <- gen start 8 "*" 0.5 ctx
   let
@@ -588,7 +574,6 @@ hush'
 
 let
   start = initCadenceState 0 "C" [0,4,7]
-    FlatSpelling
   ctx = hContext "*" "0#" "*"
 
 s8 <- gen start 8 "*" 0.5 ctx
@@ -676,8 +661,8 @@ hush'
 -- fuse2 :: Progression -> Progression -> Progression (binary)
 
 let
-  start1 = initCadenceState 0 "C" [0,4,7] FlatSpelling
-  start2 = initCadenceState 0 "A" [0,3,7] FlatSpelling
+  start1 = initCadenceState 0 "C" [0,4,7]
+  start2 = initCadenceState 0 "A" [0,3,7]
 
 state1 <- gen start1 4 "*" 0.5 ctx
 state2 <- gen start2 4 "*" 0.5 ctx
@@ -780,7 +765,7 @@ hush'
 -- Goal: Control which chord is active at any point in time
 
 let
-  start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+  start = initCadenceState 0 "C" [0,4,7]
   ctx = hContext "*" "0#" "*"
 
 s4 <- gen start 4 "*" 0.5 ctx
@@ -918,8 +903,8 @@ hush'
 -- At the end, it loops back to the beginning.
 
 let
-  start0 = initCadenceState 0 "C" [0,4,7] FlatSpelling
-  start1 = initCadenceState 5 "F" [0,4,7] FlatSpelling
+  start0 = initCadenceState 0 "C" [0,4,7]
+  start1 = initCadenceState 5 "F" [0,4,7]
   ctx = hContext "*" "0#" "*"
 
 s0 <- gen start0 4 "*" 0.5 ctx
@@ -1073,7 +1058,7 @@ hush'
 -- Built-in ki gating: sub at (0.1, 1), kick at (0.2, 1)
 
 let
-  start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+  start = initCadenceState 0 "C" [0,4,7]
   ctx = defaultContext
 
 s4 <- gen start 4 "*" 0.5 ctx
@@ -1135,14 +1120,11 @@ hush'
 -- 9.1 fromChords - Explicit Construction
 -- ──────────────────────────────────────────────────────────
 
--- Three functions for building progressions from chord lists:
---   fromChordsFlat  :: [[Int]] -> Progression
---   fromChordsSharp :: [[Int]] -> Progression
---   prog            :: EnharmonicSpelling -> [[Int]]
---                   -> Progression  (legacy alias)
+-- Build progressions from chord lists:
+--   fromChords :: [[Int]] -> Progression
 
--- Method 1: Direct pitch-class lists (flat spelling)
-simpleProg = fromChordsFlat [
+-- Method 1: Direct pitch-class lists
+simpleProg = fromChords [
     [0, 4, 7],    -- C major
     [5, 9, 0],    -- F major
     [7, 11, 2],   -- G major
@@ -1174,7 +1156,7 @@ hush'
 -- notesToPCs :: [NoteName] -> [Int]
 
 -- Use with fromChords for readable progressions:
-readableProg = fromChordsSharp [
+readableProg = fromChords [
     notesToPCs [C, E, G],     -- C major
     notesToPCs [D, F', A],    -- D major
     notesToPCs [G, B, D]      -- G major
@@ -1218,8 +1200,8 @@ form2 = concat [aSection, bSection, aSection, bSection]
   -- ABAB (8 chords)
 
 -- Create progressions from forms:
-state1 = fromChordsSharp form1  -- AABA
-state2 = fromChordsSharp form2  -- ABAB
+state1 = fromChords form1  -- AABA
+state2 = fromChords form2  -- ABAB
 
 -- Play AABA:
 do
@@ -1235,7 +1217,7 @@ hush'
 
 -- Or use warp for AABA over the base sections:
 -- Define 4-chord base and use chord selection for form
-baseProg = fromChordsSharp (aSection ++ bSection)
+baseProg = fromChords (aSection ++ bSection)
 
 do
   let
@@ -1267,7 +1249,7 @@ hush'
 -- output header (e.g., "debussy:0.75 bach:0.25" → "|= Debach =|")
 
 let
-  start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+  start = initCadenceState 0 "C" [0,4,7]
   ctx = hContext "*" "0#" "*"
 
 -- Wildcard (aggregate confidence across all corpus composers):
@@ -1308,7 +1290,7 @@ hush'
 -- JAZZ CONTEXT (D major, specific roots)
 let
   jazzCtx = hContext "*" "2#" "D F# A"
-  start = initCadenceState 0 "D" [0,4,7] FlatSpelling
+  start = initCadenceState 0 "D" [0,4,7]
 
 jazzProg <- gen start 16 "debussy ravel" 0.6 jazzCtx
 
@@ -1326,7 +1308,7 @@ hush'
 -- BLUES CONTEXT (F major, I-IV-V roots only)
 let
   bluesCtx = hContext "*" "1b" "F Bb C"
-  start = initCadenceState 0 "F" [0,4,10] FlatSpelling
+  start = initCadenceState 0 "F" [0,4,10]
 
 bluesProg <- gen start 12 "*" 0.4 bluesCtx
 
@@ -1344,7 +1326,7 @@ hush'
 -- MODAL CONTEXT (no key filter, specific roots)
 let
   modalCtx = hContext "*" "*" "C Eb F G Bb"
-  start = initCadenceState 0 "C" [0,3,7] FlatSpelling
+  start = initCadenceState 0 "C" [0,3,7]
 
 modalProg <- gen start 8 "debussy" 0.7 modalCtx
 
@@ -1362,7 +1344,7 @@ hush'
 -- BASS-TUNED CONTEXT (overtones only, no key)
 let
   bassCtx = hContext "E A D G" "*" "*"
-  start = initCadenceState 0 "E" [0,4,7] FlatSpelling
+  start = initCadenceState 0 "E" [0,4,7]
 
 bassProg <- gen start 8 "*" 0.5 bassCtx
 
@@ -1389,7 +1371,7 @@ hush'
 --   1.0+ = highly experimental
 
 let
-  start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+  start = initCadenceState 0 "C" [0,4,7]
   ctx = hContext "*" "0#" "*"
 
 -- Conservative (entropy 0.3):
@@ -1435,19 +1417,19 @@ let
 
 -- Verse (C major, conservative):
 let
-  startV = initCadenceState 0 "C" [0,4,7] FlatSpelling
+  startV = initCadenceState 0 "C" [0,4,7]
 
 verse <- gen startV 8 "*" 0.4 ctx
 
 -- Chorus (F major, exploratory):
 let
-  startC = initCadenceState 0 "F" [0,4,7] FlatSpelling
+  startC = initCadenceState 0 "F" [0,4,7]
 
 chorus <- gen startC 8 "*" 0.6 ctx
 
 -- Bridge (A minor, balanced):
 let
-  startB = initCadenceState 0 "A" [0,3,7] FlatSpelling
+  startB = initCadenceState 0 "A" [0,3,7]
 
 bridge <- gen startB 8 "debussy:0.75 bach:0.25" 0.5 ctx
 
@@ -1564,7 +1546,7 @@ hush'
 
 -- Generate one long progression:
 let
-  start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+  start = initCadenceState 0 "C" [0,4,7]
   ctx = hContext "*" "0#" "*"
 
 s32 <- gen start 32 "*" 0.5 ctx
@@ -1621,8 +1603,7 @@ hush'
 --   -> HarmonicContext -> IO Progression
 
 -- initCadenceState
---   :: Int -> String -> [Int] -> EnharmonicSpelling
---   -> CadenceState
+--   :: Int -> String -> [Int] -> CadenceState
 
 -- hContext, harmonicContext
 --   :: String -> String -> String -> HarmonicContext
@@ -1740,14 +1721,7 @@ hush'
 -- 12.7 Explicit Construction
 -- ──────────────────────────────────────────────────────────
 
--- fromChords
---   :: EnharmonicSpelling -> [[Int]] -> Progression
-
--- fromChordsFlat  :: [[Int]] -> Progression
--- fromChordsSharp :: [[Int]] -> Progression
-
--- prog :: EnharmonicSpelling -> [[Int]] -> Progression
---   (legacy alias)
+-- fromChords :: [[Int]] -> Progression
 
 -- notesToPCs :: [NoteName] -> [Int]
 --   Available: C, C', Db, D, D', Eb, E, F, F', Gb, G, G', Ab,

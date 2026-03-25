@@ -65,9 +65,9 @@ import Data.List.Split (chunksOf)
 import qualified Data.List as List
 import qualified Data.Char as Char
 
-import Harmonic.Rules.Types.Pitch (PitchClass(..), mkPitchClass, unPitchClass, transpose, NoteName(..), pitchClass, enharmFromNoteName)
+import Harmonic.Rules.Types.Pitch (PitchClass(..), mkPitchClass, unPitchClass, transpose, NoteName(..), pitchClass)
 -- |Import zeroFormPC for zero-form normalization in toCadenceStateFromPair to match DB convention
-import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), ChordState(..), CadenceState(..), fromCadenceState, Movement(..), fromMovement, EnharmonicSpelling(..), zeroFormPC, defaultEnharm)
+import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), ChordState(..), CadenceState(..), fromCadenceState, Movement(..), fromMovement, EnharmonicSpelling(..), zeroFormPC, enharmonicFunc, inferSpelling)
 
 -------------------------------------------------------------------------------
 -- Progression Type
@@ -90,8 +90,8 @@ instance Show Progression where
     | Seq.null seq = "[empty progression]"
     | otherwise = 
       let cadenceStates = toList seq
-          -- Get enharmonic function from each cadence's root
-          enharms = map (enharmFromNoteName . stateCadenceRoot) cadenceStates
+          -- Get enharmonic function from each cadence's stored spelling
+          enharms = map (enharmonicFunc . stateSpelling) cadenceStates
           -- Build chords from cadence states
           chords = map fromCadenceState cadenceStates
           -- Show each triad using its root's enharmonic spelling
@@ -146,8 +146,7 @@ fromChordStates states =
   in fromCadenceStates cadenceStates
 
 -- |Helper: create CadenceState from a pair of ChordStates
--- When converting stored progressions, we apply defaultEnharm to the posterior root
--- since we don't have a prior CadenceState to guide enharmonic preference.
+-- Enharmonic spelling is inferred from the chord's absolute pitch content.
 toCadenceStateFromPair :: (ChordState, ChordState) -> CadenceState
 toCadenceStateFromPair (from, to) =
   let fromChord = stateChord from
@@ -158,9 +157,11 @@ toCadenceStateFromPair (from, to) =
       mvmt = calculateMovement fromRoot toRoot
       -- Build cadence with zero-form intervals
       cad = Cadence (chordFunctionality toChord) mvmt (zeroFormPC $ map mkPitchClass $ take 3 $ map fromIntegral (chordIntervals toChord))
-      -- Apply default enharmonic preference (C→flat, others→natural)
-      defaultSpelling = defaultEnharm toRoot
-  in CadenceState cad (stateRoot to) defaultSpelling
+      -- Infer enharmonic spelling from absolute pitches
+      tones = map unPitchClass $ cadenceIntervals cad
+      absolutePitches = map (\t -> (t + unPitchClass toRoot) `mod` 12) tones
+      spelling = inferSpelling absolutePitches
+  in CadenceState cad (stateRoot to) spelling
   where
     calculateMovement :: PitchClass -> PitchClass -> Movement
     calculateMovement (P from) (P to) = 
@@ -243,33 +244,16 @@ transposeProgression :: Int -> Progression -> Progression
 transposeProgression n (Progression seq) =
   Progression $ fmap (transposeCadenceState n) seq
 
--- |Helper: transpose a CadenceState
+-- |Helper: transpose a CadenceState, re-inferring spelling from new pitches
 transposeCadenceState :: Int -> CadenceState -> CadenceState
-transposeCadenceState n (CadenceState cad root spelling) =
-  let newRoot = transposeNoteName n root
-      -- Cadence intervals are relative, so they don't change
-  in CadenceState cad newRoot spelling
-
--- |Helper: transpose a NoteName
-transposeNoteName :: Int -> NoteName -> NoteName
-transposeNoteName n name =
-  let pc = unPitchClass (pitchClass name)
-      newPc = (pc + n) `mod` 12
-  in pcToNoteName newPc
-  where
-    pcToNoteName 0 = C
-    pcToNoteName 1 = Db
-    pcToNoteName 2 = D
-    pcToNoteName 3 = Eb
-    pcToNoteName 4 = E
-    pcToNoteName 5 = F
-    pcToNoteName 6 = Gb
-    pcToNoteName 7 = G
-    pcToNoteName 8 = Ab
-    pcToNoteName 9 = A
-    pcToNoteName 10 = Bb
-    pcToNoteName 11 = B
-    pcToNoteName _ = C
+transposeCadenceState n (CadenceState cad root _oldSpelling) =
+  let pc = pitchClass root
+      newRootPC = pc + mkPitchClass n
+      tones = map unPitchClass $ cadenceIntervals cad
+      absolutePitches = map (\t -> (t + unPitchClass newRootPC) `mod` 12) tones
+      newSpelling = inferSpelling absolutePitches
+      newRoot = enharmonicFunc newSpelling newRootPC
+  in CadenceState cad newRoot newSpelling
 
 -- |Overlap two progressions (start second before first ends)
 overlapProgression :: Int -> Progression -> Progression -> Progression

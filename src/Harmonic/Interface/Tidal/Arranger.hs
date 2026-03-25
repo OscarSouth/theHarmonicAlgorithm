@@ -46,8 +46,6 @@ module Harmonic.Interface.Tidal.Arranger
     -- * Explicit Progression Construction
   , fromChords      -- Construct Progression from pitch-class lists
   , prog            -- Legacy alias for fromChords
-  , fromChordsFlat  -- fromChords with flat spelling
-  , fromChordsSharp -- fromChords with sharp spelling
 
     -- * Scale Source (Switch Mechanism)
   , ScaleSource(..)
@@ -60,8 +58,8 @@ import Data.Foldable (toList)
 import Data.List (sort, nub)
 
 import Harmonic.Rules.Types.Progression
-import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), CadenceState(..), fromCadenceState, ChordState(..), EnharmonicSpelling(..), toFunctionality, toFunctionalityChord, Movement(..), enharmonicFunc)
-import Harmonic.Rules.Types.Pitch (PitchClass(..), NoteName(..), pitchClass, enharmFromNoteName, mkPitchClass, unPitchClass)
+import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), CadenceState(..), fromCadenceState, ChordState(..), EnharmonicSpelling(..), toFunctionality, toFunctionalityChord, Movement(..), enharmonicFunc, inferSpelling)
+import Harmonic.Rules.Types.Pitch (PitchClass(..), NoteName(..), pitchClass, mkPitchClass, unPitchClass)
 import Harmonic.Evaluation.Scoring.VoiceLeading (solveRoot, solveFlow, liteVoicing, bassVoicing, normalizeByFirstRoot)
 
 -------------------------------------------------------------------------------
@@ -246,7 +244,11 @@ rebuildCadenceState cad root newIntervals =
   let -- Create a modified cadence with the new intervals (as PitchClasses)
       newPCs = map (\i -> mkPitchClass (fromIntegral i)) newIntervals
       newCad = cad { cadenceIntervals = newPCs }
-  in CadenceState newCad root FlatSpelling
+      -- Infer spelling from the new absolute pitches
+      rootPC = pitchClass root
+      absolutePitches = map (\i -> (fromIntegral i + unPitchClass rootPC) `mod` 12) newIntervals
+      spelling = inferSpelling absolutePitches
+  in CadenceState newCad root spelling
 
 -------------------------------------------------------------------------------
 -- Voicing Extractors (3 Paradigms)
@@ -316,16 +318,13 @@ nameChord intervals
 --
 -- Example:
 -- @
--- fromChords FlatSpelling [[0,4,7], [5,9,0], [7,11,2]]
+-- fromChords [[0,4,7], [5,9,0], [7,11,2]]
 --   --> C major → F major → G major
 -- @
-fromChords :: EnharmonicSpelling -> [[Int]] -> Progression
-fromChords _ [] = mempty
-fromChords spelling chordSets = Progression (Seq.fromList cadenceStates)
+fromChords :: [[Int]] -> Progression
+fromChords [] = mempty
+fromChords chordSets = Progression (Seq.fromList cadenceStates)
   where
-    -- Get enharmonic conversion function for this spelling
-    enharm = enharmonicFunc spelling
-
     cadenceStates = map toCadenceState chordSets
 
     toCadenceState :: [Int] -> CadenceState
@@ -341,20 +340,14 @@ fromChords spelling chordSets = Progression (Seq.fromList cadenceStates)
             , cadenceMovement = Unison  -- Placeholder (no prior context)
             , cadenceIntervals = intervalPCs
             }
-          rootNote = enharm rootPC
+          -- Infer spelling from absolute pitch content
+          spelling = inferSpelling (map (`mod` 12) pcs)
+          rootNote = enharmonicFunc spelling rootPC
        in CadenceState cadence rootNote spelling
 
 -- |Legacy alias for fromChords (matches legacy prog function)
-prog :: EnharmonicSpelling -> [[Int]] -> Progression
+prog :: [[Int]] -> Progression
 prog = fromChords
-
--- |Convenience: fromChords with flat spelling
-fromChordsFlat :: [[Int]] -> Progression
-fromChordsFlat = fromChords FlatSpelling
-
--- |Convenience: fromChords with sharp spelling
-fromChordsSharp :: [[Int]] -> Progression
-fromChordsSharp = fromChords SharpSpelling
 
 -------------------------------------------------------------------------------
 -- Scale Source (Switch Mechanism)
@@ -372,6 +365,6 @@ data ScaleSource
 -- |Create melody state from scale source.
 -- Converts a ScaleSource into a Progression suitable for melody arrangement.
 melodyStateFrom :: ScaleSource -> Progression
-melodyStateFrom (ExplicitScale scales) = fromChordsFlat scales
+melodyStateFrom (ExplicitScale scales) = fromChords scales
 melodyStateFrom (HarmonyAsScale prog) = prog  -- Direct passthrough
 melodyStateFrom (HarmonyWithOverlap prog overlapFn) = overlapFn 1 prog

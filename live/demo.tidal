@@ -9,7 +9,7 @@
 
 -- Let's define a starting point (The "Anchor")
 -- A simple C Major triad in root position.
-let startState = initCadenceState 0 "C" [0,4,7] FlatSpelling
+let startState = initCadenceState 0 "C" [0,4,7]
 
 --------------------------------------------------------------------------------
 -- 1. THE "ENTROPY" KNOB (Stability vs. Chaos)

@@ -38,7 +38,7 @@ moog f s r d = p "moog" $ do
 
 
  -- 1. Generate
-let start = initCadenceState 5 "E" [0,3,7] FlatSpelling
+let start = initCadenceState 5 "E" [0,3,7]
     ctx = defaultContext
     -- ctx = hContext "*" "2#" "*"
  -- overtones "*" permits any pitch class

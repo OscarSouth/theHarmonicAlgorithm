@@ -25,7 +25,7 @@ p01 f s r d = d01 $ do
 -------------------------------------------------------------------------------
 
 -- Define starting point: B minor, arrived via unison (pedal)
-let startB = initCadenceState 0 "B" [0,3,7] FlatSpelling
+let startB = initCadenceState 0 "B" [0,3,7]
 
 -- Generate 8 bars using the database (requires Neo4j running)
 -- Low entropy (1.0) = predictable, classical progressions
@@ -33,10 +33,10 @@ let startB = initCadenceState 0 "B" [0,3,7] FlatSpelling
 
 -- For offline use, create a manual progression:
 let prog1 = fromCadenceStates 
-      [ initCadenceState 0 "B" [0,3,7] FlatSpelling   -- Bm (start)
-      , initCadenceState 5 "E" [0,4,7] FlatSpelling   -- E (IV)
-      , initCadenceState 7 "B" [0,3,7] FlatSpelling   -- Bm (i via desc 5)
-      , initCadenceState 5 "E" [0,3,7] FlatSpelling   -- Em (iv)
+      [ initCadenceState 0 "B" [0,3,7]   -- Bm (start)
+      , initCadenceState 5 "E" [0,4,7]   -- E (IV)
+      , initCadenceState 7 "B" [0,3,7]   -- Bm (i via desc 5)
+      , initCadenceState 5 "E" [0,3,7]   -- Em (iv)
       ]
 
 -- Play with roots

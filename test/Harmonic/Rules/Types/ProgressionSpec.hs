@@ -150,7 +150,7 @@ spec = do
 
 -- | Create a test CadenceState for testing
 mkTestCadenceState :: CadenceState
-mkTestCadenceState = initCadenceState 0 "C" [0,4,7] FlatSpelling
+mkTestCadenceState = initCadenceState 0 "C" [0,4,7]
 
 -- | Create a progression of n identical cadence states
 mkTestProgression :: Int -> Progression

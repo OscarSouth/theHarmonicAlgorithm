@@ -58,10 +58,10 @@ let cfg = defaultConfig
 -- Generate or define progressions here. Use these patterns:
 --
 --   1. Manual definition (for simple progressions):
---      let s4 = fromChordsFlat [[0,4,7], [5,9,0], [7,11,2], [0,4,7]]
+--      let s4 = fromChords [[0,4,7], [5,9,0], [7,11,2], [0,4,7]]
 --
 --   2. Generated from context (requires database connection):
---      s8 <- gen (initCadenceState 0 "C" [0,4,7] FlatSpelling) 8 "*" 0.5 ctx
+--      s8 <- gen (initCadenceState 0 "C" [0,4,7]) 8 "*" 0.5 ctx
 --
 --   3. Loaded from file or REPL session:
 --      let s4 = ... (paste from GHCi)

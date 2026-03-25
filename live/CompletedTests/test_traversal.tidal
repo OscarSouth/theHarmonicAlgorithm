@@ -32,7 +32,7 @@
 -------------------------------------------------------------------------------
 
 putStrLn "\n=== TEST 1: Length Verification ==="
-let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+let start = initCadenceState 0 "C" [0,4,7]
     ctx = defaultContext
 forM_ [4, 8, 12, 16] $ \len ->
   gen start len "*" 0.5 ctx >>= \prog ->
@@ -45,7 +45,7 @@ forM_ [4, 8, 12, 16] $ \len ->
 -------------------------------------------------------------------------------
 
 putStrLn "\n=== TEST 2: Starting Chord Preservation ==="
-let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+let start = initCadenceState 0 "C" [0,4,7]
     ctx = defaultContext
 gen start 4 "*" 0.5 ctx >>= \prog ->
   let cs1 = getCadenceState prog 1
@@ -65,7 +65,7 @@ let testCases =
       , (0, "A", [0,3,7], "A minor")
       ]
 forM_ testCases $ \(mvmt, note, qual, desc) ->
-  let cs = initCadenceState mvmt note qual FlatSpelling
+  let cs = initCadenceState mvmt note qual
       chord = fromCadenceState cs
   in putStrLn $ "  " ++ desc ++ ": ✓"
 
@@ -75,7 +75,7 @@ forM_ testCases $ \(mvmt, note, qual, desc) ->
 
 putStrLn "\n=== TEST 4: Standard Diagnostics (genStandard) ==="
 putStrLn "  Shows per-step candidate pools, selections, rendered chords:"
-let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+let start = initCadenceState 0 "C" [0,4,7]
     ctx = defaultContext
 genStandard start 4 "*" 0.5 ctx
 
@@ -84,7 +84,7 @@ genStandard start 4 "*" 0.5 ctx
 -------------------------------------------------------------------------------
 
 putStrLn "\n=== TEST 5: Entropy Effect on Selection ==="
-let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+let start = initCadenceState 0 "C" [0,4,7]
     ctx = defaultContext
 forM_ [0.0, 0.5, 1.0] $ \entropy ->
   generate' start 8 "*" entropy ctx >>= \(_, diag) ->
@@ -97,7 +97,7 @@ forM_ [0.0, 0.5, 1.0] $ \entropy ->
 -------------------------------------------------------------------------------
 
 putStrLn "\n=== TEST 6: Movement Diversity in 12-Chord Generation ==="
-let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+let start = initCadenceState 0 "C" [0,4,7]
     ctx = defaultContext
 generate' start 12 "*" 0.5 ctx >>= \(prog, diag) ->
   let movements = map sdSelectedDbMovement (gdSteps diag)
@@ -113,7 +113,7 @@ generate' start 12 "*" 0.5 ctx >>= \(prog, diag) ->
 -------------------------------------------------------------------------------
 
 putStrLn "\n=== TEST 7: Graph vs Fallback Selection Ratio ==="
-let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+let start = initCadenceState 0 "C" [0,4,7]
     ctx = defaultContext
 generate' start 16 "*" 0.5 ctx >>= \(_, diag) ->
   let steps = gdSteps diag
@@ -132,7 +132,7 @@ generate' start 16 "*" 0.5 ctx >>= \(_, diag) ->
 
 putStrLn "\n=== TEST 8: Verbose Diagnostics (gen'') ==="
 putStrLn "  Shows standard diagnostics plus transform and advance traces:"
-let start = initCadenceState 8 "C" [0,3,7] FlatSpelling
+let start = initCadenceState 8 "C" [0,3,7]
     ctx = defaultContext
 gen'' start 3 "*" 0.3 ctx
 

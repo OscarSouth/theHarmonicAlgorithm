@@ -39,10 +39,10 @@
 -------------------------------------------------------------------------------
 
 -- Create CadenceStates manually
-let cs1 = initCadenceState 5 "C" [0, 4, 7] FlatSpelling   -- C major via asc 5th
-let cs2 = initCadenceState 7 "G" [0, 3, 7] FlatSpelling   -- G minor via desc 5th
-let cs3 = initCadenceState 0 "C" [0, 4, 7] FlatSpelling   -- C major (pedal)
-let cs4 = initCadenceState 2 "D" [0, 3, 7] FlatSpelling   -- D minor via asc 2nd
+let cs1 = initCadenceState 5 "C" [0, 4, 7]   -- C major via asc 5th
+let cs2 = initCadenceState 7 "G" [0, 3, 7]   -- G minor via desc 5th
+let cs3 = initCadenceState 0 "C" [0, 4, 7]   -- C major (pedal)
+let cs4 = initCadenceState 2 "D" [0, 3, 7]   -- D minor via asc 2nd
 
 -- Build progression from CadenceStates
 let prog4 = fromCadenceStates [cs1, cs2, cs3, cs4]
@@ -267,7 +267,7 @@ moreChoice  -- More candidates to choose from
 -- Use 'gen' (String) instead of 'generate' (Text) in TidalCycles.
 
 -- Create starting state
-let start = initCadenceState 0 "C" [0, 4, 7] FlatSpelling  -- C major, arrived by unison
+let start = initCadenceState 0 "C" [0, 4, 7]  -- C major, arrived by unison
 
 -- Generate 8-bar progression with default settings
 -- Composer: equal weight to all composers

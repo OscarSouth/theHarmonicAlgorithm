@@ -273,7 +273,7 @@ import Harmonic.Lib
 
 -- Create context and starting state
 ctx <- harmonicContext "*" "*" "*"
-let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+let start = initCadenceState 0 "C" [0,4,7]
 
 -- Test generation (requires Neo4j)
 prog <- genSilent start 4 "*" 0.5 ctx
@@ -290,7 +290,7 @@ import Harmonic.Lib
 
 -- Generate a progression first (requires Neo4j)
 ctx <- harmonicContext "*" "*" "*"
-let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+let start = initCadenceState 0 "C" [0,4,7]
 prog <- genSilent start 4 "*" 0.5 ctx
 
 -- Test pattern lookup with modulo wrap
@@ -312,7 +312,7 @@ import Harmonic.Lib
 
 -- Generate progression first
 ctx <- harmonicContext "*" "*" "*"
-let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+let start = initCadenceState 0 "C" [0,4,7]
 prog <- genSilent start 8 "*" 0.5 ctx
 
 -- Test progression combinators

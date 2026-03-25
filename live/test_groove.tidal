@@ -7,7 +7,7 @@
 -- This follows the launcher paradigm: pattern generation is separate from effects
 
 -- Setup
-let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
+let start = initCadenceState 0 "C" [0,4,7]
 let ctx = hContext "*" "*" "*"
 s <- gen start 2 "*" 0.5 ctx
 

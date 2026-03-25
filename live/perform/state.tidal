@@ -1,6 +1,6 @@
 tempo = 97
 
-start = initCadenceState (-3) "D" [0,3,7] FlatSpelling
+start = initCadenceState (-3) "D" [0,3,7]
 
 ctx = hContext "*" "* -F# -Eb -Ab" "D C Bb"
 

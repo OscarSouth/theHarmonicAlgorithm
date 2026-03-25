@@ -1,19 +1,20 @@
 tempo = 97
 
-start0 = initCadenceState (-3) "D" [0,3,7] FlatSpelling
+start0 = initCadenceState (-3) "D" [0,3,7]
 
-start1 = initCadenceState (5) "C" [0,4,7] FlatSpelling
+start1 = initCadenceState (5) "C" [0,4,7]
 
 ctx = hContext "*" "* -F# -Eb -Ab" "D C Bb"
 
 s0 <- gen start0 4 "*" 0.5 ctx
+
 s1 <- gen start1 4 "*" 0.5 ctx
 
 form =
-  [ at  0  0.0  0.3 s0    -- low: root only
-  , at 10  0.5  0.6  s0    -- mid: + upper voices
-  , at 20  1.0  1.0  s1    -- high: full, new harmony
-  , at 30  0.0  0.3  s0    -- loop back to low
+  [ at  0  0.1  0.0 s0    -- low: root only
+  , at 10  0.3  0.6  s0    -- mid: + upper voices
+  , at 50  1.0  1.0  s1    -- high: full, new harmony
+  , at 60  0.0  0.3  s0    -- loop back to low
   ]
 
   -- '' ¬¬
@@ -25,10 +26,11 @@ do
     k = formK tempo form
   putStrLn $ "GO ¬¬"
   mapM_ id [hush, setbpm tempo
+    -- ,p02 f r d k
     ,p03 f r d k
-    ,subk f r d k
-    ,k909 f   d k
-    ,kmpc f   d k
+    -- ,subk f r d k
+    -- ,k909 f   d k
+    -- ,kmpc f   d k
    ]
 
 hush
