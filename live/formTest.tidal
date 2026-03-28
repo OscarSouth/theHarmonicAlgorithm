@@ -12,9 +12,9 @@ p03 f r d k = d03 $ do
   f
     $ stack [silence
       ,arrange upper flow (overlapF 0) r k (-9,9) ["~"
-        ,"[1,2,3]"
+        ,"[~ [1,2,3]]"
         -- ,degrade $ "[0(3,8)]/2" |+ "<1 2 3 4>" |+ choose [3,4,5]
-      ]# o |* vel 0.4 |- oct 1 |* legato 4
+      ]# o |* vel 0.1 |- oct 1 |* legato 0.25
       ,arrange cresc root (overlapF 0) r k (-9,9) ["~"
         -- ,"[0 . 3 ]"
         ,"[0 [0,4]]/8"
@@ -55,24 +55,6 @@ subk f r d k = p "subKick"
       -- ,"[1]/2"
       ,"[0 1 0 0]"
       -- ,"[~]"
-      ,"1"
+      ,"1*4"
       -- ,"[1 0 0 1 0 0 1 0 . 0 1 1 0]"
     )
-
-p02 f s r d = d01 $ do
-  id $
-    f $
-      arrange flow s r (-9,9) ["~"
-        ,"[-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9]"
-      ]# ch 02
-      -- |= legato 1
-      |* vel d
-
-p02 f r d k = d02 $ do
-  let o = ch 02
-  f
-    $ stack [silence
-      ,arrange cresc root (overlapF 0) r k (-9,9) ["~"
-        ,"[-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9]/4"
-      ]#o
-    ] |* vel 1

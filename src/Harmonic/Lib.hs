@@ -122,8 +122,6 @@ module Harmonic.Lib (
   -- Form / Kinetics
   FormNode(..), Kinetics(..), at, formK,
   ki, slate, withForm,
-  form444, form720, form1164,
-
   -- Arranger functions (voicing paradigms)
   rotate, excerpt, insert, switch, clone, extract,
   transposeP, Harmonic.Interface.Tidal.Arranger.reverse, fuse, fuse2, interleave, expandP,
@@ -187,8 +185,7 @@ import Harmonic.Interface.Tidal.Arranger (
 import Harmonic.Interface.Tidal.Groove (subKick, fund)
 import Harmonic.Interface.Tidal.Form (
     FormNode(..), Kinetics(..), at, formK,
-    ki, slate, withForm,
-    form444, form720, form1164
+    ki, slate, withForm
   )
 import Harmonic.Interface.Tidal.Instruments
 import Harmonic.Interface.Tidal.Utils

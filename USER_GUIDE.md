@@ -599,19 +599,12 @@ reactively switching when the form changes progressions:
 withForm :: Kinetics -> (Progression -> Pattern ValueMap) -> Pattern ValueMap
 ```
 
-### 7.8 Pre-built Forms
+### 7.8 Form Declarations
 
-Three pre-built forms follow a Fichtean dramatic arc (exposition → inciting
-event → development → cumulation → peak → convergence → resolution):
-
-| Form | Duration | Use |
-|------|----------|-----|
-| `form444 a b` | 7m 24s | Short sets, quick arc |
-| `form720 a b` | 12m | Standard set length |
-| `form1164 a b` | 19m 24s | Long-form performance |
-
-Each takes two progressions (`a` for home, `b` for development) and
-produces 10 nodes with proportionally spaced dramatic arc.
+Forms are always declared inline in performance files — visible and editable
+at the point of use. See `live/snippets.cson` for 7 editor snippet templates
+(single-state, spectral narratives at fixed and variable durations, pop forms)
+and `live/forms.tidal` for annotated reference versions.
 
 ### 7.9 Range Naming Conventions
 
@@ -932,9 +925,6 @@ ___
 | `kSignal k` | Kinetics level pattern (0–1) |
 | `kDynamic k` | Dynamic envelope pattern (0–1) |
 | `kProg k` | Active progression pattern |
-| `form444 a b` | Pre-built 7m24s Fichtean arc |
-| `form720 a b` | Pre-built 12m Fichtean arc |
-| `form1164 a b` | Pre-built 19m24s Fichtean arc |
 
 ### MIDI Helpers (BootTidal.hs)
 

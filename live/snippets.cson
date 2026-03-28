@@ -1,17 +1,20 @@
 '.source.tidalcycles':
+
+  # ── Utility Snippets ──────────────────────────────────────
+
   'pattern block':
     'prefix': 'p'
     'body': '''
-      p$1 f s r d = d$1 $ do
+      p$1 f r d k = d$1 $ do
         let o = ch $1
         f
           $ stack [silence
              -- --
-            ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+            ,arrange (0,1) flow (overlapF 0) r k (-9,9) ["~"
               ,$2
             ]# o |* vel 1
              -- --
-          ] |* vel d
+          ] |* vel (kDynamic k) |* vel d
       $3
     '''
 
@@ -19,8 +22,8 @@
   'arrange block':
     'prefix': 'rrange'
     'body': '''
-      arrange flow (overlapF 0 s) r (-9,9) ["~"
-        ,$2
+      arrange (0,1) flow (overlapF 0) r k (-9,9) ["~"
+        ,$1
       ]# o |* vel 1
        -- --
     '''
@@ -31,15 +34,151 @@
     'body': """
       do
         let
-          dyn = 1
-          rep = 1
-          s = transposeP 0 prog
+          r = rep s 1
           f = id
-          (d,r) = ((*dyn),rep)
+          d = 0.9
+          k = formK tempo form
         putStrLn $ "LAUNCH¬¬\\n" ++ show s
         mapM_ id [hush, setbpm tempo
-         -- ,p01  f s r $d 0.9
+         -- ,p01  f r d k
          ]
       $1
     """
 
+
+  'subkick block':
+    'prefix': 'subk'
+    'body': '''
+      subk f r d k = p "subKick"
+        $ f
+          $ subKick bass r d k ( 1/4
+            ,"$1"
+            ,"0 1 0 -"
+            ,"1*4"
+          )
+    '''
+
+
+  # ── Form Snippets ─────────────────────────────────────────
+
+  'form: single state':
+    'prefix': 'formless'
+    'body': '''
+      form = [at 0 1 1 $1]
+    '''
+
+
+  'form: 7m24s spectral narrative':
+    'prefix': 'form444'
+    'body': '''
+      form =                              -- 7m24s spectral narrative (454s loop)
+        [ at     0.0   0.0   0.0   $1    -- exposition: emergence
+        , at    55.5   0.15  0.3   $1    -- 1/8: establishing
+        , at   111.0   0.3   0.45  $1    -- 1/4: inciting event
+        , at   166.5   0.5   0.6   $1    -- 3/8: development tension
+        , at   222.0   0.4   0.5   $1    -- 1/2: the swerve
+        , at   275.0   0.8   0.85  $1    -- PRIMARY: cumulation
+        , at   333.0   1.0   1.0   $1    -- 3/4: peak
+        , at   380.0   0.6   0.7   $1    -- SECONDARY: resolution begins
+        , at   420.0   0.2   0.3   $1    -- TERTIARY: convergence
+        , at   444.0   0.0   0.0   $1    -- fine: equilibrium
+        , at   454.0   0.0   0.0   $1    -- silence (10s gap)
+        ]
+    '''
+
+
+  'form: 12m spectral narrative':
+    'prefix': 'form720'
+    'body': '''
+      form =                              -- 12m spectral narrative (730s loop)
+        [ at     0.0   0.0   0.0   $1    -- exposition: emergence
+        , at    90.0   0.15  0.3   $1    -- 1/8: establishing
+        , at   180.0   0.3   0.45  $1    -- 1/4: inciting event
+        , at   270.0   0.5   0.6   $1    -- 3/8: development tension
+        , at   360.0   0.4   0.5   $1    -- 1/2: the swerve
+        , at   445.0   0.8   0.85  $1    -- PRIMARY: cumulation
+        , at   540.0   1.0   1.0   $1    -- 3/4: peak
+        , at   615.0   0.6   0.7   $1    -- SECONDARY: resolution begins
+        , at   680.0   0.2   0.3   $1    -- TERTIARY: convergence
+        , at   720.0   0.0   0.0   $1    -- fine: equilibrium
+        , at   730.0   0.0   0.0   $1    -- silence (10s gap)
+        ]
+    '''
+
+
+  'form: 19m24s spectral narrative':
+    'prefix': 'form1164'
+    'body': '''
+      form =                              -- 19m24s spectral narrative (1174s loop)
+        [ at     0.0   0.0   0.0   $1    -- exposition: emergence
+        , at   145.5   0.15  0.3   $1    -- 1/8: establishing
+        , at   291.0   0.3   0.45  $1    -- 1/4: inciting event
+        , at   436.5   0.5   0.6   $1    -- 3/8: development tension
+        , at   582.0   0.4   0.5   $1    -- 1/2: the swerve
+        , at   720.0   0.8   0.85  $1    -- PRIMARY: cumulation
+        , at   873.0   1.0   1.0   $1    -- 3/4: peak
+        , at   995.0   0.6   0.7   $1    -- SECONDARY: resolution begins
+        , at  1100.0   0.2   0.3   $1    -- TERTIARY: convergence
+        , at  1164.0   0.0   0.0   $1    -- fine: equilibrium
+        , at  1174.0   0.0   0.0   $1    -- silence (10s gap)
+        ]
+    '''
+
+
+  'form: variable-length spectral narrative':
+    'prefix': 'formvar'
+    'body': '''
+      let dur = $1
+      form =                                    -- variable spectral narrative
+        [ at  0                  0.0   0.0   $2    -- exposition: emergence
+        , at  (dur * 0.125)      0.15  0.3   $2    -- 1/8: establishing
+        , at  (dur * 0.25)       0.3   0.45  $2    -- 1/4: inciting event
+        , at  (dur * 0.375)      0.5   0.6   $2    -- 3/8: development tension
+        , at  (dur * 0.5)        0.4   0.5   $2    -- 1/2: the swerve
+        , at  (dur * 0.618)      0.8   0.85  $2    -- PRIMARY: cumulation (golden ratio)
+        , at  (dur * 0.75)       1.0   1.0   $2    -- 3/4: peak
+        , at  (dur * 0.855)      0.6   0.7   $2    -- SECONDARY: resolution begins
+        , at  (dur * 0.945)      0.2   0.3   $2    -- TERTIARY: convergence
+        , at  dur                0.0   0.0   $2    -- fine: equilibrium
+        , at  (dur + 10)         0.0   0.0   $2    -- silence (10s gap)
+        ]
+    '''
+
+
+  'form: 3min pop @ 112 BPM':
+    'prefix': 'formpop'
+    'body': '''
+      form =                                          -- 3min pop @ 112 BPM (190s loop)
+        [ at     0.00   0.3   0.4   verse    -- intro        4 bars  |  0:00
+        , at     8.57   0.4   0.5   verse    -- verse 1     16 bars  |  0:09
+        , at    42.86   0.7   0.7   chorus   -- chorus 1     8 bars  |  0:43
+        , at    60.00   0.4   0.5   verse    -- verse 2     16 bars  |  1:00
+        , at    94.29   0.8   0.8   chorus   -- chorus 2     8 bars  |  1:34
+        , at   111.43   0.5   0.6   bridge   -- bridge       8 bars  |  1:51
+        , at   128.57   0.9   0.9   chorus   -- chorus 3     8 bars  |  2:09
+        , at   145.71   1.0   1.0   chorus   -- final ch     8 bars  |  2:26
+        , at   162.86   0.2   0.3   verse    -- outro        8 bars  |  2:43
+        , at   180.00   0.0   0.0   verse    -- fine                 |  3:00
+        , at   190.00   0.0   0.0   verse    -- silence (10s gap)
+        ]
+    '''
+
+
+  'form: variable-tempo pop':
+    'prefix': 'formpopvar'
+    'body': '''
+      let bpm = $1; bar = 240 / bpm
+      form =                                                  -- pop (84 bars)
+        [ at  0                 0.3   0.4   verse    -- intro        4 bars
+        , at  (bar * 4)         0.4   0.5   verse    -- verse 1     16 bars
+        , at  (bar * 20)        0.7   0.7   chorus   -- chorus 1     8 bars
+        , at  (bar * 28)        0.4   0.5   verse    -- verse 2     16 bars
+        , at  (bar * 44)        0.8   0.8   chorus   -- chorus 2     8 bars
+        , at  (bar * 52)        0.5   0.6   bridge   -- bridge       8 bars
+        , at  (bar * 60)        0.9   0.9   chorus   -- chorus 3     8 bars
+        , at  (bar * 68)        1.0   1.0   chorus   -- final ch     8 bars
+        , at  (bar * 76)        0.2   0.3   verse    -- outro        8 bars
+        , at  (bar * 84)        0.0   0.0   verse    -- fine
+        , at  (bar * 84 + 10)   0.0   0.0   verse    -- silence (10s gap)
+        ]
+    '''

@@ -979,17 +979,16 @@ let k = formK 120 [at 0 1 1 s0]
 
 
 -- ──────────────────────────────────────────────────────────
--- 7.6 Pre-built Forms (Fichtean Arc)
+-- 7.6 Form Declarations
 -- ──────────────────────────────────────────────────────────
 
--- Three pre-built dramatic arcs:
---   form444  a b  = 7m 24s  (short sets)
---   form720  a b  = 12m     (standard)
---   form1164 a b  = 19m 24s (long-form)
--- Each takes two progressions: a (home) and b (development).
+-- Forms are declared inline in performance files.
+-- See live/snippets.cson for editor snippet templates
+-- and live/forms.tidal for annotated reference versions.
 
--- Example: 12-minute performance form
-let k = formK 120 (form720 s0 s1)
+-- Example: single-state form (constant signals)
+let form = [at 0 1 1 s]
+    k = formK 120 form
 
 
 -- ──────────────────────────────────────────────────────────
@@ -1712,9 +1711,8 @@ hush'
 -- kDynamic :: Kinetics -> Pattern Double  (dynamic envelope 0-1)
 -- kProg    :: Kinetics -> Pattern Progression  (active progression)
 
--- form444  :: Progression -> Progression -> [FormNode]  (7m24s)
--- form720  :: Progression -> Progression -> [FormNode]  (12m)
--- form1164 :: Progression -> Progression -> [FormNode]  (19m24s)
+-- Forms are declared inline. See live/snippets.cson for templates
+-- and live/forms.tidal for reference.
 
 
 -- ──────────────────────────────────────────────────────────

@@ -22,10 +22,6 @@ module Harmonic.Interface.Tidal.Form
   , slate
   , withForm
 
-    -- * Pre-built Forms
-  , form444
-  , form720
-  , form1164
   ) where
 
 import qualified Harmonic.Rules.Types.Progression as P
@@ -124,62 +120,3 @@ slate range k pats = ki range k $ stack pats
 withForm :: Kinetics -> (P.Progression -> Pattern ValueMap) -> Pattern ValueMap
 withForm k f = innerJoin $ fmap f (kProg k)
 
--------------------------------------------------------------------------------
--- Pre-built Forms (Fichtean Motive Arc)
--------------------------------------------------------------------------------
-
--- Total cycles at common BPMs (1 cycle = 1 beat):
---         | 7m24s (444s) | 12m (720s) | 19m24s (1164s)
--- BPM  80 |   592        |   960      |   1552
--- BPM  90 |   666        |  1080      |   1746
--- BPM 100 |   740        |  1200      |   1940
--- BPM 120 |   888        |  1440      |   2328
-
--- |7 minute 24 second form (444s) with Fichtean motive arc.
--- Takes two progressions: @a@ (home) and @b@ (development).
-form444 :: P.Progression -> P.Progression -> [FormNode]
-form444 a b =
-  --       time    kin   dyn   prog  | narrative
-  [ at     0.0     0.0   0.0   a     -- start (silence)
-  , at    55.5     0.2   0.35  a     -- 1/8: exposition building
-  , at   111.0     0.35  0.5   a     -- 1/4: inciting event
-  , at   166.5     0.5   0.6   b     -- 3/8: development tension
-  , at   222.0     0.4   0.5   b     -- 1/2: THE SWERVE
-  , at   275.0     0.8   0.85  b     -- PRIMARY: cumulation begins
-  , at   333.0     1.0   1.0   b     -- 3/4: peak tension
-  , at   380.0     0.7   0.8   a     -- secondary: hope/return
-  , at   420.0     0.2   0.3   a     -- tertiary: convergence
-  , at   444.0     0.0   0.0   a     -- fine (loops to start)
-  ]
-
--- |12 minute form (720s) with Fichtean motive arc.
--- Same proportional arc as form444, scaled to 720s.
-form720 :: P.Progression -> P.Progression -> [FormNode]
-form720 a b =
-  [ at     0.0     0.0   0.0   a
-  , at    90.0     0.2   0.35  a
-  , at   180.0     0.35  0.5   a
-  , at   270.0     0.5   0.6   b
-  , at   360.0     0.4   0.5   b
-  , at   446.0     0.8   0.85  b
-  , at   540.0     1.0   1.0   b
-  , at   616.0     0.7   0.8   a
-  , at   680.0     0.2   0.3   a
-  , at   720.0     0.0   0.0   a
-  ]
-
--- |19 minute 24 second form (1164s) with Fichtean motive arc.
--- Same proportional arc as form444, scaled to 1164s.
-form1164 :: P.Progression -> P.Progression -> [FormNode]
-form1164 a b =
-  [ at     0.0     0.0   0.0   a
-  , at   145.5     0.2   0.35  a
-  , at   291.0     0.35  0.5   a
-  , at   436.5     0.5   0.6   b
-  , at   582.0     0.4   0.5   b
-  , at   720.8     0.8   0.85  b
-  , at   873.0     1.0   1.0   b
-  , at   996.0     0.7   0.8   a
-  , at  1100.0     0.2   0.3   a
-  , at  1164.0     0.0   0.0   a
-  ]

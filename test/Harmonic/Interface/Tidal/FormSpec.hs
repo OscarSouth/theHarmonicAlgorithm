@@ -72,44 +72,6 @@ spec = do
           evs = queryArc (kProg k) (Arc 0 1)
       all (\e -> value e == testProgA) evs `shouldBe` True
 
-  describe "Pre-built forms" $ do
-    it "form444 has correct node count" $ do
-      length (form444 testProgA testProgB) `shouldBe` 10
-
-    it "form720 has correct node count" $ do
-      length (form720 testProgA testProgB) `shouldBe` 10
-
-    it "form1164 has correct node count" $ do
-      length (form1164 testProgA testProgB) `shouldBe` 10
-
-    it "form444 starts and ends at kinetics 0" $ do
-      let nodes = form444 testProgA testProgB
-      fnKinetics (head nodes) `shouldBe` 0.0
-      fnKinetics (last nodes) `shouldBe` 0.0
-
-    it "form444 starts and ends at dynamic 0" $ do
-      let nodes = form444 testProgA testProgB
-      fnDynamic (head nodes) `shouldBe` 0.0
-      fnDynamic (last nodes) `shouldBe` 0.0
-
-    it "form444 times are monotonically increasing" $ do
-      let nodes = form444 testProgA testProgB
-          times = map fnTime nodes
-          pairs = zip times (tail times)
-      all (\(a, b) -> b > a) pairs `shouldBe` True
-
-    it "form720 times are monotonically increasing" $ do
-      let nodes = form720 testProgA testProgB
-          times = map fnTime nodes
-          pairs = zip times (tail times)
-      all (\(a, b) -> b > a) pairs `shouldBe` True
-
-    it "form1164 times are monotonically increasing" $ do
-      let nodes = form1164 testProgA testProgB
-          times = map fnTime nodes
-          pairs = zip times (tail times)
-      all (\(a, b) -> b > a) pairs `shouldBe` True
-
   describe "ki (range gating)" $ do
     it "passes events when signal in range" $ do
       let k = Kinetics (pure 0.5) (pure 1.0) (pure testProgA)

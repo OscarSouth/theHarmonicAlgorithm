@@ -536,7 +536,11 @@ advanceStateTraced currentState newCadence =
       -- Infer spelling from the new chord's absolute pitches
       tones = map P.unPitchClass $ H.cadenceIntervals newCadence
       absolutePitches = map (\t -> (t + P.unPitchClass newRootPC) `mod` 12) tones
-      newSpelling = H.inferSpelling absolutePitches
+      inferredSpelling = H.inferSpelling absolutePitches
+      -- Ambiguous patterns (e.g. min7o3 at roots where maj/min disagree) adopt prior spelling
+      newSpelling = if H.isAmbiguousPattern absolutePitches
+                    then H.stateSpelling currentState
+                    else inferredSpelling
       newRoot = H.enharmonicFunc newSpelling newRootPC
       newState = H.CadenceState newCadence newRoot newSpelling
 

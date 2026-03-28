@@ -42,6 +42,8 @@ module Harmonic.Rules.Types.Harmony
   , spellingToPreference
   , enharmonicFunc
   , inferSpelling
+  , noteNameImpliesSpelling
+  , isAmbiguousPattern
 
     -- * Concrete State Types
   , ChordState(..)
@@ -561,6 +563,50 @@ layer2Table = IM.fromListWith (++) $ concatMap expandRoot
     rootEntry bass upper s = (bass, upper, s)
     expandRoot (bass, upper, s) = [(bass, [(IS.fromList upper, s)])]
 
+-- |Detect if a NoteName carries an explicit sharp/flat preference.
+-- Sharp variants (C', D', F', G', A') → Just SharpSpelling
+-- Flat variants (Db, Eb, Gb, Ab, Bb) → Just FlatSpelling
+-- Natural notes (C, D, E, F, G, A, B) → Nothing (use inference)
+noteNameImpliesSpelling :: NoteName -> Maybe EnharmonicSpelling
+noteNameImpliesSpelling C' = Just SharpSpelling
+noteNameImpliesSpelling D' = Just SharpSpelling
+noteNameImpliesSpelling F' = Just SharpSpelling
+noteNameImpliesSpelling G' = Just SharpSpelling
+noteNameImpliesSpelling A' = Just SharpSpelling
+noteNameImpliesSpelling Db = Just FlatSpelling
+noteNameImpliesSpelling Eb = Just FlatSpelling
+noteNameImpliesSpelling Gb = Just FlatSpelling
+noteNameImpliesSpelling Ab = Just FlatSpelling
+noteNameImpliesSpelling Bb = Just FlatSpelling
+noteNameImpliesSpelling _  = Nothing
+
+-- |Patterns that are enharmonically ambiguous mid-progression.
+-- Only min7o3 (root + P5 + m7) at roots where major/minor triads differ in spelling.
+-- Roots 1 (Db/C#), 2 (D), 7 (G), 8 (Ab/G#), 9 (A): major 3rd → one spelling, minor 3rd → different.
+-- Roots 0, 3, 4, 5, 6, 10, 11: same spelling regardless of 3rd → NOT ambiguous.
+ambiguousPatterns :: IM.IntMap [IS.IntSet]
+ambiguousPatterns = IM.fromListWith (++)
+  [ (bass `mod` 12, [IS.fromList (map (`mod` 12) uppers)])
+  | root <- [1, 2, 7, 8, 9]
+  , (bass, uppers) <- min7o3Inversions root
+  ]
+  where
+    min7o3Inversions r =
+      [ (r,    [r+7, r+10])
+      , (r+7,  [r+10, r])
+      , (r+10, [r, r+7])
+      ]
+
+-- |Check if a chord's absolute pitches match an ambiguous pattern.
+isAmbiguousPattern :: [Int] -> Bool
+isAmbiguousPattern [] = False
+isAmbiguousPattern pcs =
+  let bassNorm = head pcs `mod` 12
+      restSet = IS.fromList (map (`mod` 12) (tail pcs))
+  in case IM.lookup bassNorm ambiguousPatterns of
+       Nothing -> False
+       Just patterns -> any (`IS.isSubsetOf` restSet) patterns
+
 -------------------------------------------------------------------------------
 -- Functionality (Chord Quality as String)
 -------------------------------------------------------------------------------
@@ -916,7 +962,10 @@ initCadenceState movement note quality =
       rootPC = pitchClass root
       tones = cadenceIntervals cad
       absolutePitches = map (\t -> unPitchClass (t + rootPC)) tones
-      spelling = inferSpelling absolutePitches
+      inferredSpelling = inferSpelling absolutePitches
+      spelling = case noteNameImpliesSpelling root of
+        Just explicit -> explicit
+        Nothing       -> inferredSpelling
   in CadenceState cad root spelling
   where
     zeroFormInts xs = let m = minimum xs in sort $ map (\n -> (n - m) `mod` 12) xs

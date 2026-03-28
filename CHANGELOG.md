@@ -89,8 +89,8 @@ discrete step functions for progression switching.
   activate at different intensity levels
 - `withForm` reactive switching: apply a function taking `Progression`
   to a `Kinetics` context via `innerJoin`
-- Pre-built Fichtean arc forms: `form444` (7m24s), `form720` (12m),
-  `form1164` (19m24s) — dramatic narrative arcs for long-form performance
+- Forms are now inline declarations with snippet templates — see
+  `live/snippets.cson` for spectral narrative and pop form snippets
 - Single-state forms produce constant signals, recreating "formless"
   behaviour: `formK tempo [at 0 1 1 s]`
 - `arrange` and `arrange'` now take a kinetics range, progression
