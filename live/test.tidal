@@ -28,7 +28,7 @@
 -- Test that voice functions are available
 :t flow
 :t root
-:t bass
+:t lock
 :t arrange
 :t overlapF
 :t rotate
@@ -109,7 +109,7 @@ expandP 2 testProg  -- Double length
 
 -- Voicing extractors (3 paradigms via cyclic DP)
 literal testProg   -- [[Integer]] raw pitch classes
-root testProg      -- Root in bass, smooth voice leading
+lock testProg      -- Root locked in bass, smooth voice leading
 flow testProg      -- Any inversion, smoothest motion
 lite testProg      -- Same as literal
 

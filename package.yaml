@@ -61,6 +61,7 @@ library:
     - Harmonic.Interface.Tidal.Form
     - Harmonic.Interface.Tidal.Groove
     - Harmonic.Interface.Tidal.Instruments
+    - Harmonic.Interface.Tidal.Orchestra
     - Harmonic.Interface.Tidal.Utils
   source-dirs: src
   # ghc-options:

@@ -1,0 +1,39 @@
+tempo = 97
+
+start0 = initCadenceState (-3) "D" [0,3,7]
+
+start1 = initCadenceState (5) "C" [0,4,7]
+
+ctx = hContext "*" "* -F# -Eb -Ab" "D C Bb"
+
+s0 <- gen start0 4 "*" 0.5 ctx
+
+s1 <- gen start1 4 "*" 0.5 ctx
+
+form =
+  [ at  0  0.1  0.0 s0
+  , at 10  0.3  0.6 s0
+  , at 50  1.0  1.0 s1
+  , at 60  0.1  0.0 s0
+  ]
+
+  -- '' ¬¬
+do
+  let
+    r = warp "[1 2 3 4]/8"
+    f = (swingBy 0.04 2)
+    d = (* 1)
+    k = formK tempo form
+  putStrLn $ "ORCHESTRAL LAUNCH ¬¬"
+  mapM_ id [hush, setbpm tempo
+    ,wind f r k          $ d 0.9
+    -- ,strg f r k       $ d 0.8
+    -- ,brss f r k       $ d 0.9
+    -- ,perc f r k       $ d 0.7
+    -- ,chalumeau f r k  $ d 0.9
+    -- ,tutti arco f r k $ d 0.9
+    -- ,subk f r k       $ d 1
+    -- ,k909 f k         $ d 0.4
+   ]
+
+hush''

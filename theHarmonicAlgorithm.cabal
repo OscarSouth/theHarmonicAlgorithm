@@ -39,6 +39,7 @@ library
       Harmonic.Interface.Tidal.Form
       Harmonic.Interface.Tidal.Groove
       Harmonic.Interface.Tidal.Instruments
+      Harmonic.Interface.Tidal.Orchestra
       Harmonic.Interface.Tidal.Utils
   other-modules:
       Paths_theHarmonicAlgorithm
@@ -111,6 +112,7 @@ test-suite theHarmonicAlgorithm-test
       Harmonic.Interface.Tidal.BridgeSpec
       Harmonic.Interface.Tidal.FormSpec
       Harmonic.Interface.Tidal.GrooveSpec
+      Harmonic.Interface.Tidal.OrchestraSpec
       Harmonic.Rules.Constraints.FilterSpec
       Harmonic.Rules.Constraints.OvertoneSpec
       Harmonic.Rules.Types.HarmonySpec

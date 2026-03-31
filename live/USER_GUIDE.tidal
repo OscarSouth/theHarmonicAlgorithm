@@ -42,7 +42,7 @@ p01 f r d k = d01 $ do
   f
     $ stack [silence
        -- --
-      ,arrange (0,1) root (overlapF 0) r k (-9,9) ["~"
+      ,arrange (0,1) lock (overlapF 0) r k (-9,9) ["~"
         ,"<0 1 2 3>"
         ]# o |* vel 1
        -- --
@@ -196,7 +196,7 @@ do
     r = rep s8 1
     k = formK 120 [at 0 1 1 s8]
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) root id r k (-9,9)
+    ,d01 $ arrange (0,1) lock id r k (-9,9)
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -316,7 +316,7 @@ do
     r = rep s8 1
     k = formK 120 [at 0 1 1 s8]
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) root id r k (-9,9)
+    ,d01 $ arrange (0,1) lock id r k (-9,9)
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -384,7 +384,7 @@ p03 f r d k = d03 $ do
           ,"[0,1,2,3]/4"
         ]# o |* vel 0.8
         -- Voice 2: Root bass line (always on)
-        ,arrange (0,1) root id r k (-9,9) ["~"
+        ,arrange (0,1) lock id r k (-9,9) ["~"
           ,"0*2"
         ]# o |* vel 1 |- oct 2
       ] |* vel (kDynamic k) |* vel d
@@ -442,8 +442,8 @@ p01 f r d k = d01 $ do
     arrange (0.5,1) flow id r k (-9,9) ["~", "[0,1,2,3]/4"]
       # o |* vel 0.8,
 
-    -- Bass (root voicing, always on)
-    arrange (0,1) root id r k (-9,9) ["~", "0*2"]
+    -- Bass (lock voicing, always on)
+    arrange (0,1) lock id r k (-9,9) ["~", "0*2"]
       # o |* vel 1 |- oct 2,
 
     -- Melody (flow voicing, high octave, peak only)
@@ -473,13 +473,13 @@ hush'
 -- ══════════════════════════════════════════════════════════
 -- SECTION 4: VOICING STRATEGIES
 -- ══════════════════════════════════════════════════════════
--- Goal: Understand flow vs root vs lite vs bass vs fund
+-- Goal: Understand flow vs lock vs lite vs root vs fund
 
 -- Five voicing strategies:
 --   flow - Smoothest voice leading (flexible inversion)
---   root - Root always in bass (top notes lead smoothly)
+--   lock - Root locked in bass (top notes lead smoothly)
 --   lite - Literal (first-root normalized, no other changes)
---   bass - Mono, bass note only (first pitch)
+--   root - Mono, root note only (first pitch)
 --   fund - Mono, harmonic root (inversion-invariant)
 
 -- Generate once, reuse for all voicing examples:
@@ -509,14 +509,14 @@ hush'
 
 
 -- ──────────────────────────────────────────────────────────
--- 4.2 root - Root Position
+-- 4.2 lock - Root Locked Position
 -- ──────────────────────────────────────────────────────────
 
 -- Root note always in bass (lowest voice)
 -- Best for: bass instruments, rooted chords
 do
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) root id r k (-9,9)
+    ,d01 $ arrange (0,1) lock id r k (-9,9)
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -539,14 +539,14 @@ hush'
 
 
 -- ──────────────────────────────────────────────────────────
--- 4.4 bass - Bass Note Only
+-- 4.4 root - Root Note Only
 -- ──────────────────────────────────────────────────────────
 
 -- Extracts only the bass note (lowest voice)
 -- Best for: bass lines, percussion
 do
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) bass id r k (-9,9)
+    ,d01 $ arrange (0,1) root id r k (-9,9)
       ["0*2"] # ch 01 |- oct 2 |* vel 0.9
    ]
 
@@ -565,8 +565,8 @@ do
       ["0*2"] # ch 01 |- oct 2 |* vel 0.9
    ]
 
--- bass vs fund: when chords are inverted,
---   bass = generated lowest pitch (may be 3rd, 5th)
+-- root vs fund: when chords are inverted,
+--   root = generated lowest pitch (may be 3rd, 5th)
 --   fund = always the harmonic root
 
 hush'
@@ -583,14 +583,14 @@ do
   -- flow: smoothest voice leading
   d01 $ arrange (0,1) flow id r k (-9,9)
     ["0 1 2 3"] # ch 01
-  -- root: root always in bass
-  d02 $ arrange (0,1) root id r k (-9,9)
+  -- lock: root locked in bass
+  d02 $ arrange (0,1) lock id r k (-9,9)
     ["0 1 2 3"] # ch 01
   -- lite: literal (no optimization)
   d03 $ arrange (0,1) lite id r k (-9,9)
     ["0 1 2 3"] # ch 01
-  -- bass: bass note only
-  d04 $ arrange (0,1) bass id r k (-9,9)
+  -- root: root note only
+  d04 $ arrange (0,1) root id r k (-9,9)
     ["0*2"] # ch 01 |- oct 1
   -- fund: harmonic root (inversion-invariant)
   d05 $ arrange (0,1) fund id r k (-9,9)
@@ -607,7 +607,7 @@ hush'
 --   -> (Progression -> Progression)
 --   -> Pattern Int -> Kinetics -> (Int, Int)
 --   -> [Pattern Int] -> ControlPattern
--- VoiceFunction: flow, root, lite, bass, fund
+-- VoiceFunction: flow, lock, lite, root, fund
 -- Modifier: id, overlapF 0, overlapB 1, etc.
 
 p01 f r d k = d01 $ do
@@ -618,12 +618,12 @@ p01 f r d k = d01 $ do
       ,arrange (0.5,1) flow id r k (-9,9) ["~"
         ,"[0,1,2,3]/4"
       ]# o |* vel 0.8
-      -- Bass (root voicing, always on):
-      ,arrange (0,1) root id r k (-9,9) ["~"
+      -- Bass (lock voicing, always on):
+      ,arrange (0,1) lock id r k (-9,9) ["~"
         ,"0*2"
       ]# o |* vel 1 |- oct 1
-      -- Single bass note (bass voicing):
-      ,arrange (0,1) bass id r k (-9,9) ["~"
+      -- Single bass note (root voicing):
+      ,arrange (0,1) root id r k (-9,9) ["~"
         ,"0*4"
       ]# o |* vel 1.2 |- oct 2
     ] |* vel (kDynamic k) |* vel d
@@ -1113,7 +1113,7 @@ p03 f r d k = d03 $ do
       ,arrange upper flow (overlapF 0) r k (-9,9) ["~"
         ,"[1,2,3]/8"
       ]# o |* vel 0.4 |- oct 1 |* legato 0.99
-      ,arrange cresc root (overlapF 0) r k (-9,9) ["~"
+      ,arrange cresc lock (overlapF 0) r k (-9,9) ["~"
         ,"[0 [0,4]]/8"
       ]# o |* vel 0.9 |- oct 2 |= legato 0.99
     ] |* vel (kDynamic k) |* vel d
@@ -1143,7 +1143,7 @@ hush'
 --         -> (Time, String, String, String) -> ControlPattern
 --
 -- Parameters:
---   voice strategy (fund or bass)
+--   voice strategy (fund or root)
 --   chord selection pattern (1-indexed, via warp or rep)
 --   dynamics pattern (> 0 = sub active)
 --   kinetics context (carries progression + form gating)
@@ -1172,11 +1172,11 @@ hush'
 
 
 -- ──────────────────────────────────────────────────────────
--- 8.2 fund vs bass for Kick Patterns
+-- 8.2 fund vs root for Kick Patterns
 -- ──────────────────────────────────────────────────────────
 
 -- fund: always follows the harmonic root (inversion-invariant)
--- bass: follows the lowest voice (may change with inversions)
+-- root: follows the lowest voice (may change with inversions)
 -- For kick drums, fund is the correct choice.
 
 -- Using warp for AABA form:
@@ -1550,7 +1550,7 @@ p01 f r d k = d01 $ do
 -- p02: Bass line (MIDI piano)
 p02 f r d k = d02 $ do
   let o = ch 02
-  f $ arrange (0,1) root id r k (-9,9) ["~"
+  f $ arrange (0,1) lock id r k (-9,9) ["~"
         ,"0*2"
       ]# o |* vel 1 |- oct 2 |* vel (kDynamic k) |* vel d
 
@@ -1742,9 +1742,9 @@ hush'
 
 -- VoiceFunctions (first argument to arrange / arrange'):
 -- flow :: VoiceFunction  -- Smoothest voice leading (flexible inversion)
--- root :: VoiceFunction  -- Root always in bass (top notes lead smoothly)
+-- lock :: VoiceFunction  -- Root locked in bass (top notes lead smoothly)
 -- lite :: VoiceFunction  -- Literal (first-root normalized, no other changes)
--- bass :: VoiceFunction  -- Mono, bass note only (first pitch)
+-- root :: VoiceFunction  -- Mono, root note only (first pitch)
 -- fund :: VoiceFunction  -- Mono, harmonic root (inversion-invariant)
 --   VoiceFunction = Progression -> [[Int]]
 
@@ -1779,7 +1779,7 @@ hush'
 --         -> Kinetics -> (Int, Int) -> [Pattern Int] -> ControlPattern
 --   Onset-join with kinetics range gating.
 --   Range: (lo, hi) — only active when kSignal in range
---   VoiceFunction: flow, root, lite, bass, fund
+--   VoiceFunction: flow, lock, lite, root, fund
 --   Modifier: id, overlapF 0, overlapB 1, etc.
 --   Register: (-9, 9) typical
 --   Patterns: ["~", "[0,1,2,3]/4"] etc.
@@ -1862,8 +1862,8 @@ hush'
 -- Full chords (flow voicing):
 -- d01 $ arrange (0,1) flow id (rep prog 1) k (-9,9) ["[0,1,2,3]/4"] # ch 01
 
--- Bass line (root voicing, low octave):
--- d02 $ arrange (0,1) root id (rep prog 1) k (-9,9) ["0*2"] # ch 01 |- oct 2
+-- Bass line (lock voicing, low octave):
+-- d02 $ arrange (0,1) lock id (rep prog 1) k (-9,9) ["0*2"] # ch 01 |- oct 2
 
 -- Arpeggios (flow voicing):
 -- d03 $ arrange (0,1) flow id (rep prog 1) k (-9,9) ["0 1 2 3 4 5 6 7"] # ch 01
@@ -1874,7 +1874,7 @@ hush'
 -- Multi-voice stack with kinetics ranges:
 -- d01 $ stack [
 --   arrange (0.5,1) flow id r k (-9,9) ["[0,1,2,3]/4"] # ch 01,
---   arrange (0,1) root id r k (-9,9) ["0*2"] # ch 01 |- oct 2
+--   arrange (0,1) lock id r k (-9,9) ["0*2"] # ch 01 |- oct 2
 -- ] |* vel (kDynamic k)
 
 -- Launcher block pattern:

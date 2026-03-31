@@ -232,7 +232,7 @@ lookupProgression prog idxPat =
 -------------------------------------------------------------------------------
 
 -- |Voice type for extraction strategy
-data VoiceType = Roots | Bass | Harmony | Voiced
+data VoiceType = Roots | Lock | Harmony | Voiced
   deriving (Show, Eq)
 
 -- |Extract specific voice type from a progression pattern.
@@ -240,7 +240,7 @@ voiceBy :: VoiceType -> P.Progression -> Pattern Int -> Pattern [Int]
 voiceBy vtype prog idxPat =
   let voiceFunc = case vtype of
         Roots   -> A.root
-        Bass    -> A.bass
+        Lock    -> A.lock
         Harmony -> A.lite
         Voiced  -> A.flow
       voicings = voiceFunc prog

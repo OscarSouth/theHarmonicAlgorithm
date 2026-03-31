@@ -37,11 +37,11 @@ module Harmonic.Interface.Tidal.Arranger
   , progOverlapB
 
     -- * Voicing Extractors (3 Paradigms)
-  , root   -- Root always in bass, smooth compact voice leading (cyclic DP)
+  , lock   -- Root locked in bass, smooth compact voice leading (cyclic DP)
   , flow   -- Any inversion allowed for smoothest voice leading (cyclic DP)
   , lite   -- Literal, no transformation
   , literal -- Alias for lite
-  , bass   -- Bass note only (root pitch class)
+  , root   -- Root note only (root pitch class per chord)
 
     -- * Explicit Progression Construction
   , fromChords      -- Construct Progression from pitch-class lists
@@ -254,12 +254,12 @@ rebuildCadenceState cad root newIntervals =
 -- Voicing Extractors (3 Paradigms)
 -------------------------------------------------------------------------------
 
--- |ROOT paradigm: Smooth compact voice leading with root always in bass.
+-- |LOCK paradigm: Root locked in bass with smooth compact voice leading.
 -- Uses cyclic DP to find globally optimal voicings.
 -- First chord starts compact with root in bass; all subsequent chords
 -- maintain root in bass with minimal voice movement.
-root :: Progression -> [[Int]]
-root prog = 
+lock :: Progression -> [[Int]]
+lock prog =
   let intVoicings = map (map fromIntegral) $ literalVoicing' prog
   in solveRoot intVoicings
 
@@ -280,11 +280,11 @@ lite prog =
   let raw = map (map fromIntegral) $ literalVoicing' prog
   in normalizeByFirstRoot raw
 
--- |BASS paradigm: Bass note only (root pitch class per chord).
+-- |ROOT paradigm: Root note only (root pitch class per chord).
 -- Extracts the root note (first element, mod 12) from each chord.
 -- Returns as single-element lists in [0,11] range.
-bass :: Progression -> [[Int]]
-bass prog = 
+root :: Progression -> [[Int]]
+root prog =
   let raw = map (map fromIntegral) $ literalVoicing' prog
   in bassVoicing raw
 

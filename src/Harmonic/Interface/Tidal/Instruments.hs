@@ -24,9 +24,6 @@ s101 = (\pat -> pat # s "thru" # midichan 14)
 juno :: Pattern ValueMap -> Pattern ValueMap
 juno = (\pat -> pat # s "thru" # midichan 15)
 
-flute :: Pattern ValueMap -> Pattern ValueMap
-flute = (\pat -> pat # s "thru" # midichan 0)
-
 -- Utility for setting channel from int
 ch :: Int -> Pattern ValueMap
 ch n = s "thru" # midichan (fromIntegral (n - 1))

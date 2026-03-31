@@ -5,7 +5,7 @@
   'pattern block':
     'prefix': 'p'
     'body': '''
-      p$1 f r d k = d$1 $ do
+      p$1 f r k d = d$1 $ do
         let o = ch $1
         f
           $ stack [silence
@@ -36,11 +36,11 @@
         let
           r = rep s 1
           f = id
-          d = 0.9
+          d = (* 1)
           k = formK tempo form
         putStrLn $ "LAUNCH¬¬\\n" ++ show s
         mapM_ id [hush, setbpm tempo
-         -- ,p01  f r d k
+         -- ,p01  f r k $ d 0.9
          ]
       $1
     """
@@ -49,14 +49,56 @@
   'subkick block':
     'prefix': 'subk'
     'body': '''
-      subk f r d k = p "subKick"
+      subk f r k d = p "subKick"
         $ f
-          $ subKick bass r d k ( 1/4
+          $ subKick root r d k ( 1/4
             ,"$1"
             ,"0 1 0 -"
             ,"1*4"
           )
     '''
+
+
+  # ── Orchestral Snippets ─────────────────────────────────
+
+  'orchestral section':
+    'prefix': 'orchsec'
+    'body': '''
+      $1 f r k d =
+        let vl = voiceLines {_vl = "~"
+              -- , soprano = "3"
+              -- , alto    = "1"
+              -- , tenor   = "2"
+              -- , bass    = "0"
+              }
+        in f
+          $ stack [silence
+              , $2 (0,1) flow Soprano    r k vl
+              , $3 (0,1) flow Alto       r k vl
+              , $4 (0,1) flow Tenor8vb   r k vl
+              , $5 (0,1) flow Bass8vb    r k vl
+          ] |* vel (kDynamic k) |* vel d
+    '''
+
+
+  'orchestral launcher':
+    'prefix': 'orchlaunch'
+    'body': """
+      do
+        let
+          r = warp "[1 2 3 4]/8"
+          f = id
+          d = (* 1)
+          k = formK tempo form
+        putStrLn $ "ORCHESTRAL LAUNCH¬¬"
+        mapM_ id [hush, setbpm tempo
+         -- ,wind f r k       $ d 0.9
+         -- ,strg f r k       $ d 0.8
+         -- ,brss f r k       $ d 0.9
+         -- ,perc f r k       $ d 0.7
+         ]
+      $1
+    """
 
 
   # ── Form Snippets ─────────────────────────────────────────

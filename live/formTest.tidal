@@ -7,7 +7,7 @@ let upper = (0.5, 1)
 
 let peak  = (0.8, 1)
 
-p03 f r d k = d03 $ do
+p03 f r k d = d03 $ do
   let o = ch 01
   f
     $ stack [silence
@@ -15,13 +15,13 @@ p03 f r d k = d03 $ do
         ,"[~ [1,2,3]]"
         -- ,degrade $ "[0(3,8)]/2" |+ "<1 2 3 4>" |+ choose [3,4,5]
       ]# o |* vel 0.1 |- oct 1 |* legato 0.25
-      ,arrange cresc root (overlapF 0) r k (-9,9) ["~"
+      ,arrange cresc lock (overlapF 0) r k (-9,9) ["~"
         -- ,"[0 . 3 ]"
         ,"[0 [0,4]]/8"
       ]# o |* vel 0.3 |- oct 2 |= legato 0.99
     ] |* vel (kDynamic k) |* vel d
 
-k909 f d k = p "909kit" $ do
+k909 f k d = p "909kit" $ do
   let o = ch 9
   f
     $ stack [silence
@@ -35,7 +35,7 @@ k909 f d k = p "909kit" $ do
         ]
     ]# o # legato 0.01 |* vel (kDynamic k) |* vel d
 
-kmpc f d k = p "mpckit" $ do
+kmpc f k d = p "mpckit" $ do
   let o = ch 10
   f
     $ stack [silence
@@ -47,9 +47,9 @@ kmpc f d k = p "mpckit" $ do
         ]
     ]# o # legato 0.01 |* vel (kDynamic k) |* vel d
 
-subk f r d k = p "subKick"
+subk f r k d = p "subKick"
   $ f
-    $ subKick bass r d k ( 1/8
+    $ subKick root r d k ( 1/8
       ,"[1(3,8)]*2"
       -- ,"[1(3,8) . ~]"
       -- ,"[1]/2"

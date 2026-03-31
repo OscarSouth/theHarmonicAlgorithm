@@ -19,10 +19,11 @@ Blended composers even get a creative portmanteau name in the output.
 
 **Five Voicing Strategies** — Each one reshapes how a progression sounds
 without changing the harmony itself. `flow` finds the smoothest voice leading
-using cyclic dynamic programming. `root` keeps the root in the bass with
-optimised upper voices. `lite` gives you the raw intervals. `bass` extracts
-just the lowest voice as a melodic line. `fund` always returns the harmonic
-root regardless of inversion — essential for kick drums and sub bass.
+using cyclic dynamic programming. `lock` keeps the root locked in the bass
+with optimised upper voices. `lite` gives you the raw intervals. `root`
+extracts just the root note as a melodic line. `fund` always returns the
+harmonic fundamental regardless of inversion — essential for kick drums and
+sub bass.
 
 **Entropy as a Creativity Dial** — A single parameter controls the balance
 between the familiar and the surprising. At 0.3, the algorithm follows the

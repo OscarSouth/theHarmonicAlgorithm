@@ -291,7 +291,7 @@ Bach Chorales (CSV)
 **Modules**:
 - `Interface/Tidal/Form.hs` - Kinetics framework: form-driven range gating, macro compositional arc
 - `Interface/Tidal/Bridge.hs` - Pattern-based lookup with modulo wrap, arrange/arrange' with kinetics (src/Harmonic/Interface/Tidal/Bridge.hs:1)
-- `Interface/Tidal/Arranger.hs` - Voicing strategies (flow, root, lite, literal, bass) and progression combinators
+- `Interface/Tidal/Arranger.hs` - Voicing strategies (flow, lock, lite, literal, root) and progression combinators
 - `Interface/Tidal/Groove.hs` - Performance interfaces (subKick with kinetics gating, fund extraction)
 - `Interface/Tidal/Instruments.hs` - Launcher definitions (juno, moog, etc.)
 - `Interface/Tidal/Utils.hs` - Utility functions
@@ -352,7 +352,7 @@ src/Harmonic/
     └── Tidal/                [TidalCycles-specific bridge]
         ├── Form.hs           [Kinetics framework (form-driven range gating)]
         ├── Bridge.hs         [Pattern lookup, arrange/arrange' with kinetics]
-        ├── Arranger.hs       [Voicing strategies (flow, root, lite)]
+        ├── Arranger.hs       [Voicing strategies (flow, lock, lite)]
         ├── Groove.hs         [Performance interfaces (subKick, fund)]
         ├── Instruments.hs    [Launcher definitions]
         └── Utils.hs          [Utility functions]
@@ -646,10 +646,10 @@ flow prog =
    in map chordPitches voicings
 ```
 
-**Root Voicing** (root position):
+**Lock Voicing** (root locked in bass):
 ```haskell
-root :: Progression -> [[Int]]
-root prog = map rootPosition (progChords prog)
+lock :: Progression -> [[Int]]
+lock prog = map rootPosition (progChords prog)
 ```
 
 **Lite Voicing** (literal intervals, no voice leading):
@@ -658,10 +658,10 @@ lite :: Progression -> [[Int]]
 lite prog = literalVoicing prog
 ```
 
-**Bass Extraction** (single pitch):
+**Root Extraction** (single pitch):
 ```haskell
-bass :: Progression -> [[Int]]
-bass prog = map (\chord -> [head (chordIntervals chord)]) (progChords prog)
+root :: Progression -> [[Int]]
+root prog = map (\chord -> [head (chordIntervals chord)]) (progChords prog)
 ```
 
 **Fund Extraction** (harmonic root, inversion-invariant):

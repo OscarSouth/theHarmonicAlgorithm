@@ -26,15 +26,15 @@ do
   let
     r = warp "[1 2 3 4]/8"
     f = (swingBy 0.04 2)
-    d = 0.9
+    d = (* 1)
     k = formK tempo form
   putStrLn $ "GO ¬¬"
   mapM_ id [hush, setbpm tempo
-    -- ,p02 f r d k
-    ,p03 f r d k
-    ,subk f r d k
-    -- ,k909 f   d k
-    -- ,kmpc f   d k
+    -- ,p02 f r k $ d 0.9
+    ,p03 f r k   $ d 0.9
+    ,subk f r k  $ d 1
+    -- ,k909 f k  $ d 0.4
+    -- ,kmpc f k  $ d 0.4
    ]
 
 hush''

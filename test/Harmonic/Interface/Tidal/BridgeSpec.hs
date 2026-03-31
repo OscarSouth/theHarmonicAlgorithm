@@ -179,8 +179,8 @@ spec = do
       let voicings = voiceBy Roots testProgression (pure 0)
       voicings `seq` True `shouldBe` True
 
-    it "Bass extracts bass notes" $ do
-      let voicings = voiceBy Bass testProgression (pure 0)
+    it "Lock extracts locked-root voicings" $ do
+      let voicings = voiceBy Lock testProgression (pure 0)
       voicings `seq` True `shouldBe` True
 
     it "Harmony extracts full chords" $ do

@@ -15,7 +15,7 @@ p03 f s r d = d03 $ do
         ,fast 2 $ cat ["[0,2,4]/2" |+ "[0 2]/4" |- 2, "~", "~", "~"]
       ]# o |* vel 0.3 |- oct 1 |= legato 4
        -- --
-      ,arrange bass (overlapF 0 s) r (-9,9) ["~"
+      ,arrange root (overlapF 0 s) r (-9,9) ["~"
         -- ,"[[0] ~]/4" |- 3
         -- ,"[0]/8"
       -- ,"0" +| lmotif |* vel 0.9
@@ -33,7 +33,7 @@ moog f s r d = p "moogMother32" $ do
   f
     $ stack [silence
        -- --
-      ,mono $ arrange root (overlapF 0 s) r (-9,9) ["~"
+      ,mono $ arrange lock (overlapF 0 s) r (-9,9) ["~"
         -- ,"[0 1 2 4 5]"
         -- ,slow 2 $ "[0 <2 1 [4 3]>]/4"
         -- ,"[0 . 3 3]"
