@@ -110,6 +110,20 @@ here means the single pitch C, not the key of C major — use `"0#"` for that.
 `"key"` mirrors whatever key filter you set, and `"tones"` uses the
 intersection of your overtone and key filters.
 
+You can append `rise` or `fall` to the roots string to force the bass note
+to step through the allowed set in order. `rise` always moves to the
+closest note above; `fall` always moves to the closest note below (with
+octave wrapping). This creates stepwise ascending or descending bass lines
+within whatever root set you've defined:
+
+```haskell
+hContext "*" "0#" "0# fall"      -- descend through C major scale tones
+hContext "*" "0#" "0# rise"      -- ascend through C major scale tones
+hContext "*" "0#" "C E G fall"   -- descend through {C, E, G}
+hContext "*" "0#" "key rise"     -- ascend through key-derived bass notes
+hContext "*" "0#" "tones fall"   -- descend through effective overtones
+```
+
 You can subtract pitches with the `-` prefix: `"E A D G -Bb'"` gives you
 the bass overtones minus Bb.
 
@@ -150,6 +164,41 @@ at 0.8 it takes unexpected turns into distant keys]`
 "debussy" brings colourful modal movement, and the weighted blend
 "debussy:0.75 bach:0.25" creates something neither would have written
 alone — functional foundations with impressionistic colour]`
+
+### 2.5 Dissonance Drift
+
+You can constrain the direction of harmonic tension across a progression.
+The `dissonant` modifier ensures each subsequent chord has equal or greater
+dissonance than the current one. The `consonant` modifier does the
+opposite — each chord must be equal or less dissonant.
+
+```haskell
+-- Progressions that build tension:
+s4 <- gen start 4 "*" 0.5 (dissonant $ hContext "*" "0#" "*")
+
+-- Progressions that resolve:
+s4 <- gen start 4 "*" 0.5 (consonant $ hContext "*" "0#" "*")
+
+-- No constraint (default):
+s4 <- gen start 4 "*" 0.5 (hContext "*" "0#" "*")
+```
+
+Dissonance is measured using Hindemith's interval vector theory. Major and
+minor triads score lowest (most consonant), while tritone-heavy and
+chromatic clusters score highest (most dissonant). The drift applies as a
+filter on the candidate pool — you still get the best musical choice
+(composer style, voice leading) that meets the constraint.
+
+Drift composes with all other context parameters:
+
+```haskell
+-- Descending bass with building tension:
+s4 <- gen start 8 "*" 0.5 (dissonant $ hContext "*" "0#" "0# fall")
+```
+
+If no candidates meet the constraint at a given step (e.g., already at
+maximum dissonance with `dissonant`), the filter falls back to the full
+pool for that step — generation never fails.
 
 ___
 
@@ -859,6 +908,15 @@ ___
 | `genSilent` | No output |
 | `gen'` | Per-step diagnostics |
 | `gen''` | Full trace |
+
+### Context Modifiers
+
+| Modifier | Example | Effect |
+|----------|---------|--------|
+| `dissonant` | `dissonant $ hContext "*" "0#" "*"` | Each chord >= current dissonance |
+| `consonant` | `consonant $ hContext "*" "0#" "*"` | Each chord <= current dissonance |
+| `"rise"` | `hContext "*" "0#" "0# rise"` | Bass steps up through root set |
+| `"fall"` | `hContext "*" "0#" "0# fall"` | Bass steps down through root set |
 
 ### Chord Selection
 

@@ -122,6 +122,11 @@ module Harmonic.Framework.Builder
   , hContext  -- String-friendly version for Tidal (renamed from 'context' to avoid collision)
   , defaultContext
 
+    -- * Dissonance Drift
+  , Drift(..)
+  , dissonant
+  , consonant
+
     -- * Configuration
   , GeneratorConfig(..)
   , defaultConfig

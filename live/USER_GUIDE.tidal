@@ -175,6 +175,33 @@ let
   mirrorKey = hContext "*" "1#" "key"
   bassRoots = hContext "E A D G" "1#" "tones"
 
+-- BASS DIRECTION: append "rise" or "fall" to roots string
+-- Forces bass to step through the allowed set in order.
+-- "rise" → closest note above (with octave wrap)
+-- "fall" → closest note below (with octave wrap)
+let
+  fallGMaj  = hContext "*" "0#" "0# fall"   -- descend through C major
+  riseGMaj  = hContext "*" "0#" "0# rise"   -- ascend through C major
+  fallCEG   = hContext "*" "0#" "C E G fall" -- descend through {C,E,G}
+  riseKey   = hContext "*" "1#" "key rise"   -- ascend through key pitches
+  fallTones = hContext "*" "0#" "tones fall" -- descend through overtones
+
+-- Generate with descending bass:
+do
+  let
+    start = initCadenceState 0 "C" [0,4,7]
+    ctx = hContext "*" "0#" "0# fall"
+  s8 <- gen start 8 "*" 0.5 ctx
+  let
+    r = rep s8 1
+    k = formK 120 [at 0 1 1 s8]
+  mapM_ id [hush, setbpm 120
+    ,d01 $ arrange (0,1) root id r k (-9,9)
+      ["0 1 2 3"] # ch 01 |* vel 0.9
+   ]
+
+hush'
+
 -- REMOVAL: - prefix subtracts pitches from positive set
 -- Order: union(positives) \ union(negatives)
 -- Works in all three args.
@@ -236,6 +263,74 @@ let
   comp = "debussy:0.75 bach:0.25"
 
 state <- gen start 8 comp 0.5 ctx
+
+
+-- ──────────────────────────────────────────────────────────
+-- 2.5 Dissonance Drift
+-- ──────────────────────────────────────────────────────────
+
+-- Constrain the direction of harmonic tension across a progression.
+-- dissonant: each chord must have >= dissonance than current
+-- consonant: each chord must have <= dissonance than current
+-- Applied as a modifier on HarmonicContext:
+
+-- Building tension (increasing dissonance):
+do
+  let
+    start = initCadenceState 0 "C" [0,4,7]
+    ctx = dissonant $ hContext "*" "0#" "*"
+  s4 <- gen start 4 "*" 0.5 ctx
+  let
+    r = rep s4 1
+    k = formK 120 [at 0 1 1 s4]
+  mapM_ id [hush, setbpm 120
+    ,d01 $ arrange (0,1) flow id r k (-9,9)
+      ["0 1 2 3"] # ch 01 |* vel 0.9
+   ]
+
+hush'
+
+-- Resolving (decreasing dissonance):
+do
+  let
+    start = initCadenceState 0 "C" [0,3,6]  -- start dissonant (dim)
+    ctx = consonant $ hContext "*" "0#" "*"
+  s4 <- gen start 4 "*" 0.5 ctx
+  let
+    r = rep s4 1
+    k = formK 120 [at 0 1 1 s4]
+  mapM_ id [hush, setbpm 120
+    ,d01 $ arrange (0,1) flow id r k (-9,9)
+      ["0 1 2 3"] # ch 01 |* vel 0.9
+   ]
+
+hush'
+
+-- Composes with all other context parameters:
+do
+  let
+    start = initCadenceState 0 "C" [0,4,7]
+    ctx = dissonant $ hContext "*" "0#" "0# fall"  -- rising tension + descending bass
+  s8 <- gen start 8 "*" 0.5 ctx
+  let
+    r = rep s8 1
+    k = formK 120 [at 0 1 1 s8]
+  mapM_ id [hush, setbpm 120
+    ,d01 $ arrange (0,1) root id r k (-9,9)
+      ["0 1 2 3"] # ch 01 |* vel 0.9
+   ]
+
+hush'
+
+-- Dissonance scores (Hindemith interval vector):
+-- Major/minor triad: 6 (most consonant)
+-- Sus2/sus4: 9
+-- Diminished: 32 (tritone)
+-- Augmented: 27
+-- Chromatic cluster: 40+ (most dissonant)
+--
+-- Safety: if no candidates meet the constraint,
+-- the filter falls back to the full pool for that step.
 
 
 -- ══════════════════════════════════════════════════════════
@@ -1608,6 +1703,20 @@ hush'
 --   :: String -> String -> String -> HarmonicContext
 
 -- defaultContext :: HarmonicContext  (all wildcards)
+
+-- Context Modifiers:
+-- dissonant :: HarmonicContext -> HarmonicContext
+--   Each chord >= current dissonance.
+--   dissonant $ hContext "*" "0#" "*"
+--
+-- consonant :: HarmonicContext -> HarmonicContext
+--   Each chord <= current dissonance.
+--   consonant $ hContext "*" "0#" "*"
+--
+-- Bass direction (in roots string):
+--   hContext "*" "0#" "0# rise"   -- bass steps up through root set
+--   hContext "*" "0#" "0# fall"   -- bass steps down through root set
+--   hContext "*" "0#" "C E G fall"  -- descend through {C,E,G}
 
 
 -- ──────────────────────────────────────────────────────────

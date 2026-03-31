@@ -22,7 +22,7 @@ do
     -- ,count s r $d 0.5
     -- ,p03 f s r $ d 0.1
     -- ,p02 f s r $ d 1
-    -- ,moog f s r $ d 0.9
+    ,moog f s r $ d 0.9
     -- ,subk f s r $ d 1
     ,k909 f     $d 0.4
     -- ,kmpc f     $d 0.9

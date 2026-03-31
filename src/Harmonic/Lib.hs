@@ -79,6 +79,7 @@ module Harmonic.Lib (
 
   -- ========== CONTEXT & CONFIGURATION ==========
   HarmonicContext(..), harmonicContext, hContext, defaultContext,
+  Drift(..), dissonant, consonant,
   GeneratorConfig(..), defaultConfig,
 
   -- ========== PHASE B: CORE MUSIC TYPES ==========
@@ -161,7 +162,7 @@ import Harmonic.Evaluation.Scoring.VoiceLeading (voiceLeadingCost, totalCost, cy
 import Harmonic.Rules.Types.Progression
 -- Phase C: Interactive Behaviour
 import Harmonic.Traversal.Probabilistic
-import Harmonic.Framework.Builder (HarmonicContext(..), harmonicContext, hContext, defaultContext, GeneratorConfig(..), defaultConfig, generate, generateWith, gen, genWith, generate', gen', genWith', generate'', gen'', genWith'', genSilent, genStandard, genVerbose, genSilent', genStandard', genVerbose', printDiagnostics, StepDiagnostic(..), GenerationDiagnostics(..), TransformTrace(..), AdvanceTrace(..))
+import Harmonic.Framework.Builder (HarmonicContext(..), harmonicContext, hContext, defaultContext, Drift(..), dissonant, consonant, GeneratorConfig(..), defaultConfig, generate, generateWith, gen, genWith, generate', gen', genWith', generate'', gen'', genWith'', genSilent, genStandard, genVerbose, genSilent', genStandard', genVerbose', printDiagnostics, StepDiagnostic(..), GenerationDiagnostics(..), TransformTrace(..), AdvanceTrace(..))
 import Harmonic.Rules.Constraints.Filter (overtones, key, funds, tuning, wildcard, parseOvertones, parseKey, parseFunds, parseTuning, isWildcard)
 import Harmonic.Evaluation.Database.Query
 -- Infrastructure (selective imports to avoid conflicts)

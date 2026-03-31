@@ -69,25 +69,32 @@ module Harmonic.Rules.Constraints.Filter
   , parseFunds
   , parseTuning
   , resolveRoots
-  
+
     -- * Parsing Functions (String versions for Tidal)
   , overtones
   , key
   , funds
   , tuning
   , wildcard
-  
+
     -- * High-level API
   , filterPitchSet
   , filterByKey
   , filterRoots
-  
+
     -- * Filtering Predicates
   , isWildcard
   , matchesPitchSet
   , matchesKey
   , matchesRoots
-  
+
+    -- * Bass Direction
+  , BassDirection(..)
+  , parseBassDirection
+  , stripDirectionToken
+  , closestAbove
+  , closestBelow
+
     -- * Internal (for testing)
   , parseOvertones'
   , parseKey'
@@ -102,6 +109,7 @@ import qualified Data.Text as T
 import           Data.Text (Text)
 import           Data.List (nub, sort, partition, (\\))
 import           Data.Maybe (mapMaybe)
+import qualified Data.IntSet as IntSet
 
 -------------------------------------------------------------------------------
 -- Types
@@ -486,3 +494,74 @@ partitionTokens input =
       (negTokens, posTokens) = partition (T.isPrefixOf "-") tokens
       negTokens' = map (T.drop 1) negTokens
   in (posTokens, negTokens')
+
+-------------------------------------------------------------------------------
+-- Bass Direction
+-------------------------------------------------------------------------------
+
+-- |Direction constraint for bass motion during generation.
+-- When active, the bass/root at each step is forced to the closest note
+-- above (Rise) or below (Fall) in the allowed set, with mod-12 wrapping.
+data BassDirection = Rise | Fall
+  deriving (Show, Eq)
+
+-- |Extract a bass direction modifier from a roots filter string.
+-- Looks for "rise" or "fall" as a token.
+--
+-- Examples:
+--   parseBassDirection "* fall"     == Just Fall
+--   parseBassDirection "0# rise"    == Just Rise
+--   parseBassDirection "C E G"      == Nothing
+--   parseBassDirection "*"          == Nothing
+parseBassDirection :: Text -> Maybe BassDirection
+parseBassDirection input =
+  let tokens = T.words $ T.toLower input
+  in if "fall" `elem` tokens then Just Fall
+     else if "rise" `elem` tokens then Just Rise
+     else Nothing
+
+-- |Strip the direction token from a roots filter string,
+-- leaving only the pitch set specification for normal parsing.
+--
+-- Examples:
+--   stripDirectionToken "* fall"     == "*"
+--   stripDirectionToken "0# rise"    == "0#"
+--   stripDirectionToken "C E G fall" == "C E G"
+--   stripDirectionToken "C E G"      == "C E G"
+stripDirectionToken :: Text -> Text
+stripDirectionToken input =
+  let tokens = T.words input
+      filtered = filter (\t -> T.toLower t `notElem` ["rise", "fall"]) tokens
+  in T.unwords filtered
+
+-- |Find the closest pitch class ABOVE the current one in the allowed set.
+-- Uses mod-12 circular distance. If the set has only the current note, returns it (pedal).
+--
+-- Examples (with C major = {0,2,4,5,7,9,11}):
+--   closestAbove 7 {0,2,4,5,7,9,11} == 9  (G → A)
+--   closestAbove 11 {0,2,4,5,7,9,11} == 0  (B → C, wraps)
+--   closestAbove 0 {0} == 0  (pedal)
+closestAbove :: Int -> IntSet.IntSet -> Int
+closestAbove current allowed =
+  let others = IntSet.delete current allowed
+  in if IntSet.null others
+     then current  -- pedal: single-element set
+     else let candidates = IntSet.toList others
+              dist x = (x - current) `mod` 12
+          in snd $ minimum [(dist x, x) | x <- candidates, dist x > 0]
+
+-- |Find the closest pitch class BELOW the current one in the allowed set.
+-- Uses mod-12 circular distance. If the set has only the current note, returns it (pedal).
+--
+-- Examples (with C major = {0,2,4,5,7,9,11}):
+--   closestBelow 7 {0,2,4,5,7,9,11} == 5  (G → F)
+--   closestBelow 0 {0,2,4,5,7,9,11} == 11  (C → B, wraps)
+--   closestBelow 5 {5} == 5  (pedal)
+closestBelow :: Int -> IntSet.IntSet -> Int
+closestBelow current allowed =
+  let others = IntSet.delete current allowed
+  in if IntSet.null others
+     then current  -- pedal: single-element set
+     else let candidates = IntSet.toList others
+              dist x = (current - x) `mod` 12
+          in snd $ minimum [(dist x, x) | x <- candidates, dist x > 0]

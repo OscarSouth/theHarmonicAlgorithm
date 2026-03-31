@@ -28,7 +28,9 @@ import qualified Data.Text as T
 import Data.Text (Text)
 import Data.List (sort)
 
-import Harmonic.Framework.Builder (HarmonicContext(..), GeneratorConfig(..), defaultContext, defaultConfig, TransformTrace(..), AdvanceTrace(..), StepDiagnostic(..), harmonicContext, matchesContext, parseComposersWithOrder, makePortmanteau, extractByPosition, takeFromBeginning, takeFromEnd, takeFromMiddle)
+import Harmonic.Framework.Builder (HarmonicContext(..), GeneratorConfig(..), defaultContext, defaultConfig, Drift(..), dissonant, consonant, TransformTrace(..), AdvanceTrace(..), StepDiagnostic(..), harmonicContext, matchesContext, parseComposersWithOrder, makePortmanteau, extractByPosition, takeFromBeginning, takeFromEnd, takeFromMiddle)
+import Harmonic.Framework.Builder.Core (applyDriftFilter)
+import Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
 import qualified Data.Map.Strict as Map
 import Harmonic.Rules.Constraints.Filter (parseOvertones, parseKey, parseFunds)
 import qualified Harmonic.Rules.Types.Harmony as H
@@ -597,3 +599,86 @@ spec = do
         -- start = (4 - 1) / 2 = 1 (integer division)
         -- take 1 from position 1 = "a"
         takeFromMiddle "bach" 0.25 `shouldBe` "a"
+
+  describe "Dissonance Drift" $ do
+
+    describe "Drift type" $ do
+      it "Dissonant /= Free" $ do
+        Dissonant `shouldNotBe` Free
+      it "Consonant /= Free" $ do
+        Consonant `shouldNotBe` Free
+      it "Dissonant /= Consonant" $ do
+        Dissonant `shouldNotBe` Consonant
+
+    describe "dissonant/consonant modifiers" $ do
+      it "dissonant sets hcDrift to Dissonant" $ do
+        hcDrift (dissonant defaultContext) `shouldBe` Dissonant
+      it "consonant sets hcDrift to Consonant" $ do
+        hcDrift (consonant defaultContext) `shouldBe` Consonant
+      it "defaultContext has Free drift" $ do
+        hcDrift defaultContext `shouldBe` Free
+      it "harmonicContext defaults to Free" $ do
+        hcDrift (harmonicContext "*" "*" "*") `shouldBe` Free
+
+    describe "applyDriftFilter" $ do
+      -- Test data: CadenceState with a major triad (dissonance = 6)
+      let majIntervals = [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
+          majCadence = H.Cadence "maj" H.Unison majIntervals
+          majState = H.CadenceState majCadence P.C H.FlatSpelling
+
+          -- Candidates with varying dissonance
+          -- Major triad [0,4,7]: dissonance = 6
+          candMaj = (H.Cadence "maj" (H.Asc (P.mkPitchClass 5)) majIntervals, 100.0)
+          -- Diminished [0,3,6]: dissonance = 32 (has tritone)
+          dimIntervals = [P.mkPitchClass 0, P.mkPitchClass 3, P.mkPitchClass 6]
+          candDim = (H.Cadence "dim" (H.Asc (P.mkPitchClass 3)) dimIntervals, 80.0)
+          -- Sus2 [0,2,7]: dissonance = 9
+          sus2Intervals = [P.mkPitchClass 0, P.mkPitchClass 2, P.mkPitchClass 7]
+          candSus2 = (H.Cadence "sus2" (H.Asc (P.mkPitchClass 2)) sus2Intervals, 90.0)
+
+          pool = [candMaj, candDim, candSus2]
+
+      it "Free returns pool unchanged" $ do
+        applyDriftFilter Free majState pool `shouldBe` pool
+
+      it "Dissonant keeps candidates with dissonance >= current (6)" $ do
+        -- maj=6 (>=6 yes), dim=32 (>=6 yes), sus2=9 (>=6 yes)
+        let result = applyDriftFilter Dissonant majState pool
+        length result `shouldBe` 3
+
+      it "Consonant keeps candidates with dissonance <= current (6)" $ do
+        -- maj=6 (<=6 yes), dim=32 (<=6 no), sus2=9 (<=6 no)
+        let result = applyDriftFilter Consonant majState pool
+        length result `shouldBe` 1
+        fst (head result) `shouldBe` fst candMaj
+
+      it "Dissonant from high-dissonance state filters out consonant chords" $ do
+        -- Start from diminished (dissonance = 32)
+        let dimState = H.CadenceState (H.Cadence "dim" H.Unison dimIntervals) P.C H.FlatSpelling
+            result = applyDriftFilter Dissonant dimState pool
+        -- Only dim (32) passes >= 32
+        length result `shouldBe` 1
+        fst (head result) `shouldBe` fst candDim
+
+      it "Consonant from low-dissonance state filters out dissonant chords" $ do
+        -- Start from sus2 (dissonance = 9)
+        let sus2State = H.CadenceState (H.Cadence "sus2" H.Unison sus2Intervals) P.C H.FlatSpelling
+            result = applyDriftFilter Consonant sus2State pool
+        -- maj=6 (<=9 yes), sus2=9 (<=9 yes), dim=32 (<=9 no)
+        length result `shouldBe` 2
+
+      it "falls back to full pool when filter empties it" $ do
+        -- Create a state with cluster dissonance higher than anything in pool
+        let clusterIntervals = [P.mkPitchClass 0, P.mkPitchClass 1, P.mkPitchClass 2]
+            clusterCadence = H.Cadence "cluster" H.Unison clusterIntervals
+            clusterState = H.CadenceState clusterCadence P.C H.FlatSpelling
+        -- cluster dissonance = 40, nothing in pool >= 40
+        dissonanceScore [0,1,2] `shouldBe` 40
+        let result = applyDriftFilter Dissonant clusterState pool
+        -- Should fall back to full pool
+        result `shouldBe` pool
+
+      it "preserves pool ordering (scoring priority)" $ do
+        let result = applyDriftFilter Dissonant majState pool
+        -- All pass (>= 6), order should be preserved
+        map snd result `shouldBe` [100.0, 80.0, 90.0]

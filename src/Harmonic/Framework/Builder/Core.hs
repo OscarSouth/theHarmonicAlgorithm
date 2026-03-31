@@ -20,6 +20,7 @@ module Harmonic.Framework.Builder.Core
 
     -- * Filtering (exposed for testing)
   , matchesContext
+  , applyDriftFilter
   ) where
 
 import qualified Database.Bolt as Bolt
@@ -39,7 +40,8 @@ import qualified Harmonic.Rules.Types.Progression as Prog
 import           Harmonic.Evaluation.Database.Query (ComposerWeights, fetchTransitions)
 import qualified Harmonic.Evaluation.Database.Query as Q
 import           Harmonic.Traversal.Probabilistic (gammaIndexScaledWith)
-import           Harmonic.Rules.Constraints.Filter (parseOvertones', parseKey, isWildcard, resolveRoots)
+import           Harmonic.Rules.Constraints.Filter (parseOvertones', parseKey, isWildcard, resolveRoots,
+                                                    closestAbove, closestBelow)
 import           Harmonic.Rules.Constraints.Overtone (overtoneSets)
 import           Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
 import qualified Harmonic.Evaluation.Scoring.Dissonance as D
@@ -103,8 +105,15 @@ stepChainCore _config gen mVerbosity entropy _context pctx composerWeights ((cur
   -- Fetch all transitions from current cadence
   transitions <- fetchTransitions currentShow
 
+  -- Compute bass direction target (if rise/fall is active)
+  let prevBassPC = P.unPitchClass (P.pitchClass (H.stateCadenceRoot current))
+      bassTarget = case pcBassDirection pctx of
+        Nothing   -> Nothing
+        Just Rise -> Just $ closestAbove prevBassPC (pcAllowedBassNotes pctx)
+        Just Fall -> Just $ closestBelow prevBassPC (pcAllowedBassNotes pctx)
+
   -- Apply R constraints (pure filter by ParsedContext)
-  let filtered = applyRConstraintsParsed pctx current transitions
+  let filtered = applyRConstraintsWithTarget bassTarget pctx current transitions
 
   -- Score by composer blend
   -- Filter to confidence > 0 and sort highest first
@@ -117,14 +126,17 @@ stepChainCore _config gen mVerbosity entropy _context pctx composerWeights ((cur
   fallbackAll <- liftIO $ consonanceFallbackParsed gen current pctx
   -- Apply R constraints to fallback candidates (same as graph candidates)
   let unfilteredFallback = [(cad, score) | (cad, score, _, _, _) <- fallbackAll]
-      filteredFallback = filter (\(cad, _) -> matchesContextParsed pctx current cad) unfilteredFallback
+      filteredFallback = filter (\(cad, _) -> matchesContextWithTarget bassTarget pctx current cad) unfilteredFallback
       fallbackCount = length filteredFallback
       -- Create unified pool with (Cadence, score) format
       -- Graph candidates first (preserves database priority), then filtered fallback
       pool = graphCandidates ++ filteredFallback
 
+      -- Apply dissonance drift filter
+      driftedPool = applyDriftFilter (pcDrift pctx) current pool
+
   -- Select next cadence using gamma sampling
-  if null pool
+  if null driftedPool
     then do
       -- Absorbing state
       let diags = case mVerbosity of
@@ -155,8 +167,8 @@ stepChainCore _config gen mVerbosity entropy _context pctx composerWeights ((cur
               in diag : revDiags
       pure ((current, current : revChain), diags)
     else do
-      idx <- liftIO $ gammaIndexScaledWith gen entropy (length pool)
-      let nextCadence = fst (pool !! idx)
+      idx <- liftIO $ gammaIndexScaledWith gen entropy (length driftedPool)
+      let nextCadence = fst (driftedPool !! idx)
           (newState, advTrace) = advanceStateTraced current nextCadence
 
           -- Build diagnostics only when requested
@@ -183,7 +195,7 @@ stepChainCore _config gen mVerbosity entropy _context pctx composerWeights ((cur
                     , sdGraphTop6 = graphTop6
                     , sdFallbackCount = fallbackCount
                     , sdFallbackTop6 = fallbackTop6'
-                    , sdPoolSize = length pool
+                    , sdPoolSize = length driftedPool
                     , sdEntropyUsed = entropy
                     , sdGammaIndex = idx
                     , sdSelectedFrom = selectedFrom
@@ -412,6 +424,30 @@ extractMovementInterval movement = case movement of
       in if m <= 6 then m else 12 - m
 
 -------------------------------------------------------------------------------
+-- Dissonance Drift Filter
+-------------------------------------------------------------------------------
+
+-- |Filter the candidate pool by dissonance drift direction.
+--
+-- * @Dissonant@: keep only candidates with dissonance >= current state's dissonance
+-- * @Consonant@: keep only candidates with dissonance <= current state's dissonance
+-- * @Free@: no filtering (return pool unchanged)
+--
+-- Safety fallback: if filtering empties the pool, returns the original
+-- unfiltered pool so generation never fails.
+applyDriftFilter :: Drift -> H.CadenceState -> [(H.Cadence, Double)] -> [(H.Cadence, Double)]
+applyDriftFilter Free _ pool = pool
+applyDriftFilter direction currentState pool =
+  let currentDiss = dissonanceScore
+        (map P.unPitchClass (H.cadenceIntervals (H.stateCadence currentState)))
+      candidateDiss cad = dissonanceScore (map P.unPitchClass (H.cadenceIntervals cad))
+      predicate = case direction of
+        Dissonant -> \(cad, _) -> candidateDiss cad >= currentDiss
+        Consonant -> \(cad, _) -> candidateDiss cad <= currentDiss
+      filtered = filter predicate pool
+  in if null filtered then pool else filtered
+
+-------------------------------------------------------------------------------
 -- R Constraint Filtering
 -------------------------------------------------------------------------------
 
@@ -480,9 +516,25 @@ applyRConstraintsParsed :: ParsedContext
                         -> [(H.Cadence, ComposerWeights)]
 applyRConstraintsParsed pctx currentState = filter (matchesContextParsed pctx currentState . fst)
 
+-- |Like 'applyRConstraintsParsed' but with an optional bass target override.
+-- When bassTarget is Just, only candidates whose bass matches the target pass.
+applyRConstraintsWithTarget :: Maybe Int
+                            -> ParsedContext
+                            -> H.CadenceState
+                            -> [(H.Cadence, ComposerWeights)]
+                            -> [(H.Cadence, ComposerWeights)]
+applyRConstraintsWithTarget bassTarget pctx currentState =
+  filter (matchesContextWithTarget bassTarget pctx currentState . fst)
+
 -- |Like 'matchesContext' but uses pre-parsed IntSet lookups instead of reparsing text.
 matchesContextParsed :: ParsedContext -> H.CadenceState -> H.Cadence -> Bool
-matchesContextParsed pctx currentState cadence =
+matchesContextParsed = matchesContextWithTarget Nothing
+
+-- |Core filter with optional bass target override from rise/fall direction.
+-- When bassTarget is Just, the bass note must equal the target exactly.
+-- When Nothing, falls back to the standard set-membership check.
+matchesContextWithTarget :: Maybe Int -> ParsedContext -> H.CadenceState -> H.Cadence -> Bool
+matchesContextWithTarget bassTarget pctx currentState cadence =
   let (movement, chord) = H.deconstructCadence cadence
 
       -- Compute current root from previous state + movement
@@ -507,9 +559,11 @@ matchesContextParsed pctx currentState cadence =
       -- All absolute chord pitches must be in effective overtones (IntSet lookup)
       overtonesMatch = all (`IntSet.member` pcEffectiveOvertones pctx) absolutePitches
 
-      -- Bass note must be in allowed bass notes (or wildcard)
-      bassMatch = pcIsRootsWild pctx
-                  || bassInt `IntSet.member` pcAllowedBassNotes pctx
+      -- Bass note check: exact target if rise/fall active, otherwise set membership
+      bassMatch = case bassTarget of
+        Just target -> bassInt == target
+        Nothing     -> pcIsRootsWild pctx
+                       || bassInt `IntSet.member` pcAllowedBassNotes pctx
 
   in overtonesMatch && bassMatch
 

@@ -31,6 +31,7 @@ import Test.QuickCheck
 import qualified Data.Text as T
 import Data.Text (Text)
 import Data.List (sort)
+import qualified Data.IntSet as IntSet
 
 import Harmonic.Rules.Constraints.Filter
 
@@ -273,3 +274,96 @@ spec = do
       5 `elem` pcs `shouldBe` True   -- F
       8 `elem` pcs `shouldBe` True   -- Ab
       9 `elem` pcs `shouldBe` True   -- A
+
+  describe "Bass direction parsing" $ do
+
+    describe "parseBassDirection" $ do
+      it "detects 'fall' token" $
+        parseBassDirection "* fall" `shouldBe` Just Fall
+
+      it "detects 'rise' token" $
+        parseBassDirection "0# rise" `shouldBe` Just Rise
+
+      it "returns Nothing when no direction token" $
+        parseBassDirection "C E G" `shouldBe` Nothing
+
+      it "returns Nothing for wildcard alone" $
+        parseBassDirection "*" `shouldBe` Nothing
+
+      it "is case-insensitive" $
+        parseBassDirection "* FALL" `shouldBe` Just Fall
+
+      it "works with multiple pitch tokens" $
+        parseBassDirection "C E G fall" `shouldBe` Just Fall
+
+    describe "stripDirectionToken" $ do
+      it "strips 'fall'" $
+        stripDirectionToken "* fall" `shouldBe` "*"
+
+      it "strips 'rise'" $
+        stripDirectionToken "0# rise" `shouldBe` "0#"
+
+      it "preserves string without direction" $
+        stripDirectionToken "C E G" `shouldBe` "C E G"
+
+      it "strips from multi-token string" $
+        stripDirectionToken "C E G fall" `shouldBe` "C E G"
+
+      it "handles case insensitivity" $
+        stripDirectionToken "* FALL" `shouldBe` "*"
+
+  describe "Bass direction helpers (closestAbove/closestBelow)" $ do
+    let cMajor = IntSet.fromList [0, 2, 4, 5, 7, 9, 11]
+
+    describe "closestAbove" $ do
+      it "G -> A in C major" $
+        closestAbove 7 cMajor `shouldBe` 9
+
+      it "B -> C (wraps around) in C major" $
+        closestAbove 11 cMajor `shouldBe` 0
+
+      it "C -> D in C major" $
+        closestAbove 0 cMajor `shouldBe` 2
+
+      it "E -> F in C major" $
+        closestAbove 4 cMajor `shouldBe` 5
+
+      it "single-element set returns self (pedal)" $
+        closestAbove 5 (IntSet.singleton 5) `shouldBe` 5
+
+    describe "closestBelow" $ do
+      it "G -> F in C major" $
+        closestBelow 7 cMajor `shouldBe` 5
+
+      it "C -> B (wraps around) in C major" $
+        closestBelow 0 cMajor `shouldBe` 11
+
+      it "D -> C in C major" $
+        closestBelow 2 cMajor `shouldBe` 0
+
+      it "E -> D in C major" $
+        closestBelow 4 cMajor `shouldBe` 2
+
+      it "single-element set returns self (pedal)" $
+        closestBelow 5 (IntSet.singleton 5) `shouldBe` 5
+
+    describe "closestAbove/Below with sparse set" $ do
+      let sparse = IntSet.fromList [0, 4, 7]  -- C, E, G
+
+      it "closestAbove C -> E" $
+        closestAbove 0 sparse `shouldBe` 4
+
+      it "closestAbove E -> G" $
+        closestAbove 4 sparse `shouldBe` 7
+
+      it "closestAbove G -> C (wraps)" $
+        closestAbove 7 sparse `shouldBe` 0
+
+      it "closestBelow C -> G (wraps)" $
+        closestBelow 0 sparse `shouldBe` 7
+
+      it "closestBelow E -> C" $
+        closestBelow 4 sparse `shouldBe` 0
+
+      it "closestBelow G -> E" $
+        closestBelow 7 sparse `shouldBe` 4

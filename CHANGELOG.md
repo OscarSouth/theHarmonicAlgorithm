@@ -54,6 +54,24 @@ jazz contexts (`"*" "2#" "D F# A"`), blues roots (`"*" "1b" "F Bb C"`) —
 the filtering system shapes the musical character as much as the notes
 themselves. Removal syntax (`"-Bb'"`) subtracts specific pitches.
 
+**Bass Direction** — Force the bass line to move in a single direction
+with `"0# rise"` or `"0# fall"` in the roots string. The algorithm
+selects the closest allowed bass note above (rise) or below (fall) the
+current one, creating stepwise ascending or descending bass motion through
+the filtered pitch space. Combine with key and root filters to shape the
+path — `"*" "1b 4 5" "key rise"` produces a rising bass line through
+the mixolydian degrees.
+
+**Dissonance Drift** — Shape the harmonic tension arc across a
+progression. `dissonant ctx` filters each generation step to candidates
+with equal or greater dissonance than the current chord, building tension
+over time. `consonant ctx` does the opposite, gradually resolving toward
+simpler harmony. The filter applies after pool construction but before
+selection, preserving the normal scoring hierarchy — you get the best
+musical choice that meets the constraint, not just the most or least
+dissonant option. Composes with bass direction:
+`consonant (dissonant ctx)` — last modifier wins.
+
 **Pattern Launcher Paradigm** — Define reusable instrument blocks with
 four parameters: transformation, progression, chord selection, and dynamics.
 Stack multiple voices with independent voicing, register, and rhythm.
