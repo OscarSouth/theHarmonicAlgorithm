@@ -109,6 +109,7 @@ test-suite theHarmonicAlgorithm-test
       Harmonic.Evaluation.Scoring.DissonanceSpec
       Harmonic.Evaluation.Scoring.VoiceLeadingSpec
       Harmonic.Framework.BuilderSpec
+      Harmonic.Interface.Tidal.ArrangerSpec
       Harmonic.Interface.Tidal.BridgeSpec
       Harmonic.Interface.Tidal.FormSpec
       Harmonic.Interface.Tidal.GrooveSpec

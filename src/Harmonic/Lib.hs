@@ -79,7 +79,7 @@ module Harmonic.Lib (
 
   -- ========== CONTEXT & CONFIGURATION ==========
   HarmonicContext(..), harmonicContext, hContext, defaultContext,
-  Drift(..), dissonant, consonant,
+  Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, inversion,
   GeneratorConfig(..), defaultConfig,
 
   -- ========== PHASE B: CORE MUSIC TYPES ==========
@@ -127,7 +127,7 @@ module Harmonic.Lib (
   rotate, excerpt, insert, switch, clone, extract,
   transposeP, Harmonic.Interface.Tidal.Arranger.reverse, fuse, fuse2, interleave, expandP,
   progOverlap, progOverlapF, progOverlapB,
-  lock, flow, lite, literal, root,
+  grid, flow, lite, literal, root,
 
   -- Explicit progression construction
   fromChords, prog,
@@ -137,6 +137,9 @@ module Harmonic.Lib (
 
   -- Scale source (switch mechanism)
   ScaleSource(..), melodyStateFrom,
+
+  -- Starting state construction
+  lead, parseLeadTokens, LeadToken(..),
 
   module Harmonic.Interface.Tidal.Instruments,
   module Harmonic.Interface.Tidal.Orchestra,
@@ -163,7 +166,7 @@ import Harmonic.Evaluation.Scoring.VoiceLeading (voiceLeadingCost, totalCost, cy
 import Harmonic.Rules.Types.Progression
 -- Phase C: Interactive Behaviour
 import Harmonic.Traversal.Probabilistic
-import Harmonic.Framework.Builder (HarmonicContext(..), harmonicContext, hContext, defaultContext, Drift(..), dissonant, consonant, GeneratorConfig(..), defaultConfig, generate, generateWith, gen, genWith, generate', gen', genWith', generate'', gen'', genWith'', genSilent, genStandard, genVerbose, genSilent', genStandard', genVerbose', printDiagnostics, StepDiagnostic(..), GenerationDiagnostics(..), TransformTrace(..), AdvanceTrace(..))
+import Harmonic.Framework.Builder (HarmonicContext(..), harmonicContext, hContext, defaultContext, Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, inversion, GeneratorConfig(..), defaultConfig, generate, generateWith, gen, genWith, generate', gen', genWith', generate'', gen'', genWith'', genSilent, genStandard, genVerbose, genSilent', genStandard', genVerbose', printDiagnostics, StepDiagnostic(..), GenerationDiagnostics(..), TransformTrace(..), AdvanceTrace(..))
 import Harmonic.Rules.Constraints.Filter (overtones, key, funds, tuning, wildcard, parseOvertones, parseKey, parseFunds, parseTuning, isWildcard)
 import Harmonic.Evaluation.Database.Query
 -- Infrastructure (selective imports to avoid conflicts)
@@ -180,9 +183,10 @@ import Harmonic.Interface.Tidal.Arranger (
     rotate, excerpt, insert, switch, clone, extract,
     transposeP, reverse, fuse, fuse2, interleave, expandP,
     progOverlap, progOverlapF, progOverlapB,
-    lock, flow, lite, literal, root,
+    grid, flow, lite, literal, root,
     fromChords, prog,
-    ScaleSource(..), melodyStateFrom
+    ScaleSource(..), melodyStateFrom,
+    lead, parseLeadTokens, LeadToken(..)
   )
 import Harmonic.Interface.Tidal.Groove (subKick, fund)
 import Harmonic.Interface.Tidal.Form (

@@ -19,7 +19,7 @@
 let s4 = fromChords [[0,3,7], [1,5,8], [3,7,10], [5,8,0]]
 
 -- Generated progression (requires Neo4j)
-ctx = hContext "*" "* -F# -Eb -Ab" "*"
+ctx = hcKey "* -F# -Eb -Ab" $ hContext
 
 start = initCadenceState (-3) "D" [0,3,7]
 

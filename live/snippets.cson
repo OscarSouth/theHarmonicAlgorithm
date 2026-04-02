@@ -64,14 +64,14 @@
   'orchestral section':
     'prefix': 'orchsec'
     'body': '''
-      $1 f r k d =
+      $1 f r k d = p "$1" $ do
         let vl = voiceLines {_vl = "~"
               -- , soprano = "3"
               -- , alto    = "1"
               -- , tenor   = "2"
               -- , bass    = "0"
               }
-        in f
+        f
           $ stack [silence
               , $2 (0,1) flow Soprano    r k vl
               , $3 (0,1) flow Alto       r k vl

@@ -37,11 +37,8 @@ spec = do
     
     describe "Suspended Chords" $ do
       
-      -- [0,2,7] is enharmonically equivalent to sus4 1st inversion
-      -- Legacy treats this as sus4_1stInv (sus2 and sus4 are inversions of each other)
-      
-      it "[0,2,7] -> sus4_1stInv (legacy: sus2/sus4 are inversionally equivalent)" $
-        chordFunctionality (flatTriad [0,2,7]) `shouldContain` "sus4"
+      it "[0,2,7] -> sus2 (root position)" $
+        chordFunctionality (flatTriad [0,2,7]) `shouldContain` "sus2"
       
       it "[0,5,7] -> sus4" $
         chordFunctionality (flatTriad [0,5,7]) `shouldContain` "sus4"
@@ -247,6 +244,47 @@ spec = do
       it "each inversion is in zero form" $ do
         let invs = inversions [P 0, P 4, P 7]
         all (\ps -> unPitchClass (head ps) == 0) invs `shouldBe` True
+
+  describe "isInversion" $ do
+
+    it "root position major [0,4,7] is not an inversion" $
+      isInversion (Cadence "maj" Unison [P 0, P 4, P 7]) `shouldBe` False
+
+    it "root position minor [0,3,7] is not an inversion" $
+      isInversion (Cadence "min" Unison [P 0, P 3, P 7]) `shouldBe` False
+
+    it "1st inversion major [0,3,8] is an inversion" $
+      isInversion (Cadence "maj" Unison [P 0, P 3, P 8]) `shouldBe` True
+
+    it "2nd inversion major [0,5,9] is an inversion" $
+      isInversion (Cadence "maj" Unison [P 0, P 5, P 9]) `shouldBe` True
+
+    it "1st inversion minor [0,4,9] is an inversion" $
+      isInversion (Cadence "min" Unison [P 0, P 4, P 9]) `shouldBe` True
+
+    it "2nd inversion minor [0,5,8] is an inversion" $
+      isInversion (Cadence "min" Unison [P 0, P 5, P 8]) `shouldBe` True
+
+    it "sus2 [0,2,7] is not an inversion" $
+      isInversion (Cadence "sus2" Unison [P 0, P 2, P 7]) `shouldBe` False
+
+    it "7sus4no5 [0,5,10] is not an inversion" $
+      isInversion (Cadence "7sus4no5" Unison [P 0, P 5, P 10]) `shouldBe` False
+
+    it "1st inversion dim [0,3,9] is an inversion" $
+      isInversion (Cadence "dim" Unison [P 0, P 3, P 9]) `shouldBe` True
+
+    it "2nd inversion dim [0,6,9] is an inversion" $
+      isInversion (Cadence "dim" Unison [P 0, P 6, P 9]) `shouldBe` True
+
+    it "root position sus4 [0,5,7] is not an inversion" $
+      isInversion (Cadence "sus4" Unison [P 0, P 5, P 7]) `shouldBe` False
+
+    it "root position dim [0,3,6] is not an inversion" $
+      isInversion (Cadence "dim" Unison [P 0, P 3, P 6]) `shouldBe` False
+
+    it "unrecognized pattern [0,1,6] is not an inversion" $
+      isInversion (Cadence "" Unison [P 0, P 1, P 6]) `shouldBe` False
 
 -------------------------------------------------------------------------------
 -- Helper

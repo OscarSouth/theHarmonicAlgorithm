@@ -47,7 +47,7 @@ let prog1 = fromCadenceStates
 -------------------------------------------------------------------------------
 
 -- Define a constrained context (only E, A, D, G overtones)
-let bassCtx = HarmonicContext "E A D G" "*" "*"
+let bassCtx = hcOvertones "E A D G" $ hContext
 
 -- Generate with composer blend (80% Debussy, 20% Bach)
 -- Higher entropy (2.5) = more adventurous
@@ -71,6 +71,15 @@ do
   mapM_ id [hush, setbpm tempo
    ,p01 f s r $d 0.7
    ]
+
+-------------------------------------------------------------------------------
+-- EXAMPLE 4: Inversion spacing
+-------------------------------------------------------------------------------
+
+-- Limit inversions to at most every 3rd chord
+let ctx = inversion 2 $ hcKey "0#" $ hContext
+let start = initCadenceState 0 "C" [0,4,7]
+-- spacedProg <- gen start 8 "*" 0.5 ctx
 
 -------------------------------------------------------------------------------
 -- END examples.tidal

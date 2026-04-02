@@ -78,6 +78,7 @@ module Harmonic.Rules.Types.Harmony
     -- * Utilities
   , rootNote
   , inversions
+  , isInversion
   , normalForm
   , primeForm
   , zeroFormPC
@@ -315,32 +316,32 @@ layer1Table = IM.fromListWith (++) $ concatMap expandRoot
   , rootEntry  9 [2, 4]   SharpSpelling   -- A sus4
   , rootEntry 10 [3, 5]   FlatSpelling    -- Bb sus4
   , rootEntry 11 [4, 6]   SharpSpelling   -- B sus4
-  -- 1st inversion sus4
-  , rootEntry  5 [7, 0]   FlatSpelling    -- C sus4 1st inv
-  , rootEntry  6 [8, 1]   FlatSpelling    -- Db sus4 1st inv
-  , rootEntry  7 [9, 2]   SharpSpelling   -- D sus4 1st inv
-  , rootEntry  8 [10, 3]  FlatSpelling    -- Eb sus4 1st inv
-  , rootEntry  9 [11, 4]  SharpSpelling   -- E sus4 1st inv
-  , rootEntry 10 [0, 5]   FlatSpelling    -- F sus4 1st inv
-  , rootEntry 11 [1, 6]   SharpSpelling   -- F# sus4 1st inv
-  , rootEntry  0 [2, 7]   SharpSpelling   -- G sus4 1st inv
-  , rootEntry  1 [3, 8]   FlatSpelling    -- Ab sus4 1st inv
-  , rootEntry  2 [4, 9]   SharpSpelling   -- A sus4 1st inv
-  , rootEntry  3 [5, 10]  FlatSpelling    -- Bb sus4 1st inv
-  , rootEntry  4 [6, 11]  SharpSpelling   -- B sus4 1st inv
-  -- 2nd inversion sus4
-  , rootEntry  7 [0, 5]   FlatSpelling    -- C sus4 2nd inv
-  , rootEntry  8 [1, 6]   FlatSpelling    -- Db sus4 2nd inv
-  , rootEntry  9 [2, 7]   SharpSpelling   -- D sus4 2nd inv
-  , rootEntry 10 [3, 8]   FlatSpelling    -- Eb sus4 2nd inv
-  , rootEntry 11 [4, 9]   SharpSpelling   -- E sus4 2nd inv
-  , rootEntry  0 [5, 10]  FlatSpelling    -- F sus4 2nd inv
-  , rootEntry  1 [6, 11]  SharpSpelling   -- F# sus4 2nd inv
-  , rootEntry  2 [7, 0]   SharpSpelling   -- G sus4 2nd inv
-  , rootEntry  3 [8, 1]   FlatSpelling    -- Ab sus4 2nd inv
-  , rootEntry  4 [9, 2]   SharpSpelling   -- A sus4 2nd inv
-  , rootEntry  5 [10, 3]  FlatSpelling    -- Bb sus4 2nd inv
-  , rootEntry  6 [11, 4]  SharpSpelling   -- B sus4 2nd inv
+  -- Root position sus2
+  , rootEntry  5 [7, 0]   FlatSpelling    -- F sus2
+  , rootEntry  6 [8, 1]   FlatSpelling    -- Gb sus2
+  , rootEntry  7 [9, 2]   SharpSpelling   -- G sus2
+  , rootEntry  8 [10, 3]  FlatSpelling    -- Ab sus2
+  , rootEntry  9 [11, 4]  SharpSpelling   -- A sus2
+  , rootEntry 10 [0, 5]   FlatSpelling    -- Bb sus2
+  , rootEntry 11 [1, 6]   SharpSpelling   -- B sus2
+  , rootEntry  0 [2, 7]   SharpSpelling   -- C sus2
+  , rootEntry  1 [3, 8]   FlatSpelling    -- Db sus2
+  , rootEntry  2 [4, 9]   SharpSpelling   -- D sus2
+  , rootEntry  3 [5, 10]  FlatSpelling    -- Eb sus2
+  , rootEntry  4 [6, 11]  SharpSpelling   -- E sus2
+  -- Root position 7sus4no5
+  , rootEntry  7 [0, 5]   FlatSpelling    -- G 7sus4no5
+  , rootEntry  8 [1, 6]   FlatSpelling    -- Ab 7sus4no5
+  , rootEntry  9 [2, 7]   SharpSpelling   -- A 7sus4no5
+  , rootEntry 10 [3, 8]   FlatSpelling    -- Bb 7sus4no5
+  , rootEntry 11 [4, 9]   SharpSpelling   -- B 7sus4no5
+  , rootEntry  0 [5, 10]  FlatSpelling    -- C 7sus4no5
+  , rootEntry  1 [6, 11]  SharpSpelling   -- Db 7sus4no5
+  , rootEntry  2 [7, 0]   SharpSpelling   -- D 7sus4no5
+  , rootEntry  3 [8, 1]   FlatSpelling    -- Eb 7sus4no5
+  , rootEntry  4 [9, 2]   SharpSpelling   -- E 7sus4no5
+  , rootEntry  5 [10, 3]  FlatSpelling    -- F 7sus4no5
+  , rootEntry  6 [11, 4]  SharpSpelling   -- Gb 7sus4no5
   -- Root position dim
   , rootEntry  0 [3, 6]   FlatSpelling    -- C dim
   , rootEntry  1 [4, 7]   SharpSpelling   -- C# dim
@@ -768,7 +769,7 @@ nameFuncTriad f xs =
       ,if (elem 3 zs && notElem 4 zs) && notElem 6 zs
         then ("min"++) else (""++)
       ,if elem 9 zs then ("6"++) else (""++)
-      ,if elem 10 zs && notElem 5 zs then ("7"++) else (""++)
+      ,if elem 10 zs then ("7"++) else (""++)
       ,if elem 11 zs then ("maj7"++) else (""++)
       ,if all (`elem` zs) [7,8] then ("b13"++) else (""++)
       -- sus2: has 2, has 5th (7), no 4th (5), no 3rd (3,4)
@@ -869,13 +870,10 @@ toTriad enharm ps@(fund:_)
           [P 0, P 4, P 9] -> 9   -- 1st inv minor
           [P 0, P 5, P 9] -> 5   -- 2nd inv major
           [P 0, P 5, P 8] -> 5   -- 2nd inv minor
-          [P 0, P 5, P 7] -> 0   -- Root position sus4
-          [P 0, P 5, P 10] -> 5  -- 2nd inv sus4
-          [P 0, P 2, P 7] -> 7   -- 1st inv sus4
           [P 0, P 3, P 6] -> 0   -- Root position dim
           [P 0, P 6, P 9] -> 6   -- 2nd inv dim
           [P 0, P 3, P 9] -> 9   -- 1st inv dim
-          _ -> 0                 -- Fallback
+          _ -> 0                 -- Fallback (includes all root position chords)
         rootPC = bass + P rootOffset
         -- Compute root-relative intervals for naming
         rootRelativePCs = sort $ map (\p -> p - rootPC) pcs
@@ -1017,13 +1015,10 @@ fromCadenceStateTraced (CadenceState cadence root spelling) =
         [P 0, P 4, P 9] -> 9   -- 1st inv minor
         [P 0, P 5, P 9] -> 5   -- 2nd inv major
         [P 0, P 5, P 8] -> 5   -- 2nd inv minor
-        [P 0, P 5, P 7] -> 0   -- Root position sus4
-        [P 0, P 5, P 10] -> 5  -- 2nd inv sus4
-        [P 0, P 2, P 7] -> 7   -- 1st inv sus4
         [P 0, P 3, P 6] -> 0   -- Root position dim
         [P 0, P 6, P 9] -> 6   -- 2nd inv dim
         [P 0, P 3, P 9] -> 9   -- 1st inv dim
-        _ -> 0                 -- Fallback
+        _ -> 0                 -- Fallback (includes all root position chords)
       rootPC_computed = bass + P rootOffset
       -- Compute root-relative intervals for naming (same as toTriad line 468)
       rootRelativePCs = sort $ map (\p -> p - rootPC_computed) pcs
@@ -1225,12 +1220,6 @@ detectInversion enharm xs
       [P 0, P 5, P 9] -> (rootFromOffset 5, "_2ndInv")
       -- 2nd inversion minor: [0,5,8] means root is 5 semitones above bass
       [P 0, P 5, P 8] -> (rootFromOffset 5, "_2ndInv")
-      -- Root position sus4
-      [P 0, P 5, P 7] -> (rootFromOffset 0, "")
-      -- 2nd inversion sus4: root is 5 semitones above bass
-      [P 0, P 5, P 10] -> (rootFromOffset 5, "_2ndInv")
-      -- 1st inversion sus4: root is 7 semitones above bass
-      [P 0, P 2, P 7] -> (rootFromOffset 7, "_1stInv")
       -- Root position dim
       [P 0, P 3, P 6] -> (rootFromOffset 0, "")
       -- 2nd inversion dim: root is 6 semitones above bass
@@ -1239,3 +1228,15 @@ detectInversion enharm xs
       [P 0, P 3, P 9] -> (rootFromOffset 9, "_1stInv")
       -- Fallback: assume root position
       _ -> (rootFromOffset 0, "")
+
+-- |Check if a cadence is an inversion (1st or 2nd) based on zero-form intervals.
+-- Patterns match those in 'detectInversion'.
+isInversion :: Cadence -> Bool
+isInversion cad = case cadenceIntervals cad of
+  [P 0, P 3, P 8]  -> True  -- 1st inversion major
+  [P 0, P 4, P 9]  -> True  -- 1st inversion minor
+  [P 0, P 5, P 9]  -> True  -- 2nd inversion major
+  [P 0, P 5, P 8]  -> True  -- 2nd inversion minor
+  [P 0, P 6, P 9]  -> True  -- 2nd inversion dim
+  [P 0, P 3, P 9]  -> True  -- 1st inversion dim
+  _                 -> False

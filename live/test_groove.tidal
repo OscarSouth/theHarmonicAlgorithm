@@ -8,7 +8,7 @@
 
 -- Setup
 let start = initCadenceState 0 "C" [0,4,7]
-let ctx = hContext "*" "*" "*"
+let ctx = hContext
 s <- gen start 2 "*" 0.5 ctx
 
 -- Test 1: Root strategy (respects inversions)

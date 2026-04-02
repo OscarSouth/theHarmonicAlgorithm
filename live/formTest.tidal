@@ -15,7 +15,7 @@ p03 f r k d = d03 $ do
         ,"[~ [1,2,3]]"
         -- ,degrade $ "[0(3,8)]/2" |+ "<1 2 3 4>" |+ choose [3,4,5]
       ]# o |* vel 0.1 |- oct 1 |* legato 0.25
-      ,arrange cresc lock (overlapF 0) r k (-9,9) ["~"
+      ,arrange cresc grid (overlapF 0) r k (-9,9) ["~"
         -- ,"[0 . 3 ]"
         ,"[0 [0,4]]/8"
       ]# o |* vel 0.3 |- oct 2 |= legato 0.99

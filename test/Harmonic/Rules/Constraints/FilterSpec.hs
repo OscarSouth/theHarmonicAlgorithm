@@ -279,10 +279,10 @@ spec = do
 
     describe "parseBassDirection" $ do
       it "detects 'fall' token" $
-        parseBassDirection "* fall" `shouldBe` Just Fall
+        parseBassDirection "* fall" `shouldBe` Just (Fall 1)
 
       it "detects 'rise' token" $
-        parseBassDirection "0# rise" `shouldBe` Just Rise
+        parseBassDirection "0# rise" `shouldBe` Just (Rise 1)
 
       it "returns Nothing when no direction token" $
         parseBassDirection "C E G" `shouldBe` Nothing
@@ -291,10 +291,28 @@ spec = do
         parseBassDirection "*" `shouldBe` Nothing
 
       it "is case-insensitive" $
-        parseBassDirection "* FALL" `shouldBe` Just Fall
+        parseBassDirection "* FALL" `shouldBe` Just (Fall 1)
 
       it "works with multiple pitch tokens" $
-        parseBassDirection "C E G fall" `shouldBe` Just Fall
+        parseBassDirection "C E G fall" `shouldBe` Just (Fall 1)
+
+      it "parses rise2" $
+        parseBassDirection "* rise2" `shouldBe` Just (Rise 2)
+
+      it "parses fall3" $
+        parseBassDirection "0# fall3" `shouldBe` Just (Fall 3)
+
+      it "parses rise6" $
+        parseBassDirection "* rise6" `shouldBe` Just (Rise 6)
+
+      it "rejects rise7 (out of range)" $
+        parseBassDirection "* rise7" `shouldBe` Nothing
+
+      it "rejects rise0 (out of range)" $
+        parseBassDirection "* rise0" `shouldBe` Nothing
+
+      it "rejects rise10 (multi-digit)" $
+        parseBassDirection "* rise10" `shouldBe` Nothing
 
     describe "stripDirectionToken" $ do
       it "strips 'fall'" $
@@ -311,6 +329,12 @@ spec = do
 
       it "handles case insensitivity" $
         stripDirectionToken "* FALL" `shouldBe` "*"
+
+      it "strips 'rise3'" $
+        stripDirectionToken "* rise3" `shouldBe` "*"
+
+      it "strips 'fall2' from multi-token" $
+        stripDirectionToken "C E G fall2" `shouldBe` "C E G"
 
   describe "Bass direction helpers (closestAbove/closestBelow)" $ do
     let cMajor = IntSet.fromList [0, 2, 4, 5, 7, 9, 11]
@@ -367,3 +391,53 @@ spec = do
 
       it "closestBelow G -> E" $
         closestBelow 7 sparse `shouldBe` 4
+
+  describe "nthAbove/nthBelow (step sizes)" $ do
+    let cMajor = IntSet.fromList [0, 2, 4, 5, 7, 9, 11]  -- C D E F G A B
+        sparse = IntSet.fromList [0, 4, 7]  -- C E G
+        twoNote = IntSet.fromList [0, 2]  -- C D
+
+    describe "nthAbove in C major" $ do
+      it "step 1: C -> D" $
+        nthAbove 1 0 cMajor `shouldBe` 2
+      it "step 2: C -> E" $
+        nthAbove 2 0 cMajor `shouldBe` 4
+      it "step 3: C -> F" $
+        nthAbove 3 0 cMajor `shouldBe` 5
+      it "step 4: C -> G" $
+        nthAbove 4 0 cMajor `shouldBe` 7
+      it "step 5: C -> A" $
+        nthAbove 5 0 cMajor `shouldBe` 9
+      it "step 6: C -> B" $
+        nthAbove 6 0 cMajor `shouldBe` 11
+
+    describe "nthBelow in C major" $ do
+      it "step 1: G -> F" $
+        nthBelow 1 7 cMajor `shouldBe` 5
+      it "step 2: G -> E" $
+        nthBelow 2 7 cMajor `shouldBe` 4
+      it "step 3: G -> D" $
+        nthBelow 3 7 cMajor `shouldBe` 2
+
+    describe "wrapping when N exceeds set size" $ do
+      it "nthAbove any N in 2-note set always lands on the other note" $
+        -- others = {2}, length 1. (n-1) mod 1 = 0 for all n.
+        nthAbove 3 0 twoNote `shouldBe` 2
+      it "nthBelow any N in 2-note set always lands on the other note" $
+        nthBelow 3 2 twoNote `shouldBe` 0
+
+    describe "nthAbove/Below in sparse set" $ do
+      it "nthAbove 2: C -> G (skip E)" $
+        nthAbove 2 0 sparse `shouldBe` 7
+      it "nthAbove 3: C -> wraps to E (3 mod 2 = index 0 = E)" $
+        -- others from 0 = {4, 7}, sorted by dist above = [4, 7]
+        -- (3-1) mod 2 = 0 → sorted !! 0 = 4
+        nthAbove 3 0 sparse `shouldBe` 4
+      it "nthBelow 2: G -> C (skip E)" $
+        nthBelow 2 7 sparse `shouldBe` 0
+
+    describe "pedal (single element)" $ do
+      it "nthAbove 3 returns self" $
+        nthAbove 3 5 (IntSet.singleton 5) `shouldBe` 5
+      it "nthBelow 3 returns self" $
+        nthBelow 3 5 (IntSet.singleton 5) `shouldBe` 5

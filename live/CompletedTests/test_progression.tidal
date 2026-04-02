@@ -235,16 +235,16 @@ rankByConsonance chords
 defaultContext
 -- HarmonicContext "*" "*" "*" (no filtering)
 
-hContext "E A D G" "*" "*"
+hcOvertones "E A D G" $ hContext
 -- Bass tuning overtones, any tonality, any roots
 
-hContext "*" "1#" "*"
+hcKey "1#" $ hContext
 -- Any overtones, G major tonality, any roots
 
-hContext "*" "*" "C G"
+hcRoots "C G" $ hContext
 -- Any overtones, any tonality, only C and G roots
 
-hContext "C E G" "0b" "C"
+hcRoots "C" $ hcKey "0b" $ hcOvertones "C E G" $ hContext
 -- C major triad pitches, C major tonality, C root only
 
 -------------------------------------------------------------------------------
@@ -288,7 +288,7 @@ prog8_debussy <- gen start 8 "debussy:80 stravinsky:20" 1.0 defaultContext
 prog8_debussy
 
 -- Generate with context constraints
-let bassContext = hContext "E A D G" "*" "*"
+let bassContext = hcOvertones "E A D G" $ hContext
 prog8_bass <- gen start 8 "debussy stravinsky" 1.0 bassContext
 prog8_bass
 

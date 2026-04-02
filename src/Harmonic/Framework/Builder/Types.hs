@@ -15,10 +15,14 @@ module Harmonic.Framework.Builder.Types
   , hContext
   , defaultContext
 
-    -- * Dissonance Drift
+    -- * Context Modifiers
   , Drift(..)
+  , hcOvertones
+  , hcKey
+  , hcRoots
   , dissonant
   , consonant
+  , inversion
 
     -- * Configuration
   , GeneratorConfig(..)
@@ -62,10 +66,11 @@ import           Harmonic.Rules.Constraints.Filter (parseOvertones', parseKey, i
 --
 -- Filters use "*" as wildcard (match all). Format matches legacy Overtone.hs notation.
 data HarmonicContext = HarmonicContext
-  { hcOvertones :: Text   -- ^ Filter by overtone content ("*" = all)
-  , hcKey       :: Text   -- ^ Filter by key signature ("C", "#", "bb", "*")
-  , hcRoots     :: Text   -- ^ Filter by root notes ("*" = all)
-  , hcDrift     :: Drift  -- ^ Dissonance drift direction
+  { _hcOvertones        :: Text   -- ^ Filter by overtone content ("*" = all)
+  , _hcKey              :: Text   -- ^ Filter by key signature ("C", "#", "bb", "*")
+  , _hcRoots            :: Text   -- ^ Filter by root notes ("*" = all)
+  , _hcDrift            :: Drift  -- ^ Dissonance drift direction
+  , _hcInversionSpacing :: Int    -- ^ Minimum non-inversions between inversions (default 0)
   } deriving (Show, Eq)
 
 -- |Constructor for HarmonicContext.
@@ -80,27 +85,27 @@ data HarmonicContext = HarmonicContext
 --   harmonicContext "E A D G" "C" "*" -- Bass tuning, C major key
 --   harmonicContext "*" "#" "E G"     -- G major key, E/G roots only
 harmonicContext :: Text -> Text -> Text -> HarmonicContext
-harmonicContext o k r = HarmonicContext o k r Free
+harmonicContext o k r = HarmonicContext o k r Free 0
 
--- |String-friendly constructor for Tidal live coding.
--- Avoids Text/String issues in the REPL.
+-- |Default harmonic context for Tidal live coding: all wildcards (chromatic).
 -- Named 'hContext' to avoid collision with TidalCycles' EventF.context field.
 --
--- Arguments:
---   * o: Overtones filter
---   * k: Key filter
---   * r: Roots filter
+-- Use modifier functions to constrain the context:
 --
--- Example:
---   hContext "*" "*" "*"           -- No filtering
---   hContext "E A D G" "#" "*"     -- Bass tuning, G major
---   hContext "*" "C" "C G F"       -- C major key, C/G/F roots
-hContext :: String -> String -> String -> HarmonicContext
-hContext o k r = HarmonicContext (T.pack o) (T.pack k) (T.pack r) Free
+-- @
+-- ctx = inversion 2
+--     $ consonant
+--     $ hcRoots "C E G"
+--     $ hcKey "0#"
+--     $ hcOvertones "E A D G"
+--     $ hContext
+-- @
+hContext :: HarmonicContext
+hContext = HarmonicContext "*" "*" "*" Free 0
 
 -- |Default context: no filtering (wildcards everywhere)
 defaultContext :: HarmonicContext
-defaultContext = HarmonicContext "*" "*" "*" Free
+defaultContext = HarmonicContext "*" "*" "*" Free 0
 
 -------------------------------------------------------------------------------
 -- Dissonance Drift
@@ -114,15 +119,43 @@ defaultContext = HarmonicContext "*" "*" "*" Free
 -- chord are eligible. Free imposes no constraint (default).
 data Drift = Dissonant | Consonant | Free deriving (Show, Eq)
 
+-- |Set overtone filter. Default: @"*"@ (all pitches).
+--
+-- @hcOvertones "E A D G" $ hContext@ — bass tuning overtones
+hcOvertones :: String -> HarmonicContext -> HarmonicContext
+hcOvertones o ctx = ctx { _hcOvertones = T.pack o }
+
+-- |Set key filter. Default: @"*"@ (chromatic).
+--
+-- @hcKey "0#" $ hContext@ — C major
+hcKey :: String -> HarmonicContext -> HarmonicContext
+hcKey k ctx = ctx { _hcKey = T.pack k }
+
+-- |Set roots/bass filter. Default: @"*"@ (all roots).
+--
+-- @hcRoots "C E G" $ hContext@ — only C, E, G as bass notes
+hcRoots :: String -> HarmonicContext -> HarmonicContext
+hcRoots r ctx = ctx { _hcRoots = T.pack r }
+
 -- |Modify context to trend toward increasing dissonance.
 -- Each subsequent chord must have dissonance >= the current chord.
 dissonant :: HarmonicContext -> HarmonicContext
-dissonant ctx = ctx { hcDrift = Dissonant }
+dissonant ctx = ctx { _hcDrift = Dissonant }
 
 -- |Modify context to trend toward decreasing dissonance.
 -- Each subsequent chord must have dissonance <= the current chord.
 consonant :: HarmonicContext -> HarmonicContext
-consonant ctx = ctx { hcDrift = Consonant }
+consonant ctx = ctx { _hcDrift = Consonant }
+
+-- |Set minimum number of non-inversion states between inversions.
+--
+-- @inversion 0@ allows inversions at any step (default, current behaviour).
+-- @inversion 1@ requires at least 1 non-inversion between inversions.
+-- @inversion 2@ requires at least 2 non-inversions between inversions.
+-- The starting state counts toward the counter (a non-inversion start
+-- means the first generated step may already be an inversion with @inversion 1@).
+inversion :: Int -> HarmonicContext -> HarmonicContext
+inversion n ctx = ctx { _hcInversionSpacing = n }
 
 -------------------------------------------------------------------------------
 -- Generator Configuration
@@ -150,31 +183,33 @@ data ParsedContext = ParsedContext
   , pcRawOvertones       :: ![Int]          -- ^ Raw overtone list (for fallback triad generation)
   , pcBassDirection      :: !(Maybe BassDirection)  -- ^ Rise/fall bass direction constraint
   , pcDrift              :: !Drift                  -- ^ Dissonance drift direction
+  , pcInversionSpacing   :: !Int                    -- ^ Minimum non-inversions between inversions
   }
 
 -- |Parse a HarmonicContext once into efficient lookup structures.
 parseContextOnce :: HarmonicContext -> ParsedContext
 parseContextOnce ctx =
-  let rawOvertones = parseOvertones' 4 (hcOvertones ctx)
-      keyPcs = parseKey (hcKey ctx)
-      keyWild = isWildcard (hcKey ctx)
+  let rawOvertones = parseOvertones' 4 (_hcOvertones ctx)
+      keyPcs = parseKey (_hcKey ctx)
+      keyWild = isWildcard (_hcKey ctx)
       effectiveOvertones = if keyWild
                            then rawOvertones
                            else filter (`elem` keyPcs) rawOvertones
       -- Strip direction token before resolving roots
-      rootsRaw = hcRoots ctx
+      rootsRaw = _hcRoots ctx
       rootsStripped = stripDirectionToken rootsRaw
       bassDir = parseBassDirection rootsRaw
-      allowedBassNotes = resolveRoots (hcOvertones ctx) (hcKey ctx) rootsStripped
+      allowedBassNotes = resolveRoots (_hcOvertones ctx) (_hcKey ctx) rootsStripped
   in ParsedContext
     { pcEffectiveOvertones = IntSet.fromList effectiveOvertones
     , pcAllowedBassNotes   = IntSet.fromList allowedBassNotes
     , pcIsRootsWild        = isWildcard rootsStripped
     , pcIsKeyWild          = keyWild
-    , pcIsOvertonesWild    = isWildcard (hcOvertones ctx)
+    , pcIsOvertonesWild    = isWildcard (_hcOvertones ctx)
     , pcRawOvertones       = rawOvertones
     , pcBassDirection      = bassDir
-    , pcDrift              = hcDrift ctx
+    , pcDrift              = _hcDrift ctx
+    , pcInversionSpacing   = _hcInversionSpacing ctx
     }
 
 -------------------------------------------------------------------------------

@@ -19,7 +19,7 @@ Blended composers even get a creative portmanteau name in the output.
 
 **Five Voicing Strategies** — Each one reshapes how a progression sounds
 without changing the harmony itself. `flow` finds the smoothest voice leading
-using cyclic dynamic programming. `lock` keeps the root locked in the bass
+using cyclic dynamic programming. `grid` keeps the root locked in the bass
 with optimised upper voices. `lite` gives you the raw intervals. `root`
 extracts just the root note as a melodic line. `fund` always returns the
 harmonic fundamental regardless of inversion — essential for kick drums and
@@ -59,7 +59,10 @@ themselves. Removal syntax (`"-Bb'"`) subtracts specific pitches.
 with `"0# rise"` or `"0# fall"` in the roots string. The algorithm
 selects the closest allowed bass note above (rise) or below (fall) the
 current one, creating stepwise ascending or descending bass motion through
-the filtered pitch space. Combine with key and root filters to shape the
+the filtered pitch space. Append a number 2–6 to skip notes: `"0# rise2"`
+moves by thirds, `"0# rise3"` by fourths, up to `"0# rise6"` for sixths.
+The step walks through the allowed set in order, wrapping around if it
+exceeds the set size. Combine with key and root filters to shape the
 path — `"*" "1b 4 5" "key rise"` produces a rising bass line through
 the mixolydian degrees.
 
@@ -72,6 +75,30 @@ selection, preserving the normal scoring hierarchy — you get the best
 musical choice that meets the constraint, not just the most or least
 dissonant option. Composes with bass direction:
 `consonant (dissonant ctx)` — last modifier wins.
+
+**Inversion Spacing** — Control how often chord inversions appear in
+generated progressions. `inversion 2 $ ctx` ensures at least 2
+root-position chords between any two inversions. `inversion 0` (default)
+allows inversions freely. The starting state counts toward the spacing —
+a root-position start with `inversion 1` means the first generated step
+can already be an inversion. Composes with all other context modifiers.
+
+**`lead` — String-Parsed Starting State** — `lead :: String -> IO CadenceState`
+constructs a starting chord from a human-readable string. Root, quality, and
+movement can each be omitted to fall through to randomness. `lead "E min (5)"`
+gives E minor arrived by ascending 5th. `lead "E"` gives E with a random
+quality and random movement. `lead ""` is fully random. Recognised quality
+shorthands include `maj`, `min`, `dim`, `aug`, `7`, `dom7`, `maj7`, `min7`,
+`hdim`, `sus2`, `sus4`, `6`, `m6` — all other names try to match the internal
+quality map directly. Prints `root quality` to the console on construction.
+
+**Modifier-Based Context API** — `hContext` is now a zero-argument
+chromatic default. Filters are applied as composable modifier functions:
+`hcOvertones "E A D G"`, `hcKey "0#"`, `hcRoots "C E G"`. Wildcard
+filters are simply omitted instead of explicitly passed as `"*"`.
+Individual lines can be commented out to fall back to defaults.
+`dissonant`, `consonant`, and `inversion N` compose naturally in the
+same chain: `inversion 2 $ consonant $ hcKey "0#" $ hContext`.
 
 **Pattern Launcher Paradigm** — Define reusable instrument blocks with
 four parameters: transformation, progression, chord selection, and dynamics.

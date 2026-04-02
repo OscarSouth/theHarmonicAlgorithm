@@ -40,10 +40,8 @@ moog f s r d = p "moog" $ do
  -- 1. Generate
 let start = initCadenceState 5 "E" [0,3,7]
     ctx = defaultContext
-    -- ctx = hContext "*" "2#" "*"
- -- overtones "*" permits any pitch class
+    -- ctx = hcKey "2#" $ hContext
  -- key "2#" (D) filters candidates from overtones to D E F# G A B C#
- -- roots "*" permits any pitch class
 
  -- generates an IO Progression, so we bind it
 next <- gen start 8 "debussy:0.75 bach:0.25" 0.3 ctx

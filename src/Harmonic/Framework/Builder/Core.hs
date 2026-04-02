@@ -20,6 +20,7 @@ module Harmonic.Framework.Builder.Core
 
     -- * Filtering (exposed for testing)
   , matchesContext
+  , matchesContextWithTarget
   , applyDriftFilter
   ) where
 
@@ -41,7 +42,7 @@ import           Harmonic.Evaluation.Database.Query (ComposerWeights, fetchTrans
 import qualified Harmonic.Evaluation.Database.Query as Q
 import           Harmonic.Traversal.Probabilistic (gammaIndexScaledWith)
 import           Harmonic.Rules.Constraints.Filter (parseOvertones', parseKey, isWildcard, resolveRoots,
-                                                    closestAbove, closestBelow)
+                                                    nthAbove, nthBelow)
 import           Harmonic.Rules.Constraints.Overtone (overtoneSets)
 import           Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
 import qualified Harmonic.Evaluation.Scoring.Dissonance as D
@@ -69,9 +70,10 @@ buildChain :: GeneratorConfig
            -> Int              -- ^ Number of steps to generate
            -> Bolt.BoltActionT IO [H.CadenceState]
 buildChain config gen entropy context pctx composerWeights start totalSteps = do
-  ((_current, revChain), _noDiags) <-
+  let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
+  ((_current, revChain, _counter), _noDiags) <-
     foldM (stepChainCore config gen Nothing entropy context pctx composerWeights)
-          ((start, [start]), [])
+          ((start, [start], initCounter), [])
           [1..totalSteps]
   pure $ reverse revChain
 
@@ -96,10 +98,10 @@ stepChainCore :: GeneratorConfig
               -> HarmonicContext
               -> ParsedContext    -- ^ Pre-parsed context for O(1) lookups
               -> ComposerWeights  -- ^ Composer blend weights
-              -> ((H.CadenceState, [H.CadenceState]), [StepDiagnostic]) -- ^ ((Current, revChain), revDiags)
+              -> ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic]) -- ^ ((Current, revChain, nonInvCount), revDiags)
               -> Int              -- ^ Current step number
-              -> Bolt.BoltActionT IO ((H.CadenceState, [H.CadenceState]), [StepDiagnostic])
-stepChainCore _config gen mVerbosity entropy _context pctx composerWeights ((current, revChain), revDiags) stepNum = do
+              -> Bolt.BoltActionT IO ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
+stepChainCore _config gen mVerbosity entropy _context pctx composerWeights ((current, revChain, nonInvCount), revDiags) stepNum = do
   let currentShow = T.pack $ show (extractCadence current)
 
   -- Fetch all transitions from current cadence
@@ -108,9 +110,9 @@ stepChainCore _config gen mVerbosity entropy _context pctx composerWeights ((cur
   -- Compute bass direction target (if rise/fall is active)
   let prevBassPC = P.unPitchClass (P.pitchClass (H.stateCadenceRoot current))
       bassTarget = case pcBassDirection pctx of
-        Nothing   -> Nothing
-        Just Rise -> Just $ closestAbove prevBassPC (pcAllowedBassNotes pctx)
-        Just Fall -> Just $ closestBelow prevBassPC (pcAllowedBassNotes pctx)
+        Nothing       -> Nothing
+        Just (Rise n) -> Just $ nthAbove n prevBassPC (pcAllowedBassNotes pctx)
+        Just (Fall n) -> Just $ nthBelow n prevBassPC (pcAllowedBassNotes pctx)
 
   -- Apply R constraints (pure filter by ParsedContext)
   let filtered = applyRConstraintsWithTarget bassTarget pctx current transitions
@@ -135,8 +137,16 @@ stepChainCore _config gen mVerbosity entropy _context pctx composerWeights ((cur
       -- Apply dissonance drift filter
       driftedPool = applyDriftFilter (pcDrift pctx) current pool
 
+      -- Apply inversion spacing constraint
+      invSpacing = pcInversionSpacing pctx
+      inversionAllowed = nonInvCount >= invSpacing
+      spacedPool = if inversionAllowed
+                   then driftedPool
+                   else filter (not . H.isInversion . fst) driftedPool
+      finalPool = if null spacedPool then driftedPool else spacedPool
+
   -- Select next cadence using gamma sampling
-  if null driftedPool
+  if null finalPool
     then do
       -- Absorbing state
       let diags = case mVerbosity of
@@ -165,11 +175,12 @@ stepChainCore _config gen mVerbosity entropy _context pctx composerWeights ((cur
                     , sdAdvanceTrace = Nothing
                     }
               in diag : revDiags
-      pure ((current, current : revChain), diags)
+      pure ((current, current : revChain, nonInvCount), diags)
     else do
-      idx <- liftIO $ gammaIndexScaledWith gen entropy (length driftedPool)
-      let nextCadence = fst (driftedPool !! idx)
+      idx <- liftIO $ gammaIndexScaledWith gen entropy (length finalPool)
+      let nextCadence = fst (finalPool !! idx)
           (newState, advTrace) = advanceStateTraced current nextCadence
+          newCounter = if H.isInversion nextCadence then 0 else nonInvCount + 1
 
           -- Build diagnostics only when requested
           diags = case mVerbosity of
@@ -195,7 +206,7 @@ stepChainCore _config gen mVerbosity entropy _context pctx composerWeights ((cur
                     , sdGraphTop6 = graphTop6
                     , sdFallbackCount = fallbackCount
                     , sdFallbackTop6 = fallbackTop6'
-                    , sdPoolSize = length driftedPool
+                    , sdPoolSize = length finalPool
                     , sdEntropyUsed = entropy
                     , sdGammaIndex = idx
                     , sdSelectedFrom = selectedFrom
@@ -207,7 +218,7 @@ stepChainCore _config gen mVerbosity entropy _context pctx composerWeights ((cur
                     }
               in diag : revDiags
 
-      pure ((newState, newState : revChain), diags)
+      pure ((newState, newState : revChain, newCounter), diags)
 
 -------------------------------------------------------------------------------
 -- Chain Building with Diagnostics
@@ -241,9 +252,10 @@ buildChainWithDiagV :: GeneratorConfig
                     -> Int             -- ^ Number of steps to generate
                     -> Bolt.BoltActionT IO ([H.CadenceState], [StepDiagnostic])
 buildChainWithDiagV config gen verbosity entropy context pctx composerWeights start totalSteps = do
-  ((_current, revChain), revDiags) <-
+  let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
+  ((_current, revChain, _counter), revDiags) <-
     foldM (stepChainCore config gen (Just verbosity) entropy context pctx composerWeights)
-          ((start, [start]), [])
+          ((start, [start], initCounter), [])
           [1..totalSteps]
   pure (reverse revChain, reverse revDiags)
 
@@ -293,11 +305,11 @@ consonanceFallbackWith gen currentState context =
       currentRoot = P.pitchClass (H.stateCadenceRoot currentState)
 
       -- Get overtone palette (4 partials per fundamental)
-      overtones = parseOvertones' 4 (hcOvertones context)
+      overtones = parseOvertones' 4 (_hcOvertones context)
 
       -- Apply key filter to overtones
-      keyPcs = parseKey (hcKey context)
-      effectiveOvertones = if isWildcard (hcKey context)
+      keyPcs = parseKey (_hcKey context)
+      effectiveOvertones = if isWildcard (_hcKey context)
                            then overtones
                            else filter (`elem` keyPcs) overtones
 
@@ -469,14 +481,14 @@ matchesContext context currentState cadence =
   let (movement, chord) = H.deconstructCadence cadence
 
       -- Get effective overtone palette (key-filtered)
-      rawOvertones = parseOvertones' 4 (hcOvertones context)
-      keyPcs = parseKey (hcKey context)
-      effectiveOvertones = if isWildcard (hcKey context)
+      rawOvertones = parseOvertones' 4 (_hcOvertones context)
+      keyPcs = parseKey (_hcKey context)
+      effectiveOvertones = if isWildcard (_hcKey context)
                            then rawOvertones
                            else filter (`elem` keyPcs) rawOvertones
 
       -- Get allowed bass notes (the "roots" parameter actually filters bass notes, not harmonic roots)
-      allowedBassNotes = resolveRoots (hcOvertones context) (hcKey context) (hcRoots context)
+      allowedBassNotes = resolveRoots (_hcOvertones context) (_hcKey context) (_hcRoots context)
 
       -- Compute current root from previous state + movement
       prevRoot = P.pitchClass (H.stateCadenceRoot currentState)
@@ -504,7 +516,7 @@ matchesContext context currentState cadence =
       overtonesMatch = all (`elem` effectiveOvertones) absolutePitches
 
       -- Bass note must be in allowed bass notes (or wildcard)
-      bassMatch = isWildcard (hcRoots context)
+      bassMatch = isWildcard (_hcRoots context)
                   || bassInt `elem` allowedBassNotes
 
   in overtonesMatch && bassMatch
@@ -556,8 +568,14 @@ matchesContextWithTarget bassTarget pctx currentState cadence =
       -- Bass note is the FIRST interval (fundamental), not minimum!
       bassInt = if null absolutePitches then 0 else head absolutePitches
 
-      -- All absolute chord pitches must be in effective overtones (IntSet lookup)
-      overtonesMatch = all (`IntSet.member` pcEffectiveOvertones pctx) absolutePitches
+      -- All absolute chord pitches must be in effective overtones (IntSet lookup).
+      -- When bass direction targets a specific note, exempt that pitch class
+      -- from the overtone check — allows chromatic passing bass notes
+      -- (e.g. D# in a G major context) while still constraining upper voices.
+      pitchesToCheck = case bassTarget of
+        Just target -> filter (/= target) absolutePitches
+        Nothing     -> absolutePitches
+      overtonesMatch = all (`IntSet.member` pcEffectiveOvertones pctx) pitchesToCheck
 
       -- Bass note check: exact target if rise/fall active, otherwise set membership
       bassMatch = case bassTarget of

@@ -28,7 +28,7 @@
 -- Test that voice functions are available
 :t flow
 :t root
-:t lock
+:t grid
 :t arrange
 :t overlapF
 :t rotate
@@ -109,7 +109,7 @@ expandP 2 testProg  -- Double length
 
 -- Voicing extractors (3 paradigms via cyclic DP)
 literal testProg   -- [[Integer]] raw pitch classes
-lock testProg      -- Root locked in bass, smooth voice leading
+grid testProg      -- Root locked in bass, smooth voice leading
 flow testProg      -- Any inversion, smoothest motion
 lite testProg      -- Same as literal
 
@@ -171,10 +171,8 @@ wildcard "E A D G"       -- False
 -- Default context (wildcards)
 defaultContext
 
--- Custom context (use 'hContext' String wrapper in TidalCycles)
--- HarmonicContext takes Text fields, but 'hContext' takes String:
--- Named 'hContext' to avoid collision with TidalCycles' EventF.context
-let ctx = hContext "E A D G" "1#" "*"
+-- Custom context using modifier functions:
+let ctx = hcKey "1#" $ hcOvertones "E A D G" $ hContext
 
 -- Default config
 defaultConfig

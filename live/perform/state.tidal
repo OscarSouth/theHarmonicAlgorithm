@@ -1,49 +1,38 @@
 tempo = 97
 
-start = initCadenceState (-3) "D" [0,3,7]
+start <- lead "E min"
 
-ctx = hContext "*" "* -F# -Eb -Ab" "D C Bb"
+ctx = inversion 1
+  $ dissonant
+  $ hcRoots "E A B fall"
+  $ hcKey "1# D#"
+  $ hContext
 
-next <- gen start 4 "*" 0.5 ctx
+s <- gen start 4 "*" 0.5 ctx
 
-state = rotate (0) next
+form = [
+  at    0   1   1   s
+  ]
 
   -- '' ¬¬
 do
   let
-    dyn = slow 64 $ lfo tri 0.9 1
-    s = transposeP 0 state
-    r = warp "[1 2]/4"
-    f = (swingBy 0.04 2)
-    d = (*dyn)
-  putStrLn $ "GO ¬¬" ++ show s
+    -- r = warp "[1 2 3 4]/8"
+    r = warp "[3 4 2 1]/4"
+    f = (swingBy 0.07 2)
+    d = (* 1)
+    k = formK tempo form
+  putStrLn $ "LAUNCH ¬¬"
   mapM_ id [hush, setbpm tempo
-    -- ,metronome $d 0.1
-    -- ,count s r $d 0.5
-    -- ,p03 f s r $ d 0.1
-    -- ,p02 f s r $ d 1
-    ,moog f s r $ d 0.9
-    -- ,subk f s r $ d 1
-    ,k909 f     $d 0.4
-    -- ,kmpc f     $d 0.9
-    -- ,drum f     $d 0.1
+    -- ,wind f r k       $ d 0.9
+    -- ,strg f r k       $ d 0.8
+    -- ,brss f r k       $ d 0.9
+    -- ,perc f r k       $ d 0.7
+    -- ,chalumeau f r k  $ d 0.9
+    -- ,tutti f r k $ d 0.9
+    ,p03 f r k        $ d 0.9
+    -- ,subk f r k       $ d 0.1
+    -- ,k909 f k         $ d 0.8
    ]
-
-hush
-
- -- TRANSPORT
-mapM_ id [p "transport"
-  $ do
-  let
-    out = 999999
-  --
-  seqP
-    $ sync out ++ [runSeq
-  --
-    ]
-  --
-  -- ,resetCycles,hush,allNotesOff
-  -- ,setcps (tempo/60)
-  ]
 
 hush''

@@ -29,7 +29,7 @@ progression, set up an instrument, and launch. Here's the essence of it:
 ```haskell
 -- Define your starting point and tonal area
 let start = initCadenceState 0 "C" [0,4,7]
-let ctx = hContext "*" "0#" "*"
+let ctx = hcKey "0#" $ hContext
 
 -- Generate a 4-chord progression
 s4 <- gen start 4 "*" 0.5 ctx
@@ -82,7 +82,7 @@ All three default to `"*"` (wildcard — no restrictions). You can constrain
 any or all of them:
 
 ```haskell
-let ctx = hContext "E A D G" "1#" "*"
+let ctx = hcKey "1#" $ hcOvertones "E A D G" $ hContext
 -- Overtones of bass guitar tuning, in G major, any root
 ```
 
@@ -93,20 +93,20 @@ wide and unpredictable to focused and idiomatic]`
 
 ### 2.3 Filter String Syntax
 
-Each of the three arguments to `hContext` parses its string differently,
-but all three support `"*"` (wildcard) and `"-"` (removal).
+Each modifier applies its filter to a base `hContext` (which defaults to
+all-wildcard). All filter strings support `"*"` (wildcard) and `"-"` (removal).
 
-**Overtones** (first argument): bare note names give you the first four
+**Overtones** (`hcOvertones`): bare note names give you the first four
 overtones of that fundamental. `"E A D G"` gives you the union of all four
 overtone series. Append a prime (`'`) for a single exact pitch: `"E'"` means
 just the pitch E, no overtones. You can combine both: `"G E' A' A#'"` gives
 you the overtones of G plus the exact pitches E, A, and A#.
 
-**Key** (second argument): use sharps and flats notation for key signatures.
+**Key** (`hcKey`): use sharps and flats notation for key signatures.
 `"0#"` is C major, `"1#"` is G major, `"2b"` is Bb major. Important: `"C"`
 here means the single pitch C, not the key of C major — use `"0#"` for that.
 
-**Roots** (third argument): same syntax as key, plus two special values —
+**Roots** (`hcRoots`): same syntax as key, plus two special values —
 `"key"` mirrors whatever key filter you set, and `"tones"` uses the
 intersection of your overtone and key filters.
 
@@ -117,11 +117,24 @@ octave wrapping). This creates stepwise ascending or descending bass lines
 within whatever root set you've defined:
 
 ```haskell
-hContext "*" "0#" "0# fall"      -- descend through C major scale tones
-hContext "*" "0#" "0# rise"      -- ascend through C major scale tones
-hContext "*" "0#" "C E G fall"   -- descend through {C, E, G}
-hContext "*" "0#" "key rise"     -- ascend through key-derived bass notes
-hContext "*" "0#" "tones fall"   -- descend through effective overtones
+hcRoots "0# fall" $ hcKey "0#" $ hContext      -- descend through C major scale tones
+hcRoots "0# rise" $ hcKey "0#" $ hContext      -- ascend through C major scale tones
+hcRoots "C E G fall" $ hcKey "0#" $ hContext   -- descend through {C, E, G}
+hcRoots "key rise" $ hcKey "0#" $ hContext     -- ascend through key-derived bass notes
+hcRoots "tones fall" $ hcKey "0#" $ hContext   -- descend through effective overtones
+```
+
+**Step sizes** — Append a number 2–6 to skip notes: `rise2` lands on the
+2nd note above, `rise3` the 3rd, and so on. The step walks through the
+allowed set in order, wrapping around if the step exceeds the set size.
+Bare `rise`/`fall` is equivalent to `rise1`/`fall1`.
+
+```haskell
+hcRoots "0# rise2" $ hcKey "0#" $ hContext     -- ascend by thirds through C major
+hcRoots "0# rise3" $ hcKey "0#" $ hContext     -- ascend by fourths through C major
+hcRoots "0# fall2" $ hcKey "0#" $ hContext     -- descend by thirds through C major
+hcRoots "C E G rise2" $ hcKey "0#" $ hContext  -- skip one in {C, E, G}: C→G→E→C...
+hcRoots "0# rise6" $ hcKey "0#" $ hContext     -- leap by sixths through C major
 ```
 
 You can subtract pitches with the `-` prefix: `"E A D G -Bb'"` gives you
@@ -174,13 +187,13 @@ opposite — each chord must be equal or less dissonant.
 
 ```haskell
 -- Progressions that build tension:
-s4 <- gen start 4 "*" 0.5 (dissonant $ hContext "*" "0#" "*")
+s4 <- gen start 4 "*" 0.5 (dissonant $ hcKey "0#" $ hContext)
 
 -- Progressions that resolve:
-s4 <- gen start 4 "*" 0.5 (consonant $ hContext "*" "0#" "*")
+s4 <- gen start 4 "*" 0.5 (consonant $ hcKey "0#" $ hContext)
 
 -- No constraint (default):
-s4 <- gen start 4 "*" 0.5 (hContext "*" "0#" "*")
+s4 <- gen start 4 "*" 0.5 (hcKey "0#" $ hContext)
 ```
 
 Dissonance is measured using Hindemith's interval vector theory. Major and
@@ -193,7 +206,7 @@ Drift composes with all other context parameters:
 
 ```haskell
 -- Descending bass with building tension:
-s4 <- gen start 8 "*" 0.5 (dissonant $ hContext "*" "0#" "0# fall")
+s4 <- gen start 8 "*" 0.5 (dissonant $ hcRoots "0# fall" $ hcKey "0#" $ hContext)
 ```
 
 If no candidates meet the constraint at a given step (e.g., already at
@@ -804,10 +817,10 @@ shape the harmonic journey]`
 Combine overtone, key, and root filtering for genre-specific contexts:
 
 ```haskell
-jazzCtx  = hContext "*" "2#" "D F# A"       -- D major, jazz roots
-bluesCtx = hContext "*" "1b" "F Bb C"       -- F major, I-IV-V roots
-modalCtx = hContext "*" "*" "C Eb F G Bb"   -- modal, no key filter
-bassCtx  = hContext "E A D G" "*" "*"       -- bass guitar overtones
+jazzCtx  = hcRoots "D F# A" $ hcKey "2#" $ hContext       -- D major, jazz roots
+bluesCtx = hcRoots "F Bb C" $ hcKey "1b" $ hContext       -- F major, I-IV-V roots
+modalCtx = hcRoots "C Eb F G Bb" $ hContext               -- modal, no key filter
+bassCtx  = hcOvertones "E A D G" $ hContext                -- bass guitar overtones
 ```
 
 `[video: four genre contexts in sequence — jazz in D major with specific
@@ -841,7 +854,7 @@ A performance session starts with a tempo and a harmonic context:
 
 ```haskell
 setbpm 100
-let ctx = hContext "*" "0#" "*"
+let ctx = hcKey "0#" $ hContext
 ```
 
 ### 11.2 Generate Sections
@@ -913,10 +926,12 @@ ___
 
 | Modifier | Example | Effect |
 |----------|---------|--------|
-| `dissonant` | `dissonant $ hContext "*" "0#" "*"` | Each chord >= current dissonance |
-| `consonant` | `consonant $ hContext "*" "0#" "*"` | Each chord <= current dissonance |
-| `"rise"` | `hContext "*" "0#" "0# rise"` | Bass steps up through root set |
-| `"fall"` | `hContext "*" "0#" "0# fall"` | Bass steps down through root set |
+| `dissonant` | `dissonant $ hcKey "0#" $ hContext` | Each chord >= current dissonance |
+| `consonant` | `consonant $ hcKey "0#" $ hContext` | Each chord <= current dissonance |
+| `"rise"` | `hcRoots "0# rise" $ hcKey "0#" $ hContext` | Bass steps up through root set |
+| `"fall"` | `hcRoots "0# fall" $ hcKey "0#" $ hContext` | Bass steps down through root set |
+| `"rise2"`–`"rise6"` | `hcRoots "0# rise3" $ hcKey "0#" $ hContext` | Bass skips Nth note up (3 = fourths) |
+| `"fall2"`–`"fall6"` | `hcRoots "0# fall2" $ hcKey "0#" $ hContext` | Bass skips Nth note down (2 = thirds) |
 
 ### Chord Selection
 

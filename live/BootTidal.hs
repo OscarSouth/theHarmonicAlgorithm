@@ -120,7 +120,16 @@ hush = mapM_ ($ silence) [
   p "sh101",
   p "juno",
   p "drumbruteImpact",
-  p "subKick"
+  p "subKick",
+  p "wind",
+  p "brss",
+  p "strg",
+  p "perc",
+  p "chalumeau",
+  p "pastorale",
+  p "brillante",
+  p "maestoso",
+  p "tutti"
   ]
 :}
 

@@ -324,20 +324,12 @@ showTriad f (Chord noteName functionality _)
     | all (`List.isInfixOf` functionality) ["_1stInv", "min"] =
       show (f $ pitchClass noteName) ++ " " ++ takeWhile Char.isAlphaNum functionality
       ++ "/" ++ show (f (pitchClass noteName + P 3))
-    -- 1st inversion sus4 (4th in bass = root + 5 semitones)
-    | all (`List.isInfixOf` functionality) ["_1stInv", "sus4"] =
-      show (f $ pitchClass noteName) ++ " " ++ takeWhile Char.isAlphaNum functionality
-      ++ "/" ++ show (f (pitchClass noteName + P 5))
     -- 1st inversion dim (3rd in bass = root + 3 semitones)
     | all (`List.isInfixOf` functionality) ["_1stInv", "dim"] =
       show (f $ pitchClass noteName) ++ " " ++ takeWhile Char.isAlphaNum functionality ++
       "/" ++ show (f (pitchClass noteName + P 3))
     -- 2nd inversion maj/min (5th in bass = root + 7 semitones)
     | "_2ndInv" `List.isInfixOf` functionality && any (`List.isInfixOf` functionality) ["maj", "min"] =
-      show (f $ pitchClass noteName) ++ " " ++
-      takeWhile Char.isAlphaNum functionality ++ "/" ++ show (f (pitchClass noteName + P 7))
-    -- 2nd inversion sus4 (5th in bass = root + 7 semitones)
-    | "_2ndInv" `List.isInfixOf` functionality && "sus4" `List.isInfixOf` functionality =
       show (f $ pitchClass noteName) ++ " " ++
       takeWhile Char.isAlphaNum functionality ++ "/" ++ show (f (pitchClass noteName + P 7))
     -- 2nd inversion dim (5th in bass = root + 6 semitones for diminished)

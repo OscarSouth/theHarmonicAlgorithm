@@ -94,6 +94,8 @@ module Harmonic.Rules.Constraints.Filter
   , stripDirectionToken
   , closestAbove
   , closestBelow
+  , nthAbove
+  , nthBelow
 
     -- * Internal (for testing)
   , parseOvertones'
@@ -107,7 +109,7 @@ module Harmonic.Rules.Constraints.Filter
 import qualified Data.Char as Char
 import qualified Data.Text as T
 import           Data.Text (Text)
-import           Data.List (nub, sort, partition, (\\))
+import           Data.List (nub, sort, sortBy, partition, (\\))
 import           Data.Maybe (mapMaybe)
 import qualified Data.IntSet as IntSet
 
@@ -500,68 +502,112 @@ partitionTokens input =
 -------------------------------------------------------------------------------
 
 -- |Direction constraint for bass motion during generation.
--- When active, the bass/root at each step is forced to the closest note
+-- When active, the bass/root at each step is forced to the Nth note
 -- above (Rise) or below (Fall) in the allowed set, with mod-12 wrapping.
-data BassDirection = Rise | Fall
+-- Step size 1 = closest note, 2 = skip one, etc.
+data BassDirection = Rise !Int | Fall !Int
   deriving (Show, Eq)
 
 -- |Extract a bass direction modifier from a roots filter string.
--- Looks for "rise" or "fall" as a token.
+-- Looks for "rise", "fall", or suffixed variants "rise2"–"rise6", "fall2"–"fall6".
+-- Bare "rise"/"fall" produce step size 1.
 --
 -- Examples:
---   parseBassDirection "* fall"     == Just Fall
---   parseBassDirection "0# rise"    == Just Rise
---   parseBassDirection "C E G"      == Nothing
---   parseBassDirection "*"          == Nothing
+--   parseBassDirection "* fall"      == Just (Fall 1)
+--   parseBassDirection "0# rise"     == Just (Rise 1)
+--   parseBassDirection "* rise3"     == Just (Rise 3)
+--   parseBassDirection "0# fall2"    == Just (Fall 2)
+--   parseBassDirection "C E G"       == Nothing
+--   parseBassDirection "*"           == Nothing
 parseBassDirection :: Text -> Maybe BassDirection
 parseBassDirection input =
   let tokens = T.words $ T.toLower input
-  in if "fall" `elem` tokens then Just Fall
-     else if "rise" `elem` tokens then Just Rise
-     else Nothing
+      parseToken t
+        | t == "rise" = Just (Rise 1)
+        | t == "fall" = Just (Fall 1)
+        | Just rest <- T.stripPrefix "rise" t
+        , T.length rest == 1
+        , let c = T.head rest
+        , Char.isDigit c
+        , let n = Char.digitToInt c
+        , n >= 2 && n <= 6
+        = Just (Rise n)
+        | Just rest <- T.stripPrefix "fall" t
+        , T.length rest == 1
+        , let c = T.head rest
+        , Char.isDigit c
+        , let n = Char.digitToInt c
+        , n >= 2 && n <= 6
+        = Just (Fall n)
+        | otherwise = Nothing
+  in case mapMaybe parseToken tokens of
+       (d:_) -> Just d
+       []    -> Nothing
 
 -- |Strip the direction token from a roots filter string,
 -- leaving only the pitch set specification for normal parsing.
 --
 -- Examples:
---   stripDirectionToken "* fall"     == "*"
---   stripDirectionToken "0# rise"    == "0#"
---   stripDirectionToken "C E G fall" == "C E G"
---   stripDirectionToken "C E G"      == "C E G"
+--   stripDirectionToken "* fall"      == "*"
+--   stripDirectionToken "0# rise"     == "0#"
+--   stripDirectionToken "C E G fall"  == "C E G"
+--   stripDirectionToken "C E G"       == "C E G"
+--   stripDirectionToken "* rise3"     == "*"
+--   stripDirectionToken "0# fall2"    == "0#"
 stripDirectionToken :: Text -> Text
 stripDirectionToken input =
   let tokens = T.words input
-      filtered = filter (\t -> T.toLower t `notElem` ["rise", "fall"]) tokens
+      isDirection t =
+        let low = T.toLower t
+        in low == "rise" || low == "fall"
+           || (T.length low == 5
+               && (T.isPrefixOf "rise" low || T.isPrefixOf "fall" low)
+               && Char.isDigit (T.last low))
+      filtered = filter (not . isDirection) tokens
   in T.unwords filtered
 
--- |Find the closest pitch class ABOVE the current one in the allowed set.
--- Uses mod-12 circular distance. If the set has only the current note, returns it (pedal).
+-- |Find the Nth pitch class ABOVE the current one in the allowed set,
+-- sorted by ascending circular distance. Step 1 = closest, 2 = skip one, etc.
+-- When N exceeds the set size, wraps around using modular indexing.
+-- If the set has only the current note, returns it (pedal).
 --
 -- Examples (with C major = {0,2,4,5,7,9,11}):
---   closestAbove 7 {0,2,4,5,7,9,11} == 9  (G → A)
---   closestAbove 11 {0,2,4,5,7,9,11} == 0  (B → C, wraps)
---   closestAbove 0 {0} == 0  (pedal)
-closestAbove :: Int -> IntSet.IntSet -> Int
-closestAbove current allowed =
+--   nthAbove 1 7 cMaj == 9   (G → A, closest)
+--   nthAbove 3 0 cMaj == 5   (C → F, 3rd above)
+--   nthAbove 1 11 cMaj == 0  (B → C, wraps mod-12)
+--   nthAbove 1 0 {0} == 0    (pedal)
+nthAbove :: Int -> Int -> IntSet.IntSet -> Int
+nthAbove n current allowed =
   let others = IntSet.delete current allowed
   in if IntSet.null others
      then current  -- pedal: single-element set
-     else let candidates = IntSet.toList others
-              dist x = (x - current) `mod` 12
-          in snd $ minimum [(dist x, x) | x <- candidates, dist x > 0]
+     else let sorted = sortBy (\a b -> compare ((a - current) `mod` 12) ((b - current) `mod` 12))
+                              (IntSet.toList others)
+          in sorted !! ((n - 1) `mod` length sorted)
 
--- |Find the closest pitch class BELOW the current one in the allowed set.
--- Uses mod-12 circular distance. If the set has only the current note, returns it (pedal).
+-- |Find the Nth pitch class BELOW the current one in the allowed set,
+-- sorted by ascending circular distance downward. Step 1 = closest, etc.
+-- When N exceeds the set size, wraps around using modular indexing.
+-- If the set has only the current note, returns it (pedal).
 --
 -- Examples (with C major = {0,2,4,5,7,9,11}):
---   closestBelow 7 {0,2,4,5,7,9,11} == 5  (G → F)
---   closestBelow 0 {0,2,4,5,7,9,11} == 11  (C → B, wraps)
---   closestBelow 5 {5} == 5  (pedal)
-closestBelow :: Int -> IntSet.IntSet -> Int
-closestBelow current allowed =
+--   nthBelow 1 7 cMaj == 5   (G → F, closest)
+--   nthBelow 3 7 cMaj == 2   (G → D, 3rd below)
+--   nthBelow 1 0 cMaj == 11  (C → B, wraps mod-12)
+--   nthBelow 1 5 {5} == 5    (pedal)
+nthBelow :: Int -> Int -> IntSet.IntSet -> Int
+nthBelow n current allowed =
   let others = IntSet.delete current allowed
   in if IntSet.null others
      then current  -- pedal: single-element set
-     else let candidates = IntSet.toList others
-              dist x = (current - x) `mod` 12
-          in snd $ minimum [(dist x, x) | x <- candidates, dist x > 0]
+     else let sorted = sortBy (\a b -> compare ((current - a) `mod` 12) ((current - b) `mod` 12))
+                              (IntSet.toList others)
+          in sorted !! ((n - 1) `mod` length sorted)
+
+-- |Find the closest pitch class above. Equivalent to @nthAbove 1@.
+closestAbove :: Int -> IntSet.IntSet -> Int
+closestAbove = nthAbove 1
+
+-- |Find the closest pitch class below. Equivalent to @nthBelow 1@.
+closestBelow :: Int -> IntSet.IntSet -> Int
+closestBelow = nthBelow 1

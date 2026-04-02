@@ -28,8 +28,9 @@ import qualified Data.Text as T
 import Data.Text (Text)
 import Data.List (sort)
 
-import Harmonic.Framework.Builder (HarmonicContext(..), GeneratorConfig(..), defaultContext, defaultConfig, Drift(..), dissonant, consonant, TransformTrace(..), AdvanceTrace(..), StepDiagnostic(..), harmonicContext, matchesContext, parseComposersWithOrder, makePortmanteau, extractByPosition, takeFromBeginning, takeFromEnd, takeFromMiddle)
-import Harmonic.Framework.Builder.Core (applyDriftFilter)
+import Harmonic.Framework.Builder (HarmonicContext(..), GeneratorConfig(..), defaultContext, defaultConfig, Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, inversion, TransformTrace(..), AdvanceTrace(..), StepDiagnostic(..), harmonicContext, matchesContext, parseComposersWithOrder, makePortmanteau, extractByPosition, takeFromBeginning, takeFromEnd, takeFromMiddle)
+import Harmonic.Framework.Builder.Core (applyDriftFilter, matchesContextWithTarget)
+import Harmonic.Framework.Builder.Types (parseContextOnce)
 import Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
 import qualified Data.Map.Strict as Map
 import Harmonic.Rules.Constraints.Filter (parseOvertones, parseKey, parseFunds)
@@ -46,90 +47,90 @@ spec = do
     
     describe "defaultContext" $ do
       it "has wildcard overtones filter" $ do
-        hcOvertones defaultContext `shouldBe` "*"
+        _hcOvertones defaultContext `shouldBe` "*"
         -- Verify wildcard parses to all 12 pitch classes
-        sort (parseOvertones $ hcOvertones defaultContext) `shouldBe` [0..11]
+        sort (parseOvertones $ _hcOvertones defaultContext) `shouldBe` [0..11]
       
       it "has wildcard key filter" $ do
-        hcKey defaultContext `shouldBe` "*"
+        _hcKey defaultContext `shouldBe` "*"
         -- Verify wildcard parses to all 12 pitch classes
-        sort (parseKey $ hcKey defaultContext) `shouldBe` [0..11]
+        sort (parseKey $ _hcKey defaultContext) `shouldBe` [0..11]
       
       it "has wildcard roots filter" $ do
-        hcRoots defaultContext `shouldBe` "*"
+        _hcRoots defaultContext `shouldBe` "*"
         -- Verify wildcard parses to all 12 pitch classes
-        sort (parseFunds $ hcRoots defaultContext) `shouldBe` [0..11]
+        sort (parseFunds $ _hcRoots defaultContext) `shouldBe` [0..11]
     
     describe "harmonicContext smart constructor" $ do
       -- Overtone series filtering (pitch class sets)
       it "creates context with note name overtones (C overtone series)" $ do
         let ctx = harmonicContext "c" "*" "*"
-        hcOvertones ctx `shouldBe` "c"
+        _hcOvertones ctx `shouldBe` "c"
         -- Verify parsed pitch classes: C overtones = [0,4,7,10] (C, E, G, Bb)
-        sort (parseOvertones $ hcOvertones ctx) `shouldBe` [0, 4, 7, 10]
+        sort (parseOvertones $ _hcOvertones ctx) `shouldBe` [0, 4, 7, 10]
       
       it "creates context with multiple note overtones" $ do
         let ctx = harmonicContext "D A D F A Ab" "*" "*"
-        hcOvertones ctx `shouldBe` "D A D F A Ab"
+        _hcOvertones ctx `shouldBe` "D A D F A Ab"
         -- Verify parsed pitch classes (4 partials per note, merged and deduped):
         -- D: 2,6,9,0; A: 9,1,4,7; F: 5,9,0,3; Ab: 8,0,3,6
-        let pcs = sort $ parseOvertones $ hcOvertones ctx
+        let pcs = sort $ parseOvertones $ _hcOvertones ctx
         sort pcs `shouldBe` [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
       
       -- Key filtering (key signatures)
       it "creates context with sharp key (1# = G major)" $ do
         let ctx = harmonicContext "*" "1#" "*"
-        hcKey ctx `shouldBe` "1#"
+        _hcKey ctx `shouldBe` "1#"
         -- Verify parsed pitch classes: G major = [0,2,4,6,7,9,11]
-        sort (parseKey $ hcKey ctx) `shouldBe` [0, 2, 4, 6, 7, 9, 11]
+        sort (parseKey $ _hcKey ctx) `shouldBe` [0, 2, 4, 6, 7, 9, 11]
       
       it "creates context with flat key (2b = Bb major)" $ do
         let ctx = harmonicContext "*" "2b" "*"
-        hcKey ctx `shouldBe` "2b"
+        _hcKey ctx `shouldBe` "2b"
         -- Verify parsed pitch classes: Bb major = [0,2,3,5,7,9,10]
-        sort (parseKey $ hcKey ctx) `shouldBe` [0, 2, 3, 5, 7, 9, 10]
+        sort (parseKey $ _hcKey ctx) `shouldBe` [0, 2, 3, 5, 7, 9, 10]
       
       it "creates context with double sharp key (2# = D major)" $ do
         let ctx = harmonicContext "*" "2#" "*"
-        hcKey ctx `shouldBe` "2#"
+        _hcKey ctx `shouldBe` "2#"
         -- Verify parsed pitch classes: D major = [1,2,4,6,7,9,11]
-        sort (parseKey $ hcKey ctx) `shouldBe` [1, 2, 4, 6, 7, 9, 11]
+        sort (parseKey $ _hcKey ctx) `shouldBe` [1, 2, 4, 6, 7, 9, 11]
       
       -- Root motion filtering
       it "creates context with specified roots (1# = G-based motion)" $ do
         let ctx = harmonicContext "*" "*" "1#"
-        hcRoots ctx `shouldBe` "1#"
+        _hcRoots ctx `shouldBe` "1#"
         -- Verify parsed pitch classes: G major scale roots
-        sort (parseFunds $ hcRoots ctx) `shouldBe` [0, 2, 4, 6, 7, 9, 11]
+        sort (parseFunds $ _hcRoots ctx) `shouldBe` [0, 2, 4, 6, 7, 9, 11]
       
       it "creates context with double sharp roots" $ do
         let ctx = harmonicContext "*" "*" "2#"
-        hcRoots ctx `shouldBe` "2#"
+        _hcRoots ctx `shouldBe` "2#"
         -- Verify parsed pitch classes: D major scale roots
-        sort (parseFunds $ hcRoots ctx) `shouldBe` [1, 2, 4, 6, 7, 9, 11]
+        sort (parseFunds $ _hcRoots ctx) `shouldBe` [1, 2, 4, 6, 7, 9, 11]
       
       -- Combined filters (as used in live performance)
       it "allows combining all three filters (live example)" $ do
         -- From liveArchives/perform/state.tidal
         let ctx = harmonicContext "*" "1#" "G B D"
-        hcOvertones ctx `shouldBe` "*"
-        hcKey ctx `shouldBe` "1#"
-        hcRoots ctx `shouldBe` "G B D"
+        _hcOvertones ctx `shouldBe` "*"
+        _hcKey ctx `shouldBe` "1#"
+        _hcRoots ctx `shouldBe` "G B D"
         -- Verify parsed: wildcard overtones = all, key/roots = G major
-        sort (parseOvertones $ hcOvertones ctx) `shouldBe` [0..11]
-        sort (parseKey $ hcKey ctx) `shouldBe` [0, 2, 4, 6, 7, 9, 11]
-        sort (parseFunds $ hcRoots ctx) `shouldBe` [2, 7, 11]
+        sort (parseOvertones $ _hcOvertones ctx) `shouldBe` [0..11]
+        sort (parseKey $ _hcKey ctx) `shouldBe` [0, 2, 4, 6, 7, 9, 11]
+        sort (parseFunds $ _hcRoots ctx) `shouldBe` [2, 7, 11]
       
       it "allows overtones with wildcard key and roots" $ do
         -- From liveArchives/explore/1.tidal
         let ctx = harmonicContext "*" "*" "2#"
-        hcOvertones ctx `shouldBe` "*"
-        hcKey ctx `shouldBe` "*"
-        hcRoots ctx `shouldBe` "2#"
+        _hcOvertones ctx `shouldBe` "*"
+        _hcKey ctx `shouldBe` "*"
+        _hcRoots ctx `shouldBe` "2#"
         -- Verify parsed: wildcard overtones/key = all, roots = D major
-        sort (parseOvertones $ hcOvertones ctx) `shouldBe` [0..11]
-        sort (parseKey $ hcKey ctx) `shouldBe` [0..11]
-        sort (parseFunds $ hcRoots ctx) `shouldBe` [1, 2, 4, 6, 7, 9, 11]
+        sort (parseOvertones $ _hcOvertones ctx) `shouldBe` [0..11]
+        sort (parseKey $ _hcKey ctx) `shouldBe` [0..11]
+        sort (parseFunds $ _hcRoots ctx) `shouldBe` [1, 2, 4, 6, 7, 9, 11]
 
   describe "GeneratorConfig" $ do
     
@@ -148,31 +149,31 @@ spec = do
       it "\"*\" is wildcard" $ do
         -- Test through context behavior
         let ctx = harmonicContext "*" "*" "*"
-        hcOvertones ctx `shouldBe` "*"
+        _hcOvertones ctx `shouldBe` "*"
         -- Verify wildcards parse to all pitch classes
-        sort (parseOvertones $ hcOvertones ctx) `shouldBe` [0..11]
+        sort (parseOvertones $ _hcOvertones ctx) `shouldBe` [0..11]
       
       it "\"all\" is equivalent to wildcard in legacy notation" $ do
         -- Legacy Overtone.hs: ["*","all","chr"]?? [0..11]
         let ctx = harmonicContext "all" "*" "*"
-        hcOvertones ctx `shouldBe` "all"
+        _hcOvertones ctx `shouldBe` "all"
         -- Verify "all" parses to all pitch classes
-        sort (parseOvertones $ hcOvertones ctx) `shouldBe` [0..11]
+        sort (parseOvertones $ _hcOvertones ctx) `shouldBe` [0..11]
       
       it "\"chr\" (chromatic) is equivalent to wildcard in legacy notation" $ do
         let ctx = harmonicContext "chr" "*" "*"
-        hcOvertones ctx `shouldBe` "chr"
+        _hcOvertones ctx `shouldBe` "chr"
         -- Verify "chr" parses to all pitch classes
-        sort (parseOvertones $ hcOvertones ctx) `shouldBe` [0..11]
+        sort (parseOvertones $ _hcOvertones ctx) `shouldBe` [0..11]
       
       it "empty string is not treated as wildcard" $ do
         -- Empty string should be preserved, not converted to "*"
         let ctx = harmonicContext "" "1#" ""
-        hcOvertones ctx `shouldBe` ""
-        hcRoots ctx `shouldBe` ""
+        _hcOvertones ctx `shouldBe` ""
+        _hcRoots ctx `shouldBe` ""
         -- Empty string parses to empty list
-        parseOvertones (hcOvertones ctx) `shouldBe` []
-        parseFunds (hcRoots ctx) `shouldBe` []
+        parseOvertones (_hcOvertones ctx) `shouldBe` []
+        parseFunds (_hcRoots ctx) `shouldBe` []
 
   describe "Generate function prerequisites" $ do
     
@@ -479,6 +480,37 @@ spec = do
             dState = H.CadenceState (H.Cadence "maj" H.Unison [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]) P.D H.FlatSpelling
         matchesContext context dState emajCadence `shouldBe` True
 
+  describe "Chromatic Bass Target (rise/fall with out-of-key bass)" $ do
+    it "allows chord with out-of-key bass when bass target exempts it" $ do
+      -- D# (pc 3) is NOT in G major (1#) = {0,2,4,6,7,9,11}
+      -- But with bassTarget = Just 3, the bass pitch is exempt from the overtone check.
+      -- D# aug: root D# (3), intervals [0,4,8] → absolute [3,7,11]
+      -- Upper pitches 7 (G) and 11 (B) ARE in G major → should pass
+      let context = harmonicContext "*" "1#" "1# D#"  -- G major key, roots include D#
+          pctx = parseContextOnce context
+          eState = H.CadenceState (H.Cadence "min" H.Unison [P.mkPitchClass 0, P.mkPitchClass 3, P.mkPitchClass 7]) P.E H.SharpSpelling
+          -- Movement from E (4) down 1 semitone to D# (3): Desc 1
+          dsAugCadence = H.Cadence "aug" (H.Desc (P.mkPitchClass 1)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 8]
+      matchesContextWithTarget (Just 3) pctx eState dsAugCadence `shouldBe` True
+
+    it "rejects chord with out-of-key bass when no bass target set" $ do
+      -- Same chord, same context, but without bass target exemption
+      let context = harmonicContext "*" "1#" "1# D#"
+          pctx = parseContextOnce context
+          eState = H.CadenceState (H.Cadence "min" H.Unison [P.mkPitchClass 0, P.mkPitchClass 3, P.mkPitchClass 7]) P.E H.SharpSpelling
+          dsAugCadence = H.Cadence "aug" (H.Desc (P.mkPitchClass 1)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 8]
+      -- Without bass target, D# (3) fails the overtone check
+      matchesContextWithTarget Nothing pctx eState dsAugCadence `shouldBe` False
+
+    it "still rejects chord when upper voices are out of key" $ do
+      -- D# major: root D# (3), intervals [0,4,7] → absolute [3,7,10]
+      -- 10 (Bb) is NOT in G major → should fail even with bass exemption
+      let context = harmonicContext "*" "1#" "1# D#"
+          pctx = parseContextOnce context
+          eState = H.CadenceState (H.Cadence "min" H.Unison [P.mkPitchClass 0, P.mkPitchClass 3, P.mkPitchClass 7]) P.E H.SharpSpelling
+          dsMajCadence = H.Cadence "maj" (H.Desc (P.mkPitchClass 1)) [P.mkPitchClass 0, P.mkPitchClass 4, P.mkPitchClass 7]
+      matchesContextWithTarget (Just 3) pctx eState dsMajCadence `shouldBe` False
+
   describe "Portmanteau Generation" $ do
     
     describe "makePortmanteau" $ do
@@ -611,14 +643,14 @@ spec = do
         Dissonant `shouldNotBe` Consonant
 
     describe "dissonant/consonant modifiers" $ do
-      it "dissonant sets hcDrift to Dissonant" $ do
-        hcDrift (dissonant defaultContext) `shouldBe` Dissonant
-      it "consonant sets hcDrift to Consonant" $ do
-        hcDrift (consonant defaultContext) `shouldBe` Consonant
+      it "dissonant sets drift to Dissonant" $ do
+        _hcDrift (dissonant defaultContext) `shouldBe` Dissonant
+      it "consonant sets drift to Consonant" $ do
+        _hcDrift (consonant defaultContext) `shouldBe` Consonant
       it "defaultContext has Free drift" $ do
-        hcDrift defaultContext `shouldBe` Free
+        _hcDrift defaultContext `shouldBe` Free
       it "harmonicContext defaults to Free" $ do
-        hcDrift (harmonicContext "*" "*" "*") `shouldBe` Free
+        _hcDrift (harmonicContext "*" "*" "*") `shouldBe` Free
 
     describe "applyDriftFilter" $ do
       -- Test data: CadenceState with a major triad (dissonance = 6)
@@ -682,3 +714,55 @@ spec = do
         let result = applyDriftFilter Dissonant majState pool
         -- All pass (>= 6), order should be preserved
         map snd result `shouldBe` [100.0, 80.0, 90.0]
+
+  describe "Context Modifiers" $ do
+
+    describe "hcOvertones" $ do
+      it "sets overtone filter" $ do
+        let ctx = hcOvertones "E A D G" $ defaultContext
+        _hcOvertones ctx `shouldBe` "E A D G"
+
+      it "hContext alone has wildcard overtones" $ do
+        _hcOvertones defaultContext `shouldBe` "*"
+
+    describe "hcKey" $ do
+      it "sets key filter" $ do
+        let ctx = hcKey "1#" $ defaultContext
+        _hcKey ctx `shouldBe` "1#"
+
+      it "hContext alone has wildcard key" $ do
+        _hcKey defaultContext `shouldBe` "*"
+
+    describe "hcRoots" $ do
+      it "sets roots filter" $ do
+        let ctx = hcRoots "C E G" $ defaultContext
+        _hcRoots ctx `shouldBe` "C E G"
+
+      it "hContext alone has wildcard roots" $ do
+        _hcRoots defaultContext `shouldBe` "*"
+
+    describe "modifier composition" $ do
+      it "all modifiers compose in any order" $ do
+        let ctx = inversion 2 $ consonant $ hcRoots "C G" $ hcKey "1#" $ hcOvertones "E A D G" $ defaultContext
+        _hcOvertones ctx `shouldBe` "E A D G"
+        _hcKey ctx `shouldBe` "1#"
+        _hcRoots ctx `shouldBe` "C G"
+        _hcDrift ctx `shouldBe` Consonant
+        _hcInversionSpacing ctx `shouldBe` 2
+
+      it "later modifiers override earlier ones" $ do
+        let ctx = hcKey "2#" $ hcKey "1#" $ defaultContext
+        _hcKey ctx `shouldBe` "2#"
+
+    describe "inversion modifier" $ do
+      it "sets inversion spacing on context" $ do
+        let ctx = inversion 3 $ defaultContext
+        _hcInversionSpacing ctx `shouldBe` 3
+
+      it "default context has inversion spacing 0" $ do
+        _hcInversionSpacing defaultContext `shouldBe` 0
+
+      it "composes with other modifiers" $ do
+        let ctx = inversion 2 $ dissonant $ defaultContext
+        _hcInversionSpacing ctx `shouldBe` 2
+        _hcDrift ctx `shouldBe` Dissonant

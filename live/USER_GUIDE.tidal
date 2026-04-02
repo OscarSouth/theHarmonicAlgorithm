@@ -26,7 +26,7 @@
 let
   tempo = 120
   start = initCadenceState 0 "C" [0,4,7]
-  ctx = hContext "*" "0#" "*"
+  ctx = hcKey "0#" $ hContext
 
 -- Step 2: Generate harmonic composition
 s4 <- gen start 4 "*" 0.5 ctx
@@ -42,7 +42,7 @@ p01 f r d k = d01 $ do
   f
     $ stack [silence
        -- --
-      ,arrange (0,1) lock (overlapF 0) r k (-9,9) ["~"
+      ,arrange (0,1) grid (overlapF 0) r k (-9,9) ["~"
         ,"<0 1 2 3>"
         ]# o |* vel 1
        -- --
@@ -72,22 +72,29 @@ hush'
 -- 2.1 CadenceState - Where to Start
 -- ──────────────────────────────────────────────────────────
 
--- CadenceState: your starting chord
--- initCadenceState :: Int -> String -> [Int] -> CadenceState
-let
-  start = initCadenceState 0 "C" [0,4,7]
-    -- 0        = movement (semitones, 0=pedal)
-    -- "C"      = root note name
-    -- [0,4,7]  = intervals (major triad)
+-- lead :: String -> IO CadenceState
+-- Parse a human-readable string into a starting chord.
+-- Unspecified components are filled in randomly.
+--
+--   lead "E min (5)"  -- E minor, ascending 5th
+--   lead "E min"      -- E minor, random movement
+--   lead "min"        -- random root, minor, random movement
+--   lead "E"          -- E, random quality, random movement
+--   lead ""           -- fully random
+--   lead "(5)"        -- random root + quality, movement = 5
+--
+-- Recognised qualities: maj min dim aug 7 dom7 maj7 min7 m7
+--                       dim7 hdim sus2 sus4 6 m6
+-- Movement range: -5 to 6  (0 = pedal, 5 = asc 5th, -5 = desc 5th)
+-- Prints "root quality" to console on construction.
 
--- Common chord qualities:
-let
-  maj  = initCadenceState 0 "C" [0,4,7]
-  min  = initCadenceState 0 "A" [0,3,7]
-  dim  = initCadenceState 0 "B" [0,3,6]
-  sus4 = initCadenceState 0 "D" [0,5,7]
-  aug  = initCadenceState 0 "C" [0,4,8]
-  dom7 = initCadenceState 0 "G" [0,4,10]
+start <- lead "C maj"
+start <- lead "E min (5)"
+start <- lead ""
+
+-- initCadenceState is still available for precise construction:
+-- initCadenceState :: Int -> String -> [Int] -> CadenceState
+let start = initCadenceState 0 "C" [0,4,7]
 
 
 -- ──────────────────────────────────────────────────────────
@@ -96,8 +103,11 @@ let
 
 -- HarmonicContext: tonal area within which chords can appear
 -- Three filters: overtones, key, roots
--- hContext :: String -> String -> String
---         -> HarmonicContext
+-- hContext :: HarmonicContext  (chromatic default, no args)
+-- Modifiers (chained with $):
+--   hcOvertones :: String -> HarmonicContext -> HarmonicContext
+--   hcKey       :: String -> HarmonicContext -> HarmonicContext
+--   hcRoots     :: String -> HarmonicContext -> HarmonicContext
 
 let
   ctx = defaultContext  -- "*" "*" "*"
@@ -106,8 +116,8 @@ let
 -- includes only the playable overtones
 -- of the specified fundamentals
 let
-  bassCtx   = hContext "E A D G" "*" "*"
-  guitarCtx = hContext "E A D G B E" "*" "*"
+  bassCtx   = hcOvertones "E A D G" $ hContext
+  guitarCtx = hcOvertones "E A D G B E" $ hContext
 
 -- KEY FILTERING
 -- defines tonal area candidate pitches
@@ -115,22 +125,22 @@ let
 -- Note name = single pitch
 -- Number of sharps/flats = key signature
 let
-  gMajor  = hContext "*" "1#" "*"
-  dMajor  = hContext "*" "2#" "*"
-  cMajor  = hContext "*" "0#" "*"
-  fMajor  = hContext "*" "1b" "*"
-  bbMajor = hContext "*" "2b" "*"
+  gMajor  = hcKey "1#" $ hContext
+  dMajor  = hcKey "2#" $ hContext
+  cMajor  = hcKey "0#" $ hContext
+  fMajor  = hcKey "1b" $ hContext
+  bbMajor = hcKey "2b" $ hContext
 
 -- ROOT FILTERING
 -- defines root note candidates
 -- independently of overtones/key
 let
-  cAndG      = hContext "*" "*" "C G"
-  fifthsOnly = hContext "*" "*" "C G D A"
+  cAndG      = hcRoots "C G" $ hContext
+  fifthsOnly = hcRoots "C G D A" $ hContext
 
 -- COMBINED
 let
-  dMajCtx = hContext "*" "2#" "D F# A"
+  dMajCtx = hcRoots "D F# A" $ hcKey "2#" $ hContext
 
 -- Key filtering is STRICT:
 -- All pitches in generated chords must be in tonal area
@@ -139,64 +149,69 @@ let
 
 
 -- ──────────────────────────────────────────────────────────
--- 2.3 hContext Filter String Syntax
+-- 2.3 Filter String Syntax
 -- ──────────────────────────────────────────────────────────
 
--- Each arg to hContext parses its string differently.
--- All three args support * (wildcard) and - (removal).
+-- Each modifier (hcOvertones, hcKey, hcRoots) parses its string differently.
+-- All three support * (wildcard) and - (removal).
 
--- ARG 1 — OVERTONES: playable overtones of specified fundamentals
+-- OVERTONES (hcOvertones): playable overtones of specified fundamentals
 -- Bare note name → 4 overtones (root, P5, M3, m7)
 -- Note+prime     → single pitch only
 -- "E" → {E,B,G#,D}; "E A D G" → union of all four
 let
-  chromatic = hContext "*" "*" "*"
-  bassOvt   = hContext "E A D G" "*" "*"
-  singleE   = hContext "E'" "*" "*" -- E pitch only
-  noAb      = hContext "E A D G -Ab'" "*" "*"
+  chromatic = hContext
+  bassOvt   = hcOvertones "E A D G" $ hContext
+  singleE   = hcOvertones "E'" $ hContext -- E pitch only
+  noAb      = hcOvertones "E A D G -Ab'" $ hContext
 
--- ARG 2 — KEY: tonal area candidate pitches within overtone set
+-- KEY (hcKey): tonal area candidate pitches within overtone set
 -- X# / Xb    → major key signature (7 pitches)
 -- Note name  → single pitch only (NOT a scale!)
 -- "C" ≠ C major; "C" = pitch C only. Use "0#" for C major.
 let
-  cMaj   = hContext "*" "0#" "*"  -- 7 pitches
-  gMaj   = hContext "*" "1#" "*"  -- 1 sharp
-  bbMaj  = hContext "*" "2b" "*"  -- 2 flats
-  pitchC = hContext "*" "C" "*"   -- C pitch ONLY
+  cMaj   = hcKey "0#" $ hContext  -- 7 pitches
+  gMaj   = hcKey "1#" $ hContext  -- 1 sharp
+  bbMaj  = hcKey "2b" $ hContext  -- 2 flats
+  pitchC = hcKey "C" $ hContext   -- C pitch ONLY
 
--- ARG 3 — ROOTS: candidate bass notes
--- Same rules as arg 2, plus two special values:
+-- ROOTS (hcRoots): candidate bass notes
+-- Same rules as hcKey, plus two special values:
 -- "key"   → mirrors key filter result exactly
--- "tones" → key-filtered overtones (arg1 ∩ arg2)
+-- "tones" → key-filtered overtones (overtones ∩ key)
 let
-  cAndG     = hContext "*" "*" "C G"
-  dMajRoots = hContext "*" "*" "2#"
-  mirrorKey = hContext "*" "1#" "key"
-  bassRoots = hContext "E A D G" "1#" "tones"
+  cAndG     = hcRoots "C G" $ hContext
+  dMajRoots = hcRoots "2#" $ hContext
+  mirrorKey = hcRoots "key" $ hcKey "1#" $ hContext
+  bassRoots = hcRoots "tones" $ hcKey "1#" $ hcOvertones "E A D G" $ hContext
 
 -- BASS DIRECTION: append "rise" or "fall" to roots string
 -- Forces bass to step through the allowed set in order.
 -- "rise" → closest note above (with octave wrap)
 -- "fall" → closest note below (with octave wrap)
+-- Append a number 2–6 to skip notes: "rise2" = every 2nd note, etc.
+-- Bare "rise"/"fall" is equivalent to "rise1"/"fall1".
 let
-  fallGMaj  = hContext "*" "0#" "0# fall"   -- descend through C major
-  riseGMaj  = hContext "*" "0#" "0# rise"   -- ascend through C major
-  fallCEG   = hContext "*" "0#" "C E G fall" -- descend through {C,E,G}
-  riseKey   = hContext "*" "1#" "key rise"   -- ascend through key pitches
-  fallTones = hContext "*" "0#" "tones fall" -- descend through overtones
+  fallGMaj  = hcRoots "0# fall" $ hcKey "0#" $ hContext    -- descend stepwise through C major
+  riseGMaj  = hcRoots "0# rise" $ hcKey "0#" $ hContext    -- ascend stepwise through C major
+  fallCEG   = hcRoots "C E G fall" $ hcKey "0#" $ hContext -- descend through {C,E,G}
+  riseKey   = hcRoots "key rise" $ hcKey "1#" $ hContext   -- ascend through key pitches
+  fallTones = hcRoots "tones fall" $ hcKey "0#" $ hContext -- descend through overtones
+  rise3rds  = hcRoots "0# rise2" $ hcKey "0#" $ hContext   -- ascend by thirds in C major
+  rise4ths  = hcRoots "0# rise3" $ hcKey "0#" $ hContext   -- ascend by fourths in C major
+  fall3rds  = hcRoots "0# fall2" $ hcKey "0#" $ hContext   -- descend by thirds in C major
 
 -- Generate with descending bass:
 do
   let
     start = initCadenceState 0 "C" [0,4,7]
-    ctx = hContext "*" "0#" "0# fall"
+    ctx = hcRoots "0# fall" $ hcKey "0#" $ hContext
   s8 <- gen start 8 "*" 0.5 ctx
   let
     r = rep s8 1
     k = formK 120 [at 0 1 1 s8]
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) lock id r k (-9,9)
+    ,d01 $ arrange (0,1) grid id r k (-9,9)
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -204,18 +219,18 @@ hush'
 
 -- REMOVAL: - prefix subtracts pitches from positive set
 -- Order: union(positives) \ union(negatives)
--- Works in all three args.
+-- Works in all three modifiers.
 let
-  noFlats = hContext "E A D G -Bb' -Eb'" "*" "*"
-  noC     = hContext "*" "* -C'" "*"
+  noFlats = hcOvertones "E A D G -Bb' -Eb'" $ hContext
+  noC     = hcKey "* -C'" $ hContext
   -- "* -C' -F#'" → all except C and F#
 
 -- FILTER INTERACTION (applied during generation):
--- 1. Arg 1 defines candidate pitch set
--- 2. Arg 2 AND-filters that set (intersection)
--- 3. Arg 3 independently filters bass note only
--- "E A D G" ∩ "1#" = G-major pitches that are also
---   overtones of E, A, D, or G
+-- 1. hcOvertones defines candidate pitch set
+-- 2. hcKey AND-filters that set (intersection)
+-- 3. hcRoots independently filters bass note only
+-- hcKey "1#" $ hcOvertones "E A D G" $ hContext
+--   = G-major pitches that are also overtones of E, A, D, or G
 
 -- ──────────────────────────────────────────────────────────
 -- 2.4 Generation - Creating Progressions
@@ -231,7 +246,7 @@ let
 do
   let
     start = initCadenceState 0 "C" [0,4,7]
-    ctx = hContext "*" "0#" "*"
+    ctx = hcKey "0#" $ hContext
   s4 <- gen start 4 "*" 0.5 ctx
   let
     r = rep s4 1
@@ -259,7 +274,7 @@ hush'
 -- Breaking long lines:
 let
   start = initCadenceState 0 "C" [0,4,7]
-  ctx = hContext "*" "0#" "*"
+  ctx = hcKey "0#" $ hContext
   comp = "debussy:0.75 bach:0.25"
 
 state <- gen start 8 comp 0.5 ctx
@@ -278,7 +293,7 @@ state <- gen start 8 comp 0.5 ctx
 do
   let
     start = initCadenceState 0 "C" [0,4,7]
-    ctx = dissonant $ hContext "*" "0#" "*"
+    ctx = dissonant $ hcKey "0#" $ hContext
   s4 <- gen start 4 "*" 0.5 ctx
   let
     r = rep s4 1
@@ -294,7 +309,7 @@ hush'
 do
   let
     start = initCadenceState 0 "C" [0,3,6]  -- start dissonant (dim)
-    ctx = consonant $ hContext "*" "0#" "*"
+    ctx = consonant $ hcKey "0#" $ hContext
   s4 <- gen start 4 "*" 0.5 ctx
   let
     r = rep s4 1
@@ -310,13 +325,13 @@ hush'
 do
   let
     start = initCadenceState 0 "C" [0,4,7]
-    ctx = dissonant $ hContext "*" "0#" "0# fall"  -- rising tension + descending bass
+    ctx = dissonant $ hcRoots "0# fall" $ hcKey "0#" $ hContext  -- rising tension + descending bass
   s8 <- gen start 8 "*" 0.5 ctx
   let
     r = rep s8 1
     k = formK 120 [at 0 1 1 s8]
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) lock id r k (-9,9)
+    ,d01 $ arrange (0,1) grid id r k (-9,9)
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -330,6 +345,74 @@ hush'
 -- Chromatic cluster: 40+ (most dissonant)
 --
 -- Safety: if no candidates meet the constraint,
+-- the filter falls back to the full pool for that step.
+
+
+-- ──────────────────────────────────────────────────────────
+-- 2.6 Inversion Spacing
+-- ──────────────────────────────────────────────────────────
+
+-- Control how often inversions (1st/2nd) appear in generated progressions.
+-- inversion N sets the minimum number of non-inversion states between inversions.
+-- Applied as a modifier on HarmonicContext (like dissonant/consonant):
+--
+-- inversion 0 = inversions allowed at any step (default, current behaviour)
+-- inversion 1 = at least 1 non-inversion between inversions
+-- inversion 2 = at least 2 non-inversions between inversions
+--
+-- The starting state counts: a root-position start means
+-- inversion 1 can yield an inversion on the very first generated step.
+-- Large N naturally prevents all inversions (the count is never reached).
+
+-- Allow occasional inversions (spaced by at least 2 root positions):
+do
+  let
+    start = initCadenceState 0 "C" [0,4,7]
+    ctx = inversion 2 $ hcKey "0#" $ hContext
+  s8 <- gen start 8 "*" 0.5 ctx
+  let
+    r = rep s8 1
+    k = formK 120 [at 0 1 1 s8]
+  mapM_ id [hush, setbpm 120
+    ,d01 $ arrange (0,1) flow id r k (-9,9)
+      ["0 1 2 3"] # ch 01 |* vel 0.9
+   ]
+
+hush'
+
+-- No inversions at all (N >= progression length):
+do
+  let
+    start = initCadenceState 0 "C" [0,4,7]
+    ctx = inversion 8 $ hcKey "0#" $ hContext
+  s8 <- gen start 8 "*" 0.5 ctx
+  let
+    r = rep s8 1
+    k = formK 120 [at 0 1 1 s8]
+  mapM_ id [hush, setbpm 120
+    ,d01 $ arrange (0,1) flow id r k (-9,9)
+      ["0 1 2 3"] # ch 01 |* vel 0.9
+   ]
+
+hush'
+
+-- Composes with all other context modifiers:
+do
+  let
+    start = initCadenceState 0 "C" [0,4,7]
+    ctx = inversion 1 $ dissonant $ hcRoots "0# fall" $ hcKey "0#" $ hContext
+  s8 <- gen start 8 "*" 0.5 ctx
+  let
+    r = rep s8 1
+    k = formK 120 [at 0 1 1 s8]
+  mapM_ id [hush, setbpm 120
+    ,d01 $ arrange (0,1) grid id r k (-9,9)
+      ["0 1 2 3"] # ch 01 |* vel 0.9
+   ]
+
+hush'
+
+-- Safety: if filtering inversions empties the pool,
 -- the filter falls back to the full pool for that step.
 
 
@@ -384,7 +467,7 @@ p03 f r d k = d03 $ do
           ,"[0,1,2,3]/4"
         ]# o |* vel 0.8
         -- Voice 2: Root bass line (always on)
-        ,arrange (0,1) lock id r k (-9,9) ["~"
+        ,arrange (0,1) grid id r k (-9,9) ["~"
           ,"0*2"
         ]# o |* vel 1 |- oct 2
       ] |* vel (kDynamic k) |* vel d
@@ -442,8 +525,8 @@ p01 f r d k = d01 $ do
     arrange (0.5,1) flow id r k (-9,9) ["~", "[0,1,2,3]/4"]
       # o |* vel 0.8,
 
-    -- Bass (lock voicing, always on)
-    arrange (0,1) lock id r k (-9,9) ["~", "0*2"]
+    -- Bass (grid voicing, always on)
+    arrange (0,1) grid id r k (-9,9) ["~", "0*2"]
       # o |* vel 1 |- oct 2,
 
     -- Melody (flow voicing, high octave, peak only)
@@ -455,7 +538,7 @@ p01 f r d k = d01 $ do
 do
   let
     start = initCadenceState 0 "C" [0,4,7]
-    ctx = hContext "*" "0#" "*"
+    ctx = hcKey "0#" $ hContext
   s8 <- gen start 8 "*" 0.5 ctx
   let
     r = rep s8 1
@@ -473,11 +556,11 @@ hush'
 -- ══════════════════════════════════════════════════════════
 -- SECTION 4: VOICING STRATEGIES
 -- ══════════════════════════════════════════════════════════
--- Goal: Understand flow vs lock vs lite vs root vs fund
+-- Goal: Understand flow vs grid vs lite vs root vs fund
 
 -- Five voicing strategies:
 --   flow - Smoothest voice leading (flexible inversion)
---   lock - Root locked in bass (top notes lead smoothly)
+--   grid - Root locked in bass (top notes lead smoothly)
 --   lite - Literal (first-root normalized, no other changes)
 --   root - Mono, root note only (first pitch)
 --   fund - Mono, harmonic root (inversion-invariant)
@@ -485,7 +568,7 @@ hush'
 -- Generate once, reuse for all voicing examples:
 let
   start = initCadenceState 0 "C" [0,4,7]
-  ctx = hContext "*" "0#" "*"
+  ctx = hcKey "0#" $ hContext
 
 s4 <- gen start 4 "*" 0.5 ctx
 
@@ -509,14 +592,14 @@ hush'
 
 
 -- ──────────────────────────────────────────────────────────
--- 4.2 lock - Root Locked Position
+-- 4.2 grid - Root Locked Position
 -- ──────────────────────────────────────────────────────────
 
 -- Root note always in bass (lowest voice)
 -- Best for: bass instruments, rooted chords
 do
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) lock id r k (-9,9)
+    ,d01 $ arrange (0,1) grid id r k (-9,9)
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -583,8 +666,8 @@ do
   -- flow: smoothest voice leading
   d01 $ arrange (0,1) flow id r k (-9,9)
     ["0 1 2 3"] # ch 01
-  -- lock: root locked in bass
-  d02 $ arrange (0,1) lock id r k (-9,9)
+  -- grid: root locked in bass
+  d02 $ arrange (0,1) grid id r k (-9,9)
     ["0 1 2 3"] # ch 01
   -- lite: literal (no optimization)
   d03 $ arrange (0,1) lite id r k (-9,9)
@@ -607,7 +690,7 @@ hush'
 --   -> (Progression -> Progression)
 --   -> Pattern Int -> Kinetics -> (Int, Int)
 --   -> [Pattern Int] -> ControlPattern
--- VoiceFunction: flow, lock, lite, root, fund
+-- VoiceFunction: flow, grid, lite, root, fund
 -- Modifier: id, overlapF 0, overlapB 1, etc.
 
 p01 f r d k = d01 $ do
@@ -618,8 +701,8 @@ p01 f r d k = d01 $ do
       ,arrange (0.5,1) flow id r k (-9,9) ["~"
         ,"[0,1,2,3]/4"
       ]# o |* vel 0.8
-      -- Bass (lock voicing, always on):
-      ,arrange (0,1) lock id r k (-9,9) ["~"
+      -- Bass (grid voicing, always on):
+      ,arrange (0,1) grid id r k (-9,9) ["~"
         ,"0*2"
       ]# o |* vel 1 |- oct 1
       -- Single bass note (root voicing):
@@ -632,7 +715,7 @@ p01 f r d k = d01 $ do
 do
   let
     start = initCadenceState 0 "C" [0,4,7]
-    ctx = hContext "*" "0#" "*"
+    ctx = hcKey "0#" $ hContext
   s8 <- gen start 8 "*" 0.5 ctx
   let
     r = rep s8 1
@@ -669,7 +752,7 @@ hush'
 
 let
   start = initCadenceState 0 "C" [0,4,7]
-  ctx = hContext "*" "0#" "*"
+  ctx = hcKey "0#" $ hContext
 
 s8 <- gen start 8 "*" 0.5 ctx
 
@@ -861,7 +944,7 @@ hush'
 
 let
   start = initCadenceState 0 "C" [0,4,7]
-  ctx = hContext "*" "0#" "*"
+  ctx = hcKey "0#" $ hContext
 
 s4 <- gen start 4 "*" 0.5 ctx
 
@@ -1000,7 +1083,7 @@ hush'
 let
   start0 = initCadenceState 0 "C" [0,4,7]
   start1 = initCadenceState 5 "F" [0,4,7]
-  ctx = hContext "*" "0#" "*"
+  ctx = hcKey "0#" $ hContext
 
 s0 <- gen start0 4 "*" 0.5 ctx
 s1 <- gen start1 4 "*" 0.5 ctx
@@ -1113,7 +1196,7 @@ p03 f r d k = d03 $ do
       ,arrange upper flow (overlapF 0) r k (-9,9) ["~"
         ,"[1,2,3]/8"
       ]# o |* vel 0.4 |- oct 1 |* legato 0.99
-      ,arrange cresc lock (overlapF 0) r k (-9,9) ["~"
+      ,arrange cresc grid (overlapF 0) r k (-9,9) ["~"
         ,"[0 [0,4]]/8"
       ]# o |* vel 0.9 |- oct 2 |= legato 0.99
     ] |* vel (kDynamic k) |* vel d
@@ -1344,7 +1427,7 @@ hush'
 
 let
   start = initCadenceState 0 "C" [0,4,7]
-  ctx = hContext "*" "0#" "*"
+  ctx = hcKey "0#" $ hContext
 
 -- Wildcard (aggregate confidence across all corpus composers):
 prog0 <- gen start 8 "*" 0.5 ctx
@@ -1383,7 +1466,7 @@ hush'
 
 -- JAZZ CONTEXT (D major, specific roots)
 let
-  jazzCtx = hContext "*" "2#" "D F# A"
+  jazzCtx = hcRoots "D F# A" $ hcKey "2#" $ hContext
   start = initCadenceState 0 "D" [0,4,7]
 
 jazzProg <- gen start 16 "debussy ravel" 0.6 jazzCtx
@@ -1401,7 +1484,7 @@ hush'
 
 -- BLUES CONTEXT (F major, I-IV-V roots only)
 let
-  bluesCtx = hContext "*" "1b" "F Bb C"
+  bluesCtx = hcRoots "F Bb C" $ hcKey "1b" $ hContext
   start = initCadenceState 0 "F" [0,4,10]
 
 bluesProg <- gen start 12 "*" 0.4 bluesCtx
@@ -1419,7 +1502,7 @@ hush'
 
 -- MODAL CONTEXT (no key filter, specific roots)
 let
-  modalCtx = hContext "*" "*" "C Eb F G Bb"
+  modalCtx = hcRoots "C Eb F G Bb" $ hContext
   start = initCadenceState 0 "C" [0,3,7]
 
 modalProg <- gen start 8 "debussy" 0.7 modalCtx
@@ -1437,7 +1520,7 @@ hush'
 
 -- BASS-TUNED CONTEXT (overtones only, no key)
 let
-  bassCtx = hContext "E A D G" "*" "*"
+  bassCtx = hcOvertones "E A D G" $ hContext
   start = initCadenceState 0 "E" [0,4,7]
 
 bassProg <- gen start 8 "*" 0.5 bassCtx
@@ -1466,7 +1549,7 @@ hush'
 
 let
   start = initCadenceState 0 "C" [0,4,7]
-  ctx = hContext "*" "0#" "*"
+  ctx = hcKey "0#" $ hContext
 
 -- Conservative (entropy 0.3):
 p1 <- gen start 8 "*" 0.3 ctx
@@ -1502,7 +1585,7 @@ hush'
 setbpm 100
 
 let
-  ctx = hContext "*" "0#" "*"
+  ctx = hcKey "0#" $ hContext
 
 
 -- ──────────────────────────────────────────────────────────
@@ -1550,7 +1633,7 @@ p01 f r d k = d01 $ do
 -- p02: Bass line (MIDI piano)
 p02 f r d k = d02 $ do
   let o = ch 02
-  f $ arrange (0,1) lock id r k (-9,9) ["~"
+  f $ arrange (0,1) grid id r k (-9,9) ["~"
         ,"0*2"
       ]# o |* vel 1 |- oct 2 |* vel (kDynamic k) |* vel d
 
@@ -1641,7 +1724,7 @@ hush'
 -- Generate one long progression:
 let
   start = initCadenceState 0 "C" [0,4,7]
-  ctx = hContext "*" "0#" "*"
+  ctx = hcKey "0#" $ hContext
 
 s32 <- gen start 32 "*" 0.5 ctx
 
@@ -1699,24 +1782,39 @@ hush'
 -- initCadenceState
 --   :: Int -> String -> [Int] -> CadenceState
 
--- hContext, harmonicContext
---   :: String -> String -> String -> HarmonicContext
+-- hContext :: HarmonicContext  (chromatic default, no args)
+-- Modifiers (chained with $):
+--   hcOvertones :: String -> HarmonicContext -> HarmonicContext
+--   hcKey       :: String -> HarmonicContext -> HarmonicContext
+--   hcRoots     :: String -> HarmonicContext -> HarmonicContext
+--
+-- harmonicContext :: Text -> Text -> Text -> HarmonicContext  (Text version)
 
 -- defaultContext :: HarmonicContext  (all wildcards)
 
 -- Context Modifiers:
 -- dissonant :: HarmonicContext -> HarmonicContext
 --   Each chord >= current dissonance.
---   dissonant $ hContext "*" "0#" "*"
+--   dissonant $ hcKey "0#" $ hContext
 --
 -- consonant :: HarmonicContext -> HarmonicContext
 --   Each chord <= current dissonance.
---   consonant $ hContext "*" "0#" "*"
+--   consonant $ hcKey "0#" $ hContext
+--
+-- inversion :: Int -> HarmonicContext -> HarmonicContext
+--   Minimum N non-inversions between inversions.
+--   inversion 0 $ ctx  -- any step can be an inversion (default)
+--   inversion 1 $ ctx  -- at least 1 non-inversion between inversions
+--   inversion 2 $ ctx  -- at least 2 non-inversions between inversions
 --
 -- Bass direction (in roots string):
---   hContext "*" "0#" "0# rise"   -- bass steps up through root set
---   hContext "*" "0#" "0# fall"   -- bass steps down through root set
---   hContext "*" "0#" "C E G fall"  -- descend through {C,E,G}
+--   "rise" / "fall"         -- step to closest note above/below
+--   "rise2"–"rise6"         -- skip to Nth note above (2=thirds, 3=fourths, etc.)
+--   "fall2"–"fall6"         -- skip to Nth note below
+--   hcRoots "0# rise" $ hcKey "0#" $ hContext     -- stepwise ascending bass
+--   hcRoots "0# fall" $ hcKey "0#" $ hContext     -- stepwise descending bass
+--   hcRoots "0# rise3" $ hcKey "0#" $ hContext    -- ascending by fourths
+--   hcRoots "C E G fall" $ hcKey "0#" $ hContext  -- descend through {C,E,G}
 
 
 -- ──────────────────────────────────────────────────────────
@@ -1742,7 +1840,7 @@ hush'
 
 -- VoiceFunctions (first argument to arrange / arrange'):
 -- flow :: VoiceFunction  -- Smoothest voice leading (flexible inversion)
--- lock :: VoiceFunction  -- Root locked in bass (top notes lead smoothly)
+-- grid :: VoiceFunction  -- Root locked in bass (top notes lead smoothly)
 -- lite :: VoiceFunction  -- Literal (first-root normalized, no other changes)
 -- root :: VoiceFunction  -- Mono, root note only (first pitch)
 -- fund :: VoiceFunction  -- Mono, harmonic root (inversion-invariant)
@@ -1779,7 +1877,7 @@ hush'
 --         -> Kinetics -> (Int, Int) -> [Pattern Int] -> ControlPattern
 --   Onset-join with kinetics range gating.
 --   Range: (lo, hi) — only active when kSignal in range
---   VoiceFunction: flow, lock, lite, root, fund
+--   VoiceFunction: flow, grid, lite, root, fund
 --   Modifier: id, overlapF 0, overlapB 1, etc.
 --   Register: (-9, 9) typical
 --   Patterns: ["~", "[0,1,2,3]/4"] etc.
@@ -1862,8 +1960,8 @@ hush'
 -- Full chords (flow voicing):
 -- d01 $ arrange (0,1) flow id (rep prog 1) k (-9,9) ["[0,1,2,3]/4"] # ch 01
 
--- Bass line (lock voicing, low octave):
--- d02 $ arrange (0,1) lock id (rep prog 1) k (-9,9) ["0*2"] # ch 01 |- oct 2
+-- Bass line (grid voicing, low octave):
+-- d02 $ arrange (0,1) grid id (rep prog 1) k (-9,9) ["0*2"] # ch 01 |- oct 2
 
 -- Arpeggios (flow voicing):
 -- d03 $ arrange (0,1) flow id (rep prog 1) k (-9,9) ["0 1 2 3 4 5 6 7"] # ch 01
@@ -1874,7 +1972,7 @@ hush'
 -- Multi-voice stack with kinetics ranges:
 -- d01 $ stack [
 --   arrange (0.5,1) flow id r k (-9,9) ["[0,1,2,3]/4"] # ch 01,
---   arrange (0,1) lock id r k (-9,9) ["0*2"] # ch 01 |- oct 2
+--   arrange (0,1) grid id r k (-9,9) ["0*2"] # ch 01 |- oct 2
 -- ] |* vel (kDynamic k)
 
 -- Launcher block pattern:

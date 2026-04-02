@@ -291,7 +291,7 @@ Bach Chorales (CSV)
 **Modules**:
 - `Interface/Tidal/Form.hs` - Kinetics framework: form-driven range gating, macro compositional arc
 - `Interface/Tidal/Bridge.hs` - Pattern-based lookup with modulo wrap, arrange/arrange' with kinetics (src/Harmonic/Interface/Tidal/Bridge.hs:1)
-- `Interface/Tidal/Arranger.hs` - Voicing strategies (flow, lock, lite, literal, root) and progression combinators
+- `Interface/Tidal/Arranger.hs` - Voicing strategies (flow, grid, lite, literal, root) and progression combinators
 - `Interface/Tidal/Groove.hs` - Performance interfaces (subKick with kinetics gating, fund extraction)
 - `Interface/Tidal/Instruments.hs` - Launcher definitions (juno, moog, etc.)
 - `Interface/Tidal/Utils.hs` - Utility functions
@@ -352,7 +352,7 @@ src/Harmonic/
     └── Tidal/                [TidalCycles-specific bridge]
         ├── Form.hs           [Kinetics framework (form-driven range gating)]
         ├── Bridge.hs         [Pattern lookup, arrange/arrange' with kinetics]
-        ├── Arranger.hs       [Voicing strategies (flow, lock, lite)]
+        ├── Arranger.hs       [Voicing strategies (flow, grid, lite)]
         ├── Groove.hs         [Performance interfaces (subKick, fund)]
         ├── Instruments.hs    [Launcher definitions]
         └── Utils.hs          [Utility functions]
@@ -501,43 +501,50 @@ data CadenceState = CadenceState
 
 ### 5.3 HarmonicContext
 
-The `HarmonicContext` type encodes the three-filter system (src/Harmonic/Framework/Builder/Types.hs:54-58):
+The `HarmonicContext` type encodes the three-filter system (src/Harmonic/Framework/Builder/Types.hs:54-58).
+
+`hContext` alone produces a chromatic default (all wildcards). Filters are applied as composable modifier functions:
 
 ```haskell
-data HarmonicContext = HarmonicContext
-  { overtoneFilter :: String  -- Pitch-set constraint ("E A D G", "C", "*")
-  , keyFilter      :: String  -- Key signature ("1#", "2b", "*")
-  , rootFilter     :: String  -- Root motion constraint ("1#", "E G", "*")
-  }
+ctx = inversion 2
+    $ consonant
+    $ hcRoots "C E G"
+    $ hcKey "0#"
+    $ hcOvertones "E A D G"
+    $ hContext
 ```
 
 **Filter Interaction**:
-1. **Overtone Filter**: Restricts chord pitch-classes to overtone series
+1. **Overtone Filter** (`hcOvertones`): Restricts chord pitch-classes to overtone series
    - `"E A D G"` → Only pitches in {E,A,D,G,B,F#,C#,G#,D#,A#} (combined overtones)
    - `"C"` → Only pitches in {C,E,G,Bb} (C overtone series)
    - Prime notation `"C'"` → Exact pitch-class (no overtones)
 
-2. **Key Filter**: Restricts to diatonic collection
+2. **Key Filter** (`hcKey`): Restricts to diatonic collection
    - `"1#"` → G major scale {G,A,B,C,D,E,F#}
    - `"2b"` → Bb major scale {Bb,C,D,Eb,F,G,A}
    - Named keys `"D"` → D major scale
 
-3. **Root Filter**: Restricts root motion
+3. **Root Filter** (`hcRoots`): Restricts root motion
    - `"E G"` → Only cadences with E or G as root
    - `"1#"` → Only roots in G major scale
 
-**Wildcard**: `"*"` matches all (no filtering)
+**Wildcard**: `"*"` is the default for all three filters — omit a modifier to leave it as wildcard.
 
-**Example Usage** (from live/USER_GUIDE.tidal):
+**Context Modifiers** (applied as functions on `HarmonicContext`):
+
+| Modifier | Effect |
+|----------|--------|
+| `hcOvertones "..."` | Set overtone/pitch-set filter |
+| `hcKey "..."` | Set key signature filter |
+| `hcRoots "..."` | Set root/bass note filter |
+| `dissonant` | Each chord must have dissonance >= current chord |
+| `consonant` | Each chord must have dissonance <= current chord |
+| `inversion N` | Minimum N non-inversions between inversions (default 0) |
+
 ```haskell
--- G major tonality with G major roots
-ctx1 <- harmonicContext "*" "1#" "1#"
-
--- D major roots only, any pitch content
-ctx2 <- harmonicContext "*" "*" "##"
-
--- Specific overtones, any key/roots
-ctx3 <- harmonicContext "D A D F A Ab" "*" "*"
+-- Combine modifiers freely:
+ctx = inversion 2 $ dissonant $ hcRoots "0# fall" $ hcKey "0#" $ hContext
 ```
 
 ---
@@ -646,10 +653,10 @@ flow prog =
    in map chordPitches voicings
 ```
 
-**Lock Voicing** (root locked in bass):
+**Grid Voicing** (root locked in bass):
 ```haskell
-lock :: Progression -> [[Int]]
-lock prog = map rootPosition (progChords prog)
+grid :: Progression -> [[Int]]
+grid prog = map rootPosition (progChords prog)
 ```
 
 **Lite Voicing** (literal intervals, no voice leading):

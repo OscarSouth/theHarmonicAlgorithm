@@ -28,7 +28,7 @@ module Harmonic.Interface.Tidal.Orchestra (
 import Sound.Tidal.Context hiding (voice, clip)
 import qualified Data.Map.Strict as Map
 import Harmonic.Interface.Tidal.Bridge (VoiceFunction, arrange, overlapF)
-import Harmonic.Interface.Tidal.Arranger (flow, root, lock)
+import Harmonic.Interface.Tidal.Arranger (flow, root, grid)
 import Harmonic.Interface.Tidal.Form (Kinetics(..))
 import Harmonic.Interface.Tidal.Instruments (ch, vel)
 import Harmonic.Interface.Tidal.Utils (oct)

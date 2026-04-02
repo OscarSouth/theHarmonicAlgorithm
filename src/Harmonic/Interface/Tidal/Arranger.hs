@@ -37,7 +37,7 @@ module Harmonic.Interface.Tidal.Arranger
   , progOverlapB
 
     -- * Voicing Extractors (3 Paradigms)
-  , lock   -- Root locked in bass, smooth compact voice leading (cyclic DP)
+  , grid   -- Root locked in bass, smooth compact voice leading (cyclic DP)
   , flow   -- Any inversion allowed for smoothest voice leading (cyclic DP)
   , lite   -- Literal, no transformation
   , literal -- Alias for lite
@@ -50,15 +50,27 @@ module Harmonic.Interface.Tidal.Arranger
     -- * Scale Source (Switch Mechanism)
   , ScaleSource(..)
   , melodyStateFrom
+
+    -- * Starting State Construction
+  , lead
+  , parseLeadTokens
+  , LeadToken(..)
   ) where
 
 import qualified Data.Sequence as Seq
 import Data.Sequence (Seq, (><))
 import Data.Foldable (toList)
-import Data.List (sort, nub)
+import Data.List (sort, nub, sortBy)
+import Data.Maybe (listToMaybe)
+import Data.Char (toLower)
+import Data.Ord (comparing)
+import qualified Data.Map.Strict as Map
+import System.Random.MWC (createSystemRandom, uniformRM, GenIO)
 
 import Harmonic.Rules.Types.Progression
-import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), CadenceState(..), fromCadenceState, ChordState(..), EnharmonicSpelling(..), toFunctionality, toFunctionalityChord, Movement(..), enharmonicFunc, inferSpelling)
+import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), CadenceState(..), fromCadenceState, ChordState(..), EnharmonicSpelling(..), toFunctionality, toFunctionalityChord, Movement(..), enharmonicFunc, inferSpelling, initCadenceState)
+import Harmonic.Traversal.Probabilistic (gammaIndexScaledWith)
+import Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
 import Harmonic.Rules.Types.Pitch (PitchClass(..), NoteName(..), pitchClass, mkPitchClass, unPitchClass)
 import Harmonic.Evaluation.Scoring.VoiceLeading (solveRoot, solveFlow, liteVoicing, bassVoicing, normalizeByFirstRoot)
 
@@ -254,12 +266,12 @@ rebuildCadenceState cad root newIntervals =
 -- Voicing Extractors (3 Paradigms)
 -------------------------------------------------------------------------------
 
--- |LOCK paradigm: Root locked in bass with smooth compact voice leading.
+-- |GRID paradigm: Root locked in bass with smooth compact voice leading.
 -- Uses cyclic DP to find globally optimal voicings.
 -- First chord starts compact with root in bass; all subsequent chords
 -- maintain root in bass with minimal voice movement.
-lock :: Progression -> [[Int]]
-lock prog =
+grid :: Progression -> [[Int]]
+grid prog =
   let intVoicings = map (map fromIntegral) $ literalVoicing' prog
   in solveRoot intVoicings
 
@@ -368,3 +380,139 @@ melodyStateFrom :: ScaleSource -> Progression
 melodyStateFrom (ExplicitScale scales) = fromChords scales
 melodyStateFrom (HarmonyAsScale prog) = prog  -- Direct passthrough
 melodyStateFrom (HarmonyWithOverlap prog overlapFn) = overlapFn 1 prog
+
+-------------------------------------------------------------------------------
+-- Starting State Construction
+-------------------------------------------------------------------------------
+
+-- All unique 3-note zero-form sets: [0, a, b] with 1 ≤ a < b ≤ 11 (55 total)
+allTriadZeroForms :: [[Int]]
+allTriadZeroForms = [[0, a, b] | a <- [1..10], b <- [a+1..11]]
+
+-- Map from quality name → all sets producing that name, sorted by dissonance
+qualityMap :: Map.Map String [[Int]]
+qualityMap =
+  Map.map (sortBy (comparing dissonanceScore))
+  $ Map.fromListWith (++)
+    [ (name, [zf])
+    | zf <- allTriadZeroForms
+    , let name = toFunctionality (map mkPitchClass zf)
+    , not (null name)
+    ]
+
+-- User-friendly alias table: shorthand → interval set variants (most consonant first)
+qualityAliases :: Map.Map String [[Int]]
+qualityAliases = Map.fromList
+  [ ("maj",  [[0,4,7]])
+  , ("min",  [[0,3,7]])
+  , ("dim",  [[0,3,6]])
+  , ("aug",  [[0,4,8]])
+  , ("7",    sortBy (comparing dissonanceScore) [[0,4,10], [0,7,10]])
+  , ("dom7", sortBy (comparing dissonanceScore) [[0,4,10], [0,7,10]])
+  , ("maj7", sortBy (comparing dissonanceScore) [[0,4,11], [0,7,11]])
+  , ("min7", [[0,3,10]])
+  , ("m7",   [[0,3,10]])
+  , ("dim7", [[0,3,6]])
+  , ("hdim", sortBy (comparing dissonanceScore) [[0,3,6], [0,3,10]])
+  , ("sus2", [[0,2,7]])
+  , ("sus4", [[0,5,7]])
+  , ("6",    [[0,4,9]])
+  , ("m6",   [[0,3,9]])
+  ]
+
+-- Note name parsing table: lowercase → canonical
+noteNameTable :: [(String, String)]
+noteNameTable =
+  [ ("c","C"), ("db","Db"), ("c#","C#"), ("d","D")
+  , ("eb","Eb"), ("d#","D#"), ("e","E"), ("f","F")
+  , ("gb","Gb"), ("f#","F#"), ("g","G"), ("ab","Ab")
+  , ("g#","G#"), ("a","A"), ("bb","Bb"), ("a#","A#")
+  , ("b","B")
+  ]
+
+-- |Token type for 'parseLeadTokens'
+data LeadToken = RootTok String | QualTok String | MoveTok Int
+  deriving (Show, Eq)
+
+-- Parse a movement token: "(N)" or "(-N)" → Just N
+parseMovement :: String -> Maybe Int
+parseMovement ('(':rest) =
+  case Prelude.reverse rest of
+    (')':inner) -> case reads (Prelude.reverse inner) :: [(Int, String)] of
+      [(n, "")] -> Just n
+      _ -> Nothing
+    _ -> Nothing
+parseMovement _ = Nothing
+
+-- Classify a single token as root, movement, or quality
+classifyToken :: String -> LeadToken
+classifyToken tok
+  | Just canonical <- lookup (map toLower tok) noteNameTable = RootTok canonical
+  | Just n         <- parseMovement tok                       = MoveTok n
+  | otherwise                                                 = QualTok tok
+
+-- |Parse a lead string into a list of typed tokens.
+-- Each space-separated token is independently classified as root, quality, or movement.
+parseLeadTokens :: String -> [LeadToken]
+parseLeadTokens = map classifyToken . words
+
+-- Pick a variant from a sorted list, biased toward the most consonant
+pickVariant :: GenIO -> String -> [[Int]] -> IO (String, [Int])
+pickVariant gen label variants = do
+  idx <- gammaIndexScaledWith gen 0.1 (length variants)
+  pure (label, variants !! idx)
+
+-- Resolve a quality string to (label, intervals), or fall through to random
+resolveQuality :: GenIO -> Maybe String -> IO (String, [Int])
+resolveQuality gen Nothing  = randomQuality gen
+resolveQuality gen (Just q) = do
+  let qLower = map toLower q
+  case Map.lookup qLower qualityAliases of
+    Just vs -> pickVariant gen q vs
+    Nothing -> case Map.lookup qLower qualityMap of
+      Just vs -> pickVariant gen q vs
+      Nothing -> randomQuality gen
+
+-- Select a random quality, biased toward consonant (low entropy gamma)
+randomQuality :: GenIO -> IO (String, [Int])
+randomQuality gen = do
+  let entries = sortBy (comparing (\(_,vs) -> dissonanceScore (head vs))) (Map.toList qualityMap)
+  idx <- gammaIndexScaledWith gen 0.2 (length entries)
+  let (name, variants) = entries !! idx
+  pickVariant gen name variants
+
+-- Select a random root from the 12 chromatic notes (uniform)
+randomRoot :: GenIO -> IO String
+randomRoot gen = do
+  let roots = ["C","C#","D","Eb","E","F","F#","G","Ab","A","Bb","B"]
+  idx <- uniformRM (0, length roots - 1) gen
+  pure (roots !! idx)
+
+-- |Construct a 'CadenceState' from a human-readable string.
+--
+-- Parses root, quality, and movement from space-separated tokens.
+-- Unspecified components fall through to randomness.
+-- Prints "root quality" to the console after construction.
+--
+-- Examples:
+-- @
+-- start <- lead "E min (5)"  -- E minor, ascending 5th
+-- start <- lead "E min"      -- E minor, random movement
+-- start <- lead "min"        -- random root, minor quality, random movement
+-- start <- lead "E"          -- E, random quality, random movement
+-- start <- lead ""           -- fully random
+-- start <- lead "(5)"        -- random root and quality, fixed movement 5
+-- @
+lead :: String -> IO CadenceState
+lead input = do
+  gen <- createSystemRandom
+  let toks = parseLeadTokens input
+      mRoot = listToMaybe [r | RootTok r <- toks]
+      mQual = listToMaybe [q | QualTok q <- toks]
+      mMove = listToMaybe [m | MoveTok m <- toks]
+  rootStr          <- maybe (randomRoot gen) pure mRoot
+  (qualLabel, ivs) <- resolveQuality gen mQual
+  movement         <- maybe (uniformRM (-5, 6) gen) pure mMove
+  let cs = initCadenceState movement rootStr ivs
+  putStrLn $ rootStr ++ " " ++ qualLabel
+  pure cs

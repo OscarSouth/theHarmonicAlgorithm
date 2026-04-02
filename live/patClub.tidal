@@ -33,7 +33,7 @@ moog f s r d = p "moogMother32" $ do
   f
     $ stack [silence
        -- --
-      ,mono $ arrange lock (overlapF 0 s) r (-9,9) ["~"
+      ,mono $ arrange grid (overlapF 0 s) r (-9,9) ["~"
         -- ,"[0 1 2 4 5]"
         -- ,slow 2 $ "[0 <2 1 [4 3]>]/4"
         -- ,"[0 . 3 3]"

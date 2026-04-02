@@ -119,13 +119,17 @@ module Harmonic.Framework.Builder
     -- * Harmonic Context (R constraints)
   , HarmonicContext(..)
   , harmonicContext
-  , hContext  -- String-friendly version for Tidal (renamed from 'context' to avoid collision)
+  , hContext
   , defaultContext
 
-    -- * Dissonance Drift
+    -- * Context Modifiers
   , Drift(..)
+  , hcOvertones
+  , hcKey
+  , hcRoots
   , dissonant
   , consonant
+  , inversion
 
     -- * Configuration
   , GeneratorConfig(..)
