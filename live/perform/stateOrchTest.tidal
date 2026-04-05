@@ -4,17 +4,22 @@ start0 <- lead "D min"
 
 start1 <- lead "C maj"
 
-ctx = hcRoots "D C Bb" $ hcKey "* -F# -Eb -Ab" $ hContext
+ctx = inversion 1
+  $ consonant
+  $ hcRoots "D C Bb"
+  $ hcKey "* -F# -Eb -Ab"
+  $ hContext
 
-s0 <- gen start0 4 "*" 0.5 ctx
+s0 <- gen start0 4 "*" 0.2 ctx
 
-s1 <- gen start1 4 "*" 0.5 ctx
+s1 <- gen start1 4 "*" 0.2 ctx
 
 form =
-  [ at  0  0.1  0.0 s0
+  [
+    at  0  0.1  0.2 s0
   , at 10  0.3  0.6 s0
   , at 50  1.0  1.0 s1
-  , at 60  0.1  0.0 s0
+  , at 60  0.0  0.0 s0
   ]
 
   -- '' ¬¬
@@ -26,15 +31,15 @@ do
     k = formK tempo form
   putStrLn $ "ORCHESTRAL LAUNCH ¬¬"
   mapM_ id [hush, setbpm tempo
-    -- ,wind f r k       $ d 0.9
-    -- ,strg f r k       $ d 0.8
-    -- ,brss f r k       $ d 0.9
-    -- ,perc f r k       $ d 0.7
+    ,wind f r k       $ d 0.9
+    ,strg f r k       $ d 0.8
+    ,brss f r k       $ d 0.9
+    ,perc f r k       $ d 0.7
     -- ,chalumeau f r k  $ d 0.9
-    -- ,tutti f r k $ d 0.9
-    ,p03 f r k        $ d 0.9
-    ,subk f r k       $ d 0.1
-    ,k909 f k         $ d 0.5
+    -- ,tutti arco f r k $ d 0.9
+    -- ,p03 f r k        $ d 0.9
+    -- ,subk f r k       $ d 0.1
+    -- ,k909 f k         $ d 0.5
    ]
 
 hush''

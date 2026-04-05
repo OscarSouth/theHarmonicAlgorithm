@@ -83,13 +83,13 @@ targetOctaveMin = 12
 targetOctaveMax :: Int
 targetOctaveMax = 23
 
--- | Target range for first chord's root (lower bound, G0)
+-- | Target range for first chord's root (lower bound, C3)
 targetFirstRootMin :: Int
-targetFirstRootMin = 7
+targetFirstRootMin = -12
 
--- | Target range for first chord's root (upper bound, F#1)
+-- | Target range for first chord's root (upper bound, B3)
 targetFirstRootMax :: Int
-targetFirstRootMax = 18
+targetFirstRootMax = -1
 
 -------------------------------------------------------------------------------
 -- Voice Movement Calculation
@@ -377,11 +377,10 @@ normalizeByFirstRoot voicings =
       -- Calculate the current octave of the first root
       currentOctave = firstRoot `div` 12
       
-      -- Find target octave: we want firstRootPC + targetOctave * 12 to be in [7,18]
-      -- targetFirstRootMin = 7, targetFirstRootMax = 18
-      -- For pc in [0,6]: target octave 1 gives [12,18], all valid
-      -- For pc in [7,11]: target octave 0 gives [7,11], all valid
-      targetOctave = if firstRootPC >= 7 then 0 else 1
+      -- Find target octave: we want firstRootPC + targetOctave * 12 to be in [-12,-1]
+      -- targetFirstRootMin = -12 (C3), targetFirstRootMax = -1 (B3)
+      -- targetOctave = -1 places all pitch classes in [-12,-1]
+      targetOctave = (-1)
       targetRoot = firstRootPC + targetOctave * 12
       
       -- Shift amount: how much to add/subtract to move firstRoot to targetRoot

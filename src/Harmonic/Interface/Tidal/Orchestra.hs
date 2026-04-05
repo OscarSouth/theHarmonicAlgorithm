@@ -110,33 +110,34 @@ instrument range channel ki vf v r k vl =
 -------------------------------------------------------------------------------
 
 -- Winds (channels 1–4)
+-- Ranges in Tidal note space (MIDI − 60); physical ranges noted in comments
 flute, oboe, clarinet, bassoon :: (Double, Double) -> VoiceFunction -> Voice -> Pattern Int -> Kinetics -> VoiceLines -> ControlPattern
-flute      = instrument (48, 86)  1
-oboe       = instrument (46, 81)  2
-clarinet   = instrument (26, 82)  3
-bassoon    = instrument (22, 63)  4
+flute      = instrument (-12, 26) 1   -- C3–D6  (MIDI 48–86)
+oboe       = instrument ( -2, 33) 2   -- Bb3–A6 (MIDI 58–93)
+clarinet   = instrument (-22, 34) 3   -- D2–Bb6 (MIDI 38–92)
+bassoon    = instrument (-28, 15) 4   -- Bb1–Eb5 (MIDI 32–75)
 
 -- Brass (channels 5–6)
 horn, trombone, basstrom :: (Double, Double) -> VoiceFunction -> Voice -> Pattern Int -> Kinetics -> VoiceLines -> ControlPattern
-horn       = instrument (23, 65)  5
-trombone   = instrument (28, 65)  6
-basstrom   = instrument (21, 55)  6
+horn       = instrument (-29, 17) 5   -- B1–F5  (MIDI 31–77)
+trombone   = instrument (-28, 17) 6   -- Bb1–F5 (MIDI 32–77)
+basstrom   = instrument (-39, -5) 6   -- A0–G3  (MIDI 21–55)
 
 -- Harp (channel 7)
 harp :: (Double, Double) -> VoiceFunction -> Voice -> Pattern Int -> Kinetics -> VoiceLines -> ControlPattern
-harp       = instrument (23, 90)  7
+harp       = instrument (-29, 42) 7   -- B1–F#7 (MIDI 31–102)
 
 -- Pitched percussion (channel 8)
 timpani :: (Double, Double) -> VoiceFunction -> Voice -> Pattern Int -> Kinetics -> VoiceLines -> ControlPattern
-timpani    = instrument (26, 48)  8
+timpani    = instrument (-22,  0) 8   -- D2–C4  (MIDI 38–60)
 
 -- Strings (default arco = channel 16)
 violin1, violin2, viola, cello, contrabass :: (Double, Double) -> VoiceFunction -> Voice -> Pattern Int -> Kinetics -> VoiceLines -> ControlPattern
-violin1    = instrument (55, 105) 16
-violin2    = instrument (55, 105) 16
-viola      = instrument (48, 88)  16
-cello      = instrument (36, 84)  16
-contrabass = instrument (24, 60)  16
+violin1    = instrument ( -5, 45) 16  -- G3–A7  (MIDI 55–105)
+violin2    = instrument ( -5, 45) 16  -- G3–A7  (MIDI 55–105)
+viola      = instrument (-12, 28) 16  -- C3–E6  (MIDI 48–88)
+cello      = instrument (-24, 24) 16  -- C2–C5  (MIDI 36–84)
+contrabass = instrument (-36,  0) 16  -- C1–C4  (MIDI 24–60)
 
 -------------------------------------------------------------------------------
 -- Unpitched percussion (struct-based)
