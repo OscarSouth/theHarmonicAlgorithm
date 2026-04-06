@@ -80,7 +80,7 @@ formContinuous cps nodes  accessor =
       totalCycles = realToFrac (totalSecs * cps) :: Time
       pairs       = zip nodes (tail nodes)
       segments    = [ ( realToFrac ((fnTime n2 - fnTime n1) * cps)
-                      , segment 64 $ range (realToFrac $ accessor n1)
+                      , segment 16 $ range (realToFrac $ accessor n1)
                                            (realToFrac $ accessor n2) saw
                       )
                     | (n1, n2) <- pairs

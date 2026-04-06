@@ -5,14 +5,17 @@ start0 <- lead "D min"
 start1 <- lead "C maj"
 
 ctx = inversion 1
-  $ consonant
-  $ hcRoots "D C Bb"
-  $ hcKey "* -F# -Eb -Ab"
+  -- $ consonant
+  -- $ dissonant
+  $ hcRoots "*"
+  -- $ hcRoots "D CBb"
+  -- $ hcKey "* -F# -Eb -Ab"
+  $ hcKey "*"
   $ hContext
 
-s0 <- gen start0 4 "*" 0.2 ctx
+s0 <- gen start0 4 "debussy" 0.2 ctx
 
-s1 <- gen start1 4 "*" 0.2 ctx
+s1 <- gen start1 4 "debussy" 0.2 ctx
 
 form =
   [
@@ -34,7 +37,7 @@ do
     ,wind f r k       $ d 0.9
     ,strg f r k       $ d 0.8
     ,brss f r k       $ d 0.9
-    ,perc f r k       $ d 0.7
+    ,perc f r k       $ d 0.99
     -- ,chalumeau f r k  $ d 0.9
     -- ,tutti arco f r k $ d 0.9
     -- ,p03 f r k        $ d 0.9

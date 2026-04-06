@@ -30,7 +30,7 @@ hSetEncoding stdout utf8
 let editorTarget = Target {oName = "editor", oAddress = "127.0.0.1", oPort = 6013, oLatency = 0.02, oSchedule = Pre BundleStamp, oWindow = Nothing, oHandshake = False, oBusPort = Nothing }
 let editorShape = OSCContext "/editor/highlights"
 
-tidal <- startStream (defaultConfig {cFrameTimespan = 1/50, cEnableLink = False}) [(superdirtTarget {oLatency = 0.15}, [superdirtShape]), (editorTarget, [editorShape])]
+tidal <- startStream (defaultConfig {cFrameTimespan = 1/20, cEnableLink = False}) [(superdirtTarget {oLatency = 0.15}, [superdirtShape]), (editorTarget, [editorShape])]
 
 -------------------------------------------------------------------------------
 -- Core Stream Definitions
@@ -125,7 +125,7 @@ vel = pF "amp"
 -- Pattern Helpers
 -------------------------------------------------------------------------------
 
-lfo wave lo hi = segment 64 $ range lo hi wave
+lfo wave lo hi = segment 16 $ range lo hi wave
 pullBy = (<~)
 pushBy = (~>)
 (|=) = (#)

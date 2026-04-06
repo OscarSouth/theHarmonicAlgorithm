@@ -1,6 +1,7 @@
 -- Orchestral performance interfaces with form integration
 -- Load this first, then load stateOrchTest.tidal
 
+motifA = "[3 2 3 4]/16"
 
 -- ── CONCRETE SECTIONS ─────────────────────────────────────
 
@@ -13,10 +14,10 @@ wind f r k d = p "wind" $ do
         }
   f
     $ stack [silence
-        , flute    (0,1) flow Soprano    r k vl
-        , oboe     (0,1) flow Soprano8va       r k vl
-        , clarinet (0,1) flow Alto   r k vl
-        , bassoon  (0,1) flow Tenor    r k vl
+        , flute    (0,1) flow Alto8va    r k vl
+        , oboe     (0,1) flow Soprano       r k vl
+        , clarinet (0,1) flow Tenor   r k vl
+        , bassoon  (0,1) flow Bass    r k vl
     ] |* vel (kDynamic k) |* vel d
 
 brss f r k d = p "brss" $ do
@@ -55,15 +56,16 @@ strg f r k d = p "strg" $ do
 perc f r k d = p "perc" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[3 2 1 0]"
+        , alto = "[0,1,2,0]/8"
         , bass    = "[3 -1]/4"
         }
   f
     $ stack [silence
         , timpani (0,1) grid Bass    r k vl
-        , harp    (0,1) flow Soprano8va    r k vl
+        -- , harp    (0,1) flow Alto8va    r k vl
         , slate (0,1) k [silence
-            , bassdrum "[1]/4"
-            , tamtam   "[1*4]"
+            -- , bassdrum "[1]/4"
+            -- , tamtam   "[1*4]"
             ]
     ] |* vel (kDynamic k) |* vel d
 
@@ -72,9 +74,10 @@ perc f r k d = p "perc" $ do
  -- dark warmth (clarinet low + bassoon + horn)
 chalumeau f r k d = p "chalumeau" $ do
   let vl = voiceLines {_vl = "~"
-        -- , soprano = "3"
-        -- , tenor   = "2"
-        -- , bass    = "0"
+        , soprano = "3/4"
+        , alto    = "1/4"
+        , tenor   = "2/4"
+        , bass    = "0/4"
         }
   f
     $ stack [silence
@@ -86,9 +89,10 @@ chalumeau f r k d = p "chalumeau" $ do
  -- mid-register colour (flute + oboe + clarinet)
 pastorale f r k d = p "pastorale" $ do
   let vl = voiceLines {_vl = "~"
-        -- , soprano = "3"
-        -- , alto    = "1"
-        -- , tenor   = "2"
+        , soprano = "3/4"
+        , alto    = "1/4"
+        , tenor   = "2/4"
+        , bass    = "0/4"
         }
   f
     $ stack [silence
@@ -100,9 +104,10 @@ pastorale f r k d = p "pastorale" $ do
  -- bright top (flute 8va at high kinetics)
 brillante f r k d = p "brillante" $ do
   let vl = voiceLines {_vl = "~"
-        -- , soprano = "3"
-        -- , alto    = "1"
-        -- , tenor   = "2"
+        , soprano = "3/4"
+        , alto    = "1/4"
+        , tenor   = "2/4"
+        , bass    = "0/4"
         }
   f
     $ stack [silence
@@ -115,10 +120,10 @@ brillante f r k d = p "brillante" $ do
  -- full winds + brass (climactic)
 maestoso f r k d = p "maestoso" $ do
   let vl = voiceLines {_vl = "~"
-        -- , soprano = "3"
-        -- , alto    = "1"
-        -- , tenor   = "2"
-        -- , bass    = "0"
+        , soprano = "3/4"
+        , alto    = "1/4"
+        , tenor   = "2/4"
+        , bass    = "0/4"
         }
   f
     $ stack [silence
@@ -133,10 +138,10 @@ maestoso f r k d = p "maestoso" $ do
  -- full orchestra with kinetics crescendo ordering
 tutti art f r k d = p "tutti" $ do
   let vl = voiceLines {_vl = "~"
-        -- , soprano = "3"
-        -- , alto    = "1"
-        -- , tenor   = "2"
-        -- , bass    = "0"
+        , soprano = "3/4"
+        , alto    = "1/4"
+        , tenor   = "2/4"
+        , bass    = "0/4"
         }
   f
     $ stack [silence

@@ -9,6 +9,7 @@ import qualified Harmonic.Rules.Types.Pitch as Pitch
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Progression as P
 import Harmonic.Interface.Tidal.Form (Kinetics(..), ki)
+import Data.List (nub)
 import Data.Foldable (toList)
 import Sound.Tidal.Context
 
@@ -26,12 +27,12 @@ fund prog =
           rootPc = Pitch.pitchClass rootNoteName
       in [Pitch.unPitchClass rootPc]
 
--- | Normalize pitch classes to C3-B3 range (MIDI 48-59) for MPC sub program.
--- Empty list returns 47 (B2, where no sample is assigned = silence).
--- Pitch classes [0-11] map to MIDI [48-59] (C3-B3).
+-- | Normalize pitch classes to C2-B2 range (MIDI 36-47) for MPC sub program.
+-- Empty list returns 35 (B1, where no sample is assigned = silence).
+-- Pitch classes [0-11] map to MIDI [36-47] (C2-B2).
 normalizeToSubRange :: [Int] -> Int
-normalizeToSubRange [] = 47  -- B2: no sample (silence)
-normalizeToSubRange (pc:_) = 48 + (pc `mod` 12)
+normalizeToSubRange [] = 35  -- B1: no sample (silence)
+normalizeToSubRange (pc:_) = 36 + (pc `mod` 12)
 
 -- | Groove interface using patterned chord selection with kinetics gating.
 --
@@ -57,9 +58,21 @@ subKick :: (P.Progression -> [[Int]])  -- ^ Voice strategy (fund or bass)
             String)                     -- ^ Kick placement pattern string
         -> Pattern ValueMap
 subKick voiceFunc chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr) =
-  innerJoin $ fmap (\prog ->
-    subKickCore voiceFunc prog chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr)
-  ) (kProg k)
+  let -- Pre-compute at construction time
+      allEvents = queryArc (kProg k) (Arc 0 1000)
+      uniqueProgs = nub (map value allEvents)
+      cache = [(p, let raw = voiceFunc p
+                       norm = map normalizeToSubRange raw
+                       nc = length norm
+                   in (norm, nc))
+              | p <- uniqueProgs]
+      lookupCache prog = case lookup prog cache of
+        Just hit -> hit
+        Nothing  -> let raw = voiceFunc prog
+                    in (map normalizeToSubRange raw, length raw)
+  in innerJoin $ fmap (\prog ->
+       subKickCoreP (lookupCache prog) chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr)
+     ) (kProg k)
 
 -- |Internal: subKick logic with ki gating on sub/kick groups.
 subKickCore :: (P.Progression -> [[Int]])
@@ -84,8 +97,8 @@ subKickCore voiceFunc prog chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr)
     -- Convert dynamics to boolean gate for mask
     dynGate = fmap (> 0) dyn
 
-    -- MIDI routing: channel 7 (0-indexed = midichan 6) on "thru" device
-    thru = s "thru" # midichan 6
+    -- MIDI routing: channel 10 (0-indexed = midichan 9) on "thru" device
+    thru = s "thru" # midichan 9
 
     -- 0-indexed chord index from 1-indexed input, wrapping modulo nChords
     chordIdx = fmap (\i -> (i - 1) `mod` nChords) chordPat
@@ -97,12 +110,12 @@ subKickCore voiceFunc prog chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr)
         # sustain 0.01 # amp dyn
       ) chordIdx)
 
-    -- Kick pattern: fixed C4 (MIDI 60), one-shot
-    kickPattern = struct kickPat $ midinote 60 # sustain 0.01 # amp 1
+    -- Kick pattern: fixed C3 (MIDI 48), one-shot
+    kickPattern = struct kickPat $ midinote 48 # sustain 0.01 # amp 1
 
     -- Sustain pedal: CC 64 = 127 continuous background
     -- 1/128 offset avoids timestamp collision with note-on events
-    sustainOn = (1/128) ~> segment 64 (midiCC 64 127)
+    sustainOn = (1/128) ~> segment 16 (midiCC 64 127)
 
     -- Auto note-off: CC 64 = 0 shifted by maxDur after each note-on
     autoOff
@@ -119,7 +132,7 @@ subKickCore voiceFunc prog chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr)
 
     subLedOn = (1/128) ~> (mask dynGate $ struct subOnPat $
       innerJoin (fmap (\ci ->
-        ledCC (normPitches !! (ci `mod` nChords) - 28) 1
+        ledCC (normPitches !! (ci `mod` nChords) - 16) 1
       ) chordIdx))
 
     subLedAutoOff
@@ -152,3 +165,91 @@ subKickCore voiceFunc prog chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr)
     rawPitches  = voiceFunc prog
     normPitches = map normalizeToSubRange rawPitches
     nChords     = length normPitches
+
+-- |Cached subKick: takes pre-computed (normPitches, nChords) instead of computing from voiceFunc.
+-- All CC64/sustain/timing logic identical to subKickCore.
+subKickCoreP :: ([Int], Int)
+             -> Pattern Int
+             -> Pattern Double
+             -> Kinetics
+             -> (Time, String, String, String)
+             -> Pattern ValueMap
+subKickCoreP (normPitches, nChords) chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr)
+  | nChords == 0 = silence
+  | otherwise =
+  let
+    -- Parse pattern strings
+    subOnPat  = slow 4 $ parseBP_E subOnStr
+    subOffPat = slow 4 $ parseBP_E subOffStr
+    kickPat   = slow 4 $ parseBP_E kickStr
+
+    -- CC helper
+    midiCC num val = midicmd "control" # ctlNum num # control val
+
+    -- Convert dynamics to boolean gate for mask
+    dynGate = fmap (> 0) dyn
+
+    -- MIDI routing: channel 10 (0-indexed = midichan 9) on "thru" device
+    thru = s "thru" # midichan 9
+
+    -- 0-indexed chord index from 1-indexed input, wrapping modulo nChords
+    chordIdx = fmap (\i -> (i - 1) `mod` nChords) chordPat
+
+    -- Sub pattern: note-ons gated by dynamics and structured by subOnPat
+    subPattern = mask dynGate $ struct subOnPat $
+      innerJoin (fmap (\ci ->
+        midinote (pure $ fromIntegral (normPitches !! (ci `mod` nChords)))
+        # sustain 0.01 # amp dyn
+      ) chordIdx)
+
+    -- Kick pattern: fixed C3 (MIDI 48), one-shot
+    kickPattern = struct kickPat $ midinote 48 # sustain 0.01 # amp 1
+
+    -- Sustain pedal: CC 64 = 127 continuous background
+    -- 1/128 offset avoids timestamp collision with note-on events
+    sustainOn = (1/128) ~> segment 16 (midiCC 64 127)
+
+    -- Auto note-off: CC 64 = 0 shifted by maxDur after each note-on
+    autoOff
+      | maxDur >= 1 = silence
+      | otherwise   = struct ((pure (maxDur * 4)) ~> subOnPat) $ midiCC 64 0
+
+    -- Manual note-off: CC 64 = 0 at user-specified boundaries
+    manualOff = struct subOffPat $ midiCC 64 0
+
+    -- LED feedback for Keith McMillen 12 Step foot controller
+    ledCC num val = midicmd "control"
+                  # ctlNum (fromIntegral num)
+                  # control (fromIntegral val)
+
+    subLedOn = (1/128) ~> (mask dynGate $ struct subOnPat $
+      innerJoin (fmap (\ci ->
+        ledCC (normPitches !! (ci `mod` nChords) - 16) 1
+      ) chordIdx))
+
+    subLedAutoOff
+      | maxDur >= 1 = silence
+      | otherwise   = struct ((pure (maxDur * 4)) ~> subOnPat) $
+          stack [ledCC cc 0 | cc <- [20..31]]
+
+    subLedManualOff = struct subOffPat $
+      stack [ledCC cc 0 | cc <- [20..31]]
+
+    kickLedOn = struct kickPat $ ledCC 32 1
+
+    kickLedOff = struct ((pure (1/32)) ~> kickPat) $ ledCC 32 0
+
+    -- Sub group: sub pattern + CC64 sustain + sub LEDs
+    subGroup = ki (0.1, 1) k $ stack
+      [ subPattern # thru
+      , sustainOn # thru, autoOff # thru, manualOff # thru
+      , subLedOn # thru, subLedAutoOff # thru, subLedManualOff # thru
+      ]
+
+    -- Kick group: kick pattern + kick LEDs
+    kickGroup = ki (0.2, 1) k $ stack
+      [ kickPattern # thru
+      , kickLedOn # thru, kickLedOff # thru
+      ]
+
+  in stack [subGroup, kickGroup]

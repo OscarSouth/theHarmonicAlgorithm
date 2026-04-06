@@ -3,7 +3,7 @@ tempo = 97
 start <- lead "E min"
 
 ctx = inversion 1
-  -- $ dissonant
+  $ consonant
   $ hcRoots "E A B fall"
   $ hcKey "1# D#"
   $ hContext
@@ -24,10 +24,10 @@ do
     k = formK tempo form
   putStrLn $ "LAUNCH ¬¬"
   mapM_ id [hush, setbpm tempo
-    ,wind f r k       $ d 0.9
-    ,strg f r k       $ d 0.8
+    ,wind f r k       $ d 0.6
+    -- ,strg f r k       $ d 0.8
     ,brss f r k       $ d 0.9
-    ,perc f r k       $ d 0.7
+    ,perc f r k       $ d 1
     -- ,chalumeau f r k  $ d 0.9
     -- ,tutti f r k $ d 0.9
     -- ,p03 f r k        $ d 0.9
