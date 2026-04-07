@@ -19,13 +19,21 @@ Code → TidalCycles → SuperDirt → MIDI → Roland JV-1010 → orchestral mu
 | 7       | Harp           | Plucked           |
 | 8       | Timpani        | Pitched perc      |
 | 9       | Bass Drum      | Unpitched perc    |
-| 10      | (reserved)     | MPC kit           |
+| 10      | subKick        | MPC sub/kick      |
 | 11      | Tam-tam        | Unpitched perc    |
 | 12      | Strings pizz   | String artic      |
 | 13      | Strings spicc  | String artic      |
 | 14      | Strings marc   | String artic      |
 | 15      | Strings legg   | String artic      |
 | 16      | Strings arco   | String artic      |
+
+## Performance Architecture
+
+Voice leading (cyclic DP) is expensive. With 16+ stacked `arrange` calls (full orchestral mode), naive per-frame recomputation causes TidalCycles "skip" messages.
+
+The fix is a construction-time voicing cache: `arrange` and `arrange'` query `kProg k` once when the pattern is registered, pre-compute voicings for all unique progressions (~2–3 in a typical form), and store them in an association list. Per-frame lambdas do O(1) lookup instead of running the DP solver. Result: ~800 voice leading solves/second → 2–3 (once at construction).
+
+Frame timespan is set to `1/30` (~33ms frames). At `oLatency = 0.15` (150ms SuperDirt latency), timing resolution is dominated by output latency — 33ms frames give more than sufficient musical precision.
 
 ## Two Separate Concerns
 
@@ -179,6 +187,44 @@ tutti pizz f r k $ d 0.7
 | `brillante` | Bright top (flute 8va at high k) | flute 8va, flute, oboe, clarinet     |
 | `maestoso`  | Full winds + brass (climactic)   | wind + horn, trombone                |
 | `tutti`     | Full orchestra                   | strings + winds + brass + timpani    |
+
+## Groove — subKick
+
+`subKick` is a separate signal chain — it does **not** use the JV-1010. It routes via the `"thru"` device on MIDI channel 10 to an MPC (or equivalent sampler).
+
+### Note Mapping
+
+| Part | MIDI Note | Range |
+|------|-----------|-------|
+| Sub  | 36–47 | C2–B2 (pitch class → MIDI, mapped from harmonic root) |
+| Kick | 48 (fixed) | C3 |
+| Silence (no sample) | 35 | B1 |
+
+Sub pitches are normalised from the progression's harmonic root pitch class: `pitch_class + 36`. This places the sub register below all orchestral instruments, leaving MIDI 48+ free for anything else sharing the channel.
+
+### CC64 Sustain Mechanism
+
+The sub voice uses MIDI CC64 (sustain pedal) to hold notes:
+- `sustain 0.01` triggers a brief note-on (the sampler latches it)
+- `segment 16` CC64=127 background keeps the sustain held (~1 event/frame at 30fps)
+- CC64=0 at `maxDur` or `subOffPat` boundaries releases the note
+
+This mechanism is intentional and must not be changed.
+
+### Voicing Cache
+
+Voicings are pre-computed once at construction time (not per TidalCycles frame). All unique progressions in `kProg k` are resolved upfront; the per-frame lambda does a lookup instead of running the voice function. This eliminates hundreds of redundant computations per second in full orchestral mode.
+
+### Usage
+
+```tidal
+p "subKick" $ subKick fund (rep s4 1) dyn k
+  (maxDur, subOnStr, subOffStr, kickStr)
+```
+
+- `fund` — always returns the harmonic root regardless of inversion (preferred over `bass` for kick/sub)
+- Sub group gates at `(0.1, 1)`, kick at `(0.2, 1)` via `ki`
+- `maxDur < 1` triggers auto-off; `maxDur >= 1` means manual-off only
 
 ## Kinetics Layering
 

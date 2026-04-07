@@ -147,6 +147,26 @@ discrete step functions for progression switching.
 - Launcher paradigm updated: `f s r d` → `f r d k` — progression is
   read from kinetics context, not passed directly
 
+### Performance & Hardware Updates (2026-04)
+
+**Voice Leading Cache** — `arrange` and `arrange'` now pre-compute voicings
+at pattern construction time. All unique progressions in `kProg k` are
+resolved once; per-frame lambdas do a list lookup instead of running the
+cyclic DP solver. With 16+ stacked instrument calls (full orchestral mode),
+this reduces voice leading work from ~800 solves/second to 2–3. Skip
+messages in full orchestral mode drop to negligible levels.
+
+**subKick Hardware Routing** — `subKick` now routes to MIDI channel 10
+on the `"thru"` device. Sub pitches map to MIDI C2–B2 (36–47) via
+pitch class → `pitch_class + 36`, placing the sub register below all
+orchestral instrument ranges with no overlap. Kick is fixed at C3 (MIDI 48).
+The CC64 sustain mechanism and `sustain 0.01` architecture are unchanged.
+
+**Frame Rate & Segment Density** — Frame timespan set to `1/30` (~33ms)
+for better headroom with complex pattern graphs. `segment` density reduced
+across Form.hs (16), BootTidal `lfo` (16), and subKick `sustainOn` (16)
+— all remain musically sufficient for their respective purposes.
+
 ### Migration from V2
 
 - The public API is preserved through facade re-exports — existing code

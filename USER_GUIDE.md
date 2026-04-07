@@ -696,6 +696,11 @@ p "subKick" $ subKick fund (rep s4 1) 1 k
 The sub group gates at `(0.1, 1)` and the kick group at `(0.2, 1)`,
 so both gradually activate as the form builds.
 
+Output routes to MIDI channel 10 on the `"thru"` device (separate from
+the JV-1010 orchestral channels). Sub pitches map to MIDI C2–B2 (36–47)
+from the harmonic root pitch class; kick is fixed at C3 (MIDI 48). This
+places the sub register below all orchestral instruments with no overlap.
+
 `[video: subKick with a basic euclidean pattern — a kick drum that follows
 the harmonic root, the low end locking to whatever chord is active,
 creating a groove that's harmonically aware]`
