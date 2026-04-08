@@ -2,12 +2,21 @@
 -- Module      : Harmonic.Evaluation.Analysis.Markov
 -- Description : Markov transition probability computation (ingestion-only)
 --
--- This module is used exclusively during data ingestion (app/Main.hs) to compute
--- transition probabilities from the YCACL corpus. These probabilities are stored
--- as edge weights in the Neo4j graph database.
+-- This module is used exclusively during data ingestion (@app\/Main.hs@) to
+-- compute transition probabilities from the YCACL corpus. These probabilities
+-- are stored as edge weights in the Neo4j graph database.
 --
--- This module is NOT used in the runtime generation path. At runtime, transition
--- weights are read from Neo4j edges by Harmonic.Evaluation.Database.Query.
+-- This module is NOT used in the runtime generation path. At runtime,
+-- transition weights are read from Neo4j edges by
+-- "Harmonic.Evaluation.Database.Query".
+--
+-- == Academic Lineage
+--
+-- /Data Science In The Creative Process/ (South, 2018), Section: Markov
+-- module. The Markov chain approach resolves "Generative Uninspiration" —
+-- the problem of manually traversing exhaustive overtone combination charts
+-- — by training transition probabilities on the Yale Classical Archives
+-- Corpus (Bach chorales and other composers).
 
 module Harmonic.Evaluation.Analysis.Markov
   ( Edge

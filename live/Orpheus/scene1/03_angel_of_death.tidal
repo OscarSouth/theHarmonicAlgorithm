@@ -1,0 +1,112 @@
+-- ============================================================================
+-- III. DANCE OF THE ANGEL OF DEATH
+-- ============================================================================
+--
+-- From the myth: The Angel of Death (the Dark Angel) appears to guide Orpheus
+-- on his descent to Hades. In Balanchine's choreography, the Angel binds
+-- Orpheus's eyes -- a premonition of the blindness that will later become
+-- the condition of Eurydice's return.
+--
+-- Stravinsky introduces a rigid, marching motif that stands in stark contrast
+-- to Orpheus's fluid melodies. The "ghostly, supernatural voice of the solo
+-- trombone" is accompanied by "shivering string tremolo, followed by a
+-- solitary trumpet call." The Angel's music is mechanical, inevitable --
+-- the rhythm of fate rather than feeling. As Orpheus follows, nervous
+-- scurrying string figures intertwine with the march, representing mortal
+-- fear against immortal inevitability.
+--
+-- The movement intensifies as the full chamber orchestra engages with
+-- syncopated brass hits and staccato woodwinds, then grinds to a halt at
+-- the gates of Hades. The rhythmic drive dissipates into murky, sustained
+-- dissonant clusters.
+--
+-- Reimagination: Eb minor starting point, chromatic context (no key filter)
+-- with dissonance drift building across the progression. Trombone as primary
+-- supernatural voice, brass-heavy with strings providing agitated background.
+-- The march rhythm is encoded in faster harmonic rhythm and martial voice
+-- line patterns.
+-- ============================================================================
+
+tempo = 80
+
+start <- lead "Eb min"
+
+let ctx = dissonant
+        $ hcKey "*"
+        $ hContext
+
+s <- seek "debussy" $ cue start $ tonal ctx $ len 8 $ entropy 0.4 $ gen
+
+-- Form: ~151s loop (141s music + 10s silence)
+-- Arc: sudden entry -> march intensifies -> clash -> grinding halt -> murk
+form =
+  [ at    0    0.0   0.0   s     -- silence before the supernatural
+  , at    3    0.6   0.6   s     -- sudden: march motif, trombone, timpani
+  , at   33    0.65  0.7   s     -- angel leads Orpheus, strings vs brass
+  , at   63    0.7   0.7   s     -- full chamber: mortal fear vs inevitability
+  , at   93    0.4   0.4   s     -- arrival at gates: grinding halt
+  , at  121    0.2   0.2   s     -- murky atmosphere, dissonant clusters
+  , at  141    0.0   0.0   s     -- darkness
+  , at  151    0.0   0.0   s     -- silence gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- The Angel: brass march, trombone as supernatural voice
+angel f r k d = p "brss" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[0 1 0 3]*2"
+        , alto    = "[1 0 1 0]*2"
+        , tenor   = "2"
+        , bass    = "[0 0 -1 0]*2"
+        }
+  f
+    $ stack [silence
+        , trombone (0, 1)   flow Soprano    r k vl
+        , horn     (0.3, 1) flow Alto       r k vl
+        , basstrom (0, 1)   grid Bass8vb    r k vl
+    ] |* vel (kDynamic k) |* vel d
+
+-- Strings: nervous scurrying against the march
+marchStrg f r k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 1 2 0]*2"
+        , alto    = "[0 2 1 3]*2"
+        , tenor   = "[2 0 3 1]*2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , violin1    (0.2, 1) flow Soprano    r k vl
+        , violin2    (0.2, 1) flow Alto       r k vl
+        , viola      (0.3, 1) flow Tenor      r k vl
+        , cello      (0, 1)   grid Bass       r k vl
+        , contrabass (0, 1)   grid Bass8vb    r k vl
+    ] |* vel (kDynamic k) |* vel d
+
+-- Percussion: timpani march pulse
+marchPerc f r k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass = "0"
+        }
+  f
+    $ stack [silence
+        , timpani (0, 1) grid Bass    r k vl
+    ] |* vel (kDynamic k) |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    r = warp "[1 2 3 4]/4"
+    f = id
+    d = (* 1)
+    k = formK tempo form
+  putStrLn "ORPHEUS — III. Dance of the Angel of Death"
+  mapM_ id [hush, setbpm tempo
+    ,angel     f r k  $ d 0.9
+    ,marchStrg f r k  $ d 0.8
+    ,marchPerc f r k  $ d 0.7
+    ]
+
+hush''

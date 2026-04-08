@@ -1,0 +1,99 @@
+-- ============================================================================
+-- II. AIR DE DANSE
+-- ============================================================================
+--
+-- From the myth: Before descending to the underworld, Orpheus dances alone --
+-- a solitary expression of resolve and memory. The dance is not joyful but
+-- measured, a neoclassical exercise in form that barely contains the emotional
+-- turmoil beneath.
+--
+-- Stravinsky writes a balanced, classical melody carried by solo violin and
+-- flute over pizzicato string accompaniment. The harp is notably absent --
+-- Orpheus is dancing, not playing his lyre. As the movement progresses, the
+-- melody fragments and the rhythm becomes erratic (internal instability
+-- breaking through classical decorum). The dance theme passes between voices
+-- in development, undergoes rhythmic augmentation (heavier as the reality
+-- of his task dawns), and recapitulates in a darker register (sul G, muted,
+-- veiled). The coda trails off unresolved -- the shadow of the Underworld
+-- approaches.
+--
+-- The movement functions as a bridge between static grief and supernatural
+-- action. Its neoclassical balance gradually erodes, foreshadowing the chaos
+-- to come.
+--
+-- Reimagination: F major starting point with flat-key area. Moderate entropy
+-- for neoclassical balance with room for fragmentation. Mozart/Bach blend
+-- for classical poise. String-dominant chamber texture with pizzicato bass.
+-- Winds enter at higher kinetics as the texture thickens.
+-- ============================================================================
+
+tempo = 72
+
+start <- lead "F maj"
+
+let ctx = hcKey "1b"
+        $ hContext
+
+s <- seek "mozart:50 bach:50" $ cue start $ tonal ctx $ len 8 $ entropy 0.35 $ gen
+
+-- Form: ~209s loop (199s music + 10s silence)
+-- Arc: classical balance -> fragmentation -> development -> heavier -> darker -> unresolved
+form =
+  [ at    0    0.0   0.0   s     -- silence
+  , at    5    0.4   0.4   s     -- solo melody emerges, chamber texture
+  , at   32    0.45  0.5   s     -- melody fragments, winds enter
+  , at   62    0.5   0.5   s     -- development: voices exchange material
+  , at   92    0.4   0.4   s     -- augmentation: heavier, slower
+  , at  122    0.3   0.3   s     -- recapitulation: darker register
+  , at  152    0.2   0.2   s     -- coda trails off
+  , at  199    0.0   0.0   s     -- fade
+  , at  209    0.0   0.0   s     -- silence gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- String chamber ensemble: the dance
+danceStrg f r k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0]/4"
+        , alto    = "[1 2 3 1]/4"
+        , tenor   = "[2 1 0 2]/4"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , violin1 (0, 1)   flow Soprano    r k vl
+        , violin2 (0, 1)   flow Alto       r k vl
+        , viola   (0, 1)   flow Tenor      r k vl
+        , cello   (0, 1)   grid Bass       r k vl # pizz
+    ] |* vel (kDynamic k) |* vel d
+
+-- Winds enter to thicken texture in development
+danceWind f r k d = p "wind" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1]/4"
+        , alto    = "[1 0 2 1]/4"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , flute   (0.3, 1) flow Soprano    r k vl
+        , clarinet(0.3, 1) flow Alto       r k vl
+        , bassoon (0.3, 1) flow Bass       r k vl
+    ] |* vel (kDynamic k) |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    r = rep s 1
+    f = id
+    d = (* 1)
+    k = formK tempo form
+  putStrLn "ORPHEUS — II. Air de danse"
+  mapM_ id [hush, setbpm tempo
+    ,danceStrg f r k  $ d 0.8
+    ,danceWind f r k  $ d 0.7
+    ]
+
+hush''

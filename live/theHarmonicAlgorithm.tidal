@@ -1,0 +1,645 @@
+-- theHarmonicAlgorithm.tidal
+-- ============================================================================
+-- THE HARMONIC ALGORITHM: COMPREHENSIVE EXAMPLES CATALOGUE
+-- ============================================================================
+-- Source: "The Harmonic Algorithm" (South, 2016) — MA thesis
+-- Audio Examples 3-66: Overtone harmonic exercises on the Electric
+-- Contrabass Cittern (E A e G B) in three focus keys: D, G, C major
+--
+-- Usage:
+--   s = prog ex45                    -- any [[Int]] example → Progression
+--   s = prog (replicate 4 ex03)      -- scale → repeated Progression
+--
+-- Table of Contents:
+--   Section 1: Key Signatures            (Audio 3-8)
+--   Section 2: Pentatonic Scales         (Audio 9-13)
+--   Section 3: Diatonic Arpeggios        (Audio 14-26)
+--   Section 4: Chord Scales by Seconds   (Audio 27-32)
+--   Section 5: Movement by Thirds        (Audio 33-38)
+--   Section 6: Movement by Fourths       (Audio 39-44)
+--   Section 7: ii-V-I Cadences           (Audio 45-55)
+--   Section 8: Diminished Resolutions    (Audio 56-66)
+-- ============================================================================
+
+-- ============================================================================
+-- SECTION 1: KEY SIGNATURES (Audio 3-8)
+-- Source: Section Three — Key Signatures, p.39
+-- Audio 3-5: Natural harmonics only (available overtone pitches)
+-- Audio 6-8: With supplementary artificial harmonics (complete scales)
+-- Performed descending through the instrument's range
+-- ============================================================================
+
+-- Audio 3/6: Key of D Major — D E F# G A B C#
+ex03 :: [Int]
+ex03 = [2, 4, 6, 7, 9, 11, 1]
+
+-- Audio 4/7: Key of G Major — G A B C D E F#
+ex04 :: [Int]
+ex04 = [7, 9, 11, 0, 2, 4, 6]
+
+-- Audio 5/8: Key of C Major — C D E F G A B
+ex05 :: [Int]
+ex05 = [0, 2, 4, 5, 7, 9, 11]
+
+-- ============================================================================
+-- SECTION 2: PENTATONIC SCALES (Audio 9-13)
+-- Source: Section Three — Further Fundamentals, p.41
+-- Five pentatonic scales spanning the three focus keys
+-- Three major/minor pairs plus two from neighbouring keys
+-- ============================================================================
+
+-- Audio 9: D Major / B Minor pentatonic — D E F# A B
+ex09 :: [Int]
+ex09 = [2, 4, 6, 9, 11]
+
+-- Audio 10: G Major / E Minor pentatonic — G A B D E
+ex10 :: [Int]
+ex10 = [7, 9, 11, 2, 4]
+
+-- Audio 11: C Major / A Minor pentatonic — C D E G A
+ex11 :: [Int]
+ex11 = [0, 2, 4, 7, 9]
+
+-- Audio 12: A Major / F# Minor pentatonic — A B C# E F#
+ex12 :: [Int]
+ex12 = [9, 11, 1, 4, 6]
+
+-- Audio 13: F Major / D Minor pentatonic — F G A C D
+ex13 :: [Int]
+ex13 = [5, 7, 9, 0, 2]
+
+-- ============================================================================
+-- SECTION 3: DIATONIC ARPEGGIOS (Audio 14-26)
+-- Source: Section Three — Further Fundamentals, pp.42-44
+-- All diatonic triads from D, G, C major as individual arpeggios
+-- Performed descending using natural and artificial harmonics
+-- ============================================================================
+
+-- Audio 14: D Major arpeggio
+ex14 :: [Int]
+ex14 = notesToPCs [D, F', A]
+
+-- Audio 15: D Minor arpeggio
+ex15 :: [Int]
+ex15 = notesToPCs [D, F, A]
+
+-- Audio 16: E Minor arpeggio
+ex16 :: [Int]
+ex16 = notesToPCs [E, G, B]
+
+-- Audio 17: F# Minor arpeggio
+ex17 :: [Int]
+ex17 = notesToPCs [F', A, C']
+
+-- Audio 18: F# Diminished arpeggio
+ex18 :: [Int]
+ex18 = notesToPCs [F', A, C]
+
+-- Audio 19: F Major arpeggio
+ex19 :: [Int]
+ex19 = notesToPCs [F, A, C]
+
+-- Audio 20: G Major arpeggio
+ex20 :: [Int]
+ex20 = notesToPCs [G, B, D]
+
+-- Audio 21: A Major arpeggio
+ex21 :: [Int]
+ex21 = notesToPCs [A, C', E]
+
+-- Audio 22: A Minor arpeggio
+ex22 :: [Int]
+ex22 = notesToPCs [A, C, E]
+
+-- Audio 23: B Minor arpeggio
+ex23 :: [Int]
+ex23 = notesToPCs [B, D, F']
+
+-- Audio 24: B Diminished arpeggio
+ex24 :: [Int]
+ex24 = notesToPCs [B, D, F]
+
+-- Audio 25: C# Diminished arpeggio
+ex25 :: [Int]
+ex25 = notesToPCs [C', E, G]
+
+-- Audio 26: C Major arpeggio
+ex26 :: [Int]
+ex26 = notesToPCs [C, E, G]
+
+-- ============================================================================
+-- SECTION 4: CHORD SCALES BY SECONDS (Audio 27-32)
+-- Source: Section Four — Diatonic Movement, p.47
+-- Diatonic triads moving stepwise through each key
+-- Thesis voicings include overtone extensions (add9, sus4, no5);
+-- standard triads shown here for harmonic clarity
+-- ============================================================================
+
+-- Audio 27: Diatonic Chord Scale in D (ascending)
+ex27 :: [[Int]]
+ex27 = notesToPCs <$> [
+    [D, F', A]         -- I:    D
+  , [E, G, B]          -- ii:   Em
+  , [F', A, C']        -- iii:  F#m
+  , [G, B, D]          -- IV:   G
+  , [A, C', E]         -- V:    A
+  , [B, D, F']         -- vi:   Bm
+  , [C', E, G]         -- vii°: C#dim
+  ]
+
+-- Audio 28: Diatonic Chord Scale in G (descending)
+ex28 :: [[Int]]
+ex28 = notesToPCs <$> [
+    [F', A, C]          -- vii°: F#dim
+  , [E, G, B]           -- vi:   Em
+  , [D, F', A]          -- V:    D
+  , [C, E, G]           -- IV:   C
+  , [B, D, F']          -- iii:  Bm
+  , [A, C, E]           -- ii:   Am
+  , [G, B, D]           -- I:    G
+  ]
+
+-- Audio 29: Diatonic Chord Scale in C (ascending)
+ex29 :: [[Int]]
+ex29 = notesToPCs <$> [
+    [C, E, G]           -- I:    C
+  , [D, F, A]           -- ii:   Dm
+  , [E, G, B]           -- iii:  Em
+  , [F, A, C]           -- IV:   F
+  , [G, B, D]           -- V:    G
+  , [A, C, E]           -- vi:   Am
+  , [B, D, F]           -- vii°: Bdim
+  ]
+
+-- Audio 30: Diatonic Chord Scale in D (descending)
+ex30 :: [[Int]]
+ex30 = notesToPCs <$> [
+    [C', E, G]          -- vii°: C#dim
+  , [B, D, F']          -- vi:   Bm
+  , [A, C', E]          -- V:    A
+  , [G, B, D]           -- IV:   G
+  , [F', A, C']         -- iii:  F#m
+  , [E, G, B]           -- ii:   Em
+  , [D, F', A]          -- I:    D
+  ]
+
+-- Audio 31: Diatonic Chord Scale in G (ascending)
+ex31 :: [[Int]]
+ex31 = notesToPCs <$> [
+    [G, B, D]           -- I:    G
+  , [A, C, E]           -- ii:   Am
+  , [B, D, F']          -- iii:  Bm
+  , [C, E, G]           -- IV:   C
+  , [D, F', A]          -- V:    D
+  , [E, G, B]           -- vi:   Em
+  , [F', A, C]          -- vii°: F#dim
+  ]
+
+-- Audio 32: Diatonic Chord Scale in C (descending)
+ex32 :: [[Int]]
+ex32 = notesToPCs <$> [
+    [B, D, F]            -- vii°: Bdim
+  , [A, C, E]            -- vi:   Am
+  , [G, B, D]            -- V:    G
+  , [F, A, C]            -- IV:   F
+  , [E, G, B]            -- iii:  Em
+  , [D, F, A]            -- ii:   Dm
+  , [C, E, G]            -- I:    C
+  ]
+
+-- ============================================================================
+-- SECTION 5: DIATONIC MOVEMENT BY THIRDS (Audio 33-38)
+-- Source: Section Four — Diatonic Movement, p.48
+-- Triads moving by diatonic third intervals through each key
+-- ============================================================================
+
+-- Audio 33: Movement by thirds in D (ascending)
+-- I → iii → V → vii° → ii → IV → vi
+ex33 :: [[Int]]
+ex33 = notesToPCs <$> [
+    [D, F', A]          -- I:    D
+  , [F', A, C']         -- iii:  F#m
+  , [A, C', E]          -- V:    A
+  , [C', E, G]          -- vii°: C#dim
+  , [E, G, B]           -- ii:   Em
+  , [G, B, D]           -- IV:   G
+  , [B, D, F']          -- vi:   Bm
+  ]
+
+-- Audio 34: Movement by thirds in D (descending)
+-- I → vi → IV → ii → vii° → V → iii
+ex34 :: [[Int]]
+ex34 = notesToPCs <$> [
+    [D, F', A]          -- I:    D
+  , [B, D, F']          -- vi:   Bm
+  , [G, B, D]           -- IV:   G
+  , [E, G, B]           -- ii:   Em
+  , [C', E, G]          -- vii°: C#dim
+  , [A, C', E]          -- V:    A
+  , [F', A, C']         -- iii:  F#m
+  ]
+
+-- Audio 35: Movement by thirds in G (ascending)
+-- I → iii → V → vii° → ii → IV → vi
+ex35 :: [[Int]]
+ex35 = notesToPCs <$> [
+    [G, B, D]           -- I:    G
+  , [B, D, F']          -- iii:  Bm
+  , [D, F', A]          -- V:    D
+  , [F', A, C]          -- vii°: F#dim
+  , [A, C, E]           -- ii:   Am
+  , [C, E, G]           -- IV:   C
+  , [E, G, B]           -- vi:   Em
+  ]
+
+-- Audio 36: Movement by thirds in G (descending)
+-- I → vi → IV → ii → vii° → V → iii
+ex36 :: [[Int]]
+ex36 = notesToPCs <$> [
+    [G, B, D]           -- I:    G
+  , [E, G, B]           -- vi:   Em
+  , [C, E, G]           -- IV:   C
+  , [A, C, E]           -- ii:   Am
+  , [F', A, C]          -- vii°: F#dim
+  , [D, F', A]          -- V:    D
+  , [B, D, F']          -- iii:  Bm
+  ]
+
+-- Audio 37: Movement by thirds in C (ascending)
+-- I → iii → V → vii° → ii → IV → vi
+ex37 :: [[Int]]
+ex37 = notesToPCs <$> [
+    [C, E, G]           -- I:    C
+  , [E, G, B]           -- iii:  Em
+  , [G, B, D]           -- V:    G
+  , [B, D, F]           -- vii°: Bdim
+  , [D, F, A]           -- ii:   Dm
+  , [F, A, C]           -- IV:   F
+  , [A, C, E]           -- vi:   Am
+  ]
+
+-- Audio 38: Movement by thirds in C (descending)
+-- I → vi → IV → ii → vii° → V → iii
+ex38 :: [[Int]]
+ex38 = notesToPCs <$> [
+    [C, E, G]           -- I:    C
+  , [A, C, E]           -- vi:   Am
+  , [F, A, C]           -- IV:   F
+  , [D, F, A]           -- ii:   Dm
+  , [B, D, F]           -- vii°: Bdim
+  , [G, B, D]           -- V:    G
+  , [E, G, B]           -- iii:  Em
+  ]
+
+-- ============================================================================
+-- SECTION 6: DIATONIC MOVEMENT BY FOURTHS (Audio 39-44)
+-- Source: Section Four — Diatonic Movement, p.49
+-- Triads moving by diatonic fourth intervals through each key
+-- "Fourth and fifth are very functionally important in tonal music
+--  due to the strength and character of their resolution" — thesis
+-- ============================================================================
+
+-- Audio 39: Movement by fourths in D (ascending)
+-- I → IV → vii° → iii → vi → ii → V
+ex39 :: [[Int]]
+ex39 = notesToPCs <$> [
+    [D, F', A]          -- I:    D
+  , [G, B, D]           -- IV:   G
+  , [C', E, G]          -- vii°: C#dim
+  , [F', A, C']         -- iii:  F#m
+  , [B, D, F']          -- vi:   Bm
+  , [E, G, B]           -- ii:   Em
+  , [A, C', E]          -- V:    A
+  ]
+
+-- Audio 40: Movement by fourths in D (descending)
+-- I → V → ii → vi → iii → vii° → IV
+ex40 :: [[Int]]
+ex40 = notesToPCs <$> [
+    [D, F', A]          -- I:    D
+  , [A, C', E]          -- V:    A
+  , [E, G, B]           -- ii:   Em
+  , [B, D, F']          -- vi:   Bm
+  , [F', A, C']         -- iii:  F#m
+  , [C', E, G]          -- vii°: C#dim
+  , [G, B, D]           -- IV:   G
+  ]
+
+-- Audio 41: Movement by fourths in G (ascending)
+-- I → IV → vii° → iii → vi → ii → V
+ex41 :: [[Int]]
+ex41 = notesToPCs <$> [
+    [G, B, D]           -- I:    G
+  , [C, E, G]           -- IV:   C
+  , [F', A, C]          -- vii°: F#dim
+  , [B, D, F']          -- iii:  Bm
+  , [E, G, B]           -- vi:   Em
+  , [A, C, E]           -- ii:   Am
+  , [D, F', A]          -- V:    D
+  ]
+
+-- Audio 42: Movement by fourths in G (descending)
+-- I → V → ii → vi → iii → vii° → IV
+ex42 :: [[Int]]
+ex42 = notesToPCs <$> [
+    [G, B, D]           -- I:    G
+  , [D, F', A]          -- V:    D
+  , [A, C, E]           -- ii:   Am
+  , [E, G, B]           -- vi:   Em
+  , [B, D, F']          -- iii:  Bm
+  , [F', A, C]          -- vii°: F#dim
+  , [C, E, G]           -- IV:   C
+  ]
+
+-- Audio 43: Movement by fourths in C (ascending)
+-- I → IV → vii° → iii → vi → ii → V
+ex43 :: [[Int]]
+ex43 = notesToPCs <$> [
+    [C, E, G]           -- I:    C
+  , [F, A, C]           -- IV:   F
+  , [B, D, F]           -- vii°: Bdim
+  , [E, G, B]           -- iii:  Em
+  , [A, C, E]           -- vi:   Am
+  , [D, F, A]           -- ii:   Dm
+  , [G, B, D]           -- V:    G
+  ]
+
+-- Audio 44: Movement by fourths in C (descending)
+-- I → V → ii → vi → iii → vii° → IV
+ex44 :: [[Int]]
+ex44 = notesToPCs <$> [
+    [C, E, G]           -- I:    C
+  , [G, B, D]           -- V:    G
+  , [D, F, A]           -- ii:   Dm
+  , [A, C, E]           -- vi:   Am
+  , [E, G, B]           -- iii:  Em
+  , [B, D, F]           -- vii°: Bdim
+  , [F, A, C]           -- IV:   F
+  ]
+
+-- ============================================================================
+-- SECTION 7: ii-V-I CADENCES (Audio 45-55)
+-- Source: Section Four — Cadence, pp.49-50
+-- Two-Five-One progressions resolving to every diatonic target
+-- across D, G, C major. Thesis overtone voicings use extensions
+-- (sus4, no5, add9, #9) due to instrument constraints; standard
+-- triads shown here for harmonic clarity.
+-- ============================================================================
+
+-- Audio 45: ii-V-I → D Major
+-- Thesis voicing: Em → A7 → D(Δno5)
+ex45 :: [[Int]]
+ex45 = notesToPCs <$> [
+    [E, G, B]           -- ii:  Em
+  , [A, C', E]          -- V:   A
+  , [D, F', A]          -- I:   D
+  ]
+
+-- Audio 46: ii-V-I → D Minor
+-- Thesis voicing: E(no5) → Eb7#5 → Dm
+ex46 :: [[Int]]
+ex46 = notesToPCs <$> [
+    [E, G, Bb]          -- ii°: Edim
+  , [A, C', E]          -- V:   A
+  , [D, F, A]           -- i:   Dm
+  ]
+
+-- Audio 47: ii-V-I → E Minor
+-- Thesis voicing: F#ø → B7(#5) → Em
+ex47 :: [[Int]]
+ex47 = notesToPCs <$> [
+    [F', A, C]          -- ii°: F#dim
+  , [B, D', F']         -- V:   B
+  , [E, G, B]           -- i:   Em
+  ]
+
+-- Audio 48: ii-V-I → F Major
+-- Thesis voicing: C#ø → C7(#9) → FΔ
+ex48 :: [[Int]]
+ex48 = notesToPCs <$> [
+    [G, Bb, D]          -- ii:  Gm
+  , [C, E, G]           -- V:   C
+  , [F, A, C]           -- I:   F
+  ]
+
+-- Audio 49: ii-V-I → F# Minor
+-- Thesis voicing: G#ø → C#7sus4 → F#m(no5)
+ex49 :: [[Int]]
+ex49 = notesToPCs <$> [
+    [G', B, D]          -- ii°: G#dim
+  , [C', F, G']         -- V:   C# (E# = F enharmonic)
+  , [F', A, C']         -- i:   F#m
+  ]
+
+-- Audio 50: ii-V-I → G Major
+-- Thesis voicing: Am → D → G
+ex50 :: [[Int]]
+ex50 = notesToPCs <$> [
+    [A, C, E]           -- ii:  Am
+  , [D, F', A]          -- V:   D
+  , [G, B, D]           -- I:   G
+  ]
+
+-- Audio 51: ii-V-I → A Major
+-- Thesis voicing: Bm → E7 → AΔ
+ex51 :: [[Int]]
+ex51 = notesToPCs <$> [
+    [B, D, F']          -- ii:  Bm
+  , [E, G', B]          -- V:   E
+  , [A, C', E]          -- I:   A
+  ]
+
+-- Audio 52: ii-V-I → A Minor
+-- Thesis voicing: B(no5) → E(#9no5) → Am
+ex52 :: [[Int]]
+ex52 = notesToPCs <$> [
+    [B, D, F]           -- ii°: Bdim
+  , [E, G', B]          -- V:   E
+  , [A, C, E]           -- i:   Am
+  ]
+
+-- Audio 53: ii-V-I → B Minor
+-- Thesis voicing: C#ø → F#7sus4 → Bm
+ex53 :: [[Int]]
+ex53 = notesToPCs <$> [
+    [C', E, G]          -- ii°: C#dim
+  , [F', A', C']        -- V:   F#
+  , [B, D, F']          -- i:   Bm
+  ]
+
+-- Audio 54: ii-V-I → C Major
+-- Thesis voicing: Dm → G → C
+ex54 :: [[Int]]
+ex54 = notesToPCs <$> [
+    [D, F, A]           -- ii:  Dm
+  , [G, B, D]           -- V:   G
+  , [C, E, G]           -- I:   C
+  ]
+
+-- Audio 55: ii-V-I → C# Minor
+-- Thesis voicing: D#m → G#7sus4 → C#m
+ex55 :: [[Int]]
+ex55 = notesToPCs <$> [
+    [D', F', A]         -- ii°: D#dim
+  , [G', C, D']         -- V:   G# (B# = C enharmonic)
+  , [C', E, G']         -- i:   C#m
+  ]
+
+-- ============================================================================
+-- SECTION 8: DIMINISHED RESOLUTIONS (Audio 56-66)
+-- Source: Section Four — Cadence, pp.50-51
+-- Three diminished 7th chords resolve by ascending semitone to target.
+-- "There are only three 'variations' of diminished seventh chords in
+--  existence, everything else being an inversion" — thesis
+--
+-- The three dim7 chords:
+--   Bb°7 = Bb Db E  G   (resolves → D, Dm, F, Bm via semitone above)
+--   C°7  = C  Eb Gb A   (resolves → C#m, Em, G via semitone above)
+--   F°7  = F  Ab B  D   (resolves → F#m, A, Am, C via semitone above)
+-- ============================================================================
+
+-- Audio 56: Diminished resolution → D Major
+-- Bb°7 contains Db (semitone below D)
+ex56 :: [[Int]]
+ex56 = notesToPCs <$> [
+    [Bb, Db, E, G]      -- Bb°7
+  , [D, F', A]           -- D
+  ]
+
+-- Audio 57: Diminished resolution → D Minor
+ex57 :: [[Int]]
+ex57 = notesToPCs <$> [
+    [Bb, Db, E, G]      -- Bb°7
+  , [D, F, A]            -- Dm
+  ]
+
+-- Audio 58: Diminished resolution → E Minor
+-- C°7 contains Eb (semitone below E)
+ex58 :: [[Int]]
+ex58 = notesToPCs <$> [
+    [C, Eb, Gb, A]      -- C°7
+  , [E, G, B]            -- Em
+  ]
+
+-- Audio 59: Diminished resolution → F Major
+-- Bb°7 contains E (semitone below F)
+ex59 :: [[Int]]
+ex59 = notesToPCs <$> [
+    [Bb, Db, E, G]      -- Bb°7
+  , [F, A, C]            -- F
+  ]
+
+-- Audio 60: Diminished resolution → F# Minor
+-- F°7 contains F (semitone below F#)
+ex60 :: [[Int]]
+ex60 = notesToPCs <$> [
+    [F, Ab, B, D]       -- F°7
+  , [F', A, C']          -- F#m
+  ]
+
+-- Audio 61: Diminished resolution → G Major
+-- C°7 contains Gb (semitone below G)
+ex61 :: [[Int]]
+ex61 = notesToPCs <$> [
+    [C, Eb, Gb, A]      -- C°7
+  , [G, B, D]            -- G
+  ]
+
+-- Audio 62: Diminished resolution → A Major
+-- F°7 contains Ab (semitone below A)
+ex62 :: [[Int]]
+ex62 = notesToPCs <$> [
+    [F, Ab, B, D]       -- F°7
+  , [A, C', E]           -- A
+  ]
+
+-- Audio 63: Diminished resolution → A Minor
+ex63 :: [[Int]]
+ex63 = notesToPCs <$> [
+    [F, Ab, B, D]       -- F°7
+  , [A, C, E]            -- Am
+  ]
+
+-- Audio 64: Diminished resolution → B Minor
+-- Bb°7 contains Bb (semitone below B)
+ex64 :: [[Int]]
+ex64 = notesToPCs <$> [
+    [Bb, Db, E, G]      -- Bb°7
+  , [B, D, F']           -- Bm
+  ]
+
+-- Audio 65: Diminished resolution → C Major
+-- F°7 contains B (semitone below C)
+ex65 :: [[Int]]
+ex65 = notesToPCs <$> [
+    [F, Ab, B, D]       -- F°7
+  , [C, E, G]            -- C
+  ]
+
+-- Audio 66: Diminished resolution → C# Minor
+-- C°7 contains C (semitone below C#)
+ex66 :: [[Int]]
+ex66 = notesToPCs <$> [
+    [C, Eb, Gb, A]      -- C°7
+  , [C', E, G']          -- C#m
+  ]
+
+-- ============================================================================
+-- PROGRESSION CONSTRUCTION
+-- ============================================================================
+
+-- Chord sequences (ex27-66) can be loaded directly with prog:
+--   s = prog ex45
+--
+-- Scales (ex03-05) and arpeggios (ex14-26) can be wrapped:
+--   s = prog (replicate 4 ex03)     -- 4-bar D major scale state
+--   s = prog [ex14, ex16, ex20]     -- D, Em, G arpeggio sequence
+
+-- ============================================================================
+-- PERFORMANCE INTERFACE (p07 on ch 07 — piano)
+-- ============================================================================
+
+p07 f s r d = d07 $ do
+  let o = ch 07
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,"0 1 2"                          -- triadic flow voicing
+      ]# o |* vel 0.4 |- oct 1 |= legato 4
+       -- --
+      ,arrange root (overlapF 0 s) r (-9,9) ["~"
+        ,"0"                              -- bass root
+      ]# o |* vel 0.6 |- oct 3 |= legato 0.95
+       -- --
+    ] |* vel d
+
+-- ============================================================================
+-- STATE / LAUNCH BLOCK
+-- ============================================================================
+
+-- Select example: any ex## chord sequence
+-- Try:  ex27 (D chord scale asc), ex33 (D thirds asc),
+--       ex45 (ii-V-I → D), ex56 (dim → D)
+
+tempo = 100
+
+s = prog ex45                            -- ii-V-I → D Major
+
+form = [
+  at    0   1   1   s
+  ]
+
+  -- '' ¬¬
+do
+  let
+    r = warp "0 1 2 3"
+    f = id
+    d = (* 1)
+    k = formK tempo form
+  putStrLn $ "LAUNCH ¬¬"
+  mapM_ id [hush, setbpm tempo
+    ,p07 f s r k       $ d 0.8
+   ]
+
+hush''

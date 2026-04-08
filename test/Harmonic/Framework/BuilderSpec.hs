@@ -28,7 +28,7 @@ import qualified Data.Text as T
 import Data.Text (Text)
 import Data.List (sort)
 
-import Harmonic.Framework.Builder (HarmonicContext(..), GeneratorConfig(..), defaultContext, defaultConfig, Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, inversion, TransformTrace(..), AdvanceTrace(..), StepDiagnostic(..), harmonicContext, matchesContext, parseComposersWithOrder, makePortmanteau, extractByPosition, takeFromBeginning, takeFromEnd, takeFromMiddle)
+import Harmonic.Framework.Builder (HarmonicContext(..), GeneratorConfig(..), defaultContext, defaultConfig, Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, TransformTrace(..), AdvanceTrace(..), StepDiagnostic(..), harmonicContext, matchesContext, parseComposersWithOrder, makePortmanteau, extractByPosition, takeFromBeginning, takeFromEnd, takeFromMiddle, GenConfig(..), GenMode(..), Verbosity(..), defaultGenConfig, gen, gen', gen'', genGrid, genFrom, cue, len, seek, entropy, tonal, hContext)
 import Harmonic.Framework.Builder.Core (applyDriftFilter, matchesContextWithTarget)
 import Harmonic.Framework.Builder.Types (parseContextOnce)
 import Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
@@ -36,6 +36,7 @@ import qualified Data.Map.Strict as Map
 import Harmonic.Rules.Constraints.Filter (parseOvertones, parseKey, parseFunds)
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as P
+import qualified Harmonic.Rules.Types.Progression as Prog
 
 -------------------------------------------------------------------------------
 -- Tests
@@ -743,7 +744,7 @@ spec = do
 
     describe "modifier composition" $ do
       it "all modifiers compose in any order" $ do
-        let ctx = inversion 2 $ consonant $ hcRoots "C G" $ hcKey "1#" $ hcOvertones "E A D G" $ defaultContext
+        let ctx = invSkip 2 $ consonant $ hcRoots "C G" $ hcKey "1#" $ hcOvertones "E A D G" $ defaultContext
         _hcOvertones ctx `shouldBe` "E A D G"
         _hcKey ctx `shouldBe` "1#"
         _hcRoots ctx `shouldBe` "C G"
@@ -754,15 +755,132 @@ spec = do
         let ctx = hcKey "2#" $ hcKey "1#" $ defaultContext
         _hcKey ctx `shouldBe` "2#"
 
-    describe "inversion modifier" $ do
+    describe "invSkip modifier" $ do
       it "sets inversion spacing on context" $ do
-        let ctx = inversion 3 $ defaultContext
+        let ctx = invSkip 3 $ defaultContext
         _hcInversionSpacing ctx `shouldBe` 3
 
       it "default context has inversion spacing 0" $ do
         _hcInversionSpacing defaultContext `shouldBe` 0
 
       it "composes with other modifiers" $ do
-        let ctx = inversion 2 $ dissonant $ defaultContext
+        let ctx = invSkip 2 $ dissonant $ defaultContext
         _hcInversionSpacing ctx `shouldBe` 2
         _hcDrift ctx `shouldBe` Dissonant
+
+  describe "Modifier-Based Gen API" $ do
+
+    describe "defaultGenConfig" $ do
+      it "has default len 4" $ do
+        _gcLen defaultGenConfig `shouldBe` 4
+
+      it "has default seek '*'" $ do
+        _gcSeek defaultGenConfig `shouldBe` "*"
+
+      it "has default entropy 0.2" $ do
+        _gcEntropy defaultGenConfig `shouldBe` 0.2
+
+      it "has default verbosity Silent" $ do
+        _gcVerbosity defaultGenConfig `shouldBe` Silent
+
+      it "has default tonal hContext" $ do
+        _gcTonal defaultGenConfig `shouldBe` hContext
+
+    describe "gen / gen' / gen''" $ do
+      it "gen has Silent verbosity" $ do
+        _gcVerbosity gen `shouldBe` Silent
+
+      it "gen' has Standard verbosity" $ do
+        _gcVerbosity gen' `shouldBe` Standard
+
+      it "gen'' has Verbose verbosity" $ do
+        _gcVerbosity gen'' `shouldBe` Verbose
+
+    describe "modifiers" $ do
+      it "len sets _gcLen" $ do
+        _gcLen (len 8 $ gen) `shouldBe` 8
+
+      it "entropy sets _gcEntropy" $ do
+        _gcEntropy (entropy 0.5 $ gen) `shouldBe` 0.5
+
+      it "tonal sets _gcTonal" $ do
+        let ctx = hcKey "0#" $ hContext
+        _gcTonal (tonal ctx $ gen) `shouldBe` ctx
+
+      it "cue sets _gcCue to pure state" $ do
+        let start = H.initCadenceState 0 "C" [0,4,7]
+        result <- _gcCue (cue start $ gen)
+        H.stateCadenceRoot result `shouldBe` P.C
+
+      it "modifiers compose left to right" $ do
+        let gc = entropy 0.5 $ len 8 $ gen
+        _gcLen gc `shouldBe` 8
+        _gcEntropy gc `shouldBe` 0.5
+        _gcVerbosity gc `shouldBe` Silent
+
+      it "later modifiers override earlier ones" $ do
+        let gc = len 4 $ len 8 $ gen
+        _gcLen gc `shouldBe` 4
+
+      it "full modifier chain preserves all settings" $ do
+        let start = H.initCadenceState 0 "C" [0,4,7]
+            ctx = hcKey "0#" $ hContext
+            gc = entropy 0.3 $ tonal ctx $ len 4 $ cue start $ gen'
+        _gcLen gc `shouldBe` 4
+        _gcEntropy gc `shouldBe` 0.3
+        _gcTonal gc `shouldBe` ctx
+        _gcVerbosity gc `shouldBe` Standard
+
+  describe "genGrid" $ do
+    it "has GridMode" $ do
+      case _gcMode genGrid of
+        GridMode -> pure ()
+        _ -> expectationFailure "expected GridMode"
+
+    it "len modifier works" $ do
+      _gcLen (len 8 $ genGrid) `shouldBe` 8
+
+    it "cue modifier works" $ do
+      let start = H.initCadenceState 0 "C" [0,4,7]
+      result <- _gcCue (cue start $ genGrid)
+      H.stateCadenceRoot result `shouldBe` P.C
+
+  describe "genFrom" $ do
+    it "sets FromProg mode with correct range" $ do
+      let cs = H.initCadenceState 0 "C" [0,4,7]
+          prog = Prog.fromCadenceStates [cs, cs, cs, cs]
+          gc = genFrom prog (2, 3)
+      case _gcMode gc of
+        FromProg _ s e -> do { s `shouldBe` 2; e `shouldBe` 3 }
+        _ -> expectationFailure "expected FromProg"
+
+    it "sets len to range size (non-wrapping)" $ do
+      let cs = H.initCadenceState 0 "C" [0,4,7]
+          prog = Prog.fromCadenceStates [cs, cs, cs, cs]
+      _gcLen (genFrom prog (2, 3)) `shouldBe` 2
+
+    it "sets len to range size (wrapping)" $ do
+      let cs = H.initCadenceState 0 "C" [0,4,7]
+          prog = Prog.fromCadenceStates [cs, cs, cs, cs]
+      _gcLen (genFrom prog (4, 2)) `shouldBe` 3
+
+    it "len modifier overrides range size" $ do
+      let cs = H.initCadenceState 0 "C" [0,4,7]
+          prog = Prog.fromCadenceStates [cs, cs, cs, cs]
+      _gcLen (len 8 $ genFrom prog (2, 3)) `shouldBe` 8
+
+    it "infers cue from position before start" $ do
+      let csC = H.initCadenceState 0 "C" [0,4,7]
+          csE = H.initCadenceState 0 "E" [0,4,7]
+          prog = Prog.fromCadenceStates [csC, csE, csC, csC]
+          gc = genFrom prog (3, 4)  -- cue should be position 2 (E)
+      result <- _gcCue gc
+      H.stateCadenceRoot result `shouldBe` P.E
+
+    it "infers cue wrapping to last position when start=1" $ do
+      let csC = H.initCadenceState 0 "C" [0,4,7]
+          csG = H.initCadenceState 0 "G" [0,4,7]
+          prog = Prog.fromCadenceStates [csC, csC, csC, csG]
+          gc = genFrom prog (1, 2)  -- cue should be position 4 (G)
+      result <- _gcCue gc
+      H.stateCadenceRoot result `shouldBe` P.G

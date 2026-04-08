@@ -1,0 +1,97 @@
+-- ============================================================================
+-- I. ORPHEUS WEEPS FOR EURYDICE
+-- ============================================================================
+--
+-- From the myth: Orpheus, son of Apollo and the muse Calliope, stands over the
+-- body of his wife Eurydice, killed by a serpent's bite on their wedding day.
+-- His grief is not the wild keening of Dionysian ecstasy but the measured,
+-- ritualistic sorrow of one who possesses divine musical gifts yet cannot
+-- reverse death.
+--
+-- Stravinsky opens the ballet with what he called "hieratic speech, intoned by
+-- the orchestra" -- the harp alone plays a descending Phrygian line (the Lyre
+-- motif), representing both Orpheus's instrument and his paralysed mourning.
+-- Muted strings enter as a chorale backdrop, then paired woodwinds (flute,
+-- oboe) add sighing appoggiaturas. The texture thickens to four-part
+-- counterpoint as grief transforms from shock into active longing. The Lyre
+-- motif returns, slightly altered (circularity as inescapable fate), before
+-- instruments drop away one by one until only the harp and low strings remain.
+--
+-- Stravinsky's aesthetic here is purely Apollonian: restraint over expression,
+-- form over passion. The dynamic level rarely rises above mezzo-piano.
+-- The "repressed, secretive quality" is the foundation upon which the entire
+-- ballet's emotional architecture is built.
+--
+-- Reimagination: Descending Phrygian context (D minor, Bb major key area)
+-- with falling bass motion. Low entropy for static, modal harmony. Harp as
+-- primary voice with muted strings and paired woodwinds entering via kinetics.
+-- ============================================================================
+
+tempo = 56
+
+start <- lead "D min"
+
+let ctx = consonant
+        $ hcRoots "D G A Bb fall"
+        $ hcKey "2b"
+        $ hContext
+
+s <- seek "debussy:60 bach:40" $ cue start $ tonal ctx $ len 8 $ entropy 0.2 $ gen
+
+-- Form: ~158s loop (148s music + 10s silence)
+-- Arc: emergence -> grief expands -> polyphonic longing -> restatement -> dissolution
+form =
+  [ at    0    0.0   0.0   s     -- silence: emergence from nothing
+  , at   10    0.2   0.2   s     -- harp alone, muted strings chorale
+  , at   30    0.3   0.3   s     -- woodwinds enter with paired slurs
+  , at   60    0.4   0.5   s     -- polyphonic development: shock -> longing
+  , at   90    0.3   0.3   s     -- lyre motif restatement (circularity of fate)
+  , at  120    0.2   0.2   s     -- dissolution: instruments drop away
+  , at  148    0.0   0.0   s     -- fade to nothing
+  , at  158    0.0   0.0   s     -- silence gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Harp + muted low strings: Orpheus's lyre and chorale backdrop
+lyre f r k d = p "lyre" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0]/4"
+        , alto    = "[1 0 2 1]/4"
+        , tenor   = "2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , harp       (0, 1)   flow Soprano    r k vl
+        , cello      (0.2, 1) grid Bass       r k vl
+        , contrabass (0.3, 1) grid Bass8vb    r k vl
+    ] |* vel (kDynamic k) |* vel d
+
+-- Paired woodwinds: sighing appoggiaturas over the lament
+sighs f r k d = p "sighs" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1]/4"
+        , alto    = "[1 0 1 2]/4"
+        }
+  f
+    $ stack [silence
+        , flute  (0.3, 1) flow Soprano    r k vl
+        , oboe   (0.3, 1) flow Alto       r k vl
+    ] |* vel (kDynamic k) |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    r = warp "[1 2 3 4]/8"
+    f = id
+    d = (* 1)
+    k = formK tempo form
+  putStrLn "ORPHEUS — I. Orpheus Weeps for Eurydice"
+  mapM_ id [hush, setbpm tempo
+    ,lyre  f r k  $ d 0.9
+    ,sighs f r k  $ d 0.7
+    ]
+
+hush''

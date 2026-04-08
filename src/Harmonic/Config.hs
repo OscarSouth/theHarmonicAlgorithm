@@ -1,4 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
+
+-- |
+-- Module      : Harmonic.Config
+-- Description : Connection constants and file paths for Neo4j and corpus data
+--
+-- Centralised configuration for Neo4j database connection (URI, credentials)
+-- and YCACL corpus file paths used during data ingestion.
+
 module Harmonic.Config where
 
 import Data.Text (Text)

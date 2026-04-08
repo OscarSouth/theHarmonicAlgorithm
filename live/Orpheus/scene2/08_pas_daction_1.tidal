@@ -1,0 +1,92 @@
+-- ============================================================================
+-- IX. PAS D'ACTION 1 — THE PACT
+-- ============================================================================
+--
+-- From the myth: Hades grants the request. Eurydice may return to the world
+-- of the living, but on one condition: Orpheus must not look back at her
+-- during the entire ascent. He must trust that she follows. The binding of
+-- his eyes (in Balanchine's staging) physicalises this prohibition.
+--
+-- Stravinsky writes a solemn, weighty chorale for low strings and brass --
+-- the music of divine authority. The texture is "thick, chorale-like, and
+-- dark," representing the ancient, immovable laws of the underworld. Against
+-- this, a fragile, tentative motif appears in solo woodwinds: Eurydice
+-- brought forth, hesitant but hopeful. The movement concludes with muted
+-- horns and slow pizzicato establishing a rhythmic pulse -- a heartbeat,
+-- or slow footsteps preparing for the long journey back.
+--
+-- This is the hinge of the entire drama. Everything before leads to this
+-- moment; everything after flows from it. The condition -- do not look back --
+-- is both a test of faith and a narrative engine for the catastrophe to come.
+--
+-- Reimagination: C major for solemnity and clarity. No dissonance drift (the
+-- decree is neutral, neither comforting nor threatening). Bach alone for
+-- chorale authority. Low brass + strings, with woodwinds entering tentatively.
+-- ============================================================================
+
+tempo = 60
+
+start <- lead "C maj"
+
+let ctx = hcKey "0#"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.3 $ gen
+
+-- Form: ~120s loop (110s music + 10s silence)
+-- Arc: solemn decree -> Eurydice emerges -> eyes bound -> heartbeat pulse
+form =
+  [ at    0    0.0   0.0   s     -- silence
+  , at    5    0.5   0.5   s     -- Hades speaks: solemn brass chorale
+  , at   31    0.3   0.3   s     -- Eurydice brought forth: fragile woodwinds
+  , at   61    0.2   0.2   s     -- binding of eyes: heartbeat pulse
+  , at  100    0.15  0.15  s     -- fading into the journey
+  , at  110    0.0   0.0   s     -- silence
+  , at  120    0.0   0.0   s     -- silence gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- The Decree: low strings + brass chorale (divine authority)
+decree f r k d = p "decree" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "3"
+        , alto    = "1"
+        , tenor   = "2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , cello      (0, 1)   grid Bass       r k vl
+        , contrabass (0, 1)   grid Bass8vb    r k vl
+        , horn       (0.3, 1) flow Soprano    r k vl
+        , trombone   (0.3, 1) flow Tenor      r k vl
+    ] |* vel (kDynamic k) |* vel d
+
+-- Eurydice: fragile woodwind motif
+eurydice f r k d = p "eurydice" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 . 2 . 1 .]/4"
+        , alto    = "[1 . 0 .]/4"
+        }
+  f
+    $ stack [silence
+        , flute  (0.2, 0.5) flow Soprano    r k vl
+        , oboe   (0.2, 0.5) flow Alto       r k vl
+    ] |* vel (kDynamic k) |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    r = warp "[1 2 3 4]/8"
+    f = id
+    d = (* 1)
+    k = formK tempo form
+  putStrLn "ORPHEUS — IX. Pas d'action 1 (The Pact)"
+  mapM_ id [hush, setbpm tempo
+    ,decree  f r k  $ d 0.9
+    ,eurydice f r k $ d 0.6
+    ]
+
+hush''

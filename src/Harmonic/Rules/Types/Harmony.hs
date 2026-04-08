@@ -4,19 +4,28 @@
 -- |
 -- Module      : Harmonic.Rules.Types.Harmony
 -- Description : Chord, Cadence, and their Concrete State representations
--- 
--- This module establishes the Abstract/Concrete distinction:
---   
+--
+-- This module establishes the Abstract\/Concrete distinction:
+--
 --   Abstract (transposition-invariant):
+--
 --     * 'Chord'   - A pitch structure defined by intervals from root
 --     * 'Cadence' - A movement type and target chord quality
---   
+--
 --   Concrete (rooted in pitch space):
+--
 --     * 'ChordState'   - A Chord with a specific root pitch
 --     * 'CadenceState' - A Cadence with a specific root pitch
 --
--- The 'nameFunc' chord-naming function is ported VERBATIM from legacy 
--- MusicData.hs (lines 443-479) to preserve the established naming conventions.
+-- == Academic Lineage
+--
+-- /Data Science In The Creative Process/ (South, 2018): the MusicData
+-- module's chord naming conventions (@nameFuncTriad@, @nameFuncChord@)
+-- ported verbatim from legacy MusicData.hs (lines 443-479).
+--
+-- /The Harmonic Algorithm/ (South, 2016): the concept of harmonic
+-- extrapolation categories (Simple, Complex, Impractical) which informed
+-- the chord quality taxonomy used here.
 
 module Harmonic.Rules.Types.Harmony
   ( -- * Functionality (Chord Quality)

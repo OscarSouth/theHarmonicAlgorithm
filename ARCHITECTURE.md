@@ -506,7 +506,7 @@ The `HarmonicContext` type encodes the three-filter system (src/Harmonic/Framewo
 `hContext` alone produces a chromatic default (all wildcards). Filters are applied as composable modifier functions:
 
 ```haskell
-ctx = inversion 2
+ctx = invSkip 2
     $ consonant
     $ hcRoots "C E G"
     $ hcKey "0#"
@@ -540,11 +540,11 @@ ctx = inversion 2
 | `hcRoots "..."` | Set root/bass note filter |
 | `dissonant` | Each chord must have dissonance >= current chord |
 | `consonant` | Each chord must have dissonance <= current chord |
-| `inversion N` | Minimum N non-inversions between inversions (default 0) |
+| `invSkip N` | Minimum N non-inversions between inversions (default 0) |
 
 ```haskell
 -- Combine modifiers freely:
-ctx = inversion 2 $ dissonant $ hcRoots "0# fall" $ hcKey "0#" $ hContext
+ctx = invSkip 2 $ dissonant $ hcRoots "0# fall" $ hcKey "0#" $ hContext
 ```
 
 ---

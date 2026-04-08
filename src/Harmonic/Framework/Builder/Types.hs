@@ -22,7 +22,7 @@ module Harmonic.Framework.Builder.Types
   , hcRoots
   , dissonant
   , consonant
-  , inversion
+  , invSkip
 
     -- * Configuration
   , GeneratorConfig(..)
@@ -35,6 +35,11 @@ module Harmonic.Framework.Builder.Types
     -- * Bass Direction (re-exported from Filter)
   , BassDirection(..)
 
+    -- * Generation Configuration (Modifier-Based API)
+  , Verbosity(..)
+  , GenConfig(..)
+  , GenMode(..)
+
     -- * Diagnostics Types
   , TransformTrace(..)
   , AdvanceTrace(..)
@@ -42,10 +47,12 @@ module Harmonic.Framework.Builder.Types
   , GenerationDiagnostics(..)
   ) where
 
+import           Data.List (intercalate)
 import qualified Data.IntSet as IntSet
 import qualified Data.Text as T
 import           Data.Text (Text)
 
+import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Progression as Prog
 import           Harmonic.Rules.Constraints.Filter (parseOvertones', parseKey, isWildcard, resolveRoots,
                                                      BassDirection(..), parseBassDirection, stripDirectionToken)
@@ -71,7 +78,22 @@ data HarmonicContext = HarmonicContext
   , _hcRoots            :: Text   -- ^ Filter by root notes ("*" = all)
   , _hcDrift            :: Drift  -- ^ Dissonance drift direction
   , _hcInversionSpacing :: Int    -- ^ Minimum non-inversions between inversions (default 0)
-  } deriving (Show, Eq)
+  } deriving (Eq)
+
+instance Show HarmonicContext where
+  show ctx = intercalate " | " $ filter (not . null)
+    [ "overtones " ++ T.unpack (_hcOvertones ctx)
+    , "key " ++ T.unpack (_hcKey ctx)
+    , "roots " ++ T.unpack (_hcRoots ctx)
+    , driftStr (_hcDrift ctx)
+    , invStr (_hcInversionSpacing ctx)
+    ]
+    where
+      driftStr Free      = ""
+      driftStr Dissonant = "drift dissonant"
+      driftStr Consonant = "drift consonant"
+      invStr 0 = ""
+      invStr n = "inv skip " ++ show n
 
 -- |Constructor for HarmonicContext.
 --
@@ -93,7 +115,7 @@ harmonicContext o k r = HarmonicContext o k r Free 0
 -- Use modifier functions to constrain the context:
 --
 -- @
--- ctx = inversion 2
+-- ctx = invSkip 2
 --     $ consonant
 --     $ hcRoots "C E G"
 --     $ hcKey "0#"
@@ -149,13 +171,13 @@ consonant ctx = ctx { _hcDrift = Consonant }
 
 -- |Set minimum number of non-inversion states between inversions.
 --
--- @inversion 0@ allows inversions at any step (default, current behaviour).
--- @inversion 1@ requires at least 1 non-inversion between inversions.
--- @inversion 2@ requires at least 2 non-inversions between inversions.
+-- @invSkip 0@ allows inversions at any step (default, current behaviour).
+-- @invSkip 1@ requires at least 1 non-inversion between inversions.
+-- @invSkip 2@ requires at least 2 non-inversions between inversions.
 -- The starting state counts toward the counter (a non-inversion start
--- means the first generated step may already be an inversion with @inversion 1@).
-inversion :: Int -> HarmonicContext -> HarmonicContext
-inversion n ctx = ctx { _hcInversionSpacing = n }
+-- means the first generated step may already be an inversion with @invSkip 1@).
+invSkip :: Int -> HarmonicContext -> HarmonicContext
+invSkip n ctx = ctx { _hcInversionSpacing = n }
 
 -------------------------------------------------------------------------------
 -- Generator Configuration
@@ -211,6 +233,36 @@ parseContextOnce ctx =
     , pcDrift              = _hcDrift ctx
     , pcInversionSpacing   = _hcInversionSpacing ctx
     }
+
+-------------------------------------------------------------------------------
+-- Generation Configuration (Modifier-Based API)
+-------------------------------------------------------------------------------
+
+-- |Verbosity level for generation output.
+data Verbosity = Silent | Standard | Verbose deriving (Show, Eq)
+
+-- |Generation mode.
+data GenMode
+  = Fresh                                      -- ^ Standard gen (new progression)
+  | FromProg Prog.Progression !Int !Int        -- ^ Regenerate range in existing
+  | GridMode                                    -- ^ Static repetition of cue chord
+
+-- |Configuration for the modifier-based generation API.
+--
+-- Built via modifier chains:
+--
+-- @
+-- s <- seek "*" $ cue start $ tonal ctx $ len 4 $ entropy 0.3 $ gen
+-- @
+data GenConfig = GenConfig
+  { _gcCue       :: IO H.CadenceState  -- ^ Starting state (default: random)
+  , _gcLen       :: Int                 -- ^ Number of chords (default: 4)
+  , _gcSeek      :: String              -- ^ Composer blend string (default: "*")
+  , _gcEntropy   :: Double              -- ^ Gamma shape parameter (default: 0.2)
+  , _gcTonal     :: HarmonicContext     -- ^ R constraints (default: hContext)
+  , _gcVerbosity :: Verbosity           -- ^ Output level (default: Silent)
+  , _gcMode      :: GenMode             -- ^ Generation mode (default: Fresh)
+  }
 
 -------------------------------------------------------------------------------
 -- Diagnostics Types

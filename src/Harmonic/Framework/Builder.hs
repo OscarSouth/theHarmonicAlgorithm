@@ -1,13 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 -- |
--- Module      : Harmonic.Core.Builder
+-- Module      : Harmonic.Framework.Builder
 -- Description : Generative engine for harmonic progressions with unified diagnostics interface
 --
 -- This module implements the main generation loop that connects:
+--
 --   * R (Rules): HarmonicContext constraints via Filter module
 --   * E (Evaluation): Database-derived composer probabilities
 --   * T (Traversal): Voice leading optimization
+--
+-- == Academic Lineage
+--
+-- /Data Science In The Creative Process/ (South, 2018): Wiggins' Creative
+-- Systems Framework \<R,T,E\> as the architectural blueprint. The Builder
+-- orchestrates the R→E→T pipeline where R constrains the search space,
+-- E scores candidates via database-derived probabilities, and T selects
+-- via gamma-distributed probabilistic traversal.
 --
 -- == Unified Generation Interface
 --
@@ -87,21 +96,44 @@
 -- * Wildcard: @"*"@ (all roots)
 
 module Harmonic.Framework.Builder
-  ( -- * Generation
-    generate
-  , generateWith
+  ( -- * Modifier-Based Generation API
+    gen
+  , gen'
+  , gen''
+  , genGrid
+  , genFrom
 
-    -- * Generation with Diagnostics (Verbosity 1)
+    -- * Generation Modifiers
+  , cue
+  , len
+  , seek
+  , entropy
+  , tonal
+
+    -- * Generation Configuration
+  , GenConfig(..)
+  , GenMode(..)
+  , Verbosity(..)
+  , defaultGenConfig
+  , execGenConfig
+
+    -- * Positional Generation (legacy/internal)
+  , generate
+  , generateWith
+  , genWith
+
+    -- * Positional Generation with Diagnostics
   , generate'
   , genWith'
-  , gen'
-
-    -- * Generation with Max Diagnostics (Verbosity 2)
   , generate''
   , genWith''
-  , gen''
 
-    -- * Unified Interface (same return type, diagnostics printed as side effect)
+    -- * Positional Generation with Print Output
+  , genPrint
+  , genPrint'
+  , genPrint''
+
+    -- * Unified Positional Interface
   , genSilent
   , genSilent'
   , genStandard
@@ -129,7 +161,7 @@ module Harmonic.Framework.Builder
   , hcRoots
   , dissonant
   , consonant
-  , inversion
+  , invSkip
 
     -- * Configuration
   , GeneratorConfig(..)
@@ -144,10 +176,6 @@ module Harmonic.Framework.Builder
   , takeFromEnd
   , takeFromMiddle
   , printHeader
-
-    -- * String-friendly generation (for TidalCycles)
-  , gen
-  , genWith
   ) where
 
 import qualified Database.Bolt as Bolt
@@ -155,13 +183,16 @@ import qualified Data.Text as T
 import           Data.Text (Text)
 import           Control.Monad (forM_, when)
 import           Data.List (intercalate)
-import           System.Random.MWC (createSystemRandom)
+import           System.Random.MWC (createSystemRandom, uniformRM)
 
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as P
 import qualified Harmonic.Rules.Types.Progression as Prog
 import           Harmonic.Rules.Import.Graph (connectNeo4j)
 import qualified Harmonic.Evaluation.Database.Query as Q
+import           Harmonic.Rules.Constraints.Filter (parseTuningNamed, isWildcard)
+import           Harmonic.Rules.Constraints.Overtone (formatOvertoneAnnotation)
+import           Data.Foldable (toList)
 
 -- Sub-module imports
 import           Harmonic.Framework.Builder.Types
@@ -201,15 +232,9 @@ generate start len composerStr entropy context =
 -- String-Friendly Generation (TidalCycles Interface)
 -------------------------------------------------------------------------------
 
--- |String-friendly generate for TidalCycles live coding.
--- Avoids Stringy Text conflicts in the REPL.
--- Prints only the progression grid with header (matching legacy chainCadence behavior).
---
--- Example:
---   let start = initCadenceState 0 "C" [0,4,7] FlatSpelling
---   prog <- gen start 8 "debussy stravinsky" 1.0 defaultContext
-gen :: H.CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Prog.Progression
-gen start len composerStr entropy ctx = do
+-- |Positional generate with header + grid output (internal).
+genPrint :: H.CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Prog.Progression
+genPrint start len composerStr entropy ctx = do
   (prog, _diag) <- generate' start len composerStr entropy ctx
   putStrLn ""
   printHeader (T.pack composerStr) entropy ctx
@@ -241,13 +266,13 @@ generateWith config start len composerStr entropy context = do
       pctx = parseContextOnce context
 
   -- Create single RNG for entire generation run
-  gen <- createSystemRandom
+  rng <- createSystemRandom
 
   -- Connect to Neo4j
   pipe <- connectNeo4j
 
   -- Generate the cadence chain (len-1 steps since start counts as first chord)
-  chain <- Bolt.run pipe $ buildChain config gen entropy context pctx composerWeights start (len - 1)
+  chain <- Bolt.run pipe $ buildChain config rng entropy context pctx composerWeights start (len - 1)
 
   Bolt.close pipe
 
@@ -272,18 +297,24 @@ generate' :: H.CadenceState -> Int -> String -> Double -> HarmonicContext
 generate' start len composerStr entropy ctx =
   genWith' defaultConfig start len composerStr entropy ctx
 
--- |String-friendly generation with compact musical summary (for TidalCycles live coding).
---
--- Prints a concise summary showing the musical journey through the progression:
---   * Starting point and parameters
---   * Each step: movement, selected chord, source (graph/fallback)
---   * Final progression grid
---
--- Returns just the progression (not tuple) for clean REPL output.
-gen' :: H.CadenceState -> Int -> String -> Double -> HarmonicContext
-     -> IO Prog.Progression
-gen' start len composerStr entropy ctx = do
+-- |Positional generate with compact musical summary (internal).
+genPrint' :: H.CadenceState -> Int -> String -> Double -> HarmonicContext
+          -> IO Prog.Progression
+genPrint' start len composerStr entropy ctx = do
   (prog, diag) <- generate' start len composerStr entropy ctx
+
+  -- Parse tuning for overtone annotation (only when non-wildcard)
+  let tuningNames = parseTuningNamed (_hcOvertones ctx)
+      hasAnnotation = not (null tuningNames)
+      allStates = toList (Prog.unProgression (gdProgression diag))
+      -- Compute absolute pitch classes and format annotation for a CadenceState
+      annotateState cs =
+        let rootPC = P.unPitchClass (P.pitchClass (H.stateCadenceRoot cs))
+            intervals = map P.unPitchClass (H.cadenceIntervals (H.stateCadence cs))
+            absPitches = map (\i -> (i + rootPC) `mod` 12) intervals
+            spelling = H.stateSpelling cs
+            pcName pc = show (H.enharmonicFunc spelling (P.mkPitchClass pc))
+        in formatOvertoneAnnotation tuningNames absPitches pcName
 
   -- Print compact summary
   putStrLn ""
@@ -293,6 +324,10 @@ gen' start len composerStr entropy ctx = do
 
   -- Show starting state as bar 1
   putStrLn $ "  1: " ++ gdStartRoot diag ++ " " ++ gdStartCadence diag ++ " [starting state]"
+  when (hasAnnotation && not (null allStates)) $ do
+    let annotation = annotateState (head allStates)
+    when (not (null annotation)) $
+      putStrLn $ "     " ++ annotation
   putStrLn ""
 
   -- Show each step with bar number = stepNumber + 1
@@ -329,6 +364,15 @@ gen' start len composerStr entropy ctx = do
       let candNames = [renderCandidateName name | (name, _) <- topCands]
           candStr = intercalate " | " candNames
       putStrLn $ "     Options: " ++ candStr
+
+    -- Overtone annotation (when tuning is specified)
+    when hasAnnotation $ do
+      let stateIdx = barNum - 1  -- 0-indexed into allStates
+      when (stateIdx >= 0 && stateIdx < length allStates) $ do
+        let annotation = annotateState (allStates !! stateIdx)
+        when (not (null annotation)) $
+          putStrLn $ "     " ++ annotation
+
     putStrLn ""
 
   putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -348,13 +392,13 @@ genWith' config start len composerStr entropy context = do
       pctx = parseContextOnce context
 
   -- Create single RNG for entire generation run
-  gen <- createSystemRandom
+  rng <- createSystemRandom
 
   -- Connect to Neo4j
   pipe <- connectNeo4j
 
   -- Generate the cadence chain with diagnostics
-  (chain, stepDiags) <- Bolt.run pipe $ buildChainWithDiag config gen entropy context pctx composerWeights start (len - 1)
+  (chain, stepDiags) <- Bolt.run pipe $ buildChainWithDiag config rng entropy context pctx composerWeights start (len - 1)
 
   Bolt.close pipe
 
@@ -391,17 +435,10 @@ generate'' :: H.CadenceState -> Int -> String -> Double -> HarmonicContext
 generate'' start len composerStr entropy ctx =
   genWith'' defaultConfig start len composerStr entropy ctx
 
--- |String-friendly generation with verbose traces (for TidalCycles live coding).
---
--- Prints detailed transform and advance traces for debugging:
---   * Per-step: movement, posterior root, rendered chord
---   * Transform trace: DB intervals → transposed → computed name (verification)
---   * Advance trace: PC arithmetic for root motion
---
--- Returns just the progression (not tuple) for clean REPL output.
-gen'' :: H.CadenceState -> Int -> String -> Double -> HarmonicContext
-      -> IO Prog.Progression
-gen'' start len composerStr entropy ctx = do
+-- |Positional generate with verbose traces (internal).
+genPrint'' :: H.CadenceState -> Int -> String -> Double -> HarmonicContext
+           -> IO Prog.Progression
+genPrint'' start len composerStr entropy ctx = do
   (prog, diag) <- generate'' start len composerStr entropy ctx
 
   -- Print verbose summary
@@ -470,13 +507,13 @@ genWith'' config start len composerStr entropy context = do
       pctx = parseContextOnce context
 
   -- Create single RNG for entire generation run
-  gen <- createSystemRandom
+  rng <- createSystemRandom
 
   -- Connect to Neo4j
   pipe <- connectNeo4j
 
   -- Generate the cadence chain with max diagnostics (verbosity = 2)
-  (chain, stepDiags) <- Bolt.run pipe $ buildChainWithDiagV config gen 2 entropy context pctx composerWeights start (len - 1)
+  (chain, stepDiags) <- Bolt.run pipe $ buildChainWithDiagV config rng 2 entropy context pctx composerWeights start (len - 1)
 
   Bolt.close pipe
 
@@ -537,3 +574,141 @@ genVerbose' config start len composerStr entropy ctx = do
   (prog, diag) <- genWith'' config start len composerStr entropy ctx
   printDiagnostics 2 diag
   pure prog
+
+-------------------------------------------------------------------------------
+-- Modifier-Based Generation API
+-------------------------------------------------------------------------------
+
+-- |Execute a 'GenConfig', producing a progression.
+execGenConfig :: GenConfig -> IO Prog.Progression
+execGenConfig gc = do
+  start <- _gcCue gc
+  case _gcMode gc of
+    Fresh -> case _gcVerbosity gc of
+      Silent   -> genPrint   start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
+      Standard -> genPrint'  start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
+      Verbose  -> genPrint'' start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
+
+    GridMode -> do
+      let grid = Prog.fromCadenceStates (replicate (_gcLen gc) start)
+      putStrLn ""
+      print grid
+      putStrLn ""
+      pure grid
+
+    FromProg srcProg s e -> do
+      -- Generate _gcLen+1 chords (cue + new), then drop cue
+      fullProg <- generateWith defaultConfig start
+                    (_gcLen gc + 1) (T.pack $ _gcSeek gc)
+                    (_gcEntropy gc) (_gcTonal gc)
+      let newChords = tail $ toList $ Prog.unProgression fullProg
+          result = Prog.spliceProgression srcProg s e newChords
+      putStrLn ""
+      printHeader (T.pack $ _gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
+      print result
+      putStrLn ""
+      pure result
+
+-- |Default generation configuration.
+--
+-- @
+-- cue:     random root, major triad
+-- len:     4
+-- seek:    "*" (all composers)
+-- entropy: 0.2
+-- tonal:   hContext (chromatic)
+-- @
+defaultGenConfig :: GenConfig
+defaultGenConfig = GenConfig
+  { _gcCue       = defaultCue
+  , _gcLen       = 4
+  , _gcSeek      = "*"
+  , _gcEntropy   = 0.2
+  , _gcTonal     = hContext
+  , _gcVerbosity = Silent
+  , _gcMode      = Fresh
+  }
+  where
+    defaultCue = do
+      rng <- createSystemRandom
+      rootIdx <- uniformRM (0 :: Int, 11) rng
+      let rootName = H.enharmonicFunc H.FlatSpelling (P.mkPitchClass rootIdx)
+      pure $ H.initCadenceState 0 (show rootName) [0, 4, 7]
+
+-- |Generation config with header + grid output (default).
+--
+-- @
+-- s <- seek "*" $ gen
+-- s <- seek "*" $ cue start $ tonal ctx $ len 4 $ entropy 0.3 $ gen
+-- @
+gen :: GenConfig
+gen = defaultGenConfig
+
+-- |Generation config with compact musical summary.
+gen' :: GenConfig
+gen' = defaultGenConfig { _gcVerbosity = Standard }
+
+-- |Generation config with verbose diagnostic traces.
+gen'' :: GenConfig
+gen'' = defaultGenConfig { _gcVerbosity = Verbose }
+
+-- |Static grid: repeats the cue chord for 'len' bars. No database access.
+--
+-- @s <- seek "*" $ cue start $ len 4 $ genGrid@
+genGrid :: GenConfig
+genGrid = defaultGenConfig { _gcMode = GridMode }
+
+-- |Regenerate a range of bars within an existing progression.
+-- The cue is inferred from the bar before the start position (wrapping).
+--
+-- @s' <- seek "*" $ entropy 0.3 $ genFrom s (2,3)@
+-- @s' <- seek "*" $ cue start $ genFrom s (2,3)   -- override inferred cue@
+-- @s' <- seek "*" $ len 6 $ genFrom s (2,3)        -- expand range@
+genFrom :: Prog.Progression -> (Int, Int) -> GenConfig
+genFrom prog (s, e) = defaultGenConfig
+  { _gcCue  = inferCue
+  , _gcLen  = rSize
+  , _gcMode = FromProg prog s e
+  }
+  where
+    n = Prog.progLength prog
+    rSize = if s <= e then e - s + 1 else n - s + 1 + e
+    cuePos = ((s - 2) `mod` n) + 1  -- 1-indexed, wraps to N when s=1
+    inferCue = case Prog.getCadenceState prog cuePos of
+      Just cs -> pure cs
+      Nothing -> _gcCue defaultGenConfig
+
+-------------------------------------------------------------------------------
+-- Generation Modifiers
+-------------------------------------------------------------------------------
+
+-- |Set starting state.
+--
+-- @s <- seek "*" $ cue start $ gen@
+cue :: H.CadenceState -> GenConfig -> GenConfig
+cue start gc = gc { _gcCue = pure start }
+
+-- |Set progression length (number of chords).
+--
+-- @s <- seek "*" $ len 8 $ gen@
+len :: Int -> GenConfig -> GenConfig
+len n gc = gc { _gcLen = n }
+
+-- |Set composer blend and execute. Terminal modifier — produces IO Progression.
+--
+-- @s <- seek "*" $ gen@
+-- @s <- seek "bach:70 debussy:30" $ cue start $ len 4 $ gen@
+seek :: String -> GenConfig -> IO Prog.Progression
+seek s gc = execGenConfig gc { _gcSeek = s }
+
+-- |Set entropy (gamma shape parameter). Higher values = more unusual choices.
+--
+-- @s <- seek "*" $ entropy 0.5 $ gen@
+entropy :: Double -> GenConfig -> GenConfig
+entropy e gc = gc { _gcEntropy = e }
+
+-- |Set harmonic context (R constraints).
+--
+-- @s <- seek "*" $ tonal (hcKey "0#" $ hContext) $ gen@
+tonal :: HarmonicContext -> GenConfig -> GenConfig
+tonal ctx gc = gc { _gcTonal = ctx }

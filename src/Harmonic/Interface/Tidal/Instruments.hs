@@ -1,5 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE FlexibleContexts #-}
+
+-- |
+-- Module      : Harmonic.Interface.Tidal.Instruments
+-- Description : MIDI channel routing and instrument shorthand for TidalCycles
+--
+-- Provides channel-assignment helpers (@p10@..@p16@, @ch@) and instrument
+-- launchers (@wind@, @strg@, @brss@, @perc@, etc.) that combine MIDI
+-- routing with form-driven kinetics for live performance.
+
 module Harmonic.Interface.Tidal.Instruments where
 
 import Sound.Tidal.Context

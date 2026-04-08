@@ -1,0 +1,139 @@
+-- ============================================================================
+-- X. PAS DE DEUX — THE RETURN & THE FATAL LOOK
+-- ============================================================================
+--
+-- From the myth: Orpheus and Eurydice begin the long ascent from the
+-- underworld. He walks ahead, blindfolded, trusting that she follows.
+-- The journey is smooth at first, but doubt creeps in. Is she really there?
+-- The psychological tension escalates as Orpheus's resolve weakens.
+-- Eurydice pleads, struggles. The long seamless melody from the beginning
+-- of the movement shatters. Time dilates. He tears the bandage from his
+-- eyes. He looks. The pact is broken. A moment of horrific clarity as
+-- Eurydice falls back into the underworld forever.
+--
+-- This is the longest movement in the ballet and its dramatic climax.
+-- Stravinsky builds through "polyphonic but not dynamic intensity" -- the
+-- texture becomes denser, not louder, until the final catastrophe. Violins
+-- and cellos in octaves play "a seamless legato line" over "slow, walking
+-- bass pizzicato." Woodwinds interject with "short, fragmented phrases."
+-- The harmony becomes "more chromatic and wandering." Strings split into
+-- divisi. The violins "climb higher on the E string" while the bass drops
+-- out, leaving the texture "suspended and precarious." Then: "a massive,
+-- dissonant tutti chord" -- the look -- followed by "a precipitous drop
+-- in instrumentation." Dynamic level leaps to 1.0 then crashes to 0.1.
+--
+-- Reimagination: Two progressions. sReturn (A minor, C major area) with
+-- dissonance drift building through the journey. sLook (F# diminished,
+-- chromatic) for the catastrophe. Entropy rises through the movement.
+-- String legato journey with winds entering via kinetics. The fatal moment
+-- uses grid voicing on all instruments for maximum impact.
+-- ============================================================================
+
+tempo = 72
+
+startReturn <- lead "A min"
+startLook   <- lead "F# dim"
+
+let ctxReturn = dissonant
+              $ hcKey "0#"
+              $ hContext
+
+let ctxLook = dissonant
+            $ hcKey "*"
+            $ hContext
+
+sReturn <- seek "debussy:50 stravinsky:50" $ cue startReturn $ tonal ctxReturn $ len 8 $ entropy 0.4 $ gen
+sLook   <- seek "stravinsky" $ cue startLook $ tonal ctxLook $ len 4 $ entropy 0.8 $ gen
+
+-- Form: ~326s loop (316s music + 10s silence)
+-- Arc: steady journey -> doubt -> chromaticism -> divisi -> ascent -> struggle ->
+--      melody shatters -> deceleration -> THE LOOK (1.0) -> collapse (0.1) -> void
+form =
+  [ at    0    0.0   0.0   sReturn  -- silence
+  , at    5    0.3   0.3   sReturn  -- journey begins: legato strings, walking bass
+  , at   31    0.4   0.4   sReturn  -- Eurydice's presence: breathless fragments
+  , at   61    0.5   0.5   sReturn  -- doubt: chromatic wandering
+  , at   91    0.55  0.6   sReturn  -- tension: divisi strings, density increases
+  , at  121    0.6   0.6   sReturn  -- ascent: violins climb, bass drops out
+  , at  151    0.65  0.7   sReturn  -- Eurydice struggles: erratic rhythm
+  , at  181    0.7   0.7   sReturn  -- resolve weakens: melody shatters
+  , at  211    0.8   0.8   sReturn  -- climax of internal struggle
+  -- The Fatal Moment
+  , at  241    0.9   0.9   sLook    -- massive deceleration: brass swells
+  , at  265    1.0   1.0   sLook    -- HE LOOKS: dissonant tutti chord
+  , at  270    0.1   0.1   sLook    -- instant collapse: precipitous drop
+  , at  290    0.05  0.05  sLook    -- void
+  , at  316    0.0   0.0   sLook    -- silence
+  , at  326    0.0   0.0   sLook    -- silence gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- The Journey: seamless legato strings with walking bass
+journey f r k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0]/4"
+        , alto    = "[1 2 3 1]/4"
+        , tenor   = "[2 0 1 2]/4"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , violin1    (0, 1) flow Soprano    r k vl
+        , violin2    (0, 1) flow Alto       r k vl
+        , viola      (0.3, 1) flow Tenor    r k vl
+        , cello      (0, 1) grid Bass       r k vl # pizz
+        , contrabass (0, 0.7) grid Bass8vb  r k vl # pizz
+    ] |* vel (kDynamic k) |* vel d
+
+-- Winds: breathless interjections, entering as doubt grows
+doubt f r k d = p "wind" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 . 2 .]/4"
+        , alto    = "[1 . 0 .]/4"
+        , tenor   = "[2 . 1 .]/4"
+        }
+  f
+    $ stack [silence
+        , flute   (0.3, 1) flow Soprano    r k vl
+        , oboe    (0.4, 1) flow Alto       r k vl
+        , horn    (0.5, 1) flow Tenor      r k vl
+    ] |* vel (kDynamic k) |* vel d
+
+-- The Catastrophe: maximum density tutti for the fatal look
+catastrophe f r k d = p "tutti" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[0,1,2,3]"
+        , alto    = "[0,1,2,3]"
+        , tenor   = "[0,1,2,3]"
+        , bass    = "[0,1,2,3]"
+        }
+  f
+    $ stack [silence
+        , violin1    (0.9, 1) grid Soprano    r k vl
+        , violin2    (0.9, 1) grid Alto       r k vl
+        , viola      (0.9, 1) grid Tenor      r k vl
+        , cello      (0.9, 1) grid Bass       r k vl
+        , contrabass (0.9, 1) grid Bass8vb    r k vl
+        , horn       (0.9, 1) grid Soprano    r k vl
+        , trombone   (0.9, 1) grid Bass       r k vl
+        , basstrom   (0.9, 1) grid Bass8vb    r k vl
+        , timpani    (0.9, 1) grid Bass8vb    r k vl
+    ] |* vel (kDynamic k) |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    r = warp "[1 2 3 4]/4"
+    f = id
+    d = (* 1)
+    k = formK tempo form
+  putStrLn "ORPHEUS — X. Pas de deux (The Return & The Fatal Look)"
+  mapM_ id [hush, setbpm tempo
+    ,journey     f r k  $ d 0.8
+    ,doubt       f r k  $ d 0.7
+    ,catastrophe f r k  $ d 0.95
+    ]
+
+hush''

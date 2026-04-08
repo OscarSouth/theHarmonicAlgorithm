@@ -1,0 +1,76 @@
+-- ============================================================================
+-- VII. INTERLUDE 2 & VIII. AIR DE DANSE 2
+-- ============================================================================
+--
+-- From the myth: Orpheus's song has reached the underworld. Hades is moved.
+-- The Furies -- those relentless agents of punishment -- weep. The thematic
+-- material from the first Air de danse returns, but inverted, softened,
+-- transformed by its passage through death's kingdom.
+--
+-- Stravinsky effects a shift in timbre: muted strings take over the
+-- polyphonic texture from the oboes, creating a gentle, floating sound
+-- "devoid of the previous tension." The music shimmers with a "magical
+-- stillness" -- the underworld responding to beauty for the first time.
+--
+-- This brief movement functions as a moment of grace between the formal
+-- plea (VI) and the solemn decree (IX). It represents the transformation
+-- of the underworld by art -- the Apollonian principle penetrating even
+-- death's domain.
+--
+-- Reimagination: Continues E minor/G major context from movement VI.
+-- Consonant drift, low entropy. Muted strings only (the reeds have done
+-- their work). Sustained, transparent voice lines. The shortest movement.
+-- ============================================================================
+
+tempo = 60
+
+start <- lead "E min"
+
+let ctx = consonant
+        $ hcKey "1#"
+        $ hContext
+
+s <- seek "bach:50 debussy:50" $ cue start $ tonal ctx $ len 4 $ entropy 0.2 $ gen
+
+-- Form: ~75s loop (65s music + 10s silence)
+-- Arc: shimmering echo -> magical stillness -> dissolve
+form =
+  [ at   0    0.0   0.0   s     -- silence
+  , at   5    0.2   0.2   s     -- song echoes in muted strings
+  , at  35    0.3   0.3   s     -- magical stillness: the underworld responds
+  , at  55    0.15  0.15  s     -- dissolving
+  , at  65    0.0   0.0   s     -- silence
+  , at  75    0.0   0.0   s     -- silence gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Muted strings: the song's echo through the underworld
+echo f r k d = p "echo" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "3"
+        , alto    = "1"
+        , tenor   = "2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , violin1 (0, 1) flow Soprano    r k vl
+        , viola   (0, 1) flow Alto       r k vl
+        , cello   (0, 1) grid Tenor8vb   r k vl
+    ] |* vel (kDynamic k) |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    r = warp "[1 2 3 4]/8"
+    f = id
+    d = (* 1)
+    k = formK tempo form
+  putStrLn "ORPHEUS — VII/VIII. Interlude 2 & Air de danse 2"
+  mapM_ id [hush, setbpm tempo
+    ,echo f r k  $ d 0.7
+    ]
+
+hush''

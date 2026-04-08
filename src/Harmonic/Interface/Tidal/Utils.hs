@@ -1,3 +1,11 @@
+-- |
+-- Module      : Harmonic.Interface.Tidal.Utils
+-- Description : TidalCycles helper functions for octave transposition and time rotation
+--
+-- Shorthand utilities used across live-coding scripts: octave transposition
+-- via 'oct', and time rotation operators 'pullBy'\/'pushBy' that wrap
+-- TidalCycles' early\/late operators.
+
 module Harmonic.Interface.Tidal.Utils where
 
 import Sound.Tidal.Context

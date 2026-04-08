@@ -123,6 +123,20 @@ spec = do
       10 `elem` result `shouldBe` True  -- A#'
       11 `elem` result `shouldBe` True  -- from G
 
+  describe "parseTuningNamed (overtone annotation support)" $ do
+    it "parses EADG bass tuning with names" $
+      parseTuningNamed "E A D G" `shouldBe` [("E",4),("A",9),("D",2),("G",7)]
+
+    it "parses EAeGB cittern tuning preserving case" $
+      parseTuningNamed "E A e G B" `shouldBe` [("E",4),("A",9),("e",4),("G",7),("B",11)]
+
+    it "returns empty for wildcard" $
+      parseTuningNamed "*" `shouldBe` []
+
+    it "is case-preserving for string names" $ do
+      let result = parseTuningNamed "e A"
+      map fst result `shouldBe` ["e","A"]
+
   describe "Key signature parsing (parseKey)" $ do
     
     describe "Numbered sharp key signatures" $ do

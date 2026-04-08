@@ -29,7 +29,7 @@ let startB = initCadenceState 0 "B" [0,3,7]
 
 -- Generate 8 bars using the database (requires Neo4j running)
 -- Low entropy (1.0) = predictable, classical progressions
--- progSimple <- generate startB 8 "bach" 1.0 defaultContext
+-- progSimple <- seek "bach" $ cue startB $ len 8 $ entropy 1.0 $ gen
 
 -- For offline use, create a manual progression:
 let prog1 = fromCadenceStates 
@@ -51,7 +51,7 @@ let bassCtx = hcOvertones "E A D G" $ hContext
 
 -- Generate with composer blend (80% Debussy, 20% Bach)
 -- Higher entropy (2.5) = more adventurous
--- progFiltered <- generate startB 8 "debussy:80 bach:20" 2.5 bassCtx
+-- progFiltered <- seek "debussy:80 bach:20" $ cue startB $ len 8 $ tonal bassCtx $ entropy 2.5 $ gen
 
 -------------------------------------------------------------------------------
 -- EXAMPLE 3: Performance pattern
@@ -77,9 +77,9 @@ do
 -------------------------------------------------------------------------------
 
 -- Limit inversions to at most every 3rd chord
-let ctx = inversion 2 $ hcKey "0#" $ hContext
+let ctx = invSkip 2 $ hcKey "0#" $ hContext
 let start = initCadenceState 0 "C" [0,4,7]
--- spacedProg <- gen start 8 "*" 0.5 ctx
+-- spacedProg <- seek "*" $ cue start $ len 8 $ tonal ctx $ entropy 0.5 $ gen
 
 -------------------------------------------------------------------------------
 -- END examples.tidal

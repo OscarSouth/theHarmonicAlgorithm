@@ -4,7 +4,7 @@ start0 <- lead "D min"
 
 start1 <- lead "C maj"
 
-ctx = inversion 1
+ctx = invSkip 1
   -- $ consonant
   -- $ dissonant
   $ hcRoots "*"
@@ -13,9 +13,9 @@ ctx = inversion 1
   $ hcKey "*"
   $ hContext
 
-s0 <- gen start0 4 "debussy" 0.2 ctx
+s0 <- seek "debussy" $ cue start0 $ tonal ctx $ gen
 
-s1 <- gen start1 4 "debussy" 0.2 ctx
+s1 <- seek "debussy" $ cue start1 $ tonal ctx $ gen
 
 form =
   [
@@ -33,7 +33,7 @@ do
     d = (* 1)
     k = formK tempo form
   putStrLn $ "ORCHESTRAL LAUNCH ¬¬"
-  mapM_ id [hush, setbpm tempo
+  mapM_ id [launch, setbpm tempo
     ,wind f r k       $ d 0.9
     ,strg f r k       $ d 0.8
     ,brss f r k       $ d 0.9

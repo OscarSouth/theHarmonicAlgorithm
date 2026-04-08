@@ -1,14 +1,14 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 -- |
--- Module      : Harmonic.Database.Query
+-- Module      : Harmonic.Evaluation.Database.Query
 -- Description : Read-only interface to Neo4j for cadence graph traversal
--- 
+--
 -- This module implements the Evaluation (E) component of the Creative Systems
 -- Framework. It fetches transition probabilities from Neo4j and resolves
 -- composer-weighted scores for candidate cadences.
 --
--- The database is treated as abstract/pitch-agnostic. Root notes and voicings
+-- The database is treated as abstract\/pitch-agnostic. Root notes and voicings
 -- are computed at runtime from user-defined starting conditions.
 
 module Harmonic.Evaluation.Database.Query

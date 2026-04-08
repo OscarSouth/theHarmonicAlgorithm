@@ -1,25 +1,32 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 -- |
--- Module      : Harmonic.Core.Overtone
+-- Module      : Harmonic.Rules.Constraints.Overtone
 -- Description : Constructive generation of valid triads from overtone sets
--- 
+--
 -- This module implements the Rules (R) component of the Creative Systems
 -- Framework for constraining the "search space" of possible harmonies.
 --
--- KEY DESIGN DECISION: Constructive Generation
--- 
--- The legacy implementation used "generate all combinations, then filter"
--- which has O(n³) complexity. This module uses CONSTRUCTIVE generation:
--- only valid combinations are produced in the first place.
+-- == Academic Lineage
 --
--- From the theoretical basis:
---   "Constructive generation means the generator only produces valid outputs
---    in the first place, rather than filtering invalid ones post-hoc."
+-- /The Harmonic Algorithm/ (South, 2016), Section Two: the exhaustive
+-- combinatorial charts of 3-note overtone combinations across 12 chromatic
+-- bass notes for EAeGB, EAeGC, and EADG tunings. This module is the
+-- computational realisation of those charts.
+--
+-- /Data Science In The Creative Process/ (South, 2018): the @overtoneSets@
+-- function is ported from the MusicData module (lines 382-385).
+--
+-- == Design
+--
+-- Constructive generation: only valid combinations are produced in the
+-- first place, avoiding O(n³) generate-then-filter.
 --
 -- The overtone series provides the "palette" of available tones, and
 -- the combinatorial generator produces all valid 3-note subsets rooted
--- on a specified fundamental.
+-- on a specified fundamental. The 'annotateOvertones' function provides
+-- reverse-mapping from pitch classes back to string/overtone sources,
+-- using the thesis notation (@E3\/e1@, @G1+3@).
 
 module Harmonic.Rules.Constraints.Overtone
   ( -- * Triad Generation
@@ -27,18 +34,22 @@ module Harmonic.Rules.Constraints.Overtone
   , possibleTriads''   -- ^ Legacy alias for MusicData compatibility
   , possibleTriadsFrom
   , overtoneSets
-  
+
     -- * Combination Utilities
   , nCr
   , combinations
-  
+
     -- * Triad Selection
   , rankedTriads
   , topTriads
+
+    -- * Overtone Annotation
+  , annotateOvertones
+  , formatOvertoneAnnotation
   ) where
 
 import GHC.Generics (Generic)
-import Data.List (sort, nub, sortBy)
+import Data.List (sort, nub, sortBy, intercalate)
 import Data.Function (on)
 
 import Harmonic.Rules.Types.Pitch (PitchClass(..), mkPitchClass, unPitchClass)
@@ -170,3 +181,57 @@ possibleTriads'' :: (Integral a, Num a) => (a, [a]) -> [[a]]
 possibleTriads'' (r, ps) =
   let intResult = possibleTriads (fromIntegral r, map fromIntegral ps)
   in map (map fromIntegral) intResult
+
+-------------------------------------------------------------------------------
+-- Overtone Annotation
+-------------------------------------------------------------------------------
+
+-- |Annotate pitch classes with their possible overtone sources from a tuning.
+--
+-- For each pitch in the chord, finds all (stringName, overtoneNumber) pairs
+-- where that string's overtone series contains the pitch class.
+--
+-- Overtone numbering follows the thesis convention:
+--   OT1 = fundamental (offset 0), OT2 = P5 (offset 7),
+--   OT3 = M3 (offset 4), OT4 = m7 (offset 10), OT5 = M2 (offset 2)
+--
+-- Example:
+-- @
+-- annotateOvertones [("E",4),("A",9),("D",2),("G",7)] [11,7,2]
+-- -- → [(11,[("E",2),("D",4)]), (7,[("G",1)]), (2,[("E",5),("D",1)])]
+-- @
+annotateOvertones :: [(String, Int)] -> [Int] -> [(Int, [(String, Int)])]
+annotateOvertones tuning pitches = map annotate pitches
+  where
+    otOffsets = zip [1..5] [0, 7, 4, 10, 2 :: Int]
+    annotate p = (p, concatMap (sourcesFor p) tuning)
+    sourcesFor p (name, fund) =
+      [ (name, otNum)
+      | (otNum, offset) <- otOffsets
+      , (p - fund) `mod` 12 == offset
+      ]
+
+-- |Format overtone annotation for a chord as a display string.
+--
+-- Uses thesis notation:
+--   @"/"@ separates alternative sources from different strings
+--   @"+"@ connects multiple overtone numbers from the same string
+--
+-- Example output: @"{B: E2/D4, G: G1, D: E5/D1}"@
+formatOvertoneAnnotation :: [(String, Int)] -> [Int] -> (Int -> String) -> String
+formatOvertoneAnnotation tuning pitches pcToName =
+  let annotated = annotateOvertones tuning pitches
+      entries = [ pcToName p ++ ": " ++ formatSources sources
+                | (p, sources) <- annotated
+                , not (null sources)
+                ]
+  in if null entries then "" else "{" ++ intercalate ", " entries ++ "}"
+  where
+    formatSources sources =
+      let grouped = groupByString sources
+      in intercalate "/" [ name ++ formatNums nums | (name, nums) <- grouped ]
+    formatNums [n] = show n
+    formatNums ns  = intercalate "+" (map show ns)
+    groupByString sources =
+      let names = nub [name | (name, _) <- sources]
+      in [ (name, [num | (n, num) <- sources, n == name]) | name <- names ]

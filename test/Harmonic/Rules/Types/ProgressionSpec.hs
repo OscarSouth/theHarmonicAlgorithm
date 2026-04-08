@@ -144,6 +144,60 @@ spec = do
       let voicings = harmonyVoicing p
       all (all (\x -> x >= 0 && x <= 11)) voicings `shouldBe` True
 
+  describe "Splice Operations" $ do
+    let mkProg notes = fromCadenceStates (map mkCS notes)
+
+    describe "spliceProgression (non-wrapping)" $ do
+      it "replaces range with same-size list (length preserved)" $ do
+        let orig = mkProg ["C", "D", "E", "F", "G", "A", "B", "C"]
+            new = [mkCS "Bb", mkCS "Ab", mkCS "Gb"]
+            result = spliceProgression orig 3 5 new
+        progLength result `shouldBe` 8
+
+      it "expands when more new chords than range" $ do
+        let orig = mkProg ["C", "D", "E", "F"]
+            new = [mkCS "A", mkCS "B", mkCS "C", mkCS "D"]
+            result = spliceProgression orig 2 3 new
+        progLength result `shouldBe` 6  -- 1 prefix + 4 new + 1 suffix
+
+      it "contracts when fewer new chords than range" $ do
+        let orig = mkProg ["C", "D", "E", "F", "G", "A"]
+            new = [mkCS "Bb"]
+            result = spliceProgression orig 2 5 new
+        progLength result `shouldBe` 3  -- 1 prefix + 1 new + 1 suffix
+
+      it "preserves prefix and suffix" $ do
+        let orig = mkProg ["C", "E", "G", "B"]
+            new = [mkCS "F", mkCS "A"]
+            result = spliceProgression orig 2 3 new
+        -- Position 1 (C) and position 4 (B) should be unchanged
+        fmap stateCadenceRoot (getCadenceState result 1) `shouldBe` Just C
+        fmap stateCadenceRoot (getCadenceState result 4) `shouldBe` Just B
+
+    describe "spliceProgression (wrapping)" $ do
+      it "handles wrapping range" $ do
+        let orig = mkProg ["C", "D", "E", "F"]
+            new = [mkCS "A", mkCS "B", mkCS "G"]  -- 3 new for 3 replaced (4,1,2)
+            result = spliceProgression orig 4 2 new
+        progLength result `shouldBe` 4
+
+      it "preserves kept section in wrapping case" $ do
+        let orig = mkProg ["C", "D", "E", "F"]
+            new = [mkCS "A", mkCS "B", mkCS "G"]  -- replace 3,4,1
+            result = spliceProgression orig 3 1 new
+        -- Kept: position 2 (D)
+        fmap stateCadenceRoot (getCadenceState result 2) `shouldBe` Just D
+
+    describe "fixMovementAt" $ do
+      it "recomputes movement from predecessor" $ do
+        let csC = mkCS "C"
+            csG = mkCS "G"
+            prog = fromCadenceStates [csC, csG]
+            fixed = fixMovementAt 2 prog
+        case getCadenceState fixed 2 of
+          Just cs -> cadenceMovement (stateCadence cs) `shouldNotBe` Unison
+          Nothing -> expectationFailure "expected chord at position 2"
+
 -------------------------------------------------------------------------------
 -- Test Helpers
 -------------------------------------------------------------------------------
@@ -155,6 +209,10 @@ mkTestCadenceState = initCadenceState 0 "C" [0,4,7]
 -- | Create a progression of n identical cadence states
 mkTestProgression :: Int -> Progression
 mkTestProgression n = fromCadenceStates (replicate n mkTestCadenceState)
+
+-- | Create a CadenceState with a specific root
+mkCS :: String -> CadenceState
+mkCS note = initCadenceState 0 note [0,4,7]
 
 -- | Check if Maybe is Just
 isJust :: Maybe a -> Bool

@@ -77,10 +77,10 @@ dissonant option. Composes with bass direction:
 `consonant (dissonant ctx)` — last modifier wins.
 
 **Inversion Spacing** — Control how often chord inversions appear in
-generated progressions. `inversion 2 $ ctx` ensures at least 2
-root-position chords between any two inversions. `inversion 0` (default)
+generated progressions. `invSkip 2 $ ctx` ensures at least 2
+root-position chords between any two inversions. `invSkip 0` (default)
 allows inversions freely. The starting state counts toward the spacing —
-a root-position start with `inversion 1` means the first generated step
+a root-position start with `invSkip 1` means the first generated step
 can already be an inversion. Composes with all other context modifiers.
 
 **`lead` — String-Parsed Starting State** — `lead :: String -> IO CadenceState`
@@ -97,8 +97,21 @@ chromatic default. Filters are applied as composable modifier functions:
 `hcOvertones "E A D G"`, `hcKey "0#"`, `hcRoots "C E G"`. Wildcard
 filters are simply omitted instead of explicitly passed as `"*"`.
 Individual lines can be commented out to fall back to defaults.
-`dissonant`, `consonant`, and `inversion N` compose naturally in the
-same chain: `inversion 2 $ consonant $ hcKey "0#" $ hContext`.
+`dissonant`, `consonant`, and `invSkip N` compose naturally in the
+same chain: `invSkip 2 $ consonant $ hcKey "0#" $ hContext`.
+
+**Modifier-Based Gen API** — `gen`, `gen'`, and `gen''` are now bare
+config values (`GenConfig` type) instead of multi-argument functions.
+Parameters are applied as composable modifiers: `cue` (starting state),
+`len` (progression length), `entropy` (gamma shape), `tonal` (harmonic
+context). `seek` is the terminal modifier that executes generation:
+`s <- seek "*" $ cue start $ tonal ctx $ len 4 $ entropy 0.3 $ gen`.
+The composer string is passed to `seek` rather than embedded in the
+config, keeping it visible at the call site. Follows the same pattern
+as the `hContext` modifier rework — individual modifiers can be
+commented out to fall back to defaults. The old positional interface
+remains available as `genPrint`, `genPrint'`, `genPrint''`, and
+`genSilent`/`genStandard`/`genVerbose` are unchanged.
 
 **Pattern Launcher Paradigm** — Define reusable instrument blocks with
 four parameters: transformation, progression, chord selection, and dynamics.

@@ -1,0 +1,95 @@
+-- ============================================================================
+-- IV. INTERLUDE — DESCENT TO HADES
+-- ============================================================================
+--
+-- From the myth: Orpheus passes through the threshold between the world of
+-- the living and the realm of the dead. Time ceases to function normally.
+-- The geography is not physical but psychological -- a dissolution of the
+-- known world into a liminal, pre-conscious space.
+--
+-- Stravinsky creates a transitional, floating texture where time seems
+-- suspended. Muted strings hold overlapping sustained chords with no clear
+-- pulse. The atmosphere grows progressively darker and colder as low flutes
+-- and bassoon introduce slow, creeping chromaticism. The interlude concludes
+-- with distant rumblings in timpani and double basses, harp harmonics --
+-- the pregnant silence before the Furies.
+--
+-- This is perhaps the most abstract passage in the ballet: music as
+-- geography, texture as descent. Stravinsky strips away melody, rhythm,
+-- and harmonic direction to create a sense of pure atmosphere.
+--
+-- Reimagination: Ab minor starting point, chromatic context with consonant
+-- drift (paradoxically, consonance here creates eeriness through stillness).
+-- Ultra-low entropy for maximum stasis. Sparse instrumentation: harp, low
+-- winds, distant timpani. Voice lines are sustained single tones.
+-- ============================================================================
+
+tempo = 52
+
+start <- lead "Ab min"
+
+let ctx = consonant
+        $ hcKey "*"
+        $ hContext
+
+s <- seek "debussy" $ cue start $ tonal ctx $ len 8 $ entropy 0.15 $ gen
+
+-- Form: ~115s loop (105s music + 10s silence)
+-- Arc: floating -> darker -> anticipation -> ominous swell -> threshold
+form =
+  [ at    0    0.0   0.0   s     -- silence
+  , at    5    0.2   0.2   s     -- floating, muted strings, no pulse
+  , at   32    0.2   0.2   s     -- darker: low flutes, bassoon
+  , at   62    0.15  0.15  s     -- creeping chromaticism, temperature drops
+  , at   85    0.3   0.3   s     -- ominous swell: timpani, bass rumble
+  , at  105    0.0   0.0   s     -- threshold crossed: silence
+  , at  115    0.0   0.0   s     -- silence gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Ethereal texture: harp harmonics, low winds, distant percussion
+descent f r k d = p "descent" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "3"
+        , alto    = "1"
+        , tenor   = "2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , harp    (0, 1)   flow Soprano    r k vl
+        , flute   (0.2, 1) flow Alto       r k vl
+        , bassoon (0.2, 1) flow Tenor8vb   r k vl
+        , timpani (0.3, 1) grid Bass8vb    r k vl
+    ] |* vel (kDynamic k) |* vel d
+
+-- Muted strings: sustaining chords as atmosphere
+veil f r k d = p "veil" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "3"
+        , alto    = "1"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , viola      (0, 1) flow Alto       r k vl
+        , cello      (0, 1) grid Bass       r k vl
+        , contrabass (0, 1) grid Bass8vb    r k vl
+    ] |* vel (kDynamic k) |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    r = warp "[1 2 3 4]/8"
+    f = id
+    d = (* 1)
+    k = formK tempo form
+  putStrLn "ORPHEUS — IV. Interlude (Descent to Hades)"
+  mapM_ id [hush, setbpm tempo
+    ,descent f r k  $ d 0.8
+    ,veil    f r k  $ d 0.6
+    ]
+
+hush''

@@ -45,6 +45,10 @@ module Harmonic.Rules.Types.Progression
   , overlapProgression
   , expandProgression
   
+    -- * Splice Operations
+  , spliceProgression
+  , fixMovementAt
+
     -- * Voicing Extractors
   , literalVoicing
   , harmonyVoicing
@@ -67,7 +71,7 @@ import qualified Data.Char as Char
 
 import Harmonic.Rules.Types.Pitch (PitchClass(..), mkPitchClass, unPitchClass, transpose, NoteName(..), pitchClass)
 -- |Import zeroFormPC for zero-form normalization in toCadenceStateFromPair to match DB convention
-import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), ChordState(..), CadenceState(..), fromCadenceState, Movement(..), fromMovement, EnharmonicSpelling(..), zeroFormPC, enharmonicFunc, inferSpelling)
+import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), ChordState(..), CadenceState(..), fromCadenceState, Movement(..), fromMovement, toMovement, EnharmonicSpelling(..), zeroFormPC, enharmonicFunc, inferSpelling)
 
 -------------------------------------------------------------------------------
 -- Progression Type
@@ -269,6 +273,59 @@ expandProgression :: Int -> Progression -> Progression
 expandProgression n prog
   | n <= 0 = mempty
   | otherwise = mconcat (replicate n prog)
+
+-------------------------------------------------------------------------------
+-- Splice Operations
+-------------------------------------------------------------------------------
+
+-- |Splice new chords into a progression, replacing a range (1-indexed, wrapping).
+--
+-- Non-wrapping (start <= end): replaces positions start..end.
+-- Wrapping (start > end): replaces start..N and 1..end.
+-- Fixes the movement at the seam where new chords meet kept chords.
+spliceProgression :: Progression -> Int -> Int -> [CadenceState] -> Progression
+spliceProgression (Progression seq) start end newChords =
+  let n = Seq.length seq
+      newSeq = Seq.fromList newChords
+  in if start <= end then
+    -- Non-wrapping
+    let prefix = Seq.take (start - 1) seq
+        suffix = Seq.drop end seq
+        result = prefix >< newSeq >< suffix
+        jIdx = Seq.length prefix + Seq.length newSeq  -- 0-indexed position of first suffix chord
+    in if jIdx < Seq.length result && jIdx > 0 && not (Seq.null suffix)
+       then fixMovementAt0 jIdx (Progression result)
+       else Progression result
+  else
+    -- Wrapping: replaced = [start..N] ++ [1..end], kept = [end+1..start-1]
+    let kept = Seq.take (start - end - 1) (Seq.drop end seq)
+        headCount = n - start + 1
+        newAtEnd = Seq.take headCount newSeq
+        newAtStart = Seq.drop headCount newSeq
+        result = newAtStart >< kept >< newAtEnd
+        jIdx = Seq.length newAtStart  -- 0-indexed position of first kept chord
+    in if jIdx < Seq.length result && jIdx > 0 && not (Seq.null kept)
+       then fixMovementAt0 jIdx (Progression result)
+       else Progression result
+
+-- |Fix the movement at a 1-indexed position by recomputing from predecessor's root.
+fixMovementAt :: Int -> Progression -> Progression
+fixMovementAt pos = fixMovementAt0 (pos - 1)
+
+-- |Internal: fix movement at 0-indexed position.
+fixMovementAt0 :: Int -> Progression -> Progression
+fixMovementAt0 idx (Progression seq)
+  | Seq.null seq || idx <= 0 || idx >= Seq.length seq = Progression seq
+  | otherwise =
+    let prevCS = Seq.index seq (idx - 1)
+        currCS = Seq.index seq idx
+        prevRootPC = pitchClass (stateCadenceRoot prevCS)
+        currRootPC = pitchClass (stateCadenceRoot currCS)
+        newMovement = toMovement prevRootPC currRootPC
+        oldCadence = stateCadence currCS
+        newCadence = oldCadence { cadenceMovement = newMovement }
+        fixed = currCS { stateCadence = newCadence }
+    in Progression (Seq.update idx fixed seq)
 
 -------------------------------------------------------------------------------
 -- Voicing Extractors

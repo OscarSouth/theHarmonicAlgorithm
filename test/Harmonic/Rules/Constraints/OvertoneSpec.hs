@@ -103,6 +103,48 @@ spec = do
       let triadsPc = possibleTriadsFrom (P 0) [P 4, P 7, P 10]
       length triadsInt `shouldBe` length triadsPc
 
+  describe "annotateOvertones" $ do
+
+    it "E2 produces B (pitch class 11)" $ do
+      let result = annotateOvertones [("E", 4)] [11]
+      result `shouldBe` [(11, [("E", 2)])]
+
+    it "finds multiple sources for shared pitch class" $ do
+      let result = annotateOvertones [("E", 4), ("G", 7)] [11]
+      -- B(11): E + 7 = 11 → OT2, G + 4 = 11 → OT3
+      result `shouldBe` [(11, [("E", 2), ("G", 3)])]
+
+    it "returns empty sources for unproducible pitch" $ do
+      let result = annotateOvertones [("E", 4)] [3]
+      -- Eb(3): (3-4) mod 12 = 11, not in offsets [0,7,4,10,2]
+      result `shouldBe` [(3, [])]
+
+    it "annotates full EADG chord correctly" $ do
+      let tuning = [("E",4),("A",9),("D",2),("G",7)]
+          result = annotateOvertones tuning [7]
+      -- G(7): A + 10 = 7 → OT4, G + 0 = 7 → OT1
+      result `shouldBe` [(7, [("A", 4), ("G", 1)])]
+
+  describe "formatOvertoneAnnotation" $ do
+
+    it "formats single source" $ do
+      let tuning = [("G", 7)]
+          pcName pc = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"] !! pc
+      formatOvertoneAnnotation tuning [7] pcName `shouldBe` "{G: G1}"
+
+    it "formats multiple sources with / separator" $ do
+      let tuning = [("E", 4), ("G", 7)]
+          pcName pc = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"] !! pc
+      formatOvertoneAnnotation tuning [11] pcName `shouldBe` "{B: E2/G3}"
+
+    it "returns empty string for unproducible pitches" $ do
+      let tuning = [("E", 4)]
+          pcName pc = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"] !! pc
+      formatOvertoneAnnotation tuning [3] pcName `shouldBe` ""
+
+    it "returns empty string for empty tuning" $ do
+      formatOvertoneAnnotation [] [0, 4, 7] (\_ -> "?") `shouldBe` ""
+
 -------------------------------------------------------------------------------
 -- Helpers
 -------------------------------------------------------------------------------

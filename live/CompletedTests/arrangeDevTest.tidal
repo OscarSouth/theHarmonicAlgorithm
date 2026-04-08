@@ -23,7 +23,7 @@ ctx = hcKey "* -F# -Eb -Ab" $ hContext
 
 start = initCadenceState (-3) "D" [0,3,7]
 
-s8 <- gen start 8 "*" 0.5 ctx
+s8 <- seek "*" $ cue start $ len 8 $ tonal ctx $ entropy 0.5 $ gen
 
 -- Chord selection patterns (1-indexed)
 let cp4 = warp "[1 2 3 4]/4"

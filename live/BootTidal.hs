@@ -103,7 +103,7 @@ let p = streamReplace tidal
 -------------------------------------------------------------------------------
 
 :{
-hush = mapM_ ($ silence) [
+launch = mapM_ ($ silence) [
   -- d1,d2,d3,d4,d5,d6,d7,d8,d9,
   d01,d02,d03,d04,d05,d06,d07,d08,d09,d10,d11,d12,d13,d14,d15,d16
   ,
@@ -147,6 +147,9 @@ ped = cc 64
 vel = pF "amp"
 
 allNotesOff = setCC "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]" "[123,64]" 0
+subPedalOff = setCC "10" "64" 0
+hush = launch >> subPedalOff
+hush' = streamHush tidal >> subPedalOff
 panic = allNotesOff >> hush'
 hush'' = panic
 
@@ -175,6 +178,8 @@ sync out = [midiClock out, initSync, startSync, stopSync out]
 bpm t = cps (t/60)
 setbpm tempo = p "t" $ bpm tempo
 resetCycles = streamResetCycles tidal
+runSeq = (0, 1, silence)
+steptrig pat = mono $ midinote (toScale [-1, 0, 2, 4, 5, 7, 9, 10] $ (((pat-1) `mod` 8)+1)) |= vel 1 #ch 13
 
 -------------------------------------------------------------------------------
 -- Musical Subdivisions

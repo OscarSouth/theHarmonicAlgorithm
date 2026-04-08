@@ -1,5 +1,39 @@
 '.source.tidalcycles':
 
+  # ── Generation Snippets ──────────────────────────────────
+
+  'gen block':
+    'prefix': 'gen'
+    'body': '''
+      s <- seek "*" $ cue start $ tonal ctx $ len $1 $ entropy 0.5 $ gen
+    '''
+
+
+  'gen block (verbose)':
+    'prefix': "gen'"
+    'body': '''
+      s <- seek "*" $ cue start $ tonal ctx $ len $1 $ entropy 0.5 $ gen'
+    '''
+
+
+  'gen block (trace)':
+    'prefix': "gen''"
+    'body': '''
+      s <- seek "*" $ cue start $ tonal ctx $ len $1 $ entropy 0.5 $ gen''
+    '''
+
+
+  'gen session':
+    'prefix': 'gensession'
+    'body': '''
+      do
+        start <- lead "$1"
+        let ctx = $2hContext
+        s <- seek "*" $ cue start $ tonal ctx $ len $3 $ entropy 0.5 $ gen
+        putStrLn $ show s
+    '''
+
+
   # ── Utility Snippets ──────────────────────────────────────
 
   'pattern block':
@@ -39,7 +73,7 @@
           d = (* 1)
           k = formK tempo form
         putStrLn $ "LAUNCH¬¬\\n" ++ show s
-        mapM_ id [hush, setbpm tempo
+        mapM_ id [launch, setbpm tempo
          -- ,p01  f r k $ d 0.9
          ]
       $1
@@ -91,7 +125,7 @@
           d = (* 1)
           k = formK tempo form
         putStrLn $ "ORCHESTRAL LAUNCH¬¬"
-        mapM_ id [hush, setbpm tempo
+        mapM_ id [launch, setbpm tempo
          -- ,wind f r k       $ d 0.9
          -- ,strg f r k       $ d 0.8
          -- ,brss f r k       $ d 0.9

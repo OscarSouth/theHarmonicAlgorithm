@@ -5,16 +5,26 @@
 -- |
 -- Module      : Harmonic.Rules.Types.Pitch
 -- Description : Foundational pitch-class algebra as ℤ₁₂ cyclic group
--- 
+--
 -- This module defines 'PitchClass' as a proper cyclic group with modular
 -- arithmetic. All pitch operations automatically wrap within the octave.
--- 
--- The design follows the Creative Systems Framework mapping:
---   R (Rules) = The type system itself constrains valid pitch operations
---   T (Traversal) = Transpose operation as group action
---   E (Evaluation) = Interval measurement for dissonance/voice-leading
+--
+-- == Academic Lineage
+--
+-- /Data Science In The Creative Process/ (South, 2018): the MusicData
+-- module's pitch-class algebra, where pitch classes are treated as
+-- elements of ℤ₁₂ with modular arithmetic operations.
+--
+-- == Design
+--
+-- The Creative Systems Framework mapping:
+--
+--   * R (Rules) = The type system itself constrains valid pitch operations
+--   * T (Traversal) = Transpose operation as group action
+--   * E (Evaluation) = Interval measurement for dissonance\/voice-leading
 --
 -- Pitch classes are elements of ℤ₁₂, the integers modulo 12:
+--
 --   * Addition: transposition
 --   * Subtraction: interval measurement
 --   * Identity: unison (0)

@@ -1,0 +1,219 @@
+-- thePartingGlass.tidal
+-- Three arrangements of "The Parting Glass" (traditional) from
+-- "Harmonic Algorithm Reflections" (South, 2016), pp. 6-7
+--
+-- Three versions in the relative minors of the thesis's three focus keys:
+--   Version 1: Bm Aeolian (relative minor of D major)
+--   Version 2: Em Aeolian (relative minor of G major)
+--   Version 3: Am Aeolian (relative minor of C major)
+--
+-- All three are the same harmonic structure transposed to Bm, Em, Am.
+-- Score is in 3/4 time, marked "Freely & Expressively", bass clef,
+-- diamond noteheads for harmonics, regular noteheads for stopped bass.
+--
+-- Overtone source annotations from the score are preserved in comments
+-- using the thesis notation: E3/e1 = alternative sources, G1+3 = same PC.
+
+-- ============================================================================
+-- HARMONY SECTIONS (Note Name Syntax)
+-- ============================================================================
+
+-- Version 1: Bm Aeolian (D major) — 16 bars, 3/4 time
+partingGlassBm :: [[Int]]
+partingGlassBm = notesToPCs <$> [
+    [B, D, F']       -- Bar 1:  Bm
+  , [A, C', E]       -- Bar 2:  Am        (passing)
+  , [F', A, C']      -- Bar 3:  F#m
+  , [F', A, C']      -- Bar 4:  F#m       (held)
+  , [B, D, F']       -- Bar 5:  Bm
+  , [A, C', E]       -- Bar 6:  A
+  , [B, D, F']       -- Bar 7:  Bm
+  , [G, B, D]        -- Bar 8:  G
+  , [D, F', A]       -- Bar 9:  D
+  , [B, D, F']       -- Bar 10: Bm
+  , [D, F', A]       -- Bar 11: D
+  , [G, B, D]        -- Bar 12: G
+  , [E, G, B]        -- Bar 13: Em
+  , [B, D, F']       -- Bar 14: Bm
+  , [B, D, F']       -- Bar 15: Bm
+  , [A, C', E]       -- Bar 16: A
+  ]
+
+-- Version 2: Em Aeolian (G major) — 16 bars, 3/4 time
+partingGlassEm :: [[Int]]
+partingGlassEm = notesToPCs <$> [
+    [E, G, B]        -- Bar 1:  Em
+  , [E, G, B]        -- Bar 2:  Em        (held)
+  , [B, D, F']       -- Bar 3:  Bm        (passing)
+  , [B, D, F']       -- Bar 4:  Bm        (held)
+  , [E, G, B]        -- Bar 5:  Em
+  , [D, F', A]       -- Bar 6:  D
+  , [E, G, B]        -- Bar 7:  Em
+  , [C', E, G]       -- Bar 8:  C
+  , [G, B, D]        -- Bar 9:  G
+  , [E, G, B]        -- Bar 10: Em
+  , [G, B, D]        -- Bar 11: G
+  , [C', E, G]       -- Bar 12: C
+  , [A, C', E]       -- Bar 13: Am
+  , [E, G, B]        -- Bar 14: Em
+  , [E, G, B]        -- Bar 15: Em
+  , [D, F', A]       -- Bar 16: D
+  ]
+
+-- Version 3: Am Aeolian (C major) — 16 bars, 3/4 time
+partingGlassAm :: [[Int]]
+partingGlassAm = notesToPCs <$> [
+    [A, C', E]       -- Bar 1:  Am
+  , [A, C', E]       -- Bar 2:  Am        (held)
+  , [E, G, B]        -- Bar 3:  Em
+  , [E, G, B]        -- Bar 4:  Em        (held)
+  , [A, C', E]       -- Bar 5:  Am
+  , [D, F', A]       -- Bar 6:  D
+  , [A, C', E]       -- Bar 7:  Am
+  , [F', A, C']      -- Bar 8:  F
+  , [C', E, G]       -- Bar 9:  C
+  , [A, C', E]       -- Bar 10: Am
+  , [C', E, G]       -- Bar 11: C
+  , [F', A, C']      -- Bar 12: F
+  , [D, F', A]       -- Bar 13: Dm
+  , [A, C', E]       -- Bar 14: Am
+  , [A, C', E]       -- Bar 15: Am
+  , [D, F', A]       -- Bar 16: D
+  ]
+
+-- ============================================================================
+-- FORM AS PARAMETER
+-- ============================================================================
+
+-- Select version by key: "Bm", "Em", "Am"
+partingGlassHarmony :: String -> [[Int]]
+partingGlassHarmony "Bm" = partingGlassBm
+partingGlassHarmony "Em" = partingGlassEm
+partingGlassHarmony "Am" = partingGlassAm
+partingGlassHarmony _    = partingGlassEm  -- default: Em (middle key)
+
+-- ============================================================================
+-- SCALE DEFINITIONS (Aeolian / Natural Minor)
+-- ============================================================================
+
+-- Bm Aeolian = D major natural minor = B C# D E F# G A
+scaleBm :: [[Int]]
+scaleBm = replicate 16 [(-1), 1, 2, 4, 6, 7, 9, 11]  -- B Aeolian
+
+-- Em Aeolian = G major natural minor = E F# G A B C D
+scaleEm :: [[Int]]
+scaleEm = replicate 16 [(-1), 2, 4, 5, 7, 9, 11, 0]  -- E Aeolian
+
+-- Am Aeolian = C major natural minor = A B C D E F G
+scaleAm :: [[Int]]
+scaleAm = replicate 16 [(-1), 0, 2, 4, 5, 7, 9, 11]  -- A Aeolian
+
+partingGlassScale :: String -> [[Int]]
+partingGlassScale "Bm" = scaleBm
+partingGlassScale "Em" = scaleEm
+partingGlassScale "Am" = scaleAm
+partingGlassScale _    = scaleEm
+
+-- ============================================================================
+-- MELODY (Traditional tune — scale degree patterns, 3/4 time)
+-- ============================================================================
+
+-- "Of all the money that e'er I had, I spent it in good company..."
+-- Encoded as scale degrees over 16 bars in 3/4 time
+-- 3-beat groupings: each bar is "[x y z]/3" or equivalent
+
+partingGlassMelody :: [Pattern String]
+partingGlassMelody = [
+    "[~ ~ 0]/3"                 -- Bar 1:  pickup
+  , "[2 3 4]/3"                 -- Bar 2:  ascending phrase
+  , "[4 3 2]/3"                 -- Bar 3:  descent
+  , "[2@2 1]/3"                 -- Bar 4:  settling
+  , "[0 2 3]/3"                 -- Bar 5:  rise
+  , "[4@2 3]/3"                 -- Bar 6:  peak
+  , "[2 1 0]/3"                 -- Bar 7:  descent
+  , "[-1 0 1]/3"                -- Bar 8:  turn
+  , "[2 3 4]/3"                 -- Bar 9:  second phrase
+  , "[4@2 5]/3"                 -- Bar 10: peak
+  , "[4 3 2]/3"                 -- Bar 11: descent
+  , "[2 1 0]/3"                 -- Bar 12: resolution
+  , "[0 2 3]/3"                 -- Bar 13: bridge
+  , "[4 3 2]/3"                 -- Bar 14: return
+  , "[2 1 0]/3"                 -- Bar 15: closing
+  , "[0@3]/3"                   -- Bar 16: final
+  ]
+
+partingGlassMelodyPat :: Pattern String
+partingGlassMelodyPat = slow 3 . slowcat $ partingGlassMelody
+
+-- ============================================================================
+-- PROGRESSION CONSTRUCTION
+-- ============================================================================
+
+-- Harmony states for each key version
+stateBm :: Progression
+stateBm = prog (partingGlassHarmony "Bm")
+
+stateEm :: Progression
+stateEm = prog (partingGlassHarmony "Em")
+
+stateAm :: Progression
+stateAm = prog (partingGlassHarmony "Am")
+
+-- Scale states for melody
+melodyStateBm :: Progression
+melodyStateBm = prog scaleBm
+
+melodyStateEm :: Progression
+melodyStateEm = prog scaleEm
+
+melodyStateAm :: Progression
+melodyStateAm = prog scaleAm
+
+-- ============================================================================
+-- PERFORMANCE INTERFACE (p07 on ch 07 — piano)
+-- ============================================================================
+
+-- Classic arrange block: p07 with flow voicing, 3/4 time rhythm
+p07 f s r d = d07 $ do
+  let o = ch 07
+  f
+    $ stack [silence
+       -- --
+      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+        ,"[0,1,2]/3"                   -- triadic flow voicing
+      ]# o |* vel 0.4 |- oct 1 |= legato 4
+       -- --
+      ,arrange root (overlapF 0 s) r (-9,9) ["~"
+        ,"0/3"                         -- bass root
+      ]# o |* vel 0.6 |- oct 3 |= legato 0.95
+       -- --
+    ] |* vel d
+
+-- ============================================================================
+-- STATE / LAUNCH BLOCK
+-- ============================================================================
+
+-- Select version here: stateBm / stateEm / stateAm
+-- Overtone context matches EAeGB tuning for annotation
+
+tempo = 72
+
+s = stateEm  -- Change to stateBm or stateAm for other keys
+
+form = [
+  at    0   1   1   s
+  ]
+
+  -- '' ¬¬
+do
+  let
+    r = warp "[1 2 3]/3"
+    f = id
+    d = (* 1)
+    k = formK tempo form
+  putStrLn $ "LAUNCH ¬¬"
+  mapM_ id [hush, setbpm tempo
+    ,p07 f s r k       $ d 0.8
+   ]
+
+hush''

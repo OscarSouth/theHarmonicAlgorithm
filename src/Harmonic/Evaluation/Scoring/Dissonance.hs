@@ -1,24 +1,30 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 -- |
--- Module      : Harmonic.Core.Dissonance
+-- Module      : Harmonic.Evaluation.Scoring.Dissonance
 -- Description : Hindemith-based dissonance evaluation
--- 
+--
 -- This module implements the Evaluation (E) component of the Creative Systems
--- Framework for consonance/dissonance assessment.
+-- Framework for consonance\/dissonance assessment.
 --
--- The dissonance model is ported VERBATIM from legacy MusicData.hs (lines 394-401):
---   dissVect = [16,8,4,2,1,24]
+-- == Academic Lineage
 --
--- This weighting vector is based on Paul Hindemith's "Craft of Musical Composition"
--- ranking of interval classes by consonance:
---   * Perfect unison/octave (ic 0): most consonant
---   * Perfect fifth (ic 7→1): 16
---   * Perfect fourth (ic 5→2): 8
---   * Major third/minor sixth (ic 4/8→3): 4
---   * Minor third/major sixth (ic 3/9→4): 2
---   * Major second/minor seventh (ic 2/10→5): 1
---   * Tritone (ic 6→6): 24 (most dissonant)
+-- Paul Hindemith, /The Craft of Musical Composition/ (1937): the interval
+-- class consonance ranking that underlies the @dissVect@ weighting vector.
+--
+-- /Data Science In The Creative Process/ (South, 2018): the computational
+-- implementation as @dissVect = [16,8,4,2,1,24]@ (MusicData.hs lines 394-401).
+--
+-- == Weighting Vector
+--
+-- @dissVect = [16,8,4,2,1,24]@ maps interval classes to consonance weights:
+--
+--   * Perfect fifth (ic 1): 16
+--   * Perfect fourth (ic 2): 8
+--   * Major third\/minor sixth (ic 3): 4
+--   * Minor third\/major sixth (ic 4): 2
+--   * Major second\/minor seventh (ic 5): 1
+--   * Tritone (ic 6): 24 (most dissonant)
 
 module Harmonic.Evaluation.Scoring.Dissonance
   ( -- * Core Dissonance Calculation

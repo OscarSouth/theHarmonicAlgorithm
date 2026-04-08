@@ -27,10 +27,14 @@
 :t progChords              -- Progression -> [Chord]
 :t progCadences            -- Progression -> [Cadence]
 
-:t generate                -- CadenceState -> Int -> Text -> Double -> HarmonicContext -> IO Progression
-:t generateWith            -- GeneratorConfig -> CadenceState -> Int -> Text -> Double -> HarmonicContext -> IO Progression
-:t gen                     -- String-friendly: CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Progression
-:t genWith                 -- String-friendly generateWith
+:t gen                     -- GenConfig (bare value, silent)
+:t gen'                    -- GenConfig (standard diagnostics)
+:t gen''                   -- GenConfig (verbose diagnostics)
+:t seek                    -- String -> GenConfig -> IO Progression (terminal)
+:t cue                     -- CadenceState -> GenConfig -> GenConfig
+:t len                     -- Int -> GenConfig -> GenConfig
+:t entropy                 -- Double -> GenConfig -> GenConfig
+:t tonal                   -- HarmonicContext -> GenConfig -> GenConfig
 :t defaultContext          -- HarmonicContext
 :t defaultConfig           -- GeneratorConfig
 
@@ -264,7 +268,7 @@ moreChoice  -- More candidates to choose from
 
 -- NOTE: These tests require the Neo4j database to be running
 -- with the cadence graph populated.
--- Use 'gen' (String) instead of 'generate' (Text) in TidalCycles.
+-- Use modifier syntax: seek "composer" $ cue start $ len n $ entropy e $ gen
 
 -- Create starting state
 let start = initCadenceState 0 "C" [0, 4, 7]  -- C major, arrived by unison
@@ -272,29 +276,29 @@ let start = initCadenceState 0 "C" [0, 4, 7]  -- C major, arrived by unison
 -- Generate 8-bar progression with default settings
 -- Composer: equal weight to all composers
 -- Entropy: 1.0 (balanced exploration)
-prog8 <- gen start 8 "debussy stravinsky" 1.0 defaultContext
+prog8 <- seek "debussy stravinsky" $ cue start $ len 8 $ entropy 1.0 $ gen
 prog8
 
 -- Generate with higher entropy (more unusual choices)
-prog8_unusual <- gen start 8 "debussy stravinsky" 3.0 defaultContext
+prog8_unusual <- seek "debussy stravinsky" $ cue start $ len 8 $ entropy 3.0 $ gen
 prog8_unusual
 
 -- Generate with lower entropy (more conservative)
-prog8_safe <- gen start 8 "debussy stravinsky" 0.5 defaultContext
+prog8_safe <- seek "debussy stravinsky" $ cue start $ len 8 $ entropy 0.5 $ gen
 prog8_safe
 
 -- Generate with composer weighting
-prog8_debussy <- gen start 8 "debussy:80 stravinsky:20" 1.0 defaultContext
+prog8_debussy <- seek "debussy:80 stravinsky:20" $ cue start $ len 8 $ entropy 1.0 $ gen
 prog8_debussy
 
 -- Generate with context constraints
 let bassContext = hcOvertones "E A D G" $ hContext
-prog8_bass <- gen start 8 "debussy stravinsky" 1.0 bassContext
+prog8_bass <- seek "debussy stravinsky" $ cue start $ len 8 $ tonal bassContext $ entropy 1.0 $ gen
 prog8_bass
 
 -- Generate with custom config (larger pool)
 let customConfig = defaultConfig { gcPoolSize = 50 }
-prog8_custom <- genWith customConfig start 8 "debussy stravinsky" 1.0 defaultContext
+prog8_custom <- genWith customConfig start 8 "debussy stravinsky" 1.0 defaultContext  -- genWith: positional (uses GeneratorConfig)
 prog8_custom
 
 -- Compare progression lengths
@@ -306,8 +310,8 @@ progLength prog8_unusual -- Should be 8
 -------------------------------------------------------------------------------
 
 -- Generate two 4-bar phrases
-phraseA <- gen start 4 "debussy" 1.0 defaultContext
-phraseB <- gen start 4 "stravinsky" 1.0 defaultContext
+phraseA <- seek "debussy" $ cue start $ entropy 1.0 $ gen
+phraseB <- seek "stravinsky" $ cue start $ entropy 1.0 $ gen
 
 -- Concatenate (Monoid)
 let combined = phraseA <> phraseB
@@ -332,7 +336,7 @@ secondHalf <> firstHalf  -- Reversed order
 -------------------------------------------------------------------------------
 
 -- Basic playback of generated progression
--- prog <- generate start 8 "debussy" 1.0 defaultContext
+-- prog <- seek "debussy" $ cue start $ len 8 $ entropy 1.0 $ gen
 -- d1 $ arrange flow prog 2 (-12, 12) ["0 1 2 3"] # s "superpiano"
 
 -- With rotation

@@ -1,5 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+
+-- |
+-- Module      : Harmonic.Rules.Import.CSV
+-- Description : CSV parsing for YCACL corpus ingestion
+--
+-- Parses Yale Classical Archives Corpus data from CSV format into
+-- typed Haskell records for downstream transformation and graph storage.
+
 module Harmonic.Rules.Import.CSV where
 
 import           Harmonic.Rules.Import.Types

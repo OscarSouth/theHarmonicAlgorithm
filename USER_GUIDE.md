@@ -32,7 +32,7 @@ let start = initCadenceState 0 "C" [0,4,7]
 let ctx = hcKey "0#" $ hContext
 
 -- Generate a 4-chord progression
-s4 <- gen start 4 "*" 0.5 ctx
+s4 <- seek "*" $ cue start $ tonal ctx $ entropy 0.5 $ gen
 
 -- Launch on an instrument (single-state form = no arc)
 let k = formK tempo [at 0 1 1 s4]
@@ -147,15 +147,25 @@ becoming more specific]`
 
 ### 2.4 Generation
 
-Four generation functions share the same signature but differ in how much
-they tell you about what's happening:
+Generation uses a modifier-based syntax. `gen`, `gen'`, and `gen''` are
+bare config values that differ in how much they tell you about what's
+happening:
 
 - **`gen`** — prints a musical header with the progression
 - **`genSilent`** — no output at all (for performance)
 - **`gen'`** — deeper context: per-step candidate pools, selection indices
 - **`gen''`** — full trace: transform and advance computations (for debugging)
 
-They're interchangeable — switch between them with a single word change.
+Modifiers shape the config, and `seek` is the terminal that runs it:
+
+- **`cue`** :: CadenceState -> GenConfig -> GenConfig — starting chord
+- **`len`** :: Int -> GenConfig -> GenConfig — progression length (default 4)
+- **`entropy`** :: Double -> GenConfig -> GenConfig — creativity (default 0.2)
+- **`tonal`** :: HarmonicContext -> GenConfig -> GenConfig — tonal constraints
+- **`seek`** :: String -> GenConfig -> IO Progression — composer spec (terminal, always outermost)
+
+They compose right-to-left with `$`. Swap the rightmost value to change
+verbosity level — everything else stays the same.
 
 **Composer specification** controls whose harmonic sensibilities guide the
 generation:
@@ -187,13 +197,13 @@ opposite — each chord must be equal or less dissonant.
 
 ```haskell
 -- Progressions that build tension:
-s4 <- gen start 4 "*" 0.5 (dissonant $ hcKey "0#" $ hContext)
+s4 <- seek "*" $ cue start $ tonal (dissonant $ hcKey "0#" $ hContext) $ entropy 0.5 $ gen
 
 -- Progressions that resolve:
-s4 <- gen start 4 "*" 0.5 (consonant $ hcKey "0#" $ hContext)
+s4 <- seek "*" $ cue start $ tonal (consonant $ hcKey "0#" $ hContext) $ entropy 0.5 $ gen
 
 -- No constraint (default):
-s4 <- gen start 4 "*" 0.5 (hcKey "0#" $ hContext)
+s4 <- seek "*" $ cue start $ tonal (hcKey "0#" $ hContext) $ entropy 0.5 $ gen
 ```
 
 Dissonance is measured using Hindemith's interval vector theory. Major and
@@ -206,7 +216,7 @@ Drift composes with all other context parameters:
 
 ```haskell
 -- Descending bass with building tension:
-s4 <- gen start 8 "*" 0.5 (dissonant $ hcRoots "0# fall" $ hcKey "0#" $ hContext)
+s4 <- seek "*" $ cue start $ tonal (dissonant $ hcRoots "0# fall" $ hcKey "0#" $ hContext) $ len 8 $ entropy 0.5 $ gen
 ```
 
 If no candidates meet the constraint at a given step (e.g., already at
@@ -802,9 +812,9 @@ The composer specification isn't just a filter — it's a way of channelling
 different harmonic sensibilities through the same system:
 
 ```haskell
-prog0 <- gen start 8 "*" 0.5 ctx                    -- all composers
-prog1 <- gen start 8 "bach" 0.5 ctx                  -- Bach alone
-prog2 <- gen start 8 "debussy:0.75 bach:0.25" 0.5 ctx  -- weighted blend
+prog0 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen                    -- all composers
+prog1 <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen                  -- Bach alone
+prog2 <- seek "debussy:0.75 bach:0.25" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen  -- weighted blend
 ```
 
 Weights are normalised, so `"ravel:2 stravinsky:1 mozart:1"` gives you
@@ -839,9 +849,9 @@ Entropy is the single most expressive parameter. Small changes produce
 audible differences in the character of the generated harmony:
 
 ```haskell
-conservative <- gen start 8 "*" 0.3 ctx   -- safe, consonant
-balanced     <- gen start 8 "*" 0.5 ctx   -- musical, balanced
-exploratory  <- gen start 8 "*" 0.8 ctx   -- surprising, adventurous
+conservative <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.3 $ gen   -- safe, consonant
+balanced     <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen   -- musical, balanced
+exploratory  <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.8 $ gen   -- surprising, adventurous
 ```
 
 `[video: entropy sweep — generating at 0.3, 0.5, and 0.8 from the same
@@ -868,9 +878,9 @@ Generate different sections with different starting chords, composers,
 and entropy levels:
 
 ```haskell
-verse  <- gen (initCadenceState 0 "C" [0,4,7]) 8 "*" 0.4 ctx
-chorus <- gen (initCadenceState 0 "F" [0,4,7]) 8 "*" 0.6 ctx
-bridge <- gen (initCadenceState 0 "A" [0,3,7]) 8 "debussy:0.75 bach:0.25" 0.5 ctx
+verse  <- seek "*" $ cue (initCadenceState 0 "C" [0,4,7]) $ tonal ctx $ len 8 $ entropy 0.4 $ gen
+chorus <- seek "*" $ cue (initCadenceState 0 "F" [0,4,7]) $ tonal ctx $ len 8 $ entropy 0.6 $ gen
+bridge <- seek "debussy:0.75 bach:0.25" $ cue (initCadenceState 0 "A" [0,3,7]) $ tonal ctx $ len 8 $ entropy 0.5 $ gen
 ```
 
 ### 11.3 Launcher Blocks
@@ -902,7 +912,7 @@ Generate one long progression and excerpt different sections on the fly,
 using `warp` for form and transformations for variety:
 
 ```haskell
-s32 <- gen start 32 "*" 0.5 ctx
+s32 <- seek "*" $ cue start $ tonal ctx $ len 32 $ entropy 0.5 $ gen
 
 -- Live: excerpt different sections
 let sub = excerpt 0 7 s32
@@ -920,12 +930,20 @@ ___
 
 ### Generation
 
-| Function | Output |
-|----------|--------|
+| Value | Output |
+|-------|--------|
 | `gen` | Musical header |
 | `genSilent` | No output |
 | `gen'` | Per-step diagnostics |
 | `gen''` | Full trace |
+
+| Modifier | Signature | Default |
+|----------|-----------|---------|
+| `seek` | String -> GenConfig -> IO Progression | (terminal, required) |
+| `cue` | CadenceState -> GenConfig -> GenConfig | (required) |
+| `len` | Int -> GenConfig -> GenConfig | 4 |
+| `entropy` | Double -> GenConfig -> GenConfig | 0.2 |
+| `tonal` | HarmonicContext -> GenConfig -> GenConfig | hContext |
 
 ### Context Modifiers
 

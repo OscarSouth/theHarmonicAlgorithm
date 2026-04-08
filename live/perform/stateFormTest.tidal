@@ -8,11 +8,11 @@ ctx = hcRoots "D C Bb" $ hcKey "* -F# -Eb -Ab" $ hContext
 
 start <- lead "Eb (5)"
 ctx = hContext
-s <- gen start 8 "*" 0.2 ctx
+s <- seek "*" $ cue start $ tonal ctx $ len 8 $ gen
 
-s0 <- gen start0 4 "*" 0.5 ctx
+s0 <- seek "*" $ cue start0 $ tonal ctx $ entropy 0.5 $ gen
 
-s1 <- gen start1 4 "*" 0.5 ctx
+s1 <- seek "*" $ cue start1 $ tonal ctx $ entropy 0.5 $ gen
 
 form =
   [ at  0  0.1  0.0 s0    -- low: root only
@@ -29,7 +29,7 @@ do
     d = (* 1)
     k = formK tempo form
   putStrLn $ "GO ¬¬"
-  mapM_ id [hush, setbpm tempo
+  mapM_ id [launch, setbpm tempo
     -- ,p02 f r k $ d 0.9
     ,p03 f r k   $ d 0.9
     ,subk f r k  $ d 1

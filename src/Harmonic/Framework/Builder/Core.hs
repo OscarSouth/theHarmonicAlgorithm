@@ -69,10 +69,10 @@ buildChain :: GeneratorConfig
            -> H.CadenceState   -- ^ Starting state
            -> Int              -- ^ Number of steps to generate
            -> Bolt.BoltActionT IO [H.CadenceState]
-buildChain config gen entropy context pctx composerWeights start totalSteps = do
+buildChain config gen ent context pctx composerWeights start totalSteps = do
   let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
   ((_current, revChain, _counter), _noDiags) <-
-    foldM (stepChainCore config gen Nothing entropy context pctx composerWeights)
+    foldM (stepChainCore config gen Nothing ent context pctx composerWeights)
           ((start, [start], initCounter), [])
           [1..totalSteps]
   pure $ reverse revChain
@@ -101,7 +101,7 @@ stepChainCore :: GeneratorConfig
               -> ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic]) -- ^ ((Current, revChain, nonInvCount), revDiags)
               -> Int              -- ^ Current step number
               -> Bolt.BoltActionT IO ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
-stepChainCore _config gen mVerbosity entropy _context pctx composerWeights ((current, revChain, nonInvCount), revDiags) stepNum = do
+stepChainCore _config gen mVerbosity ent _context pctx composerWeights ((current, revChain, nonInvCount), revDiags) stepNum = do
   let currentShow = T.pack $ show (extractCadence current)
 
   -- Fetch all transitions from current cadence
@@ -165,7 +165,7 @@ stepChainCore _config gen mVerbosity entropy _context pctx composerWeights ((cur
                     , sdFallbackCount = 0
                     , sdFallbackTop6 = []
                     , sdPoolSize = 0
-                    , sdEntropyUsed = entropy
+                    , sdEntropyUsed = ent
                     , sdGammaIndex = -1
                     , sdSelectedFrom = "none (absorbing)"
                     , sdPosteriorRoot = show (H.stateCadenceRoot current)
@@ -177,7 +177,7 @@ stepChainCore _config gen mVerbosity entropy _context pctx composerWeights ((cur
               in diag : revDiags
       pure ((current, current : revChain, nonInvCount), diags)
     else do
-      idx <- liftIO $ gammaIndexScaledWith gen entropy (length finalPool)
+      idx <- liftIO $ gammaIndexScaledWith gen ent (length finalPool)
       let nextCadence = fst (finalPool !! idx)
           (newState, advTrace) = advanceStateTraced current nextCadence
           newCounter = if H.isInversion nextCadence then 0 else nonInvCount + 1
@@ -207,7 +207,7 @@ stepChainCore _config gen mVerbosity entropy _context pctx composerWeights ((cur
                     , sdFallbackCount = fallbackCount
                     , sdFallbackTop6 = fallbackTop6'
                     , sdPoolSize = length finalPool
-                    , sdEntropyUsed = entropy
+                    , sdEntropyUsed = ent
                     , sdGammaIndex = idx
                     , sdSelectedFrom = selectedFrom
                     , sdPosteriorRoot = show posteriorRoot
@@ -234,8 +234,8 @@ buildChainWithDiag :: GeneratorConfig
                    -> H.CadenceState   -- ^ Starting state
                    -> Int              -- ^ Number of steps to generate
                    -> Bolt.BoltActionT IO ([H.CadenceState], [StepDiagnostic])
-buildChainWithDiag config gen entropy context pctx composerWeights start totalSteps =
-  buildChainWithDiagV config gen 1 entropy context pctx composerWeights start totalSteps
+buildChainWithDiag config gen ent context pctx composerWeights start totalSteps =
+  buildChainWithDiagV config gen 1 ent context pctx composerWeights start totalSteps
 
 -- |Build cadence chain with diagnostic collection (configurable verbosity)
 -- Verbosity levels:
@@ -251,10 +251,10 @@ buildChainWithDiagV :: GeneratorConfig
                     -> H.CadenceState  -- ^ Starting state
                     -> Int             -- ^ Number of steps to generate
                     -> Bolt.BoltActionT IO ([H.CadenceState], [StepDiagnostic])
-buildChainWithDiagV config gen verbosity entropy context pctx composerWeights start totalSteps = do
+buildChainWithDiagV config gen verbosity ent context pctx composerWeights start totalSteps = do
   let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
   ((_current, revChain, _counter), revDiags) <-
-    foldM (stepChainCore config gen (Just verbosity) entropy context pctx composerWeights)
+    foldM (stepChainCore config gen (Just verbosity) ent context pctx composerWeights)
           ((start, [start], initCounter), [])
           [1..totalSteps]
   pure (reverse revChain, reverse revDiags)
@@ -295,8 +295,8 @@ scoreByConfidence blend transitions = Q.applyComposerBlend blend transitions
 -- Returns IO [(Cadence, score, chordDiss, motionDiss, gammaDraw)]
 consonanceFallback :: H.CadenceState -> HarmonicContext -> IO [(H.Cadence, Double, Double, Double, Double)]
 consonanceFallback currentState context = do
-  gen <- createSystemRandom
-  consonanceFallbackWith gen currentState context
+  rng <- createSystemRandom
+  consonanceFallbackWith rng currentState context
 
 -- |Like 'consonanceFallback' but uses a shared random generator.
 consonanceFallbackWith :: GenIO -> H.CadenceState -> HarmonicContext -> IO [(H.Cadence, Double, Double, Double, Double)]
@@ -391,8 +391,8 @@ triadToCadenceFrom currentRoot pitches =
 -- Returns IO (finalScore, chordDiss, motionDiss, gammaDraw)
 computeFallbackScoreWithComponents :: P.PitchClass -> H.Cadence -> [Int] -> IO (Double, Double, Double, Double)
 computeFallbackScoreWithComponents currentRoot cad triad = do
-  gen <- createSystemRandom
-  computeFallbackScoreWith gen currentRoot cad triad
+  rng <- createSystemRandom
+  computeFallbackScoreWith rng currentRoot cad triad
 
 -- |Like 'computeFallbackScoreWithComponents' but uses a shared random generator.
 computeFallbackScoreWith :: GenIO -> P.PitchClass -> H.Cadence -> [Int] -> IO (Double, Double, Double, Double)

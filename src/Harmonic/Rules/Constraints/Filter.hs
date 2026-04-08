@@ -1,12 +1,20 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 -- |
--- Module      : Harmonic.Core.Filter
+-- Module      : Harmonic.Rules.Constraints.Filter
 -- Description : Pitch class set filtering using legacy notation
--- 
+--
 -- This module implements the parsing and filtering system from the legacy
 -- Overtone.hs, providing compatibility with the original command line app
 -- and TidalCycles integration.
+--
+-- == Academic Lineage
+--
+-- /The Harmonic Algorithm/ (South, 2016), Section One: the three tuning
+-- systems EAeGB (Electric Contrabass Cittern), EAeGC (with B\/C re-tuner),
+-- and EADG (standard bass). The overtone series mapping
+-- @[0, 7, 4, 10, 2]@ (root, P5, M3, m7, M2) is the equal-temperament
+-- approximation of the first five unique partials.
 --
 -- == Filter Notation
 --
@@ -104,6 +112,10 @@ module Harmonic.Rules.Constraints.Filter
   , parseTuning'
   , partitionTokens
   , keyToPitchClasses
+  , noteNameToPitchClass
+
+    -- * Overtone Annotation Support
+  , parseTuningNamed
   ) where
 
 import qualified Data.Char as Char
@@ -166,6 +178,24 @@ parseTuning' n input
   where
     tokens = T.words $ T.toLower input
     
+-- |Parse a tuning string preserving string names for overtone annotation.
+-- Case is preserved for string identification (uppercase = lower octave,
+-- lowercase = higher octave per thesis convention).
+--
+-- Examples:
+--   @"E A D G"@ → @[("E",4), ("A",9), ("D",2), ("G",7)]@
+--   @"E A e G B"@ → @[("E",4), ("A",9), ("e",4), ("G",7), ("B",11)]@
+--   @"*"@ → @[]@ (wildcard has no named strings)
+parseTuningNamed :: Text -> [(String, Int)]
+parseTuningNamed input
+  | isWildcard input = []
+  | otherwise = mapMaybe parseNamedToken (T.words input)
+  where
+    parseNamedToken tok =
+      case noteNameToPitchClass (T.toLower tok) of
+        Just pc -> Just (T.unpack tok, pc)
+        Nothing -> Nothing
+
 -- |Parse a single token in tuning context
 parseToken :: Int -> Bool -> Text -> [PitchClass]
 parseToken n isPrime token

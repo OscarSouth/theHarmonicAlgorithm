@@ -1,15 +1,20 @@
 {-# LANGUAGE BangPatterns #-}
 
 -- |
--- Module      : Harmonic.Core.Probabilistic
+-- Module      : Harmonic.Traversal.Probabilistic
 -- Description : Gamma distribution sampling for weighted selection
--- 
+--
 -- This module implements probabilistic selection for the generative engine.
 -- The key concept is the "entropy" knob: higher gamma shape parameter pushes
 -- selection probability deeper into the sorted candidate list, favoring
 -- more "unusual" but still valid harmonic choices.
 --
--- Replaces the legacy R-based gammaGen with pure Haskell implementation.
+-- == Academic Lineage
+--
+-- /Data Science In The Creative Process/ (South, 2018): the probabilistic
+-- traversal strategy (T component of Wiggins' Creative Systems Framework).
+-- The original implementation used R's @rgamma@ via inline-r; this module
+-- replaces it with a pure Haskell gamma distribution from @mwc-random@.
 
 module Harmonic.Traversal.Probabilistic
   ( -- * Gamma Sampling
@@ -55,9 +60,9 @@ import Control.Monad (replicateM)
 -- and mwc-random for high-quality random number generation.
 gammaIndex :: Double -> Int -> IO Int
 gammaIndex shape maxIndex = do
-  gen <- createSystemRandom
+  rng <- createSystemRandom
   let safeShape = max 0.01 shape  -- Prevent gamma crash at alpha=0
-  x <- Dist.gamma safeShape 1.0 gen  -- Gamma(shape, scale=1.0)
+  x <- Dist.gamma safeShape 1.0 rng  -- Gamma(shape, scale=1.0)
   let idx = floor x
   pure $ max 0 (min idx maxIndex)
 
@@ -74,11 +79,11 @@ gammaIndexScaled :: Double  -- ^ Entropy in [0, 1] range
                  -> Int     -- ^ Pool size (e.g., 30)
                  -> IO Int
 gammaIndexScaled entropy poolSize = do
-  gen <- createSystemRandom
+  rng <- createSystemRandom
   let clampedEntropy = max 0.0 (min 1.0 entropy)
       shape = 1.0 + clampedEntropy * 9.0  -- Maps [0,1] -> [1,5]
       safeShape = max 0.01 shape
-  x <- Dist.gamma safeShape 1.0 gen
+  x <- Dist.gamma safeShape 1.0 rng
   let idx = floor x
       maxIdx = poolSize - 1
   pure $ max 0 (min idx maxIdx)
@@ -135,10 +140,10 @@ gammaSequence :: Double    -- ^ Gamma shape parameter
               -> Int       -- ^ Number of indices to generate
               -> IO [Int]
 gammaSequence baseShape entropy count = do
-  gen <- createSystemRandom
+  rng <- createSystemRandom
   let effectiveShape = baseShape * (1 + entropy)
   replicateM count $ do
-    x <- Dist.gamma effectiveShape 1.0 gen
+    x <- Dist.gamma effectiveShape 1.0 rng
     pure $ floor x
 
 -------------------------------------------------------------------------------

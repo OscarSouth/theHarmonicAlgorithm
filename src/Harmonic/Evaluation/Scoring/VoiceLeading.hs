@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
 
 -- |
--- Module      : Harmonic.Core.VoiceLeading
+-- Module      : Harmonic.Evaluation.Scoring.VoiceLeading
 -- Description : Cyclic DP voice leading optimization
 -- 
 -- This module implements the Traversal (T) component of the Creative Systems

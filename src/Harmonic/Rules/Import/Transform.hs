@@ -1,3 +1,11 @@
+-- |
+-- Module      : Harmonic.Rules.Import.Transform
+-- Description : YCACL data transformation into cadence structures
+--
+-- Transforms raw CSV corpus records into 'Cadence' structures suitable for
+-- Neo4j graph storage: fundamental extraction, triad generation via
+-- "Harmonic.Rules.Constraints.Overtone", and dissonance scoring.
+
 module Harmonic.Rules.Import.Transform where
 
 import           Harmonic.Rules.Import.Types

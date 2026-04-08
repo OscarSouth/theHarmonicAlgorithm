@@ -1,4 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
+
+-- |
+-- Module      : Harmonic.Rules.Import.Graph
+-- Description : Neo4j graph database connection and cadence storage
+--
+-- Provides 'connectNeo4j' for database connection and write operations
+-- for storing cadence nodes and transition edges during data ingestion.
+
 module Harmonic.Rules.Import.Graph where
 
 import           Harmonic.Config

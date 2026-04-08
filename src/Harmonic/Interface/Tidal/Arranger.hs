@@ -505,14 +505,14 @@ randomRoot gen = do
 -- @
 lead :: String -> IO CadenceState
 lead input = do
-  gen <- createSystemRandom
+  rng <- createSystemRandom
   let toks = parseLeadTokens input
       mRoot = listToMaybe [r | RootTok r <- toks]
       mQual = listToMaybe [q | QualTok q <- toks]
       mMove = listToMaybe [m | MoveTok m <- toks]
-  rootStr          <- maybe (randomRoot gen) pure mRoot
-  (qualLabel, ivs) <- resolveQuality gen mQual
-  movement         <- maybe (uniformRM (-5, 6) gen) pure mMove
+  rootStr          <- maybe (randomRoot rng) pure mRoot
+  (qualLabel, ivs) <- resolveQuality rng mQual
+  movement         <- maybe (uniformRM (-5, 6) rng) pure mMove
   let cs = initCadenceState movement rootStr ivs
   putStrLn $ rootStr ++ " " ++ qualLabel
   pure cs

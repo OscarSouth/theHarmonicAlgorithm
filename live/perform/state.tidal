@@ -1,38 +1,53 @@
+ -- TRANSPORT
+mapM_ id [p "transport"
+ $ seqP
+   $ sync 999999 ++ [runSeq]
+ ,resetCycles,hush,allNotesOff
+ ,setcps (tempo/60)
+ ]
+
 tempo = 97
 
 start <- lead "E min"
 
-ctx = inversion 1
-  $ consonant
-  $ hcRoots "E A B fall"
-  $ hcKey "1# D#"
+ctx = invSkip 1
+  -- $ consonant
+  -- $ hcRoots "*"
+  $ hcRoots "0# rise"
+  $ hcKey "*"
+  -- $ hcKey "*"
   $ hContext
 
-s <- gen start 4 "*" 0.3 ctx
+s <- seek "*"
+  $ len 8
+  $ cue start
+  $ tonal ctx
+  $ entropy 0.3
+  $ gen
 
-form = [
-  at    0   1   1   s
-  ]
-
-  -- '' ¬¬
+ -- '' ¬¬
 do
   let
-    -- r = warp "[1 2 3 4]/8"
-    r = warp "[3 4 2 1]/4"
+    r = warp "[1 2 3 4 5 6 7 8]/16"
+    -- r = warp "[2 4 3 1]/4"
     f = (swingBy 0.07 2)
     d = (* 1)
-    k = formK tempo form
+    k = formK tempo [at 0 0 0 s
+      ,at 30 1 1 s
+      ]
   putStrLn $ "LAUNCH ¬¬"
-  mapM_ id [hush, setbpm tempo
-    ,wind f r k       $ d 0.6
-    -- ,strg f r k       $ d 0.8
-    ,brss f r k       $ d 0.9
-    ,perc f r k       $ d 1
-    -- ,chalumeau f r k  $ d 0.9
-    -- ,tutti f r k $ d 0.9
-    -- ,p03 f r k        $ d 0.9
-    -- ,subk f r k       $ d 0.1
-    -- ,k909 f k         $ d 0.8
+  print s
+  mapM_ id [launch, setbpm tempo
+    -- ,wind f r k $d 0.6
+    -- ,strg f r k $d 0.8
+    -- ,brss f r k $d 0.9
+    -- ,perc f r k $d 1
+    ,p07  f r k $d 0.9
+    ,subk f r k $d 0.1
+    -- ,k909 f k $d 0.8
+    -- ,kmpc f k $d 0.8
+    -- ,m32  f r k $d 0.9
+    -- ,mdf f r k $d 0.9
    ]
 
 hush''

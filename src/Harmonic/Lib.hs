@@ -64,22 +64,61 @@
 --
 -- Import this module to get all Phase B types and Phase C generation functions.
 -- The module re-exports core Haskell modules and TidalCycles bridge functions.
+--
+-- = Academic Lineage
+--
+-- This project originated from three academic documents:
+--
+-- 1. /The Harmonic Algorithm/ (South, 2016) — MA thesis: exhaustive
+--    combinatorial analysis of overtone harmonics on the Electric Contrabass
+--    Cittern (EAeGB\/EAeGC tunings) and standard bass (EADG). Charts all
+--    3-note overtone combinations over 12 chromatic bass notes.
+--
+-- 2. /Harmonic Algorithm Reflections/ (South, 2016) — companion reflective
+--    document. Contains \"The Parting Glass\" arrangement score and documents
+--    technique development including Three Point Playing and Overtone 5
+--    discovery.
+--
+-- 3. /Data Science In The Creative Process/ (South, 2018) — DBS Higher
+--    Diploma. Implements the algorithm computationally in Haskell using
+--    Wiggins' Creative Systems Framework \<R,T,E\>. Resolves \"Generative
+--    Uninspiration\" via Markov model trained on the YCACL Bach chorales.
+--
+-- = References
+--
+-- * South, O. (2016). /The Harmonic Algorithm/. MA thesis.
+-- * South, O. (2016). /Harmonic Algorithm Reflections/.
+-- * South, O. (2018). /Data Science In The Creative Process/. DBS.
+-- * Wiggins, G.A. (2001). /Towards a more precise characterisation of creativity in AI/.
+-- * Hindemith, P. (1937). /The Craft of Musical Composition/.
+-- * Pastorius, J. (2001). /Modern Electric Bass/. — harmonic vocabulary on bass.
+-- * Manring, M. — Hipshot re-tuner technique, multiple D-Tuners.
+-- * Bailey, S. & Wooten, V. (1993). /Bass Extremes/. — artificial harmonics.
+-- * McLean, A. (2007). /Improvising with Synthesised Vocables/. — TidalCycles origins.
 
 module Harmonic.Lib (
   -- ========== PRIMARY INTERFACE FOR LIVE CODING ==========
-  -- Three functions with clean signatures for TidalCycles:
-  --   gen   - silent (no output)
+  -- Modifier-based generation API:
+  --   gen   - header + grid output
   --   gen'  - compact summary
   --   gen'' - verbose traces
   gen, gen', gen'',
+  genGrid, genFrom,
 
-  -- ========== ALTERNATIVE UNIFIED INTERFACE ==========
-  -- Same as above but with descriptive names
+  -- ========== GENERATION MODIFIERS ==========
+  cue, len, seek, entropy, tonal,
+
+  -- ========== GENERATION TYPES ==========
+  GenConfig(..), GenMode(..), Verbosity(..),
+  defaultGenConfig, execGenConfig,
+
+  -- ========== POSITIONAL GENERATION (legacy) ==========
   genSilent, genStandard, genVerbose,
+  genPrint, genPrint', genPrint'',
 
   -- ========== CONTEXT & CONFIGURATION ==========
   HarmonicContext(..), harmonicContext, hContext, defaultContext,
-  Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, inversion,
+  Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip,
   GeneratorConfig(..), defaultConfig,
 
   -- ========== PHASE B: CORE MUSIC TYPES ==========
@@ -104,6 +143,8 @@ module Harmonic.Lib (
   overtones, Harmonic.Rules.Constraints.Filter.key, funds, tuning, wildcard,
   -- Text versions
   parseOvertones, parseKey, parseFunds, parseTuning, isWildcard,
+  -- Overtone annotation support
+  parseTuningNamed,
 
   -- ========== DATABASE INTERFACE ==========
   module Harmonic.Evaluation.Database.Query,
@@ -166,8 +207,28 @@ import Harmonic.Evaluation.Scoring.VoiceLeading (voiceLeadingCost, totalCost, cy
 import Harmonic.Rules.Types.Progression
 -- Phase C: Interactive Behaviour
 import Harmonic.Traversal.Probabilistic
-import Harmonic.Framework.Builder (HarmonicContext(..), harmonicContext, hContext, defaultContext, Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, inversion, GeneratorConfig(..), defaultConfig, generate, generateWith, gen, genWith, generate', gen', genWith', generate'', gen'', genWith'', genSilent, genStandard, genVerbose, genSilent', genStandard', genVerbose', printDiagnostics, StepDiagnostic(..), GenerationDiagnostics(..), TransformTrace(..), AdvanceTrace(..))
-import Harmonic.Rules.Constraints.Filter (overtones, key, funds, tuning, wildcard, parseOvertones, parseKey, parseFunds, parseTuning, isWildcard)
+import Harmonic.Framework.Builder (
+    -- Modifier-based API
+    gen, gen', gen'',
+    genGrid, genFrom,
+    cue, len, seek, entropy, tonal,
+    GenConfig(..), GenMode(..), Verbosity(..),
+    defaultGenConfig, execGenConfig,
+    -- Positional API
+    genPrint, genPrint', genPrint'',
+    generate, generateWith, genWith,
+    generate', genWith',
+    generate'', genWith'',
+    genSilent, genStandard, genVerbose,
+    genSilent', genStandard', genVerbose',
+    printDiagnostics,
+    -- Context & types
+    HarmonicContext(..), harmonicContext, hContext, defaultContext,
+    Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip,
+    GeneratorConfig(..), defaultConfig,
+    StepDiagnostic(..), GenerationDiagnostics(..), TransformTrace(..), AdvanceTrace(..)
+  )
+import Harmonic.Rules.Constraints.Filter (overtones, key, funds, tuning, wildcard, parseOvertones, parseKey, parseFunds, parseTuning, isWildcard, parseTuningNamed)
 import Harmonic.Evaluation.Database.Query
 -- Infrastructure (selective imports to avoid conflicts)
 import Harmonic.Rules.Import.Graph (connectNeo4j)

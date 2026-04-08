@@ -1,0 +1,105 @@
+-- ============================================================================
+-- XIII. APOTHEOSIS OF ORPHEUS
+-- ============================================================================
+--
+-- From the myth: Apollo -- god of music, light, and reason; Orpheus's divine
+-- father -- descends to the scene of destruction. He takes up Orpheus's
+-- severed lyre and raises it, along with Orpheus's song, toward the heavens.
+-- The lyre is placed among the stars as the constellation Lyra. Orpheus's
+-- music achieves what his mortal body could not: immortality through form.
+--
+-- Stravinsky returns to the opening music of the ballet, but transfigured.
+-- The harp plays the descending Phrygian scale from movement I, but now it
+-- is "answered by ascending lines" -- grief transmuted into transcendence.
+-- Two horns intone "a two-part fugue which is a paraphrase of the chorale
+-- subject with which the ballet opened" -- Apollo's divine counterpoint
+-- replacing Orpheus's mortal lament. Violins play in their highest register
+-- (harmonics). The music "slowly crystallizes" and "resolves into mythic
+-- permanence."
+--
+-- The final notes fade to nothingness: "a final, crystalline chord held in
+-- the strings and harp." The piece ends as austerely as it began. Eternity.
+--
+-- This is the Apollonian triumph -- not over death, but through death.
+-- Art outlasts the artist. The circle from D minor (opening grief) to D minor
+-- (closing transcendence) is complete, but the meaning has been transformed
+-- by everything between.
+--
+-- Reimagination: Returns to D minor with Bb major key area (mirroring
+-- movement 01 exactly -- the harmonic circle closes). Consonant drift with
+-- falling bass (descending Phrygian). Ultra-low entropy for crystalline
+-- stasis. Bach/Debussy blend for counterpoint + luminosity. Harp as primary
+-- voice (the lyre, now divine), two horns in counterpoint, high violins.
+-- ============================================================================
+
+tempo = 56
+
+start <- lead "D min"
+
+let ctx = consonant
+        $ hcRoots "D G Bb fall"
+        $ hcKey "2b"
+        $ hContext
+
+s <- seek "bach:50 debussy:50" $ cue start $ tonal ctx $ len 8 $ entropy 0.15 $ gen
+
+-- Form: ~173s loop (163s music + 10s silence)
+-- Arc: Apollo appears -> divine counterpoint -> ascending -> crystallising -> eternity
+form =
+  [ at    0    0.0   0.0   s     -- silence: from the void of destruction
+  , at    5    0.3   0.3   s     -- Apollo appears: lyre motif transfigured
+  , at   33    0.4   0.4   s     -- harp + horns: divine two-part fugue
+  , at   63    0.3   0.3   s     -- ascending lines: violins in harmonics
+  , at   93    0.2   0.2   s     -- crystallising: texture thins
+  , at  123    0.15  0.15  s     -- final ascent: mythic permanence
+  , at  148    0.05  0.05  s     -- eternity: fading to nothingness
+  , at  163    0.0   0.0   s     -- perfect stillness
+  , at  173    0.0   0.0   s     -- silence
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Apollo's lyre: harp (transfigured) + horns (divine counterpoint)
+apotheosis f r k d = p "apotheosis" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[0 1 2 3]/4"
+        , alto    = "[1 2 3 0]/4"
+        , tenor   = "2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , harp (0, 1) flow Soprano    r k vl
+        , horn (0, 1) flow Soprano    r k vl
+        , horn (0, 1) flow Alto       r k vl
+    ] |* vel (kDynamic k) |* vel d
+
+-- High strings: violin harmonics, the music ascending to the stars
+ascension f r k d = p "ascension" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 0]/4"
+        , alto    = "1"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , violin1 (0.2, 1) flow Soprano8va r k vl
+        , viola   (0.3, 1) flow Alto       r k vl
+        , cello   (0.2, 1) grid Bass       r k vl
+    ] |* vel (kDynamic k) |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    r = warp "[1 2 3 4]/8"
+    f = id
+    d = (* 1)
+    k = formK tempo form
+  putStrLn "ORPHEUS — XIII. Apotheosis of Orpheus"
+  mapM_ id [hush, setbpm tempo
+    ,apotheosis f r k  $ d 0.9
+    ,ascension  f r k  $ d 0.6
+    ]
+
+hush''

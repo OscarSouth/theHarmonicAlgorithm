@@ -1,5 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+-- |
+-- Module      : Harmonic.Interface.Tidal.Groove
+-- Description : Rhythm section interface for sub-bass and kick patterns
+--
+-- Provides 'subKick' (sub-bass with CC64 sustain pedal) and 'fund'
+-- (fundamental bass note extraction) for rhythm-section integration
+-- with harmonically-generated progressions.
+
 module Harmonic.Interface.Tidal.Groove
   ( fund
   , subKick
@@ -58,7 +66,14 @@ subKick :: (P.Progression -> [[Int]])  -- ^ Voice strategy (fund or bass)
             String)                     -- ^ Kick placement pattern string
         -> Pattern ValueMap
 subKick voiceFunc chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr) =
-  let -- Pre-compute at construction time
+  let -- Parse pattern strings ONCE at construction time (not per progression change)
+      subOnPat  = slow 4 $ parseBP_E subOnStr
+      subOffPat = slow 4 $ parseBP_E subOffStr
+      kickPat   = slow 4 $ parseBP_E kickStr
+      -- Pre-compute LED all-off stack (constant, shared across invocations)
+      ledAllOff = stack [midicmd "control" # ctlNum (fromIntegral cc)
+                         # control (fromIntegral (0 :: Int)) | cc <- [20..31 :: Int]]
+      -- Pre-compute voicings at construction time
       allEvents = queryArc (kProg k) (Arc 0 1000)
       uniqueProgs = nub (map value allEvents)
       cache = [(p, let raw = voiceFunc p
@@ -71,28 +86,33 @@ subKick voiceFunc chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr) =
         Nothing  -> let raw = voiceFunc prog
                     in (map normalizeToSubRange raw, length raw)
   in innerJoin $ fmap (\prog ->
-       subKickCoreP (lookupCache prog) chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr)
+       subKickCoreP (lookupCache prog) subOnPat subOffPat kickPat ledAllOff chordPat dyn k maxDur
      ) (kProg k)
 
 -- |Internal: subKick logic with ki gating on sub/kick groups.
+-- Accepts pre-parsed patterns and pre-computed LED all-off from subKick outer level.
 subKickCore :: (P.Progression -> [[Int]])
             -> P.Progression
-            -> Pattern Int
-            -> Pattern Double
+            -> Pattern Bool             -- ^ Pre-parsed sub on pattern
+            -> Pattern Bool             -- ^ Pre-parsed sub off pattern
+            -> Pattern Bool             -- ^ Pre-parsed kick pattern
+            -> ControlPattern           -- ^ ledAllOff (pre-computed)
+            -> Pattern Int              -- ^ Chord selection pattern
+            -> Pattern Double           -- ^ Dynamics
             -> Kinetics
-            -> (Time, String, String, String)
+            -> Time                     -- ^ Max sub duration
             -> Pattern ValueMap
-subKickCore voiceFunc prog chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr)
+subKickCore voiceFunc prog subOnPat subOffPat kickPat ledAllOff chordPat dyn k maxDur
   | null normPitches = silence
   | otherwise =
   let
-    -- Parse pattern strings
-    subOnPat  = slow 4 $ parseBP_E subOnStr
-    subOffPat = slow 4 $ parseBP_E subOffStr
-    kickPat   = slow 4 $ parseBP_E kickStr
-
     -- CC helper
     midiCC num val = midicmd "control" # ctlNum num # control val
+
+    -- LED feedback helper
+    ledCC num val = midicmd "control"
+                  # ctlNum (fromIntegral num)
+                  # control (fromIntegral val)
 
     -- Convert dynamics to boolean gate for mask
     dynGate = fmap (> 0) dyn
@@ -125,11 +145,6 @@ subKickCore voiceFunc prog chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr)
     -- Manual note-off: CC 64 = 0 at user-specified boundaries
     manualOff = struct subOffPat $ midiCC 64 0
 
-    -- LED feedback for Keith McMillen 12 Step foot controller
-    ledCC num val = midicmd "control"
-                  # ctlNum (fromIntegral num)
-                  # control (fromIntegral val)
-
     subLedOn = (1/128) ~> (mask dynGate $ struct subOnPat $
       innerJoin (fmap (\ci ->
         ledCC (normPitches !! (ci `mod` nChords) - 16) 1
@@ -137,11 +152,9 @@ subKickCore voiceFunc prog chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr)
 
     subLedAutoOff
       | maxDur >= 1 = silence
-      | otherwise   = struct ((pure (maxDur * 4)) ~> subOnPat) $
-          stack [ledCC cc 0 | cc <- [20..31]]
+      | otherwise   = struct ((pure (maxDur * 4)) ~> subOnPat) $ ledAllOff
 
-    subLedManualOff = struct subOffPat $
-      stack [ledCC cc 0 | cc <- [20..31]]
+    subLedManualOff = struct subOffPat $ ledAllOff
 
     kickLedOn = struct kickPat $ ledCC 32 1
 
@@ -160,31 +173,39 @@ subKickCore voiceFunc prog chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr)
       , kickLedOn # thru, kickLedOff # thru
       ]
 
-  in stack [subGroup, kickGroup]
+    -- Pedal up: CC64=0 when sub is inactive (kinetics below threshold)
+    -- Resets physical instrument to default touch behaviour
+    pedalUp = mask (fmap (< 0.1) (kSignal k)) $ segment 1 (midiCC 64 0) # thru
+
+  in stack [subGroup, kickGroup, pedalUp]
   where
     rawPitches  = voiceFunc prog
     normPitches = map normalizeToSubRange rawPitches
     nChords     = length normPitches
 
--- |Cached subKick: takes pre-computed (normPitches, nChords) instead of computing from voiceFunc.
+-- |Cached subKick: takes pre-computed (normPitches, nChords) and pre-parsed patterns.
 -- All CC64/sustain/timing logic identical to subKickCore.
 subKickCoreP :: ([Int], Int)
-             -> Pattern Int
-             -> Pattern Double
+             -> Pattern Bool             -- ^ Pre-parsed sub on pattern
+             -> Pattern Bool             -- ^ Pre-parsed sub off pattern
+             -> Pattern Bool             -- ^ Pre-parsed kick pattern
+             -> ControlPattern           -- ^ ledAllOff (pre-computed)
+             -> Pattern Int              -- ^ Chord selection pattern
+             -> Pattern Double           -- ^ Dynamics
              -> Kinetics
-             -> (Time, String, String, String)
+             -> Time                     -- ^ Max sub duration
              -> Pattern ValueMap
-subKickCoreP (normPitches, nChords) chordPat dyn k (maxDur, subOnStr, subOffStr, kickStr)
+subKickCoreP (normPitches, nChords) subOnPat subOffPat kickPat ledAllOff chordPat dyn k maxDur
   | nChords == 0 = silence
   | otherwise =
   let
-    -- Parse pattern strings
-    subOnPat  = slow 4 $ parseBP_E subOnStr
-    subOffPat = slow 4 $ parseBP_E subOffStr
-    kickPat   = slow 4 $ parseBP_E kickStr
-
     -- CC helper
     midiCC num val = midicmd "control" # ctlNum num # control val
+
+    -- LED feedback helper
+    ledCC num val = midicmd "control"
+                  # ctlNum (fromIntegral num)
+                  # control (fromIntegral val)
 
     -- Convert dynamics to boolean gate for mask
     dynGate = fmap (> 0) dyn
@@ -217,11 +238,6 @@ subKickCoreP (normPitches, nChords) chordPat dyn k (maxDur, subOnStr, subOffStr,
     -- Manual note-off: CC 64 = 0 at user-specified boundaries
     manualOff = struct subOffPat $ midiCC 64 0
 
-    -- LED feedback for Keith McMillen 12 Step foot controller
-    ledCC num val = midicmd "control"
-                  # ctlNum (fromIntegral num)
-                  # control (fromIntegral val)
-
     subLedOn = (1/128) ~> (mask dynGate $ struct subOnPat $
       innerJoin (fmap (\ci ->
         ledCC (normPitches !! (ci `mod` nChords) - 16) 1
@@ -229,11 +245,9 @@ subKickCoreP (normPitches, nChords) chordPat dyn k (maxDur, subOnStr, subOffStr,
 
     subLedAutoOff
       | maxDur >= 1 = silence
-      | otherwise   = struct ((pure (maxDur * 4)) ~> subOnPat) $
-          stack [ledCC cc 0 | cc <- [20..31]]
+      | otherwise   = struct ((pure (maxDur * 4)) ~> subOnPat) $ ledAllOff
 
-    subLedManualOff = struct subOffPat $
-      stack [ledCC cc 0 | cc <- [20..31]]
+    subLedManualOff = struct subOffPat $ ledAllOff
 
     kickLedOn = struct kickPat $ ledCC 32 1
 
@@ -252,4 +266,8 @@ subKickCoreP (normPitches, nChords) chordPat dyn k (maxDur, subOnStr, subOffStr,
       , kickLedOn # thru, kickLedOff # thru
       ]
 
-  in stack [subGroup, kickGroup]
+    -- Pedal up: CC64=0 when sub is inactive (kinetics below threshold)
+    -- Resets physical instrument to default touch behaviour
+    pedalUp = mask (fmap (< 0.1) (kSignal k)) $ segment 1 (midiCC 64 0) # thru
+
+  in stack [subGroup, kickGroup, pedalUp]

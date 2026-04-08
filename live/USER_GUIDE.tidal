@@ -29,7 +29,7 @@ let
   ctx = hcKey "0#" $ hContext
 
 -- Step 2: Generate harmonic composition
-s4 <- gen start 4 "*" 0.5 ctx
+s4 <- seek "*" $ cue start $ tonal ctx $ entropy 0.5 $ gen
 
 -- Step 3: Define chord selection pattern
 -- warp parses a mininotation string into a Pattern Int
@@ -206,7 +206,7 @@ do
   let
     start = initCadenceState 0 "C" [0,4,7]
     ctx = hcRoots "0# fall" $ hcKey "0#" $ hContext
-  s8 <- gen start 8 "*" 0.5 ctx
+  s8 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
   let
     r = rep s8 1
     k = formK 120 [at 0 1 1 s8]
@@ -239,15 +239,20 @@ let
 -- Four generation functions (verbosity levels):
 --   gen       :: basic musical shorthand (prints musical header)
 --   genSilent :: silences output
---   gen'       :: deeper musical context (per-step info)
---   gen''      :: full trace for dev/debug
+--   gen'      :: deeper musical context (per-step info)
+--   gen''     :: full trace for dev/debug
+--
+-- Modifier-based syntax:
+--   seek "<composer>" $ cue start $ tonal ctx $ len N $ entropy E $ gen
+--   seek is the TERMINAL (outermost), gen/gen'/gen'' are bare values (rightmost)
+--   Defaults (can be omitted): len 4, entropy 0.2, tonal hContext
 
 -- gen :: basic musical shorthand
 do
   let
     start = initCadenceState 0 "C" [0,4,7]
     ctx = hcKey "0#" $ hContext
-  s4 <- gen start 4 "*" 0.5 ctx
+  s4 <- seek "*" $ cue start $ tonal ctx $ entropy 0.5 $ gen
   let
     r = rep s4 1
     k = formK 120 [at 0 1 1 s4]
@@ -277,7 +282,7 @@ let
   ctx = hcKey "0#" $ hContext
   comp = "debussy:0.75 bach:0.25"
 
-state <- gen start 8 comp 0.5 ctx
+state <- seek comp $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
 
 
 -- ──────────────────────────────────────────────────────────
@@ -294,7 +299,7 @@ do
   let
     start = initCadenceState 0 "C" [0,4,7]
     ctx = dissonant $ hcKey "0#" $ hContext
-  s4 <- gen start 4 "*" 0.5 ctx
+  s4 <- seek "*" $ cue start $ tonal ctx $ entropy 0.5 $ gen
   let
     r = rep s4 1
     k = formK 120 [at 0 1 1 s4]
@@ -310,7 +315,7 @@ do
   let
     start = initCadenceState 0 "C" [0,3,6]  -- start dissonant (dim)
     ctx = consonant $ hcKey "0#" $ hContext
-  s4 <- gen start 4 "*" 0.5 ctx
+  s4 <- seek "*" $ cue start $ tonal ctx $ entropy 0.5 $ gen
   let
     r = rep s4 1
     k = formK 120 [at 0 1 1 s4]
@@ -326,7 +331,7 @@ do
   let
     start = initCadenceState 0 "C" [0,4,7]
     ctx = dissonant $ hcRoots "0# fall" $ hcKey "0#" $ hContext  -- rising tension + descending bass
-  s8 <- gen start 8 "*" 0.5 ctx
+  s8 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
   let
     r = rep s8 1
     k = formK 120 [at 0 1 1 s8]
@@ -353,23 +358,23 @@ hush'
 -- ──────────────────────────────────────────────────────────
 
 -- Control how often inversions (1st/2nd) appear in generated progressions.
--- inversion N sets the minimum number of non-inversion states between inversions.
+-- invSkip N sets the minimum number of non-inversion states between inversions.
 -- Applied as a modifier on HarmonicContext (like dissonant/consonant):
 --
--- inversion 0 = inversions allowed at any step (default, current behaviour)
--- inversion 1 = at least 1 non-inversion between inversions
--- inversion 2 = at least 2 non-inversions between inversions
+-- invSkip 0 = inversions allowed at any step (default, current behaviour)
+-- invSkip 1 = at least 1 non-inversion between inversions
+-- invSkip 2 = at least 2 non-inversions between inversions
 --
 -- The starting state counts: a root-position start means
--- inversion 1 can yield an inversion on the very first generated step.
+-- invSkip 1 can yield an inversion on the very first generated step.
 -- Large N naturally prevents all inversions (the count is never reached).
 
 -- Allow occasional inversions (spaced by at least 2 root positions):
 do
   let
     start = initCadenceState 0 "C" [0,4,7]
-    ctx = inversion 2 $ hcKey "0#" $ hContext
-  s8 <- gen start 8 "*" 0.5 ctx
+    ctx = invSkip 2 $ hcKey "0#" $ hContext
+  s8 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
   let
     r = rep s8 1
     k = formK 120 [at 0 1 1 s8]
@@ -384,8 +389,8 @@ hush'
 do
   let
     start = initCadenceState 0 "C" [0,4,7]
-    ctx = inversion 8 $ hcKey "0#" $ hContext
-  s8 <- gen start 8 "*" 0.5 ctx
+    ctx = invSkip 8 $ hcKey "0#" $ hContext
+  s8 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
   let
     r = rep s8 1
     k = formK 120 [at 0 1 1 s8]
@@ -400,8 +405,8 @@ hush'
 do
   let
     start = initCadenceState 0 "C" [0,4,7]
-    ctx = inversion 1 $ dissonant $ hcRoots "0# fall" $ hcKey "0#" $ hContext
-  s8 <- gen start 8 "*" 0.5 ctx
+    ctx = invSkip 1 $ dissonant $ hcRoots "0# fall" $ hcKey "0#" $ hContext
+  s8 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
   let
     r = rep s8 1
     k = formK 120 [at 0 1 1 s8]
@@ -539,7 +544,7 @@ do
   let
     start = initCadenceState 0 "C" [0,4,7]
     ctx = hcKey "0#" $ hContext
-  s8 <- gen start 8 "*" 0.5 ctx
+  s8 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
   let
     r = rep s8 1
     f = id
@@ -570,7 +575,7 @@ let
   start = initCadenceState 0 "C" [0,4,7]
   ctx = hcKey "0#" $ hContext
 
-s4 <- gen start 4 "*" 0.5 ctx
+s4 <- seek "*" $ cue start $ tonal ctx $ entropy 0.5 $ gen
 
 let r = rep s4 1
 let k = formK 120 [at 0 1 1 s4]
@@ -716,7 +721,7 @@ do
   let
     start = initCadenceState 0 "C" [0,4,7]
     ctx = hcKey "0#" $ hContext
-  s8 <- gen start 8 "*" 0.5 ctx
+  s8 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
   let
     r = rep s8 1
     k = formK 100 [at 0 1 1 s8]
@@ -754,7 +759,7 @@ let
   start = initCadenceState 0 "C" [0,4,7]
   ctx = hcKey "0#" $ hContext
 
-s8 <- gen start 8 "*" 0.5 ctx
+s8 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
 
 p01 f r d k = d01 $ do
   let o = ch 01
@@ -842,8 +847,8 @@ let
   start1 = initCadenceState 0 "C" [0,4,7]
   start2 = initCadenceState 0 "A" [0,3,7]
 
-state1 <- gen start1 4 "*" 0.5 ctx
-state2 <- gen start2 4 "*" 0.5 ctx
+state1 <- seek "*" $ cue start1 $ tonal ctx $ entropy 0.5 $ gen
+state2 <- seek "*" $ cue start2 $ tonal ctx $ entropy 0.5 $ gen
 
 do
   let
@@ -946,7 +951,7 @@ let
   start = initCadenceState 0 "C" [0,4,7]
   ctx = hcKey "0#" $ hContext
 
-s4 <- gen start 4 "*" 0.5 ctx
+s4 <- seek "*" $ cue start $ tonal ctx $ entropy 0.5 $ gen
 
 let k = formK 120 [at 0 1 1 s4]
 
@@ -1085,8 +1090,8 @@ let
   start1 = initCadenceState 5 "F" [0,4,7]
   ctx = hcKey "0#" $ hContext
 
-s0 <- gen start0 4 "*" 0.5 ctx
-s1 <- gen start1 4 "*" 0.5 ctx
+s0 <- seek "*" $ cue start0 $ tonal ctx $ entropy 0.5 $ gen
+s1 <- seek "*" $ cue start1 $ tonal ctx $ entropy 0.5 $ gen
 
 -- A 30-second form with 3 layers:
 form =
@@ -1238,7 +1243,7 @@ let
   start = initCadenceState 0 "C" [0,4,7]
   ctx = defaultContext
 
-s4 <- gen start 4 "*" 0.5 ctx
+s4 <- seek "*" $ cue start $ tonal ctx $ entropy 0.5 $ gen
 
 let k = formK 120 [at 0 1 1 s4]
 
@@ -1430,19 +1435,19 @@ let
   ctx = hcKey "0#" $ hContext
 
 -- Wildcard (aggregate confidence across all corpus composers):
-prog0 <- gen start 8 "*" 0.5 ctx
+prog0 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
 
 -- Single composer:
-prog1 <- gen start 8 "bach" 0.5 ctx
+prog1 <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
 
 -- Equal blend (no weights):
-prog2 <- gen start 8 "bach debussy" 0.5 ctx
+prog2 <- seek "bach debussy" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
 
 -- Weighted blend (75% Debussy, 25% Bach):
-prog3 <- gen start 8 "debussy:0.75 bach:0.25" 0.5 ctx
+prog3 <- seek "debussy:0.75 bach:0.25" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
 
 -- Multiple composers with weights:
-prog4 <- gen start 8 "ravel:2 stravinsky:1 mozart:1" 0.5 ctx
+prog4 <- seek "ravel:2 stravinsky:1 mozart:1" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
   -- 50% Ravel, 25% Stravinsky, 25% Mozart
 
 -- Play and compare:
@@ -1469,7 +1474,7 @@ let
   jazzCtx = hcRoots "D F# A" $ hcKey "2#" $ hContext
   start = initCadenceState 0 "D" [0,4,7]
 
-jazzProg <- gen start 16 "debussy ravel" 0.6 jazzCtx
+jazzProg <- seek "debussy ravel" $ cue start $ tonal jazzCtx $ len 16 $ entropy 0.6 $ gen
 
 do
   let
@@ -1487,7 +1492,7 @@ let
   bluesCtx = hcRoots "F Bb C" $ hcKey "1b" $ hContext
   start = initCadenceState 0 "F" [0,4,10]
 
-bluesProg <- gen start 12 "*" 0.4 bluesCtx
+bluesProg <- seek "*" $ cue start $ tonal bluesCtx $ len 12 $ entropy 0.4 $ gen
 
 do
   let
@@ -1505,7 +1510,7 @@ let
   modalCtx = hcRoots "C Eb F G Bb" $ hContext
   start = initCadenceState 0 "C" [0,3,7]
 
-modalProg <- gen start 8 "debussy" 0.7 modalCtx
+modalProg <- seek "debussy" $ cue start $ tonal modalCtx $ len 8 $ entropy 0.7 $ gen
 
 do
   let
@@ -1523,7 +1528,7 @@ let
   bassCtx = hcOvertones "E A D G" $ hContext
   start = initCadenceState 0 "E" [0,4,7]
 
-bassProg <- gen start 8 "*" 0.5 bassCtx
+bassProg <- seek "*" $ cue start $ tonal bassCtx $ len 8 $ entropy 0.5 $ gen
 
 do
   let
@@ -1552,13 +1557,13 @@ let
   ctx = hcKey "0#" $ hContext
 
 -- Conservative (entropy 0.3):
-p1 <- gen start 8 "*" 0.3 ctx
+p1 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.3 $ gen
 
 -- Balanced (entropy 0.5):
-p2 <- gen start 8 "*" 0.5 ctx
+p2 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
 
 -- Exploratory (entropy 0.8):
-p3 <- gen start 8 "*" 0.8 ctx
+p3 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.8 $ gen
 
 do
   let
@@ -1596,19 +1601,19 @@ let
 let
   startV = initCadenceState 0 "C" [0,4,7]
 
-verse <- gen startV 8 "*" 0.4 ctx
+verse <- seek "*" $ cue startV $ tonal ctx $ len 8 $ entropy 0.4 $ gen
 
 -- Chorus (F major, exploratory):
 let
   startC = initCadenceState 0 "F" [0,4,7]
 
-chorus <- gen startC 8 "*" 0.6 ctx
+chorus <- seek "*" $ cue startC $ tonal ctx $ len 8 $ entropy 0.6 $ gen
 
 -- Bridge (A minor, balanced):
 let
   startB = initCadenceState 0 "A" [0,3,7]
 
-bridge <- gen startB 8 "debussy:0.75 bach:0.25" 0.5 ctx
+bridge <- seek "debussy:0.75 bach:0.25" $ cue startB $ tonal ctx $ len 8 $ entropy 0.5 $ gen
 
 
 -- ──────────────────────────────────────────────────────────
@@ -1726,7 +1731,7 @@ let
   start = initCadenceState 0 "C" [0,4,7]
   ctx = hcKey "0#" $ hContext
 
-s32 <- gen start 32 "*" 0.5 ctx
+s32 <- seek "*" $ cue start $ tonal ctx $ len 32 $ entropy 0.5 $ gen
 
 -- Launcher with transformation support:
 p01 f r d k = d01 $ do
@@ -1772,12 +1777,14 @@ hush'
 -- 12.1 Generation Functions
 -- ──────────────────────────────────────────────────────────
 
--- gen       :: basic musical shorthand (prints musical header)
--- genSilent :: silences output
--- gen'      :: deeper musical context (per-step info)
--- gen''     :: full trace for dev/debug
---   :: CadenceState -> Int -> String -> Double
---   -> HarmonicContext -> IO Progression
+-- gen       :: bare value (basic musical shorthand, prints musical header)
+-- genSilent :: bare value (silences output)
+-- gen'      :: bare value (deeper musical context, per-step info)
+-- gen''     :: bare value (full trace for dev/debug)
+--
+-- Modifier-based syntax (seek is the terminal, gen/gen'/gen'' are rightmost):
+--   seek "<composer>" $ cue start $ tonal ctx $ len N $ entropy E $ gen
+--   Defaults (can be omitted): len 4, entropy 0.2, tonal hContext
 
 -- initCadenceState
 --   :: Int -> String -> [Int] -> CadenceState
@@ -1801,11 +1808,11 @@ hush'
 --   Each chord <= current dissonance.
 --   consonant $ hcKey "0#" $ hContext
 --
--- inversion :: Int -> HarmonicContext -> HarmonicContext
+-- invSkip :: Int -> HarmonicContext -> HarmonicContext
 --   Minimum N non-inversions between inversions.
---   inversion 0 $ ctx  -- any step can be an inversion (default)
---   inversion 1 $ ctx  -- at least 1 non-inversion between inversions
---   inversion 2 $ ctx  -- at least 2 non-inversions between inversions
+--   invSkip 0 $ ctx  -- any step can be an inversion (default)
+--   invSkip 1 $ ctx  -- at least 1 non-inversion between inversions
+--   invSkip 2 $ ctx  -- at least 2 non-inversions between inversions
 --
 -- Bass direction (in roots string):
 --   "rise" / "fall"         -- step to closest note above/below

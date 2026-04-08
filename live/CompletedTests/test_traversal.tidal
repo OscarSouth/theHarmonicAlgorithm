@@ -4,13 +4,16 @@
 -- Run in GHCi: `:load live/test_traversal.tidal`
 -- All functions from Harmonic.Lib are available via BootTidal.hs
 --
--- UNIFIED GENERATION INTERFACE:
--- Three main functions with identical signatures:
---   gen start len "*" 0.5 ctx    :: IO Progression (no output)
---   gen' start len "*" 0.5 ctx   :: IO Progression (compact musical summary)
---   gen'' start len "*" 0.5 ctx  :: IO Progression (verbose traces)
+-- MODIFIER-BASED GENERATION INTERFACE:
+-- Three verbosity levels (bare values):
+--   gen    :: GenConfig (silent)
+--   gen'   :: GenConfig (compact musical summary)
+--   gen''  :: GenConfig (verbose traces)
 --
--- Advanced use: extract diagnostics from tuples
+-- Modifier chain: seek is the terminal (outermost/leftmost)
+--   s <- seek "*" $ cue start $ len 8 $ entropy 0.5 $ gen
+--
+-- Advanced use: extract diagnostics from tuples (positional)
 --   generate' start len "*" 0.5 ctx  :: IO (Progression, GenerationDiagnostics)
 --
 -- PIPELINE OVERVIEW:
@@ -33,12 +36,11 @@
 
 putStrLn "\n=== TEST 1: Length Verification ==="
 let start = initCadenceState 0 "C" [0,4,7]
-    ctx = defaultContext
-forM_ [4, 8, 12, 16] $ \len ->
-  gen start len "*" 0.5 ctx >>= \prog ->
+forM_ [4, 8, 12, 16] $ \l ->
+  (seek "*" $ cue start $ len l $ entropy 0.5 $ gen) >>= \prog ->
     let actual = progLength prog
-    in putStrLn $ "  Requested: " ++ show len ++ " -> Actual: " ++ show actual
-                  ++ " [" ++ (if len == actual then "PASS" else "FAIL") ++ "]"
+    in putStrLn $ "  Requested: " ++ show l ++ " -> Actual: " ++ show actual
+                  ++ " [" ++ (if l == actual then "PASS" else "FAIL") ++ "]"
 
 -------------------------------------------------------------------------------
 -- TEST 2: Starting Chord Preservation
@@ -46,8 +48,7 @@ forM_ [4, 8, 12, 16] $ \len ->
 
 putStrLn "\n=== TEST 2: Starting Chord Preservation ==="
 let start = initCadenceState 0 "C" [0,4,7]
-    ctx = defaultContext
-gen start 4 "*" 0.5 ctx >>= \prog ->
+(seek "*" $ cue start $ entropy 0.5 $ gen) >>= \prog ->
   let cs1 = getCadenceState prog 1
   in do
     putStrLn $ "  Initial: " ++ show start
@@ -70,14 +71,13 @@ forM_ testCases $ \(mvmt, note, qual, desc) ->
   in putStrLn $ "  " ++ desc ++ ": ✓"
 
 -------------------------------------------------------------------------------
--- TEST 4: Standard Diagnostics Output (genStandard)
+-- TEST 4: Standard Diagnostics (gen')
 -------------------------------------------------------------------------------
 
-putStrLn "\n=== TEST 4: Standard Diagnostics (genStandard) ==="
+putStrLn "\n=== TEST 4: Standard Diagnostics (gen') ==="
 putStrLn "  Shows per-step candidate pools, selections, rendered chords:"
 let start = initCadenceState 0 "C" [0,4,7]
-    ctx = defaultContext
-genStandard start 4 "*" 0.5 ctx
+seek "*" $ cue start $ entropy 0.5 $ gen'
 
 -------------------------------------------------------------------------------
 -- TEST 5: Entropy Effect on Gamma Sampling
@@ -85,12 +85,11 @@ genStandard start 4 "*" 0.5 ctx
 
 putStrLn "\n=== TEST 5: Entropy Effect on Selection ==="
 let start = initCadenceState 0 "C" [0,4,7]
-    ctx = defaultContext
-forM_ [0.0, 0.5, 1.0] $ \entropy ->
-  generate' start 8 "*" entropy ctx >>= \(_, diag) ->
+forM_ [0.0, 0.5, 1.0] $ \e ->
+  generate' start 8 "*" e defaultContext >>= \(_, diag) ->
     let indices = map sdGammaIndex (gdSteps diag)
         avgIdx = fromIntegral (sum indices) / fromIntegral (length indices) :: Double
-    in putStrLn $ "  Entropy " ++ show entropy ++ ": avg index = " ++ show (round (avgIdx * 100) :: Int) / 100
+    in putStrLn $ "  Entropy " ++ show e ++ ": avg index = " ++ show (round (avgIdx * 100) :: Int) / 100
 
 -------------------------------------------------------------------------------
 -- TEST 6: Diverse Movement Traversal
@@ -98,8 +97,7 @@ forM_ [0.0, 0.5, 1.0] $ \entropy ->
 
 putStrLn "\n=== TEST 6: Movement Diversity in 12-Chord Generation ==="
 let start = initCadenceState 0 "C" [0,4,7]
-    ctx = defaultContext
-generate' start 12 "*" 0.5 ctx >>= \(prog, diag) ->
+generate' start 12 "*" 0.5 defaultContext >>= \(prog, diag) ->
   let movements = map sdSelectedDbMovement (gdSteps diag)
       unique xs = foldr (\x acc -> if x `elem` acc then acc else x:acc) [] xs
       uniqueCount = length $ unique movements
@@ -114,8 +112,7 @@ generate' start 12 "*" 0.5 ctx >>= \(prog, diag) ->
 
 putStrLn "\n=== TEST 7: Graph vs Fallback Selection Ratio ==="
 let start = initCadenceState 0 "C" [0,4,7]
-    ctx = defaultContext
-generate' start 16 "*" 0.5 ctx >>= \(_, diag) ->
+generate' start 16 "*" 0.5 defaultContext >>= \(_, diag) ->
   let steps = gdSteps diag
       graphCount = length $ filter ((== "graph") . sdSelectedFrom) steps
       fallbackCount = length $ filter ((== "fallback") . sdSelectedFrom) steps
@@ -133,12 +130,11 @@ generate' start 16 "*" 0.5 ctx >>= \(_, diag) ->
 putStrLn "\n=== TEST 8: Verbose Diagnostics (gen'') ==="
 putStrLn "  Shows standard diagnostics plus transform and advance traces:"
 let start = initCadenceState 8 "C" [0,3,7]
-    ctx = defaultContext
-gen'' start 3 "*" 0.3 ctx
+seek "*" $ cue start $ len 3 $ entropy 0.3 $ gen''
 
-gen start 8 "*" 0.6 ctx
+seek "*" $ cue start $ len 8 $ entropy 0.6 $ gen
 
-func = gen start 8 "*" 0.6
+func = seek "*" $ cue start $ len 8 $ entropy 0.6 $ gen
 
 pfunc n = d1 $ fast n $ note "0 1"
 
@@ -163,7 +159,7 @@ putStrLn "Tests Run:"
 putStrLn "  1. Length verification (gen)"
 putStrLn "  2. Starting chord preservation (gen)"
 putStrLn "  3. CadenceState round-trip (gen)"
-putStrLn "  4. Standard diagnostics (genStandard)"
+putStrLn "  4. Standard diagnostics (gen')"
 putStrLn "  5. Entropy effect (generate')"
 putStrLn "  6. Movement diversity (generate')"
 putStrLn "  7. Graph/fallback ratio (generate')"

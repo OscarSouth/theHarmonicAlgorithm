@@ -1,0 +1,97 @@
+-- ============================================================================
+-- VI. AIR DE DANSE 1 — ORPHEUS SINGS TO HADES
+-- ============================================================================
+--
+-- From the myth: Having subdued the Furies through his approach, Orpheus now
+-- sings directly to the lords of the underworld — Hades and Persephone —
+-- pleading for Eurydice's return. This is the moment where art confronts
+-- death, where music attempts what nothing else can.
+--
+-- Stravinsky writes what many consider the ballet's finest passage: a
+-- "masterclass in neoclassical counterpoint." Two oboes interweave in a
+-- "highly ornamented, mournful duet" while the harp plays steady rhythmic
+-- plucks -- the lyre accompanying the song. The passage evokes "the slow
+-- movement of a late Baroque concerto" and echoes "a Bach Passion aria."
+-- An English horn joins to create a trio of double reeds. Strings enter
+-- softly to provide "a warm, humanizing pad beneath the reedy plea."
+--
+-- The movement achieves "extreme transparency" -- every voice audible, every
+-- interval meaningful. It is Orpheus's greatest musical achievement within
+-- the ballet: not passionate outpouring but formal perfection, the Apollonian
+-- ideal of music as mathematical persuasion.
+--
+-- Reimagination: E minor in G major key area. Consonant drift with ascending
+-- bass motion (the plea rises). Bach-dominant blend for contrapuntal gravity.
+-- Oboe-led texture with harp accompaniment. Low entropy for formal control.
+-- ============================================================================
+
+tempo = 64
+
+start <- lead "E min"
+
+let ctx = consonant
+        $ hcRoots "E B D rise"
+        $ hcKey "1#"
+        $ hContext
+
+s <- seek "bach:70 debussy:30" $ cue start $ tonal ctx $ len 8 $ entropy 0.2 $ gen
+
+-- Form: ~157s loop (147s music + 10s silence)
+-- Arc: transparent plea -> deepens -> strings enter -> climax subsides -> verdict awaited
+form =
+  [ at    0    0.0   0.0   s     -- silence
+  , at    5    0.3   0.3   s     -- oboe duet + harp: extreme transparency
+  , at   33    0.4   0.4   s     -- English horn joins: trio of reeds
+  , at   63    0.45  0.5   s     -- strings enter softly: warm humanising pad
+  , at   93    0.4   0.4   s     -- plea climax subsides
+  , at  127    0.2   0.2   s     -- conclusion: awaiting the verdict
+  , at  147    0.0   0.0   s     -- silence
+  , at  157    0.0   0.0   s     -- silence gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Orpheus's song: oboe duet + harp (the lyre accompanies the voice)
+plea f r k d = p "plea" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1]/4"
+        , alto    = "[1 0 1 2]/4"
+        , tenor   = "[0 1 0 2]/4"
+        }
+  f
+    $ stack [silence
+        , oboe (0, 1) flow Soprano    r k vl
+        , oboe (0, 1) flow Alto       r k vl
+        , harp (0, 1) flow Tenor      r k vl
+    ] |* vel (kDynamic k) |* vel d
+
+-- Warm string pad entering softly at higher kinetics
+warmth f r k d = p "warmth" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "3"
+        , alto    = "1"
+        , tenor   = "2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , violin1 (0.4, 1) flow Soprano    r k vl
+        , viola   (0.4, 1) flow Alto       r k vl
+        , cello   (0.3, 1) grid Bass       r k vl
+    ] |* vel (kDynamic k) |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    r = warp "[1 2 3 4]/8"
+    f = id
+    d = (* 1)
+    k = formK tempo form
+  putStrLn "ORPHEUS — VI. Air de danse 1 (Orpheus sings to Hades)"
+  mapM_ id [hush, setbpm tempo
+    ,plea   f r k  $ d 0.9
+    ,warmth f r k  $ d 0.6
+    ]
+
+hush''

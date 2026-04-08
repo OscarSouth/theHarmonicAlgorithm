@@ -115,7 +115,9 @@ arrange :: (Double, Double)                     -- ^ Kinetics range
         -> [Pattern Int]                         -- ^ Input patterns to harmonize
         -> Pattern ValueMap
 arrange (lo, hi) voiceFunc modifier chordPat k register pats =
-  let -- Pre-compute voicings at construction time (runs ONCE when pattern is registered)
+  let -- Pre-compute note range filter ONCE (shared across all innerJoin invocations)
+      ranged = voiceRange register (stack pats)
+      -- Pre-compute voicings at construction time (runs ONCE when pattern is registered)
       allEvents = queryArc (kProg k) (Arc 0 1000)
       uniqueProgs = nub (map value allEvents)
       cache = [ (p, let vs = voiceFunc (modifier p)
@@ -129,7 +131,7 @@ arrange (lo, hi) voiceFunc modifier chordPat k register pats =
                     in (map (map fromIntegral) vs, length vs)
   in mask (fmap (\x -> x >= lo && x <= hi) (kSignal k)) $
        innerJoin $ fmap (\prog ->
-         arrangeLookup (lookupCache prog) chordPat register pats
+         arrangeLookup (lookupCache prog) chordPat ranged
        ) (kProg k)
 
 -- |Internal: onset-join arrangement logic (unchanged from original arrange).
@@ -168,13 +170,12 @@ arrangeCore voiceFunc prog chordPat register pats
     stacked  = stack pats
     ranged   = voiceRange register stacked
 
--- |Cached onset-join: takes pre-computed (scales, nChords) instead of running DP.
+-- |Cached onset-join: takes pre-computed (scales, nChords) and pre-built ranged pattern.
 arrangeLookup :: ([[Note]], Int)
               -> Pattern Int        -- ^ Chord selection pattern (1-indexed)
-              -> (Int, Int)         -- ^ MIDI note range filter
-              -> [Pattern Int]      -- ^ Input patterns to harmonize
+              -> Pattern Int        -- ^ Pre-computed range-filtered note pattern
               -> Pattern ValueMap
-arrangeLookup (scales, nChords) chordPat register pats
+arrangeLookup (scales, nChords) chordPat ranged
   | nChords == 0 = silence
   | otherwise =
       let chordIdx = fmap (\i -> (i - 1) `mod` nChords) chordPat
@@ -196,9 +197,6 @@ arrangeLookup (scales, nChords) chordPat register pats
             ) Nothing Nothing
 
       in note mapped
-  where
-    stacked = stack pats
-    ranged  = voiceRange register stacked
 
 -------------------------------------------------------------------------------
 -- Arrangement: arrange' (squeeze)
@@ -219,7 +217,9 @@ arrange' :: (Double, Double)                     -- ^ Kinetics range
          -> [Pattern Int]                         -- ^ Input patterns to harmonize
          -> Pattern ValueMap
 arrange' (lo, hi) voiceFunc modifier chordPat k register pats =
-  let -- Pre-compute voicings at construction time (runs ONCE when pattern is registered)
+  let -- Pre-compute note range filter ONCE (shared across all innerJoin invocations)
+      ranged = voiceRange register (stack pats)
+      -- Pre-compute voicings at construction time (runs ONCE when pattern is registered)
       allEvents = queryArc (kProg k) (Arc 0 1000)
       uniqueProgs = nub (map value allEvents)
       cache = [ (p, let vs = voiceFunc (modifier p)
@@ -233,7 +233,7 @@ arrange' (lo, hi) voiceFunc modifier chordPat k register pats =
                     in (map (map fromIntegral) vs, length vs)
   in mask (fmap (\x -> x >= lo && x <= hi) (kSignal k)) $
        innerJoin $ fmap (\prog ->
-         arrangeLookup' (lookupCache prog) chordPat register pats
+         arrangeLookup' (lookupCache prog) chordPat ranged
        ) (kProg k)
 
 -- |Internal: squeeze arrangement logic (unchanged from original arrange').
@@ -256,21 +256,17 @@ arrangeCore' voiceFunc prog chordPat register pats
     stacked  = stack pats
     ranged   = voiceRange register stacked
 
--- |Cached squeeze: takes pre-computed (scales, nChords) instead of running DP.
+-- |Cached squeeze: takes pre-computed (scales, nChords) and pre-built ranged pattern.
 arrangeLookup' :: ([[Note]], Int)
                -> Pattern Int        -- ^ Chord selection pattern (1-indexed)
-               -> (Int, Int)         -- ^ MIDI note range filter
-               -> [Pattern Int]      -- ^ Input patterns to harmonize
+               -> Pattern Int        -- ^ Pre-computed range-filtered note pattern
                -> Pattern ValueMap
-arrangeLookup' (scales, nChords) chordPat register pats
+arrangeLookup' (scales, nChords) chordPat ranged
   | nChords == 0 = silence
   | otherwise =
       let chordIdx  = fmap (\i -> (i - 1) `mod` nChords) chordPat
           chordPats = map (\sc -> note (toScale sc ranged)) scales
       in squeeze chordIdx chordPats
-  where
-    stacked = stack pats
-    ranged  = voiceRange register stacked
 
 -------------------------------------------------------------------------------
 -- Chord Lookup
