@@ -53,7 +53,7 @@ form =
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
 -- String chamber ensemble: the dance
-danceStrg f r k d = p "strg" $ do
+danceStrg f k d = p "strg" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[3 2 1 0]/4"
         , alto    = "[1 2 3 1]/4"
@@ -62,14 +62,14 @@ danceStrg f r k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , violin1 (0, 1)   flow Soprano    r k vl
-        , violin2 (0, 1)   flow Alto       r k vl
-        , viola   (0, 1)   flow Tenor      r k vl
-        , cello   (0, 1)   grid Bass       r k vl # pizz
-    ] |* vel (kDynamic k) |* vel d
+        , violin1 (0, 1)   k vl flow Soprano
+        , violin2 (0, 1)   k vl flow Alto
+        , viola   (0, 1)   k vl flow Tenor
+        , cello   (0, 1)   k vl grid Bass    # pizz
+    ] |* vel d
 
 -- Winds enter to thicken texture in development
-danceWind f r k d = p "wind" $ do
+danceWind f k d = p "wind" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[3 2 3 1]/4"
         , alto    = "[1 0 2 1]/4"
@@ -77,23 +77,22 @@ danceWind f r k d = p "wind" $ do
         }
   f
     $ stack [silence
-        , flute   (0.3, 1) flow Soprano    r k vl
-        , clarinet(0.3, 1) flow Alto       r k vl
-        , bassoon (0.3, 1) flow Bass       r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , flute   (0.3, 1) k vl flow Soprano
+        , clarinet(0.3, 1) k vl flow Alto
+        , bassoon (0.3, 1) k vl flow Bass
+    ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────
 
 do
   let
-    r = rep s 1
     f = id
     d = (* 1)
-    k = formK tempo form
+    k = iK tempo form (rep s 1)
   putStrLn "ORPHEUS — II. Air de danse"
   mapM_ id [hush, setbpm tempo
-    ,danceStrg f r k  $ d 0.8
-    ,danceWind f r k  $ d 0.7
+    ,danceStrg f k  $ d 0.8
+    ,danceWind f k  $ d 0.7
     ]
 
 hush''

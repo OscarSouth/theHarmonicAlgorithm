@@ -52,7 +52,7 @@ form =
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
 -- Orpheus's song: oboe duet + harp (the lyre accompanies the voice)
-plea f r k d = p "plea" $ do
+plea f k d = p "plea" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[3 2 3 1]/4"
         , alto    = "[1 0 1 2]/4"
@@ -60,13 +60,13 @@ plea f r k d = p "plea" $ do
         }
   f
     $ stack [silence
-        , oboe (0, 1) flow Soprano    r k vl
-        , oboe (0, 1) flow Alto       r k vl
-        , harp (0, 1) flow Tenor      r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , oboe (0, 1) k vl flow Soprano
+        , oboe (0, 1) k vl flow Alto
+        , harp (0, 1) k vl flow Tenor
+    ] |* vel d
 
 -- Warm string pad entering softly at higher kinetics
-warmth f r k d = p "warmth" $ do
+warmth f k d = p "warmth" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "3"
         , alto    = "1"
@@ -75,23 +75,22 @@ warmth f r k d = p "warmth" $ do
         }
   f
     $ stack [silence
-        , violin1 (0.4, 1) flow Soprano    r k vl
-        , viola   (0.4, 1) flow Alto       r k vl
-        , cello   (0.3, 1) grid Bass       r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , violin1 (0.4, 1) k vl flow Soprano
+        , viola   (0.4, 1) k vl flow Alto
+        , cello   (0.3, 1) k vl grid Bass
+    ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────
 
 do
   let
-    r = warp "[1 2 3 4]/8"
     f = id
     d = (* 1)
-    k = formK tempo form
+    k = iK tempo form (warp "[1 2 3 4]/8")
   putStrLn "ORPHEUS — VI. Air de danse 1 (Orpheus sings to Hades)"
   mapM_ id [hush, setbpm tempo
-    ,plea   f r k  $ d 0.9
-    ,warmth f r k  $ d 0.6
+    ,plea   f k  $ d 0.9
+    ,warmth f k  $ d 0.6
     ]
 
 hush''

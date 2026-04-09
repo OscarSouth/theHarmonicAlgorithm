@@ -10,9 +10,11 @@ module Harmonic.Interface.Tidal.Form
   ( -- * Types
     FormNode(..)
   , Kinetics(..)
+  , IK
 
     -- * Construction
   , at
+  , iK
 
     -- * Realization
   , formK
@@ -47,6 +49,10 @@ data Kinetics = Kinetics
   , kProg    :: Pattern P.Progression  -- ^ Active progression (step function)
   }
 
+-- |Performance context: Kinetics bundled with chord selection pattern.
+-- Reduces parameter threading — @r@ and @k@ are always passed together.
+type IK = (Kinetics, Pattern Int)
+
 -------------------------------------------------------------------------------
 -- Construction
 -------------------------------------------------------------------------------
@@ -54,6 +60,12 @@ data Kinetics = Kinetics
 -- |Construct a form node at a given time with kinetics, dynamic, and progression.
 at :: Double -> Double -> Double -> P.Progression -> FormNode
 at t k d prog = FormNode t k d prog
+
+-- |Construct performance context from BPM, form nodes, and chord selection.
+--
+-- @k = iK tempo [at 0 0 0 s, at 30 1 1 s] (warp \"[1 2 3 4]\/8\")@
+iK :: Double -> [FormNode] -> Pattern Int -> IK
+iK bpm nodes chordPat = (formK bpm nodes, chordPat)
 
 -------------------------------------------------------------------------------
 -- Realization
@@ -108,15 +120,15 @@ formDiscrete cps nodes  accessor =
 
 -- |Range gate: mask a pattern by kinetics signal level.
 -- Events pass only when kSignal is within the (lo, hi) range.
-ki :: (Double, Double) -> Kinetics -> Pattern a -> Pattern a
-ki (lo, hi) k = mask (fmap (\x -> x >= lo && x <= hi) (kSignal k))
+ki :: (Double, Double) -> IK -> Pattern a -> Pattern a
+ki (lo, hi) (kin, _) = mask (fmap (\x -> x >= lo && x <= hi) (kSignal kin))
 
 -- |Gated stack: stack patterns and gate by kinetics range.
-slate :: (Double, Double) -> Kinetics -> [Pattern a] -> Pattern a
+slate :: (Double, Double) -> IK -> [Pattern a] -> Pattern a
 slate range k pats = ki range k $ stack pats
 
 -- |Bridge helper: apply a function taking Progression to a Kinetics context.
 -- Uses innerJoin to reactively switch when the form changes progressions.
-withForm :: Kinetics -> (P.Progression -> Pattern ValueMap) -> Pattern ValueMap
-withForm k f = innerJoin $ fmap f (kProg k)
+withForm :: IK -> (P.Progression -> Pattern ValueMap) -> Pattern ValueMap
+withForm (kin, _) f = innerJoin $ fmap f (kProg kin)
 

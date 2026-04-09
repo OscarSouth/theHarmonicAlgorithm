@@ -1,0 +1,117 @@
+-- ============================================================================
+-- II. ANDANTE MA ADAGIO — Bassoon Concerto in B-flat major, K.191
+-- W. A. Mozart (1774)
+-- ============================================================================
+--
+-- Super-structure position: 0.5–0.618 (The Swerve → GOLDEN RATIO)
+-- The emotional heart of the concerto sits at the spectral narrative's
+-- golden ratio. The swerve from Allegro brilliance to intimate tenderness.
+-- Peak kinetics 0.4: the quietest movement, but the structural center —
+-- where the bassoon reveals its "sweet tenor voice" and the melody that
+-- would become the Countess's "Porgi, amor." The weight of the concerto
+-- is here, not in the outer movements' display.
+--
+-- The slow movement is "a tender operatic aria reimagined in instrumental
+-- terms." By qualifying the Andante tempo marking with "ma adagio" and
+-- employing muted strings throughout, Mozart infuses a tinge of pathos
+-- into the serene atmosphere. The opening phrase is "a favourite Mozartian
+-- gambit that will reach its apogee in the Countess's 'Porgi, amor' in
+-- Le nozze di Figaro" — a melody Mozart clearly loved and would return
+-- to twelve years later for one of opera's most heartbreaking arias.
+--
+-- The bassoon reveals its "sweet tenor voice" and "peculiar plangency"
+-- in the high register, singing with a cantabile expressiveness that
+-- had never before been asked of the instrument in a concerto. This is
+-- the emotional heart of the work — not virtuosity but pure song, the
+-- bassoon as operatic soprano in disguise.
+--
+-- The movement is structured as a lyrical sonata without development:
+-- theme presented by muted strings, elaborated by the bassoon with
+-- increasing ornamentation, a brief middle section of subdominant
+-- warmth, then a gentle return and cadenza before the tender coda.
+--
+-- Adaptation: The most intimate movement. Bassoon alone against muted
+-- strings at very low kinetics (peak 0.4). Harp added for tenderness
+-- (not in original, but sympathetic to the movement's operatic quality).
+-- The entire movement stays hushed — this is chamber music, not concerto.
+-- ============================================================================
+
+tempo = 56
+
+start <- lead "F maj"
+
+let ctx = consonant
+        $ hcKey "1b"
+        $ hContext
+
+s <- seek "mozart" $ cue start $ tonal ctx $ len 8 $ entropy 0.15 $ gen
+
+-- Form: ~310s loop (300s music + 10s gap)
+-- Lyrical sonata: opening → cantabile → deepening → middle → return → cadenza → coda
+form =
+  [ at    0    0.0   0.0   s     -- silence
+  , at    5    0.25  0.25  s     -- opening: muted strings, intimate atmosphere
+  , at   50    0.2   0.2   s     -- bassoon enters: cantabile, singing
+  , at  100    0.3   0.35  s     -- melody deepens: ornamentation grows
+  , at  150    0.35  0.4   s     -- middle section: subdominant warmth
+  , at  200    0.25  0.3   s     -- return: gentle restatement
+  , at  250    0.1   0.1   s     -- cadenza: bassoon alone
+  , at  270    0.2   0.2   s     -- coda: tender conclusion
+  , at  300    0.0   0.0   s     -- silence
+  , at  310    0.0   0.0   s     -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Bassoon aria: the singer (always active)
+cantabile f k d = p "cantabile" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1]/4"
+        , alto    = "[1 0 1 2]/4"
+        }
+  f
+    $ stack [silence
+        , bassoon (0, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Muted strings: intimate chorale accompaniment
+muted f k d = p "muted" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "3"
+        , alto    = "1"
+        , tenor   = "2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , violin1 (0, 1) k vl flow Soprano
+        , violin2 (0, 1) k vl flow Alto
+        , viola   (0, 1) k vl flow Tenor
+        , cello   (0, 1) k vl grid Bass
+    ] |* vel d
+
+-- Harp: delicate color (entering at mid-kinetics)
+color f k d = p "color" $ do
+  let vl = voiceLines {_vl = "~"
+        , alto = "[1 0 2 1]/4"
+        }
+  f
+    $ stack [silence
+        , harp (0.25, 1) k vl flow Alto
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (warp "[1 2 3 4]/8")
+  putStrLn "MOZART K.191 — II. Andante ma adagio"
+  mapM_ id [hush, setbpm tempo
+    ,cantabile f k  $ d 0.9
+    ,muted     f k  $ d 0.5
+    ,color     f k  $ d 0.4
+    ]
+
+hush''

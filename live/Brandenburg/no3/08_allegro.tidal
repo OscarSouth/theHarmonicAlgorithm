@@ -1,0 +1,70 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 3 IN G MAJOR, BWV 1048 — I. [ALLEGRO]
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- The pure string concerto. No winds at all — nine string instruments in
+-- three matched groups (3 violins, 3 violas, 3 cellos) plus continuo.
+-- The concertino/ripieno distinction is deliberately blurred: the groups
+-- function simultaneously as soloists and ensemble, racing in call-and-
+-- response patterns with a galloping rhythmic vitality.
+--
+-- Bach uses the three groups to create a triptych of sound: first group
+-- states a figure, second answers, third completes — then all combine.
+-- The contrapuntal density is extraordinary yet the texture remains
+-- luminous because each group occupies a distinct register.
+--
+-- Adaptation: Three string groups mapped to our available voices.
+-- Group 1: violin1 (Soprano). Group 2: violin2 (Alto), viola (Tenor).
+-- Group 3: cello (Bass), contrabass (Bass8vb). Harp as continuo.
+-- No winds, no brass, no percussion. Pure string writing.
+-- ============================================================================
+
+tempo = 116
+
+start <- lead "G maj"
+
+let ctx = hcKey "1#"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.2 $ gen
+
+form =
+  [ at    0    0.0   0.0   s
+  , at    5    0.5   0.5   s     -- ritornello: all three groups
+  , at   50    0.35  0.35  s     -- episode: group 1 leads
+  , at   85    0.5   0.5   s     -- ritornello return
+  , at  120    0.35  0.35  s     -- episode: group 2 leads
+  , at  160    0.55  0.55  s     -- ritornello: fuller
+  , at  200    0.4   0.4   s     -- episode: group 3 leads
+  , at  240    0.6   0.6   s     -- ritornello: peak
+  , at  280    0.4   0.4   s     -- episode: all groups racing
+  , at  320    0.55  0.55  s     -- concluding ritornello
+  , at  360    0.0   0.0   s
+  , at  370    0.0   0.0   s     -- gap
+  ]
+
+choir1 f k d = p "choir1" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 2 1 0 1 2 3 0]/4"}
+  f $ stack [silence, violin1 (0, 1) k vl flow Soprano] |* vel d
+
+choir2 f k d = p "choir2" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 2 3 1 0 1 2 0]/4", tenor = "[2 1 0 2 1 0 2 1]/4"}
+  f $ stack [silence, violin2 (0, 1) k vl flow Alto, viola (0, 1) k vl flow Tenor] |* vel d
+
+choir3 f k d = p "choir3" $ do
+  let vl = voiceLines {_vl = "~", bass = "[0 1 0 2]/4"}
+  f $ stack [silence, cello (0, 1) k vl grid Bass, contrabass (0, 1) k vl grid Bass8vb] |* vel d
+
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 0 2 1]/4"}
+  f $ stack [silence, harp (0, 1) k vl flow Alto] |* vel d
+
+do
+  let
+    f = id; d = (* 1); k = iK tempo form (rep s 1)
+  putStrLn "BRANDENBURG NO. 3 — I. [Allegro]"
+  mapM_ id [hush, setbpm tempo
+    ,choir1 f k $ d 0.8, choir2 f k $ d 0.75, choir3 f k $ d 0.7, continuo f k $ d 0.55]
+
+hush''

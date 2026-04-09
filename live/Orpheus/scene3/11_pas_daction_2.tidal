@@ -57,7 +57,7 @@ form =
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
 -- The Bacchantes: full orchestra in raw grid voicing
-bacchantes f r k d = p "bacchantes" $ do
+bacchantes f k d = p "bacchantes" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[0 3 1 2]*4"
         , alto    = "[2 0 3 1]*4"
@@ -67,30 +67,29 @@ bacchantes f r k d = p "bacchantes" $ do
   f
     $ stack [silence
         -- Strings: raw, angular
-        , violin1    (0, 1) grid Soprano    r k vl
-        , violin2    (0, 1) grid Alto       r k vl
-        , viola      (0, 1) grid Tenor      r k vl
-        , cello      (0, 1) grid Bass       r k vl
-        , contrabass (0, 1) grid Bass8vb    r k vl
+        , violin1    (0, 1) k vl grid Soprano
+        , violin2    (0, 1) k vl grid Alto
+        , viola      (0, 1) k vl grid Tenor
+        , cello      (0, 1) k vl grid Bass
+        , contrabass (0, 1) k vl grid Bass8vb
         -- Brass: slashing
-        , horn       (0, 1) grid Soprano    r k vl
-        , trombone   (0, 1) grid Tenor      r k vl
-        , basstrom   (0, 1) grid Bass8vb    r k vl
+        , horn       (0, 1) k vl grid Soprano
+        , trombone   (0, 1) k vl grid Tenor
+        , basstrom   (0, 1) k vl grid Bass8vb
         -- Percussion: pounding
-        , timpani    (0, 1) grid Bass8vb    r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , timpani    (0, 1) k vl grid Bass8vb
+    ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────
 
 do
   let
-    r = warp "[1 2 3 4 3 2 1 4]/4"
     f = id
     d = (* 1)
-    k = formK tempo form
+    k = iK tempo form (warp "[1 2 3 4 3 2 1 4]/4")
   putStrLn "ORPHEUS — XII. Pas d'action 2 (The Bacchantes)"
   mapM_ id [hush, setbpm tempo
-    ,bacchantes f r k  $ d 0.95
+    ,bacchantes f k  $ d 0.95
     ]
 
 hush''

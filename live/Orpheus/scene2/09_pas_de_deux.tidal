@@ -70,7 +70,7 @@ form =
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
 -- The Journey: seamless legato strings with walking bass
-journey f r k d = p "strg" $ do
+journey f k d = p "strg" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[3 2 1 0]/4"
         , alto    = "[1 2 3 1]/4"
@@ -79,15 +79,15 @@ journey f r k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , violin1    (0, 1) flow Soprano    r k vl
-        , violin2    (0, 1) flow Alto       r k vl
-        , viola      (0.3, 1) flow Tenor    r k vl
-        , cello      (0, 1) grid Bass       r k vl # pizz
-        , contrabass (0, 0.7) grid Bass8vb  r k vl # pizz
-    ] |* vel (kDynamic k) |* vel d
+        , violin1    (0, 1)   k vl flow Soprano
+        , violin2    (0, 1)   k vl flow Alto
+        , viola      (0.3, 1) k vl flow Tenor
+        , cello      (0, 1)   k vl grid Bass       # pizz
+        , contrabass (0, 0.7) k vl grid Bass8vb    # pizz
+    ] |* vel d
 
 -- Winds: breathless interjections, entering as doubt grows
-doubt f r k d = p "wind" $ do
+doubt f k d = p "wind" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[3 . 2 .]/4"
         , alto    = "[1 . 0 .]/4"
@@ -95,13 +95,13 @@ doubt f r k d = p "wind" $ do
         }
   f
     $ stack [silence
-        , flute   (0.3, 1) flow Soprano    r k vl
-        , oboe    (0.4, 1) flow Alto       r k vl
-        , horn    (0.5, 1) flow Tenor      r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , flute   (0.3, 1) k vl flow Soprano
+        , oboe    (0.4, 1) k vl flow Alto
+        , horn    (0.5, 1) k vl flow Tenor
+    ] |* vel d
 
 -- The Catastrophe: maximum density tutti for the fatal look
-catastrophe f r k d = p "tutti" $ do
+catastrophe f k d = p "tutti" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[0,1,2,3]"
         , alto    = "[0,1,2,3]"
@@ -110,30 +110,29 @@ catastrophe f r k d = p "tutti" $ do
         }
   f
     $ stack [silence
-        , violin1    (0.9, 1) grid Soprano    r k vl
-        , violin2    (0.9, 1) grid Alto       r k vl
-        , viola      (0.9, 1) grid Tenor      r k vl
-        , cello      (0.9, 1) grid Bass       r k vl
-        , contrabass (0.9, 1) grid Bass8vb    r k vl
-        , horn       (0.9, 1) grid Soprano    r k vl
-        , trombone   (0.9, 1) grid Bass       r k vl
-        , basstrom   (0.9, 1) grid Bass8vb    r k vl
-        , timpani    (0.9, 1) grid Bass8vb    r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , violin1    (0.9, 1) k vl grid Soprano
+        , violin2    (0.9, 1) k vl grid Alto
+        , viola      (0.9, 1) k vl grid Tenor
+        , cello      (0.9, 1) k vl grid Bass
+        , contrabass (0.9, 1) k vl grid Bass8vb
+        , horn       (0.9, 1) k vl grid Soprano
+        , trombone   (0.9, 1) k vl grid Bass
+        , basstrom   (0.9, 1) k vl grid Bass8vb
+        , timpani    (0.9, 1) k vl grid Bass8vb
+    ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────
 
 do
   let
-    r = warp "[1 2 3 4]/4"
     f = id
     d = (* 1)
-    k = formK tempo form
+    k = iK tempo form (warp "[1 2 3 4]/4")
   putStrLn "ORPHEUS — X. Pas de deux (The Return & The Fatal Look)"
   mapM_ id [hush, setbpm tempo
-    ,journey     f r k  $ d 0.8
-    ,doubt       f r k  $ d 0.7
-    ,catastrophe f r k  $ d 0.95
+    ,journey     f k  $ d 0.8
+    ,doubt       f k  $ d 0.7
+    ,catastrophe f k  $ d 0.95
     ]
 
 hush''

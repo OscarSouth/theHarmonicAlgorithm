@@ -1,0 +1,66 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 6 IN B-FLAT MAJOR, BWV 1051 — III. ALLEGRO
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- The final movement of the final concerto. The violas return to their
+-- canonic dialogue, now with gigue-like energy. Cello and continuo
+-- provide rhythmic drive. Still no violins — the concerto maintains its
+-- dark, low-register character to the end. The "joyful bluish purple"
+-- resolves with modest energy rather than triumphant climax, befitting
+-- the set's convergence toward intimacy.
+--
+-- As the last movement of the last concerto, this is where the
+-- Brandenburg set's architectural arc completes: from No. 1's festive
+-- spectacle with 11+ musicians to No. 6's chamber conversation with 6.
+-- From hunting horns and trumpets to two violas and a harpsichord.
+-- From public celebration to private dialogue. The progression from
+-- splendour to intimacy is Bach's deepest structural statement.
+-- ============================================================================
+
+tempo = 116
+
+start <- lead "Bb maj"
+
+let ctx = hcKey "2b"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.25 $ gen
+
+form =
+  [ at    0    0.0   0.0   s
+  , at    3    0.4   0.4   s     -- gigue: violas in dialogue
+  , at   40    0.3   0.3   s     -- episode
+  , at   80    0.45  0.45  s     -- ritornello
+  , at  120    0.3   0.3   s     -- episode
+  , at  160    0.5   0.5   s     -- peak (modest — this is No. 6)
+  , at  210    0.35  0.35  s     -- episode
+  , at  250    0.45  0.45  s     -- concluding ritornello
+  , at  280    0.0   0.0   s     -- the set is complete
+  , at  290    0.0   0.0   s     -- silence
+  ]
+
+viola1 f k d = p "viola1" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 1 2 0 3 2 1 0]/4"}
+  f $ stack [silence, viola (0, 1) k vl flow Soprano] |* vel d
+
+viola2 f k d = p "viola2" $ do
+  let vl = voiceLines {_vl = "~", alto = "[0 3 1 2 0 1 2 3]/4"}
+  f $ stack [silence, viola (0, 1) k vl flow Alto] |* vel d
+
+lowStrg f k d = p "bass" $ do
+  let vl = voiceLines {_vl = "~", bass = "[0 1 0 2]/4"}
+  f $ stack [silence, cello (0, 1) k vl grid Bass, contrabass (0, 1) k vl grid Bass8vb] |* vel d
+
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 0 2 1]/4"}
+  f $ stack [silence, harp (0, 1) k vl flow Alto] |* vel d
+
+do
+  let
+    f = id; d = (* 1); k = iK tempo form (rep s 1)
+  putStrLn "BRANDENBURG NO. 6 — III. Allegro"
+  mapM_ id [hush, setbpm tempo
+    ,viola1 f k $ d 0.8, viola2 f k $ d 0.75, lowStrg f k $ d 0.7, continuo f k $ d 0.6]
+
+hush''

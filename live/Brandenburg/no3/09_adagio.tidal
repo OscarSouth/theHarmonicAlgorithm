@@ -1,0 +1,51 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 3 IN G MAJOR, BWV 1048 — II. ADAGIO
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- The most enigmatic movement in all six concertos. A single measure
+-- consisting of two sustained chords — a Phrygian cadence from B minor
+-- to E major — intended as a bridge between the two fast movements.
+-- Bach explicitly invited musicians to improvise a link here. Some
+-- performers add extended cadenzas; others pass through in seconds.
+--
+-- Our reimagination: a brief ~30-second meditation. Two sustained chords
+-- held by harp and strings. The shortest file in the entire collection.
+-- ============================================================================
+
+tempo = 52
+
+start <- lead "B min"
+
+let ctx = consonant
+        $ hcKey "1#"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 4 $ entropy 0.1 $ gen
+
+form =
+  [ at   0    0.0   0.0   s
+  , at   3    0.2   0.2   s     -- first chord: sustained
+  , at  15    0.15  0.15  s     -- second chord: resolving
+  , at  25    0.1   0.1   s     -- fading
+  , at  30    0.0   0.0   s
+  , at  40    0.0   0.0   s     -- gap
+  ]
+
+chords f k d = p "chords" $ do
+  let vl = voiceLines {_vl = "~", soprano = "3", alto = "1", tenor = "2", bass = "0"}
+  f $ stack [silence
+        , violin1 (0, 1) k vl flow Soprano, viola (0, 1) k vl flow Tenor
+        , cello (0, 1) k vl grid Bass] |* vel d
+
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~", soprano = "3", bass = "0"}
+  f $ stack [silence, harp (0, 1) k vl flow Soprano] |* vel d
+
+do
+  let
+    f = id; d = (* 1); k = iK tempo form (warp "[1 2 3 4]/8")
+  putStrLn "BRANDENBURG NO. 3 — II. Adagio"
+  mapM_ id [hush, setbpm tempo, chords f k $ d 0.6, continuo f k $ d 0.5]
+
+hush''

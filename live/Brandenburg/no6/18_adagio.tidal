@@ -1,0 +1,57 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 6 IN B-FLAT MAJOR, BWV 1051 — II. ADAGIO
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- A "beautiful, lamenting duet" between the two violas — the violas da
+-- gamba are silent, reducing the texture to a trio sonata: two violas
+-- and continuo. This is the most stripped-down movement in all six
+-- concertos: three voices only, each carrying equal weight, weaving
+-- a contrapuntal web of quiet intensity. The Eb major tonality (relative
+-- major of the home key's relative minor) adds warmth to the lamentation.
+-- ============================================================================
+
+tempo = 52
+
+start <- lead "Eb maj"
+
+let ctx = consonant
+        $ hcKey "3b"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.15 $ gen
+
+form =
+  [ at    0    0.0   0.0   s
+  , at    5    0.2   0.2   s     -- viola duet begins
+  , at   50    0.25  0.25  s     -- voices intertwine
+  , at  100    0.3   0.3   s     -- gentle peak
+  , at  150    0.25  0.25  s     -- subsiding
+  , at  210    0.2   0.2   s     -- closing
+  , at  250    0.1   0.1   s     -- fading
+  , at  270    0.0   0.0   s
+  , at  280    0.0   0.0   s     -- gap
+  ]
+
+-- Viola duet + continuo only — the most intimate texture
+
+viola1 f k d = p "viola1" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 2 3 1 2 1 0 1]/4"}
+  f $ stack [silence, viola (0, 1) k vl flow Soprano] |* vel d
+
+viola2 f k d = p "viola2" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 0 1 2 1 2 3 2]/4"}
+  f $ stack [silence, viola (0, 1) k vl flow Alto] |* vel d
+
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[1 0 2 1]/4", bass = "0"}
+  f $ stack [silence, harp (0, 1) k vl flow Alto, cello (0, 1) k vl grid Bass] |* vel d
+
+do
+  let
+    f = id; d = (* 1); k = iK tempo form (warp "[1 2 3 4]/8")
+  putStrLn "BRANDENBURG NO. 6 — II. Adagio ma non tanto"
+  mapM_ id [hush, setbpm tempo
+    ,viola1 f k $ d 0.75, viola2 f k $ d 0.7, continuo f k $ d 0.55]
+
+hush''

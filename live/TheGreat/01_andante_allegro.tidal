@@ -1,0 +1,217 @@
+-- ============================================================================
+-- I. ANDANTE — ALLEGRO MA NON TROPPO
+-- Symphony No. 9 in C major, D. 944 "The Great" — Franz Schubert (1825-28)
+-- ============================================================================
+--
+-- Super-structure positions: 1/8 (Establishing) through 1/4 (Inciting event)
+--
+-- The symphony opens with one of music's most extraordinary moments: a
+-- solo, unaccompanied horn call. Written for natural horn (not valved),
+-- the melody contains open notes (free-resonating) followed by stopped
+-- notes (hand in bell), creating what one analyst described as "a melody
+-- roughly hewn from marble" — irregular, slightly uneven in tone color,
+-- with acoustic impurities that become expressive virtues.
+--
+-- What follows is a masterclass in orchestral unfolding:
+--
+--   SCENE 1: Solo horn alone — the call from nothing
+--   SCENE 2: Oboe takes the melody, "polishing away the unevenness"
+--   SCENE 3: Strings enter with the triplet figuration that will pervade
+--            the entire symphony — gentle perpetual motion
+--   SCENE 4: Woodwind choir expands — clarinet joins, flute brightens
+--   SCENE 5: Lower strings hint at the theme, adding the dotted-rhythm
+--            ascending scale motif
+--   SCENE 6: Full string section takes the melody — fortissimo, singing
+--            what the horn introduced
+--   SCENE 7: Full orchestra — trombones add weight, introduction's peak
+--   SCENE 8: Transition to the Allegro via dotted-eighth-sixteenth bridge
+--
+-- This unfolding — from solo horn to full orchestra in ~3 minutes — is
+-- the "heavenly length" in miniature. Schumann's famous phrase doesn't
+-- mean excess but spiritual expansion: time stretching without feeling
+-- slow, themes developing gradually, always revealing new aspects.
+--
+-- The Allegro ma non troppo that follows drives on triplet figuration,
+-- developing two main theme groups through Schubert's characteristic
+-- "wandering" modulations (mediant relationships: C → E, C → Ab, etc.).
+-- The movement culminates in a coda where the opening horn theme returns
+-- on trombones and strings — the first of the symphony's cyclic returns.
+--
+-- Schubert's trombones were revolutionary: not reserved for climaxes but
+-- full symphonic participants, carrying thematic material. The "Great"
+-- was considered "unplayable" partly because of these demands — not
+-- technical virtuosity but stamina and ensemble precision across an
+-- unprecedented span.
+--
+-- Adaptation: The 8-scene opening is encoded as granular kinetics nodes,
+-- each adding instruments via progressive kinetics thresholds. Horn at
+-- (0,1) is always present — the spiritual thread. Three progressions
+-- capture the introduction, Allegro, and coda.
+-- ============================================================================
+
+tempo = 96
+
+-- ── GENERATION ──────────────────────────────────────────
+
+startHorn    <- lead "C maj"
+startAllegro <- lead "C maj"
+startCoda    <- lead "C maj"
+
+let ctxHorn = consonant
+            $ hcKey "0#"
+            $ hContext
+
+let ctxAllegro = hcKey "0#"
+               $ hContext
+
+let ctxCoda = consonant
+            $ hcKey "0#"
+            $ hContext
+
+sHorn    <- seek "bach:40 debussy:30 brahms:30" $ cue startHorn $ tonal ctxHorn $ len 8 $ entropy 0.15 $ gen
+sAllegro <- seek "beethoven:40 brahms:30 mozart:30" $ cue startAllegro $ tonal ctxAllegro $ len 8 $ entropy 0.35 $ gen
+sCoda    <- seek "brahms:50 beethoven:50" $ cue startCoda $ tonal ctxCoda $ len 8 $ entropy 0.25 $ gen
+
+-- Form: ~970s (960s + 10s gap)
+--
+-- THE OPENING: scene-by-scene orchestral unfolding (8 scenes, ~170s)
+-- Each scene adds instruments, captured as distinct kinetics thresholds
+form =
+  [ at    0    0.0   0.0   sHorn     -- silence
+  , at    5    0.1   0.1   sHorn     -- SCENE 1: Solo horn, unaccompanied
+  , at   25    0.15  0.15  sHorn     -- SCENE 2: Oboe takes the melody
+  , at   40    0.2   0.2   sHorn     -- SCENE 3: Strings enter (triplet figuration)
+  , at   60    0.25  0.3   sHorn     -- SCENE 4: Woodwind choir expands
+  , at   85    0.35  0.35  sHorn     -- SCENE 5: Lower strings, dotted-rhythm motif
+  , at  110    0.4   0.45  sHorn     -- SCENE 6: Full strings take the melody
+  , at  140    0.5   0.5   sHorn     -- SCENE 7: Full orchestra — introduction peak
+  , at  170    0.35  0.35  sHorn     -- SCENE 8: Transition to Allegro
+  -- THE ALLEGRO
+  , at  185    0.5   0.5   sAllegro  -- Allegro begins: triplets drive forward
+  , at  240    0.6   0.6   sAllegro  -- first theme group
+  , at  320    0.5   0.5   sAllegro  -- second theme: lyrical contrast
+  , at  400    0.7   0.7   sAllegro  -- development: wandering modulations
+  , at  500    0.8   0.8   sAllegro  -- development climax
+  , at  580    0.6   0.6   sAllegro  -- recapitulation
+  , at  680    0.5   0.5   sAllegro  -- second theme returns
+  , at  760    0.55  0.55  sAllegro  -- building toward coda
+  -- THE CODA: horn theme returns
+  , at  820    0.7   0.7   sCoda     -- horn theme on trombones + strings
+  , at  880    0.8   0.8   sCoda     -- massive buildup
+  , at  930    0.6   0.6   sCoda     -- final cadence
+  , at  960    0.0   0.0   sCoda     -- end
+  , at  970    0.0   0.0   sCoda     -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- The Horn Call: the symphony's spiritual voice (always present)
+hornCall f k d = p "horn" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0 1 2 3 1]/4"
+        }
+  f
+    $ stack [silence
+        , horn (0, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Oboe: polishing the horn's rough melody (enters Scene 2)
+oboePolish f k d = p "oboe" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1 2 1 0 1]/4"
+        }
+  f
+    $ stack [silence
+        , oboe (0.1, 1) k vl flow Soprano
+    ] |* vel d
+
+-- String triplets: the perpetual motion cell (enters Scene 3)
+triplets f k d = p "triplets" $ do
+  let vl = voiceLines {_vl = "~"
+        , alto  = "[1 2 1 0]/4"
+        , tenor = "[2 1 0 2]/4"
+        }
+  f
+    $ stack [silence
+        , violin2 (0.15, 1) k vl flow Alto
+        , viola   (0.15, 1) k vl flow Tenor
+    ] |* vel d
+
+-- Expanding woodwind choir (enters Scene 4)
+windChoir f k d = p "wind" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1]/4"
+        , alto    = "[1 0 1 2]/4"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , clarinet (0.2, 1) k vl flow Alto
+        , flute   (0.25, 1) k vl flow Soprano
+        , bassoon (0.25, 1) k vl flow Bass
+    ] |* vel d
+
+-- Bass strings: harmonic foundation (always present, growing)
+foundation f k d = p "bass" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass = "0"
+        }
+  f
+    $ stack [silence
+        , cello      (0, 1) k vl grid Bass
+        , contrabass (0, 1) k vl grid Bass8vb
+    ] |* vel d
+
+-- Full string melody: violin1 takes the theme (enters Scene 6)
+symphonic f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0 1 2 3 1]/4"
+        }
+  f
+    $ stack [silence
+        , violin1 (0.3, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Trombones: Schubert's revolutionary symphonic brass (enters Scene 7)
+brass f k d = p "brss" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0]/4"
+        , tenor   = "[0 1 2 0]/4"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , trombone (0.4, 1) k vl flow Tenor
+        , basstrom (0.5, 1) k vl grid Bass8vb
+    ] |* vel d
+
+-- Timpani: rhythmic punctuation
+perc f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass = "0"
+        }
+  f
+    $ stack [silence
+        , timpani (0.5, 1) k vl grid Bass8vb
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (warp "[1 2 3 4]/8")
+  putStrLn "THE GREAT — I. Andante – Allegro ma non troppo"
+  mapM_ id [hush, setbpm tempo
+    ,hornCall    f k  $ d 0.9
+    ,oboePolish  f k  $ d 0.75
+    ,triplets    f k  $ d 0.65
+    ,windChoir   f k  $ d 0.65
+    ,foundation  f k  $ d 0.7
+    ,symphonic   f k  $ d 0.75
+    ,brass       f k  $ d 0.8
+    ,perc        f k  $ d 0.6
+    ]
+
+hush''

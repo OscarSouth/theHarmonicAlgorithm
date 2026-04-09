@@ -1,0 +1,111 @@
+-- ============================================================================
+-- SUMMER — II. ADAGIO E PIANO — PRESTO E FORTE
+-- The Four Seasons, Op. 8 No. 2, RV 315 — Antonio Vivaldi (1725)
+-- ============================================================================
+--
+-- Super-structure position: 0.42
+--
+-- "His weary limbs are deprived of rest,
+--  Fear of lightning and scary thunder,
+--  And flies and hornets swarming around."
+--
+-- A movement of dread and anxiety. The shepherd lies exhausted but cannot
+-- sleep — fear of the approaching storm keeps him awake. The solo violin
+-- plays trembling, anxious figurations while the accompaniment sustains
+-- quiet tension. Vivaldi explicitly depicts buzzing flies and hornets with
+-- rapid, insistent high-register patterns (bariolage technique — rapid
+-- alternation between strings creating a shimmering, insect-like buzz).
+--
+-- The movement alternates between the Adagio (exhausted fear, piano) and
+-- sudden Presto interruptions (lightning flashes, forte) — terrified
+-- anticipation punctuated by violent outbursts.
+--
+-- Adaptation: Violin1 trembling solo. Oboe for buzzing insects (fast
+-- staccato). Quiet overall but with sudden kinetics spikes for lightning.
+-- ============================================================================
+
+tempo = 52
+
+start <- lead "Eb maj"
+
+let ctx = hcKey "3b"
+        $ hContext
+
+s <- seek "debussy" $ cue start $ tonal ctx $ len 8 $ entropy 0.35 $ gen
+
+-- Form: ~160s (150s + 10s gap)
+-- Anxiety with sudden lightning strikes
+form =
+  [ at    0    0.0   0.0   s     -- silence
+  , at    5    0.3   0.3   s     -- fear: trembling solo
+  , at   30    0.5   0.5   s     -- lightning flash!
+  , at   40    0.3   0.3   s     -- fear returns
+  , at   65    0.4   0.4   s     -- flies buzzing
+  , at   90    0.5   0.5   s     -- another lightning strike
+  , at  100    0.35  0.35  s     -- subsiding dread
+  , at  130    0.2   0.2   s     -- exhaustion
+  , at  150    0.0   0.0   s     -- end
+  , at  160    0.0   0.0   s     -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Trembling shepherd
+fear f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 2 1 0 1 2]/4"
+        }
+  f
+    $ stack [silence
+        , violin1 (0, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Buzzing flies: oboe rapid staccato
+flies f k d = p "flies" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 3 2 3 3 2 3 3]*2"
+        }
+  f
+    $ stack [silence
+        , oboe (0.2, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Sustaining dread: quiet strings
+dread f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "3"
+        , alto    = "1"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , viola (0, 1) k vl flow Alto
+        , cello (0, 1) k vl grid Bass
+    ] |* vel d
+
+-- Continuo
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~"
+        , alto = "1"
+        }
+  f
+    $ stack [silence
+        , harp (0, 1) k vl flow Alto
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (warp "[1 2 3 4]/8")
+  putStrLn "THE FOUR SEASONS — Summer II. Adagio"
+  mapM_ id [hush, setbpm tempo
+    ,fear     f k  $ d 0.7
+    ,flies    f k  $ d 0.5
+    ,dread    f k  $ d 0.5
+    ,continuo f k  $ d 0.4
+    ]
+
+hush''

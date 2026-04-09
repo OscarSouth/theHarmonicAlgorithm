@@ -1,0 +1,116 @@
+-- ============================================================================
+-- WINTER — I. ALLEGRO NON MOLTO
+-- The Four Seasons, Op. 8 No. 4, RV 297 — Antonio Vivaldi (1725)
+-- ============================================================================
+--
+-- Super-structure position: 0.83 (SECONDARY — resolution begins)
+--
+-- "Frozen and shivering in the icy snow,
+--  In the severe blasts of a terrible wind,
+--  To run stamping one's feet each moment,
+--  One's teeth chattering through the cold."
+--
+-- Winter arrives with physical immediacy. The solo violin plays frozen,
+-- angular melodic lines — icy, sparse, shivering. The strings respond with
+-- aggressive, persistent rhythmic figures depicting the bitter wind (often
+-- pizzicato or sharp staccato, like needles of cold). Sudden dynamic shifts
+-- suggest wind gusts. Tremolo and rapid repeated figures depict shivering.
+-- Strong, insistent bass patterns represent stamping feet. Rapid chattering
+-- sequences in the high register: teeth chattering through the cold.
+--
+-- The texture is spare and angular — the opposite of Autumn's warmth. The
+-- F minor key provides darkness; chromaticism adds the biting cold.
+--
+-- Adaptation: Strings grid voicing (angular, cold). Flute for harsh wind.
+-- Dissonant context. The physical sensations (shivering, stamping, chattering)
+-- are encoded in the voice line patterns.
+-- ============================================================================
+
+tempo = 92
+
+start <- lead "F min"
+
+let ctx = dissonant
+        $ hcKey "4b"
+        $ hContext
+
+s <- seek "bach:50 debussy:50" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
+
+-- Form: ~240s (230s + 10s gap)
+-- Frozen → wind blasts → stamping → chattering teeth → huddling
+form =
+  [ at    0    0.0   0.0   s     -- silence
+  , at    5    0.4   0.4   s     -- frozen: angular, sparse, cold
+  , at   40    0.6   0.6   s     -- severe wind: blasts increase
+  , at   80    0.7   0.7   s     -- stamping feet: rhythmic insistence
+  , at  120    0.65  0.65  s     -- chattering teeth: rapid patterns
+  , at  160    0.5   0.5   s     -- brief respite
+  , at  200    0.3   0.3   s     -- huddle against the cold
+  , at  230    0.0   0.0   s     -- end
+  , at  240    0.0   0.0   s     -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Shivering solo: frozen violin
+shivering f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 2 1 0 1 0]*2"
+        }
+  f
+    $ stack [silence
+        , violin1 (0, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Cold strings: angular, grid voicing
+cold f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[0 3 0 1]*2"
+        , alto    = "[3 0 1 0]*2"
+        , tenor   = "[1 0 3 0]*2"
+        , bass    = "[0 0 -1 0]*2"
+        }
+  f
+    $ stack [silence
+        , violin2    (0.3, 1) k vl grid Alto
+        , viola      (0.3, 1) k vl grid Tenor
+        , cello      (0, 1)   k vl grid Bass
+        , contrabass (0, 1)   k vl grid Bass8vb
+    ] |* vel d
+
+-- Harsh wind: flute cutting through
+wind f k d = p "wind" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 1 3 0 3 2 3 1]*2"
+        }
+  f
+    $ stack [silence
+        , flute (0.3, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Continuo
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~"
+        , alto = "[1 0 1 0]/4"
+        }
+  f
+    $ stack [silence
+        , harp (0, 1) k vl flow Alto
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (rep s 1)
+  putStrLn "THE FOUR SEASONS — Winter I. Allegro non molto"
+  mapM_ id [hush, setbpm tempo
+    ,shivering f k  $ d 0.9
+    ,cold      f k  $ d 0.75
+    ,wind      f k  $ d 0.6
+    ,continuo  f k  $ d 0.5
+    ]
+
+hush''

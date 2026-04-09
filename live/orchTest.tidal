@@ -5,7 +5,7 @@ motifA = "[3 2 3 4]/16"
 
 -- ── CONCRETE SECTIONS ─────────────────────────────────────
 
-wind f r k d = p "wind" $ do
+wind f k d = p "wind" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "3/4"
         , alto    = "1/4"
@@ -14,13 +14,13 @@ wind f r k d = p "wind" $ do
         }
   f
     $ stack [silence
-        , flute    (0,1) flow Alto8va    r k vl
-        , oboe     (0,1) flow Soprano       r k vl
-        , clarinet (0,1) flow Tenor   r k vl
-        , bassoon  (0,1) flow Bass    r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , flute    (0,1) k vl flow Alto8va
+        , oboe     (0,1) k vl flow Soprano
+        , clarinet (0,1) k vl flow Tenor
+        , bassoon  (0,1) k vl flow Bass
+    ] |* vel d
 
-brss f r k d = p "brss" $ do
+brss f k d = p "brss" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "3/4"
         , alto    = "1/4"
@@ -29,15 +29,15 @@ brss f r k d = p "brss" $ do
         }
   f
     $ stack [silence
-        , horn     (0,1) flow Soprano    r k vl
-        , horn     (0,1) flow Alto    r k vl
-        , horn     (0,1) flow Tenor    r k vl
-        , horn     (0,1) flow Bass    r k vl
-        -- , trombone (0,1) flow Tenor   r k vl
-        , basstrom (0,1) grid Bass    r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , horn     (0,1) k vl flow Soprano
+        , horn     (0,1) k vl flow Alto
+        , horn     (0,1) k vl flow Tenor
+        , horn     (0,1) k vl flow Bass
+        -- , trombone (0,1) k vl flow Tenor
+        , basstrom (0,1) k vl grid Bass
+    ] |* vel d
 
-strg f r k d = p "strg" $ do
+strg f k d = p "strg" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "3/4"
         , alto    = "1/4"
@@ -46,14 +46,14 @@ strg f r k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , violin1    (0,1) flow Soprano    r k vl
-        , violin2    (0,1) flow Alto8va       r k vl
-        , viola      (0,1) flow Tenor   r k vl
-        , cello      (0,1) grid Bass   r k vl
-        , contrabass (0,1) grid Bass8vb    r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , violin1    (0,1) k vl flow Soprano
+        , violin2    (0,1) k vl flow Alto8va
+        , viola      (0,1) k vl flow Tenor
+        , cello      (0,1) k vl grid Bass
+        , contrabass (0,1) k vl grid Bass8vb
+    ] |* vel d
 
-perc f r k d = p "perc" $ do
+perc f k d = p "perc" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[3 2 1 0]"
         , alto = "[0,1,2,0]/8"
@@ -61,18 +61,18 @@ perc f r k d = p "perc" $ do
         }
   f
     $ stack [silence
-        , timpani (0,1) grid Bass    r k vl
-        -- , harp    (0,1) flow Alto8va    r k vl
+        , timpani (0,1) k vl grid Bass
+        -- , harp    (0,1) k vl flow Alto8va
         , slate (0,1) k [silence
             -- , bassdrum "[1]/4"
             -- , tamtam   "[1*4]"
             ]
-    ] |* vel (kDynamic k) |* vel d
+    ] |* vel d
 
 -- ── TIMBRAL BLENDS ────────────────────────────────────────
 
  -- dark warmth (clarinet low + bassoon + horn)
-chalumeau f r k d = p "chalumeau" $ do
+chalumeau f k d = p "chalumeau" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "3/4"
         , alto    = "1/4"
@@ -81,13 +81,13 @@ chalumeau f r k d = p "chalumeau" $ do
         }
   f
     $ stack [silence
-        , clarinet (0,1) flow Soprano    r k vl
-        , bassoon  (0,1) flow Tenor8vb   r k vl
-        , horn     (0,1) flow Bass8vb    r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , clarinet (0,1) k vl flow Soprano
+        , bassoon  (0,1) k vl flow Tenor8vb
+        , horn     (0,1) k vl flow Bass8vb
+    ] |* vel d
 
  -- mid-register colour (flute + oboe + clarinet)
-pastorale f r k d = p "pastorale" $ do
+pastorale f k d = p "pastorale" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "3/4"
         , alto    = "1/4"
@@ -96,13 +96,13 @@ pastorale f r k d = p "pastorale" $ do
         }
   f
     $ stack [silence
-        , flute    (0,1) flow Soprano    r k vl
-        , oboe     (0,1) flow Alto       r k vl
-        , clarinet (0,1) flow Tenor8vb   r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , flute    (0,1) k vl flow Soprano
+        , oboe     (0,1) k vl flow Alto
+        , clarinet (0,1) k vl flow Tenor8vb
+    ] |* vel d
 
  -- bright top (flute 8va at high kinetics)
-brillante f r k d = p "brillante" $ do
+brillante f k d = p "brillante" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "3/4"
         , alto    = "1/4"
@@ -111,14 +111,14 @@ brillante f r k d = p "brillante" $ do
         }
   f
     $ stack [silence
-        , flute    (0.5, 1) flow Soprano8va r k vl
-        , flute    (0, 1)   flow Soprano    r k vl
-        , oboe     (0, 1)   flow Alto       r k vl
-        , clarinet (0, 1)   flow Tenor8vb   r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , flute    (0.5, 1) k vl flow Soprano8va
+        , flute    (0, 1)   k vl flow Soprano
+        , oboe     (0, 1)   k vl flow Alto
+        , clarinet (0, 1)   k vl flow Tenor8vb
+    ] |* vel d
 
  -- full winds + brass (climactic)
-maestoso f r k d = p "maestoso" $ do
+maestoso f k d = p "maestoso" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "3/4"
         , alto    = "1/4"
@@ -127,16 +127,16 @@ maestoso f r k d = p "maestoso" $ do
         }
   f
     $ stack [silence
-        , flute    (0,1) flow Soprano    r k vl
-        , oboe     (0,1) flow Alto       r k vl
-        , clarinet (0,1) flow Tenor8vb   r k vl
-        , bassoon  (0,1) flow Bass8vb    r k vl
-        , horn     (0,1) flow Soprano    r k vl
-        , trombone (0,1) flow Bass8vb    r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , flute    (0,1) k vl flow Soprano
+        , oboe     (0,1) k vl flow Alto
+        , clarinet (0,1) k vl flow Tenor8vb
+        , bassoon  (0,1) k vl flow Bass8vb
+        , horn     (0,1) k vl flow Soprano
+        , trombone (0,1) k vl flow Bass8vb
+    ] |* vel d
 
  -- full orchestra with kinetics crescendo ordering
-tutti art f r k d = p "tutti" $ do
+tutti art f k d = p "tutti" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "3/4"
         , alto    = "1/4"
@@ -146,21 +146,21 @@ tutti art f r k d = p "tutti" $ do
   f
     $ stack [silence
         -- Strings foundation (always)
-        , violin1    (0, 1)   flow Soprano    r k vl # art
-        , viola      (0, 1)   flow Alto       r k vl # art
-        , cello      (0, 1)   flow Tenor8vb   r k vl # art
-        , contrabass (0, 1)   grid Bass8vb    r k vl # art
+        , violin1    (0, 1)   k vl flow Soprano    # art
+        , viola      (0, 1)   k vl flow Alto       # art
+        , cello      (0, 1)   k vl flow Tenor8vb   # art
+        , contrabass (0, 1)   k vl grid Bass8vb    # art
         -- Winds enter at 0.2
-        , flute      (0.2, 1) flow Soprano    r k vl
-        , oboe       (0.2, 1) flow Alto       r k vl
-        , clarinet   (0.2, 1) flow Tenor8vb   r k vl
-        , bassoon    (0.2, 1) flow Bass8vb    r k vl
+        , flute      (0.2, 1) k vl flow Soprano
+        , oboe       (0.2, 1) k vl flow Alto
+        , clarinet   (0.2, 1) k vl flow Tenor8vb
+        , bassoon    (0.2, 1) k vl flow Bass8vb
         -- Brass at 0.5
-        , horn       (0.5, 1) flow Soprano    r k vl
-        , trombone   (0.5, 1) flow Bass8vb    r k vl
+        , horn       (0.5, 1) k vl flow Soprano
+        , trombone   (0.5, 1) k vl flow Bass8vb
         -- Percussion at peak
-        , timpani    (0.8, 1) grid Bass8vb    r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , timpani    (0.8, 1) k vl grid Bass8vb
+    ] |* vel d
 
 -- ── EXISTING BLOCKS (d last) ──────────────────────────────
 
@@ -170,22 +170,22 @@ let upper = (0.5, 1)
 
 let peak  = (0.8, 1)
 
-p03 f r k d = d03 $ do
+p03 f k d = d03 $ do
   let o = ch 07
   f
     $ stack [silence
-      ,arrange upper flow (overlapF 0) r k (-9,9) ["~"
+      ,arrange upper k (-9,9) flow (overlapF 0) ["~"
         -- ,"[~ [1,2,3]]"
         ,"[1,2,3]/4" |- "[0 1 2 2]/16"
         -- ,"[1,2,3]/4" |* 2
         -- ,"[0 1 [2 3] <5 [5 6]>]/2" |+ 3
         -- ,"[0 1 2 3 5 3 2 1]/4" |+ 2
       ]# o |* vel 0.6 |- oct 1 -- |* legato 0.25
-      ,arrange cresc grid (overlapF 0) r k (-9,9) ["~"
+      ,arrange cresc k (-9,9) grid (overlapF 0) ["~"
         ,"[0 [0,4]]/4"
         -- ,"[0]/4"
       ]# o |* vel 0.9 |- oct 2 |= legato 0.99
-    ] |* vel (kDynamic k) |* vel d
+    ] |* vel d
 
 k909 f k d = p "909kit" $ do
   let o = ch 9
@@ -198,11 +198,11 @@ k909 f k d = p "909kit" $ do
         ,snap "<0 1>"
         -- ,rimshot "<0 1>"
         ]
-    ]# o # legato 0.01 |* vel (kDynamic k) |* vel d
+    ]# o # legato 0.01 |* vel d
 
-subk f r k d = p "subKick"
+subk f k d = p "subKick"
   $ f
-    $ subKick root r d k ( 1/4
+    $ subKick d k root ( 1/4
       ,"[1]/2"
       -- ,"[1(3,8)]*2"
       ,"[0 1 0 0]"

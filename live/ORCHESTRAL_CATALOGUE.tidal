@@ -1,0 +1,130 @@
+-- ══════════════════════════════════════════════════════════
+-- ORCHESTRAL CATALOGUE — Interactive Instrument Range Tests
+-- ══════════════════════════════════════════════════════════
+--
+-- Play each line to hear the full range of each instrument.
+-- Ranges match Orchestra.hs clip values (the sound source
+-- determines the actual timbre at each pitch).
+--
+-- Signal chain: TidalCycles -> SuperDirt -> MIDI -> Roland JV-1010
+-- subKick routes via "thru" device to MPC (not JV-1010)
+--
+-- Tidal note 0 = MIDI 60 = middle C (C4)
+
+
+-- ── WIND ─────────────────────────────────────────────────
+
+-- FLUTE (Ch 1) — C3 to D6 (MIDI 48-86)
+once $ d01 $ note "[-12 26]*2" # ch 1 # legato 0.8
+
+-- OBOE (Ch 2) — Bb3 to A6 (MIDI 58-93)
+once $ d02 $ note "[-2 33]*2" # ch 2 # legato 0.8
+
+-- CLARINET (Ch 3) — D2 to Bb6 (MIDI 38-94)
+once $ d03 $ note "[-22 34]*2" # ch 3 # legato 0.8
+
+-- BASSOON (Ch 4) — Bb1 to Eb5 (MIDI 32-75)
+once $ d04 $ note "[-28 15]*2" # ch 4 # legato 0.8
+
+
+-- ── BRASS ────────────────────────────────────────────────
+
+-- HORN (Ch 5) — B1 to F5 (MIDI 31-77)
+once $ d05 $ note "[-29 17]*2" # ch 5 # legato 0.8
+
+-- TROMBONE (Ch 6) — Bb1 to F5 (MIDI 32-77)
+once $ d06 $ note "[-28 17]*2" # ch 6 # legato 0.8
+
+-- BASS TROMBONE (Ch 6) — A0 to G3 (MIDI 21-55)
+once $ d06 $ note "[-39 -5]*2" # ch 6 # legato 0.8
+
+
+-- ── PLUCKED / PITCHED PERCUSSION ─────────────────────────
+
+-- HARP (Ch 7) — B1 to F#7 (MIDI 31-102)
+once $ d07 $ note "[-29 42]*2" # ch 7 # legato 0.8
+
+-- TIMPANI (Ch 8) — D2 to C4 (MIDI 38-60)
+once $ d08 $ note "[-22 0]*2" # ch 8 # legato 0.8
+
+
+-- ── UNPITCHED PERCUSSION ─────────────────────────────────
+
+-- BASS DRUM (Ch 9) — fixed MIDI 36
+once $ d09 $ midinote 36 # ch 9 # sustain 0.05
+
+-- TAM-TAM (Ch 11) — fixed MIDI 31
+once $ d11 $ midinote 31 # ch 11 # sustain 0.5
+
+
+-- ── STRINGS (default arco = Ch 16) ──────────────────────
+
+-- VIOLIN (Ch 16) — G3 to A7 (MIDI 55-105)
+once $ d01 $ note "[-5 45]*2" # ch 16 # legato 0.8
+
+-- VIOLA (Ch 16) — C3 to E6 (MIDI 48-88)
+once $ d01 $ note "[-12 28]*2" # ch 16 # legato 0.8
+
+-- CELLO (Ch 16) — C2 to C6 (MIDI 36-84)
+once $ d01 $ note "[-24 24]*2" # ch 16 # legato 0.8
+
+-- CONTRABASS (Ch 16) — C1 to C4 (MIDI 24-60)
+once $ d01 $ note "[-36 0]*2" # ch 16 # legato 0.8
+
+
+-- ── STRING ARTICULATIONS ─────────────────────────────────
+
+-- PIZZICATO (Ch 12)
+once $ d01 $ note "[-36 45]*2" # ch 12 # legato 0.8
+
+-- SPICCATO (Ch 13)
+once $ d01 $ note "[-24 45]*2" # ch 13 # legato 0.8
+
+-- MARCATO (Ch 14)
+once $ d01 $ note "[-36 24]*2" # ch 14 # legato 0.8
+
+-- LEGATO (Ch 15)
+once $ d01 $ note "[-12 45]*2" # ch 15 # legato 0.8
+
+-- ARCO (Ch 16) — same as default strings
+once $ d01 $ note "[-36 45]*2" # ch 16 # legato 0.8
+
+
+-- ── SUBKICK (via "thru" device, Ch 10) ──────────────────
+
+-- Sub pitches: C2-B2 (MIDI 36-47), mapped from harmonic root
+-- Kick: fixed C3 (MIDI 48)
+-- Silence (no sample): B1 (MIDI 35)
+
+
+-- ══════════════════════════════════════════════════════════
+-- CHROMATIC RANGE TEST — all pitched instruments
+-- ══════════════════════════════════════════════════════════
+
+-- Play chromatic scale across each instrument's full range:
+
+-- Flute chromatic
+d01 $ slow 4 $ note (scale "chromatic" (run 39) - 12) # ch 1 # legato 0.5
+
+hush
+
+-- Full string section chromatic (arco)
+d01 $ slow 8 $ note (scale "chromatic" (run 82) - 36) # ch 16 # legato 0.5
+
+hush
+
+
+-- ══════════════════════════════════════════════════════════
+-- DYNAMIC MARKS REFERENCE
+-- ══════════════════════════════════════════════════════════
+--
+-- ffff  vel 1.0
+-- fff   vel 0.9
+-- ff    vel 0.75
+-- f     vel 0.65
+-- mf    vel 0.55
+-- mp    vel 0.45
+-- p     vel 0.40
+-- pp    vel 0.35
+-- ppp   vel 0.30
+-- pppp  vel 0.25

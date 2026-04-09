@@ -47,41 +47,40 @@ form =
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
 -- Desolation: broken lyre + lifeless flute
-desolation f r k d = p "desolation" $ do
+desolation f k d = p "desolation" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[3 . . 2 . . 1 . .]/4"
         , alto    = "[1 . . . 0 . . .]/4"
         }
   f
     $ stack [silence
-        , harp  (0, 1) flow Soprano    r k vl
-        , flute (0, 1) flow Alto       r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , harp  (0, 1) k vl flow Soprano
+        , flute (0, 1) k vl flow Alto
+    ] |* vel d
 
 -- Icy strings: the void
-void f r k d = p "void" $ do
+void f k d = p "void" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "3"
         , bass    = "0"
         }
   f
     $ stack [silence
-        , cello      (0, 1) grid Bass       r k vl
-        , contrabass (0, 1) grid Bass8vb    r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , cello      (0, 1) k vl grid Bass
+        , contrabass (0, 1) k vl grid Bass8vb
+    ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────
 
 do
   let
-    r = warp "[1 2 3 4]/8"
     f = id
     d = (* 1)
-    k = formK tempo form
+    k = iK tempo form (warp "[1 2 3 4]/8")
   putStrLn "ORPHEUS — XI. Interlude 3"
   mapM_ id [hush, setbpm tempo
-    ,desolation f r k  $ d 0.7
-    ,void       f r k  $ d 0.5
+    ,desolation f k  $ d 0.7
+    ,void       f k  $ d 0.5
     ]
 
 hush''

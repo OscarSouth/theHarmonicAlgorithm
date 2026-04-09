@@ -1,0 +1,105 @@
+-- ============================================================================
+-- SPRING — III. DANZA PASTORALE. ALLEGRO
+-- The Four Seasons, Op. 8 No. 1, RV 269 — Antonio Vivaldi (1725)
+-- ============================================================================
+--
+-- Super-structure position: 0.25 (Inciting event)
+--
+-- "To the happy sound of rustic bagpipe music,
+--  Nymphs and shepherds dance in their favourite place
+--  When spring appears in all its glory."
+--
+-- A festive pastoral dance in 3/4 time with a characteristic drone bass
+-- (musette) evoking the rustic bagpipe. The solo violin leads the dance
+-- with energetic, flowing passages while the ripieno provides rhythmic
+-- drive. The mood is communal celebration — nymphs and shepherds in the
+-- meadow, the full joy of spring's arrival.
+--
+-- The ritornello returns with added pastoral character: dotted rhythms,
+-- drone bass notes, and a lilting quality that suggests both sophistication
+-- and rural simplicity — Vivaldi's Baroque sensibility channeling folk
+-- dance through classical form.
+--
+-- Adaptation: Full strings for the dance. Harp providing the musette drone.
+-- Oboe for pastoral melody doubling. Festive, peak 0.65.
+-- ============================================================================
+
+tempo = 108
+
+start <- lead "E maj"
+
+let ctx = hcKey "4#"
+        $ hContext
+
+s <- seek "bach:50 mozart:50" $ cue start $ tonal ctx $ len 8 $ entropy 0.3 $ gen
+
+-- Form: ~280s (270s + 10s gap)
+-- Festive dance: energy builds through celebration
+form =
+  [ at    0    0.0   0.0   s     -- silence
+  , at    5    0.4   0.4   s     -- dance begins: musette drone, strings
+  , at   45    0.55  0.55  s     -- nymphs enter: melody expands
+  , at   90    0.65  0.65  s     -- full celebration: all voices
+  , at  140    0.55  0.55  s     -- solo episode: violin dances
+  , at  180    0.65  0.65  s     -- ritornello return: festive peak
+  , at  220    0.5   0.5   s     -- winding down
+  , at  255    0.3   0.3   s     -- fading
+  , at  270    0.0   0.0   s     -- end
+  , at  280    0.0   0.0   s     -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Solo violin: leading the dance
+solo f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0 1 2 3 1]/4"
+        }
+  f
+    $ stack [silence
+        , violin1 (0, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Dance strings: the pastoral ensemble
+dance f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 0]/4"
+        , alto    = "[1 0 1 2]/4"
+        , tenor   = "[2 1 0 2]/4"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , violin2    (0.3, 1) k vl flow Alto
+        , viola      (0.3, 1) k vl flow Tenor
+        , cello      (0, 1)   k vl grid Bass    # pizz
+        , contrabass (0, 1)   k vl grid Bass8vb # pizz
+    ] |* vel d
+
+-- Bagpipe / musette: harp drone + oboe melody
+bagpipe f k d = p "bagpipe" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1]/4"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , harp (0, 1)   k vl flow Bass
+        , oboe (0.3, 1) k vl flow Soprano
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (rep s 1)
+  putStrLn "THE FOUR SEASONS — Spring III. Danza pastorale"
+  mapM_ id [hush, setbpm tempo
+    ,solo    f k  $ d 0.9
+    ,dance   f k  $ d 0.7
+    ,bagpipe f k  $ d 0.6
+    ]
+
+hush''

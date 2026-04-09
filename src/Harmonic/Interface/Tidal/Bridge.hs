@@ -51,7 +51,7 @@ module Harmonic.Interface.Tidal.Bridge
 import qualified Harmonic.Rules.Types.Progression as P
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Interface.Tidal.Arranger as A
-import Harmonic.Interface.Tidal.Form (Kinetics(..))
+import Harmonic.Interface.Tidal.Form (Kinetics(..), IK)
 
 import Data.List (nub)
 import Sound.Tidal.Context hiding (voice)
@@ -99,26 +99,26 @@ rep prog repVal =
 
 -- |Map notes through chords using onset-time lookup, with kinetics range gating.
 --
--- The base progression is read from @kProg k@ via @innerJoin@.
+-- The base progression and chord selection are read from @IK@.
 -- The modifier function transforms the progression (e.g. @overlapF 0@, @id@).
 -- Events are masked by the kinetics signal: only active when kSignal is
--- within the @(lo, hi)@ range.
+-- within the @(lo, hi)@ range. Form-driven dynamics (@kDynamic@) are applied
+-- automatically.
 --
--- @chordPat@ is 1-indexed: @\"[1 2 3 4]/4\"@ selects chords 1-4.
--- Indices wrap modulo the number of chords in the progression.
+-- Parameter order: context first (kinetics range, IK, MIDI range), then
+-- interactive (voice function, modifier, patterns).
 arrange :: (Double, Double)                     -- ^ Kinetics range
+        -> IK                                    -- ^ Performance context (kinetics + chord selection)
+        -> (Int, Int)                            -- ^ MIDI note range filter
         -> VoiceFunction                         -- ^ Voice function (flow, root, etc.)
         -> (P.Progression -> P.Progression)      -- ^ Progression modifier (overlapF 0, id, etc.)
-        -> Pattern Int                           -- ^ Chord selection pattern (1-indexed)
-        -> Kinetics                              -- ^ Form context
-        -> (Int, Int)                            -- ^ MIDI note range filter
         -> [Pattern Int]                         -- ^ Input patterns to harmonize
         -> Pattern ValueMap
-arrange (lo, hi) voiceFunc modifier chordPat k register pats =
+arrange (lo, hi) (kin, chordPat) register voiceFunc modifier pats =
   let -- Pre-compute note range filter ONCE (shared across all innerJoin invocations)
       ranged = voiceRange register (stack pats)
       -- Pre-compute voicings at construction time (runs ONCE when pattern is registered)
-      allEvents = queryArc (kProg k) (Arc 0 1000)
+      allEvents = queryArc (kProg kin) (Arc 0 1000)
       uniqueProgs = nub (map value allEvents)
       cache = [ (p, let vs = voiceFunc (modifier p)
                         sc = map (map fromIntegral) vs :: [[Note]]
@@ -129,10 +129,11 @@ arrange (lo, hi) voiceFunc modifier chordPat k register pats =
         Just hit -> hit
         Nothing  -> let vs = voiceFunc (modifier prog)
                     in (map (map fromIntegral) vs, length vs)
-  in mask (fmap (\x -> x >= lo && x <= hi) (kSignal k)) $
+  in (|* pF "amp" (kDynamic kin)) $
+     mask (fmap (\x -> x >= lo && x <= hi) (kSignal kin)) $
        innerJoin $ fmap (\prog ->
          arrangeLookup (lookupCache prog) chordPat ranged
-       ) (kProg k)
+       ) (kProg kin)
 
 -- |Internal: onset-join arrangement logic (unchanged from original arrange).
 arrangeCore :: VoiceFunction
@@ -206,21 +207,18 @@ arrangeLookup (scales, nChords) chordPat ranged
 --
 -- Same kinetics/modifier pattern as 'arrange', but uses squeeze strategy:
 -- each chord slot gets the full input pattern compressed to fit.
---
--- @chordPat@ is 1-indexed, same as 'arrange'.
 arrange' :: (Double, Double)                     -- ^ Kinetics range
+         -> IK                                    -- ^ Performance context
+         -> (Int, Int)                            -- ^ MIDI note range filter
          -> VoiceFunction                         -- ^ Voice function
          -> (P.Progression -> P.Progression)      -- ^ Progression modifier
-         -> Pattern Int                           -- ^ Chord selection pattern (1-indexed)
-         -> Kinetics                              -- ^ Form context
-         -> (Int, Int)                            -- ^ MIDI note range filter
          -> [Pattern Int]                         -- ^ Input patterns to harmonize
          -> Pattern ValueMap
-arrange' (lo, hi) voiceFunc modifier chordPat k register pats =
+arrange' (lo, hi) (kin, chordPat) register voiceFunc modifier pats =
   let -- Pre-compute note range filter ONCE (shared across all innerJoin invocations)
       ranged = voiceRange register (stack pats)
       -- Pre-compute voicings at construction time (runs ONCE when pattern is registered)
-      allEvents = queryArc (kProg k) (Arc 0 1000)
+      allEvents = queryArc (kProg kin) (Arc 0 1000)
       uniqueProgs = nub (map value allEvents)
       cache = [ (p, let vs = voiceFunc (modifier p)
                         sc = map (map fromIntegral) vs :: [[Note]]
@@ -231,10 +229,11 @@ arrange' (lo, hi) voiceFunc modifier chordPat k register pats =
         Just hit -> hit
         Nothing  -> let vs = voiceFunc (modifier prog)
                     in (map (map fromIntegral) vs, length vs)
-  in mask (fmap (\x -> x >= lo && x <= hi) (kSignal k)) $
+  in (|* pF "amp" (kDynamic kin)) $
+     mask (fmap (\x -> x >= lo && x <= hi) (kSignal kin)) $
        innerJoin $ fmap (\prog ->
          arrangeLookup' (lookupCache prog) chordPat ranged
-       ) (kProg k)
+       ) (kProg kin)
 
 -- |Internal: squeeze arrangement logic (unchanged from original arrange').
 arrangeCore' :: VoiceFunction

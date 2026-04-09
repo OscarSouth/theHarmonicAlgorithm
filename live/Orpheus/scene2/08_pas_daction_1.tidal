@@ -48,7 +48,7 @@ form =
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
 -- The Decree: low strings + brass chorale (divine authority)
-decree f r k d = p "decree" $ do
+decree f k d = p "decree" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "3"
         , alto    = "1"
@@ -57,36 +57,35 @@ decree f r k d = p "decree" $ do
         }
   f
     $ stack [silence
-        , cello      (0, 1)   grid Bass       r k vl
-        , contrabass (0, 1)   grid Bass8vb    r k vl
-        , horn       (0.3, 1) flow Soprano    r k vl
-        , trombone   (0.3, 1) flow Tenor      r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , cello      (0, 1)   k vl grid Bass
+        , contrabass (0, 1)   k vl grid Bass8vb
+        , horn       (0.3, 1) k vl flow Soprano
+        , trombone   (0.3, 1) k vl flow Tenor
+    ] |* vel d
 
 -- Eurydice: fragile woodwind motif
-eurydice f r k d = p "eurydice" $ do
+eurydice f k d = p "eurydice" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[3 . 2 . 1 .]/4"
         , alto    = "[1 . 0 .]/4"
         }
   f
     $ stack [silence
-        , flute  (0.2, 0.5) flow Soprano    r k vl
-        , oboe   (0.2, 0.5) flow Alto       r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , flute  (0.2, 0.5) k vl flow Soprano
+        , oboe   (0.2, 0.5) k vl flow Alto
+    ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────
 
 do
   let
-    r = warp "[1 2 3 4]/8"
     f = id
     d = (* 1)
-    k = formK tempo form
+    k = iK tempo form (warp "[1 2 3 4]/8")
   putStrLn "ORPHEUS — IX. Pas d'action 1 (The Pact)"
   mapM_ id [hush, setbpm tempo
-    ,decree  f r k  $ d 0.9
-    ,eurydice f r k $ d 0.6
+    ,decree  f k  $ d 0.9
+    ,eurydice f k $ d 0.6
     ]
 
 hush''

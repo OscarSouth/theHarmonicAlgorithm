@@ -1,0 +1,59 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 4 IN G MAJOR, BWV 1049 — II. ANDANTE
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- The Andante reverses the roles: the recorders (flute + oboe) bask in
+-- the limelight while the violin accompanies. A sarabande character —
+-- slow, stately, with a gentle nobility. The dialogue between the two
+-- "recorders" is intimate and pastoral, the violin weaving beneath them
+-- rather than above. The strings provide a warm harmonic cradle.
+-- ============================================================================
+
+tempo = 56
+
+start <- lead "E min"
+
+let ctx = consonant
+        $ hcKey "1#"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.15 $ gen
+
+form =
+  [ at    0    0.0   0.0   s
+  , at    5    0.25  0.25  s     -- recorders take the lead
+  , at   45    0.3   0.3   s     -- violin accompanies below
+  , at   90    0.35  0.35  s     -- gentle peak: all three soloists
+  , at  140    0.3   0.3   s     -- subsiding
+  , at  200    0.25  0.25  s     -- closing
+  , at  250    0.15  0.15  s     -- fading
+  , at  270    0.0   0.0   s
+  , at  280    0.0   0.0   s     -- gap
+  ]
+
+recorders f k d = p "recorders" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 2 3 1 2 1 0 1]/4", alto = "[1 0 1 2 1 2 3 2]/4"}
+  f $ stack [silence, flute (0, 1) k vl flow Soprano, oboe (0, 1) k vl flow Alto] |* vel d
+
+soloViolin f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~", tenor = "[2 1 0 2 1 0 2 1]/4"}
+  f $ stack [silence, violin1 (0.15, 1) k vl flow Tenor] |* vel d
+
+strg f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~", alto = "1", tenor = "2", bass = "0"}
+  f $ stack [silence, violin2 (0.15, 1) k vl flow Alto, viola (0.15, 1) k vl flow Tenor
+        , cello (0, 1) k vl grid Bass] |* vel d
+
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 0 2 1]/4"}
+  f $ stack [silence, harp (0, 1) k vl flow Alto] |* vel d
+
+do
+  let
+    f = id; d = (* 1); k = iK tempo form (warp "[1 2 3 4]/8")
+  putStrLn "BRANDENBURG NO. 4 — II. Andante"
+  mapM_ id [hush, setbpm tempo
+    ,recorders f k $ d 0.8, soloViolin f k $ d 0.65, strg f k $ d 0.55, continuo f k $ d 0.5]
+
+hush''

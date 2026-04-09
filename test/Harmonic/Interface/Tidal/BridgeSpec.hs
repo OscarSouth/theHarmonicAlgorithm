@@ -22,7 +22,7 @@ import qualified Harmonic.Rules.Types.Progression as P
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as Pitch
 import Harmonic.Interface.Tidal.Bridge
-import Harmonic.Interface.Tidal.Form (Kinetics(..))
+import Harmonic.Interface.Tidal.Form (Kinetics(..), IK)
 import qualified Harmonic.Interface.Tidal.Arranger as A
 import qualified Data.Sequence as Seq
 import qualified Data.Map.Strict as Map
@@ -210,21 +210,21 @@ spec = do
 
     it "produces events from a simple chord pattern" $ do
       let chordSel = parseBP_E "[1 2 3 4]/4" :: Pattern Int
-          result = arrange (0,1) A.flow id chordSel (testKinetics testProgression) (-24,24)
+          result = arrange (0,1) (testKinetics testProgression, chordSel) (-24,24) A.flow id
                      [parseBP_E "[0 1 2 3]"]
       onsetCount result (Arc 0 1) `shouldSatisfy` (> 0)
 
     it "returns silence for empty progression" $ do
       let emptyProg = P.Progression Seq.empty
           chordSel = parseBP_E "1" :: Pattern Int
-          result = arrange (0,1) A.flow id chordSel (testKinetics emptyProg) (-24,24)
+          result = arrange (0,1) (testKinetics emptyProg, chordSel) (-24,24) A.flow id
                      [parseBP_E "[0 1 2]"]
       onsetCount result (Arc 0 1) `shouldBe` 0
 
     it "full pattern plays for every chord (no alternation)" $ do
       let chordSel = parseBP_E "[1 2]/2" :: Pattern Int
           pat = parseBP_E "[0 1 2 3]" :: Pattern Int
-          result = arrange (0,1) A.flow id chordSel (testKinetics testProgression) (-24,24) [pat]
+          result = arrange (0,1) (testKinetics testProgression, chordSel) (-24,24) A.flow id [pat]
           cycle0 = onsetNotes result (Arc 0 1)
           cycle1 = onsetNotes result (Arc 1 2)
       length cycle0 `shouldBe` length cycle1
@@ -232,19 +232,19 @@ spec = do
     it "sustained note does not re-trigger at chord boundary" $ do
       let chordSel = parseBP_E "[1 2]" :: Pattern Int
           pat = parseBP_E "0" :: Pattern Int
-          result = arrange (0,1) A.flow id chordSel (testKinetics testProgression) (-24,24) [pat]
+          result = arrange (0,1) (testKinetics testProgression, chordSel) (-24,24) A.flow id [pat]
       onsetCount result (Arc 0 1) `shouldBe` 1
 
     it "events fall within expected cycle range" $ do
       let chordSel = parseBP_E "[1 2 3 4]/4" :: Pattern Int
-          result = arrange (0,1) A.flow id chordSel (testKinetics testProgression) (-24,24)
+          result = arrange (0,1) (testKinetics testProgression, chordSel) (-24,24) A.flow id
                      [parseBP_E "[0 1 2 3]"]
           onsets = queryOnsets result (Arc 0 1)
       all (\(t, _) -> t >= 0 && t < 1) onsets `shouldBe` True
 
     it "AABA form [1 1 2 1]/4 produces correct chord repetition" $ do
       let chordSel = parseBP_E "[1 1 2 1]/4" :: Pattern Int
-          result = arrange (0,1) A.flow id chordSel (testKinetics testProgression) (-24,24)
+          result = arrange (0,1) (testKinetics testProgression, chordSel) (-24,24) A.flow id
                      [parseBP_E "0"]
           onsets = onsetNotes result (Arc 0 4)
       length onsets `shouldBe` 4
@@ -253,7 +253,7 @@ spec = do
 
     it "extends into higher octaves like toScale (index >= scale length)" $ do
       let chordSel = parseBP_E "1" :: Pattern Int
-          result = arrange (0,1) A.flow id chordSel (testKinetics testProgression) (-24,24)
+          result = arrange (0,1) (testKinetics testProgression, chordSel) (-24,24) A.flow id
                      [parseBP_E "[0 1 2 3]"]
           notes = onsetNotes result (Arc 0 1)
       length notes `shouldBe` 4
@@ -261,10 +261,10 @@ spec = do
 
     it "chord indices wrap modulo progression length" $ do
       let chordSel = parseBP_E "[5 6 7 8]/4" :: Pattern Int
-          result1 = arrange (0,1) A.flow id chordSel (testKinetics testProgression) (-24,24)
+          result1 = arrange (0,1) (testKinetics testProgression, chordSel) (-24,24) A.flow id
                       [parseBP_E "0"]
           chordSel2 = parseBP_E "[1 2 3 4]/4" :: Pattern Int
-          result2 = arrange (0,1) A.flow id chordSel2 (testKinetics testProgression) (-24,24)
+          result2 = arrange (0,1) (testKinetics testProgression, chordSel2) (-24,24) A.flow id
                       [parseBP_E "0"]
       onsetNotes result1 (Arc 0 4) `shouldBe` onsetNotes result2 (Arc 0 4)
 
@@ -272,14 +272,14 @@ spec = do
 
     it "produces events from a simple chord pattern" $ do
       let chordSel = parseBP_E "[1 2 3 4]/4" :: Pattern Int
-          result = arrange' (0,1) A.flow id chordSel (testKinetics testProgression) (-24,24)
+          result = arrange' (0,1) (testKinetics testProgression, chordSel) (-24,24) A.flow id
                      [parseBP_E "[0 1 2 3]"]
       onsetCount result (Arc 0 1) `shouldSatisfy` (> 0)
 
     it "each chord slot gets the full pattern" $ do
       let chordSel = parseBP_E "[1 2]/2" :: Pattern Int
           pat = parseBP_E "[0 1 2 3]" :: Pattern Int
-          result = arrange' (0,1) A.flow id chordSel (testKinetics testProgression) (-24,24) [pat]
+          result = arrange' (0,1) (testKinetics testProgression, chordSel) (-24,24) A.flow id [pat]
           cycle0 = onsetNotes result (Arc 0 1)
           cycle1 = onsetNotes result (Arc 1 2)
       length cycle0 `shouldBe` length cycle1
@@ -287,7 +287,7 @@ spec = do
     it "returns silence for empty progression" $ do
       let emptyProg = P.Progression Seq.empty
           chordSel = parseBP_E "1" :: Pattern Int
-          result = arrange' (0,1) A.flow id chordSel (testKinetics emptyProg) (-24,24)
+          result = arrange' (0,1) (testKinetics emptyProg, chordSel) (-24,24) A.flow id
                      [parseBP_E "[0 1 2]"]
       onsetCount result (Arc 0 1) `shouldBe` 0
 

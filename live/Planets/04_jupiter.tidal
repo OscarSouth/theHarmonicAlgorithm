@@ -1,0 +1,197 @@
+-- ============================================================================
+-- IV. JUPITER, THE BRINGER OF JOLLITY
+-- The Planets, Op. 32 — Gustav Holst (1914-16)
+-- ============================================================================
+--
+-- Super-structure position: 1/2 (The Swerve)
+-- The midpoint of the spectral narrative — the populist peak, maximum human
+-- joy, the moment where the arc pivots from ascending energy to descending
+-- philosophical weight.
+--
+-- The grandest, most extroverted movement. Opens with a fast three-note
+-- violin figure that generates a pentatonic ostinato, building through
+-- jubilant cross-rhythms (6/8 against 3/4 against 2/4) with Mixolydian
+-- and Dorian modes creating modal brightness. Multiple contrasting themes
+-- multiply until the first climax erupts.
+--
+-- Then everything changes.
+--
+-- THE BIG TUNE emerges: the melody later known as "I Vow to Thee, My
+-- Country" (hymn tune "Thaxted," named after the Essex village where Holst
+-- lived). The entire string section plays in massive unison and octaves — a
+-- wall of unified melody, broad, stepwise, inevitable. It was sung at
+-- Princess Diana's funeral. It became "World in Union" (Rugby World Cup
+-- anthem since 1991). Its emotional register occupies the same territory
+-- as Howard Shore's Lord of the Rings or Goldsmith's Star Trek: The Motion
+-- Picture — vast, noble, transcendent. Its power comes not from volume but
+-- from unity and breadth. The kinetics actually *drops* here — fewer
+-- competing voices, one magnificent melody.
+--
+-- After the tune swells to full orchestra, the opening themes return
+-- triumphantly. Then the coda takes on an unexpected cosmic quality —
+-- shimmering strings, sustained brass, harp arpeggiation — as if the
+-- jollity has lifted us above the Earth to glimpse the stars. This is the
+-- Star Trek quality: human joy become cosmic wonder.
+--
+-- Three progressions capture these three characters:
+-- sJollity (opening excitement), sThaxted (the hymn), sCosmic (the outro).
+-- ============================================================================
+
+tempo = 108
+
+-- ── GENERATION ──────────────────────────────────────────
+
+startJollity <- lead "Eb maj"
+startThaxted <- lead "Eb maj"
+startCosmic  <- lead "Ab maj"
+
+let ctxJollity = hcKey "3b"
+               $ hContext
+
+let ctxThaxted = consonant
+               $ hcRoots "Eb Bb Ab fall"
+               $ hcKey "3b"
+               $ hContext
+
+let ctxCosmic = consonant
+              $ hcKey "4b"
+              $ hContext
+
+sJollity <- seek "mozart:40 brahms:30 wagner:30" $ cue startJollity $ tonal ctxJollity $ len 8 $ entropy 0.35 $ gen
+sThaxted <- seek "bach:40 brahms:30 wagner:30" $ cue startThaxted $ tonal ctxThaxted $ len 8 $ entropy 0.15 $ gen
+sCosmic  <- seek "debussy:50 wagner:50" $ cue startCosmic $ tonal ctxCosmic $ len 8 $ entropy 0.2 $ gen
+
+-- Form: ~490s (480s + 10s gap)
+-- Jollity → FIRST CLIMAX → THE BIG TUNE → tune swells → RETURN → cosmic outro
+form =
+  [ at    0    0.0   0.0   sJollity   -- silence
+  , at    5    0.5   0.5   sJollity   -- opening excitement: string ostinato
+  , at   50    0.7   0.7   sJollity   -- themes multiply, cross-rhythms
+  , at  100    0.8   0.8   sJollity   -- full jollity, all forces
+  , at  170    0.95  0.95  sJollity   -- first climax: maximum energy
+  -- THE BIG TUNE
+  , at  200    0.6   0.6   sThaxted   -- THE TUNE: quieter, broader — power from unity
+  , at  250    0.7   0.7   sThaxted   -- tune grows: more voices join the unison
+  , at  290    0.8   0.8   sThaxted   -- full orchestra unison: the hymn swells
+  -- TRIUMPHANT RETURN
+  , at  330    0.95  0.95  sJollity   -- opening themes return triumphantly
+  -- COSMIC OUTRO
+  , at  390    0.5   0.5   sCosmic    -- cosmic: shimmering, expansive
+  , at  430    0.3   0.3   sCosmic    -- wonder fades: looking outward
+  , at  470    0.15  0.15  sCosmic    -- dissolving into space
+  , at  480    0.0   0.0   sCosmic    -- silence
+  , at  490    0.0   0.0   sCosmic    -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Full orchestra in jubilant mode: active, driving, celebratory
+jollity f k d = p "jollity" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 1 2 0 3 2 1 3]/4"
+        , alto    = "[1 3 0 2 1 0 3 1]/4"
+        , tenor   = "[2 0 1 3 2 1 0 2]/4"
+        , bass    = "[0 1 0 2]/4"
+        }
+  f
+    $ stack [silence
+        , violin1    (0.3, 1) k vl flow Soprano
+        , violin2    (0.3, 1) k vl flow Alto
+        , viola      (0.3, 1) k vl flow Tenor
+        , cello      (0, 1)   k vl grid Bass
+        , contrabass (0, 1)   k vl grid Bass8vb
+        , flute      (0.3, 1) k vl flow Soprano
+        , oboe       (0.3, 1) k vl flow Alto
+        , clarinet   (0.3, 1) k vl flow Tenor
+        , bassoon    (0.4, 1) k vl flow Bass
+    ] |* vel d
+
+-- THE BIG TUNE: massive unison melody — every voice sings as one
+-- All strings and winds assigned to Soprano: unified wall of melody
+-- Cello/contrabass provide octave-doubled root foundation below
+thaxted f k d = p "thaxted" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0 1 2 3 2]/4"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        -- Strings: unified melody (all Soprano except bass)
+        , violin1    (0, 1)   k vl flow Soprano
+        , violin2    (0, 1)   k vl flow Soprano
+        , viola      (0, 1)   k vl flow Soprano
+        , cello      (0, 1)   k vl grid Bass
+        , contrabass (0, 1)   k vl grid Bass8vb
+        -- Winds: doubling the melody
+        , flute      (0.3, 1) k vl flow Soprano
+        , oboe       (0.3, 1) k vl flow Soprano
+        , clarinet   (0.3, 1) k vl flow Soprano
+        , bassoon    (0.3, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Cosmic outro: shimmering aftermath, looking outward to the stars
+cosmic f k d = p "cosmic" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[0 1 2 3]/4"
+        , alto    = "[1 2 3 0]/4"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , harp    (0, 1)   k vl flow Soprano
+        , violin1 (0, 1)   k vl flow Soprano8va
+        , flute   (0.2, 1) k vl flow Alto
+        , horn    (0.2, 1) k vl flow Soprano
+        , cello   (0, 1)   k vl grid Bass
+    ] |* vel d
+
+-- Brass fanfares for jollity sections
+grandBrass f k d = p "brss" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 0 3 1]/4"
+        , tenor   = "[0 1 0 2]/4"
+        }
+  f
+    $ stack [silence
+        , horn     (0.3, 1) k vl flow Soprano
+        , trombone (0.5, 1) k vl flow Tenor
+    ] |* vel d
+
+-- Brass weight under the big tune: horn doubling the melody
+tuneHorn f k d = p "tunehorn" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0 1 2 3 2]/4"
+        }
+  f
+    $ stack [silence
+        , horn (0.3, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Timpani for rhythmic drive in jollity sections
+jollityPerc f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass = "0"
+        }
+  f
+    $ stack [silence
+        , timpani (0.5, 1) k vl grid Bass8vb
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (rep sJollity 1)
+  putStrLn "THE PLANETS — IV. Jupiter, the Bringer of Jollity"
+  mapM_ id [hush, setbpm tempo
+    ,jollity     f k  $ d 0.9
+    ,thaxted     f k  $ d 0.85
+    ,cosmic      f k  $ d 0.7
+    ,grandBrass  f k  $ d 0.7
+    ,tuneHorn    f k  $ d 0.75
+    ,jollityPerc f k  $ d 0.6
+    ]
+
+hush''

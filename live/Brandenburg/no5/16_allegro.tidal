@@ -1,0 +1,61 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 5 IN D MAJOR, BWV 1050 — III. ALLEGRO
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- The finale returns to D major with a gigue-like fugue. All forces
+-- return — ripieno, three soloists, continuo. The harpsichord is now
+-- permanently elevated: it functions as both continuo AND soloist,
+-- weaving between accompaniment and virtuosic episodes. The fugue
+-- subject is bright, dance-like, passed between all voices with
+-- brilliant energy. The concerto ends with festive affirmation.
+-- ============================================================================
+
+tempo = 120
+
+start <- lead "D maj"
+
+let ctx = hcKey "2#"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.3 $ gen
+
+form =
+  [ at    0    0.0   0.0   s
+  , at    3    0.5   0.5   s     -- gigue-fugue: subject enters
+  , at   35    0.55  0.55  s     -- second voice
+  , at   65    0.6   0.6   s     -- third voice: full exposition
+  , at  100    0.45  0.45  s     -- episode
+  , at  140    0.65  0.65  s     -- stretto
+  , at  185    0.5   0.5   s     -- episode
+  , at  225    0.7   0.7   s     -- peak: all voices, festive
+  , at  265    0.55  0.55  s     -- concluding
+  , at  280    0.0   0.0   s
+  , at  290    0.0   0.0   s     -- gap
+  ]
+
+harpsichord f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 1 2 0 3 2 1 0]/4", bass = "0"}
+  f $ stack [silence, harp (0, 1) k vl flow Soprano] |* vel d
+
+soloFlute f k d = p "flute" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 1 2 0 3 2 1 0]/4"}
+  f $ stack [silence, flute (0.15, 1) k vl flow Alto] |* vel d
+
+soloViolin f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 1 2 0 3 2 1 0]/4"}
+  f $ stack [silence, violin1 (0.2, 1) k vl flow Soprano] |* vel d
+
+ripieno f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 2 1 0]/4", tenor = "2", bass = "0"}
+  f $ stack [silence, violin2 (0.3, 1) k vl flow Alto, viola (0.3, 1) k vl flow Tenor
+        , cello (0, 1) k vl grid Bass, contrabass (0, 1) k vl grid Bass8vb] |* vel d
+
+do
+  let
+    f = id; d = (* 1); k = iK tempo form (rep s 1)
+  putStrLn "BRANDENBURG NO. 5 — III. Allegro"
+  mapM_ id [hush, setbpm tempo
+    ,harpsichord f k $ d 0.85, soloFlute f k $ d 0.7, soloViolin f k $ d 0.75, ripieno f k $ d 0.6]
+
+hush''

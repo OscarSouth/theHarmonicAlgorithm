@@ -1,0 +1,61 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 4 IN G MAJOR, BWV 1049 — I. ALLEGRO
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- The pastoral concerto. A solo violin is joined — with deliberate novelty
+-- — by two recorders (our flute + oboe). The opening is "jaunty and
+-- good-humoured" with a light dance rhythm. The violin dominates with
+-- some of Bach's most virtuosic writing: rapid scales and bariolage
+-- (shimmering arpeggiated bowings). The recorders blend naturally,
+-- providing pastoral contrast to the violin's bright edge.
+-- ============================================================================
+
+tempo = 108
+
+start <- lead "G maj"
+
+let ctx = hcKey "1#"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.25 $ gen
+
+form =
+  [ at    0    0.0   0.0   s
+  , at    5    0.5   0.5   s     -- ritornello: violin + recorders + ripieno
+  , at   55    0.35  0.35  s     -- episode: solo violin virtuosic
+  , at  100    0.55  0.55  s     -- ritornello
+  , at  140    0.35  0.35  s     -- episode: recorders prominent
+  , at  185    0.6   0.6   s     -- ritornello: fuller
+  , at  230    0.4   0.4   s     -- episode: all soloists
+  , at  280    0.65  0.65  s     -- ritornello: peak
+  , at  330    0.5   0.5   s     -- concluding ritornello
+  , at  380    0.0   0.0   s
+  , at  390    0.0   0.0   s     -- gap
+  ]
+
+soloViolin f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 2 1 0 1 2 3 0]/4"}
+  f $ stack [silence, violin1 (0, 1) k vl flow Soprano] |* vel d
+
+recorders f k d = p "recorders" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 2 3 1]/4", alto = "[1 0 1 2]/4"}
+  f $ stack [silence, flute (0, 1) k vl flow Alto, oboe (0.2, 1) k vl flow Tenor] |* vel d
+
+ripieno f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 2 1 0]/4", tenor = "2", bass = "0"}
+  f $ stack [silence, violin2 (0.3, 1) k vl flow Alto, viola (0.3, 1) k vl flow Tenor
+        , cello (0, 1) k vl grid Bass, contrabass (0, 1) k vl grid Bass8vb] |* vel d
+
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 0 2 1]/4"}
+  f $ stack [silence, harp (0, 1) k vl flow Alto] |* vel d
+
+do
+  let
+    f = id; d = (* 1); k = iK tempo form (rep s 1)
+  putStrLn "BRANDENBURG NO. 4 — I. Allegro"
+  mapM_ id [hush, setbpm tempo
+    ,soloViolin f k $ d 0.85, recorders f k $ d 0.7, ripieno f k $ d 0.65, continuo f k $ d 0.55]
+
+hush''

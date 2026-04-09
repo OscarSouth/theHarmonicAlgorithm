@@ -28,21 +28,20 @@ form =
   -- '' ¬¬
 do
   let
-    r = warp "[1 2 3 4]/8"
     f = (swingBy 0.04 2)
     d = (* 1)
-    k = formK tempo form
+    k = iK tempo form (warp "[1 2 3 4]/8")
   putStrLn $ "ORCHESTRAL LAUNCH ¬¬"
   mapM_ id [launch, setbpm tempo
-    ,wind f r k       $ d 0.9
-    ,strg f r k       $ d 0.8
-    ,brss f r k       $ d 0.9
-    ,perc f r k       $ d 0.99
-    -- ,chalumeau f r k  $ d 0.9
-    -- ,tutti arco f r k $ d 0.9
-    -- ,p03 f r k        $ d 0.9
-    -- ,subk f r k       $ d 0.1
-    -- ,k909 f k         $ d 0.5
+    ,wind f k       $ d 0.9
+    ,strg f k       $ d 0.8
+    ,brss f k       $ d 0.9
+    ,perc f k       $ d 0.99
+    -- ,chalumeau f k  $ d 0.9
+    -- ,tutti arco f k $ d 0.9
+    -- ,p03 f k        $ d 0.9
+    -- ,subk f k       $ d 0.1
+    -- ,k909 f k       $ d 0.5
    ]
 
 hush''

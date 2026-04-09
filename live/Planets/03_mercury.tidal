@@ -1,0 +1,91 @@
+-- ============================================================================
+-- III. MERCURY, THE WINGED MESSENGER
+-- The Planets, Op. 32 — Gustav Holst (1916)
+-- ============================================================================
+--
+-- Super-structure position: 3/8 (Development)
+-- The spectral narrative's development phase — fleet, darting, never settling.
+-- Mercury represents the speed of thought itself.
+--
+-- The shortest and lightest movement, composed last (1916). A nimble scherzo
+-- in compound 6/8 time reminiscent of Mendelssohn and Berlioz. Mercury's
+-- signature is bitonality: simultaneous melodies in Bb major and E major
+-- (tritone-separated), which completely eliminates any sense of traditional
+-- tonal center — the music exists in two keys at once, belonging to neither.
+--
+-- Orchestrated with solo violin dancing over high-pitched harp, flute, and
+-- glockenspiel (celesta). The texture is ephemeral, quicksilver — measures
+-- of fast 6/8 subdivided simultaneously into groups of two AND three,
+-- creating cross-rhythmic superposition. Four eighth notes take the space
+-- of six. The effect: constant motion without weight.
+--
+-- Mercury bridges the emotional landscape between Venus's serenity and
+-- Jupiter's jollity, representing communication and nimble consciousness.
+--
+-- Adaptation: Lightest possible orchestration. Solo violin + harp primary.
+-- Flute and oboe for shimmer. No brass, no timpani, no low strings
+-- prominent. The fleet quality comes from fast tempo and active voice lines.
+-- ============================================================================
+
+tempo = 120
+
+start <- lead "Bb maj"
+
+let ctx = hcKey "2b"
+        $ hContext
+
+s <- seek "ravel:50 debussy:50" $ cue start $ tonal ctx $ len 8 $ entropy 0.4 $ gen
+
+-- Form: ~220s (210s + 10s gap)
+-- Messenger arc: darting entry → scherzo peak → bitonal shimmer → vanishing
+form =
+  [ at    0    0.0   0.0   s     -- silence
+  , at    3    0.4   0.4   s     -- fleet entry: solo violin + harp
+  , at   40    0.5   0.5   s     -- full scherzo, cross-rhythms
+  , at   80    0.45  0.45  s     -- development: bitonal shimmer
+  , at  120    0.4   0.4   s     -- recapitulation
+  , at  170    0.3   0.3   s     -- fading: quicksilver dissolves
+  , at  210    0.0   0.0   s     -- vanished
+  , at  220    0.0   0.0   s     -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Quicksilver: solo violin dancing + harp
+quicksilver f k d = p "quicksilver" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 1 2 0 3 0 2 1]/4"
+        , alto    = "[0 2 1 3 0 1 3 2]/4"
+        }
+  f
+    $ stack [silence
+        , violin1 (0, 1) k vl flow Soprano
+        , harp    (0, 1) k vl flow Alto
+    ] |* vel d
+
+-- Shimmer: flute + oboe for sparkle
+shimmer f k d = p "shimmer" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 1 2 0 3 0 2 1]/4"
+        , alto    = "[1 3 0 2 1 2 0 3]/4"
+        }
+  f
+    $ stack [silence
+        , flute (0.3, 1) k vl flow Soprano
+        , oboe  (0.3, 1) k vl flow Alto
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (rep s 1)
+  putStrLn "THE PLANETS — III. Mercury, the Winged Messenger"
+  mapM_ id [hush, setbpm tempo
+    ,quicksilver f k  $ d 0.8
+    ,shimmer     f k  $ d 0.6
+    ]
+
+hush''

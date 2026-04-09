@@ -1,0 +1,72 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 1 IN F MAJOR, BWV 1046 — IV. MENUET
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- The only four-movement concerto in the set. The finale is a regal
+-- Menuet with alternating trio sections: Menuet – Trio I – Menuet –
+-- Polacca – Menuet – Trio II – Menuet. The Menuet proper features muted
+-- strings contrasting with oboe-horn fanfares. Trio I uses paired oboes,
+-- the Polacca adds a folk-dance character, and Trio II features bassoon
+-- and strings in intimate dialogue.
+--
+-- Adaptation: The alternating sections are encoded as kinetics shifts —
+-- Menuet sections at 0.5-0.6 (full forces), Trios at 0.3-0.4 (reduced).
+-- ============================================================================
+
+tempo = 96
+
+start <- lead "F maj"
+
+let ctx = hcKey "1b"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.2 $ gen
+
+form =
+  [ at    0    0.0   0.0   s
+  , at    5    0.5   0.5   s     -- Menuet: full forces, regal
+  , at   50    0.35  0.35  s     -- Trio I: paired oboes, intimate
+  , at   90    0.55  0.55  s     -- Menuet da capo
+  , at  130    0.4   0.4   s     -- Polacca: folk-dance character
+  , at  175    0.55  0.55  s     -- Menuet da capo
+  , at  215    0.3   0.3   s     -- Trio II: bassoon + strings
+  , at  260    0.6   0.6   s     -- Final Menuet: grandest statement
+  , at  310    0.4   0.4   s     -- winding down
+  , at  350    0.2   0.2   s     -- closing
+  , at  360    0.0   0.0   s
+  , at  370    0.0   0.0   s     -- gap
+  ]
+
+menuet f k d = p "menuet" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 0]/4", alto = "[1 0 1 2]/4", bass = "0"
+        }
+  f $ stack [silence
+        , horn (0.3, 1) k vl flow Soprano, oboe (0.3, 1) k vl flow Alto
+        , violin1 (0, 1) k vl flow Soprano, violin2 (0.2, 1) k vl flow Alto
+        , viola (0.2, 1) k vl flow Tenor
+        , cello (0, 1) k vl grid Bass, contrabass (0, 1) k vl grid Bass8vb
+    ] |* vel d
+
+trio f k d = p "trio" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1]/4", alto = "[1 0 1 2]/4", bass = "0"
+        }
+  f $ stack [silence
+        , oboe (0, 1) k vl flow Soprano, bassoon (0.2, 1) k vl flow Bass
+        , viola (0, 1) k vl flow Alto, cello (0, 1) k vl grid Bass
+    ] |* vel d
+
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 0 2 1]/4"}
+  f $ stack [silence, harp (0, 1) k vl flow Alto] |* vel d
+
+do
+  let
+    f = id; d = (* 1); k = iK tempo form (rep s 1)
+  putStrLn "BRANDENBURG NO. 1 — IV. Menuet"
+  mapM_ id [hush, setbpm tempo
+    ,menuet f k $ d 0.8, trio f k $ d 0.7, continuo f k $ d 0.6]
+
+hush''

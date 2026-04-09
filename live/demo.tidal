@@ -1,5 +1,7 @@
 --------------------------------------------------------------------------------
 -- THE HARMONIC ALGORITHM: FIRST PERFORMANCE
+-- LEGACY DEMO — uses pre-V3 API (generate, defaultContext, voiceBy).
+-- For current API examples, see USER_GUIDE.tidal and examples.tidal.
 -- Context: Phase E Complete. Engine is fully operational.
 --------------------------------------------------------------------------------
 

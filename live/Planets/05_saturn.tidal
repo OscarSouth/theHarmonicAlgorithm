@@ -1,0 +1,152 @@
+-- ============================================================================
+-- V. SATURN, THE BRINGER OF OLD AGE
+-- The Planets, Op. 32 — Gustav Holst (1915)
+-- ============================================================================
+--
+-- Super-structure position: GOLDEN RATIO (0.618) — PRIMARY CUMULATION
+-- The philosophical climax of the entire suite. Saturn sits at the golden
+-- ratio position of the spectral narrative super-structure — the deepest,
+-- most devastating movement, addressing the most fundamental human truth:
+-- time passes, and we die.
+--
+-- Holst's own stated favourite. The longest movement at ~9 minutes.
+--
+-- Opens with three "cold, static woodwind chords endlessly repeated" — the
+-- ticking clock. Two half-diminished seventh chords oscillate in flutes and
+-- harps, mechanical and implacable. Beneath this ticking, the double bass
+-- enters with "a slow, expansive theme" — mortality itself, ponderous and
+-- vast, gradually rising to fruition.
+--
+-- The strings gradually join. Brass enters. The ticking is subsumed by an
+-- inexorable crescendo that builds to a "frightening climax" — clangorous
+-- fff, the full weight of existence bearing down. Then the music dies away,
+-- "fading as if into the outer reaches of space." The clock resumes,
+-- quieter now, until even it dissolves into nothing.
+--
+-- Saturn represents discipline, patience, and transience in astrological
+-- terms. Musically, it is Holst's meditation on entropy — the second law
+-- of thermodynamics rendered as orchestral sound.
+--
+-- Adaptation: Two progressions — sTicking (the clock, consonant, restrained)
+-- and sClimb (the massive buildup, dissonant, expanding). The ticking clock
+-- is harp + flute in ostinato patterns. Double bass provides the slow theme.
+-- The climax uses all forces before dissolving back to the clock.
+-- ============================================================================
+
+tempo = 52
+
+-- ── GENERATION ──────────────────────────────────────────
+
+startTicking <- lead "B min"
+startClimb   <- lead "B min"
+
+let ctxTicking = consonant
+               $ hcRoots "B E F# rise"
+               $ hcKey "2#"
+               $ hContext
+
+let ctxClimb = dissonant
+             $ hcKey "*"
+             $ hContext
+
+sTicking <- seek "bach:50 debussy:50" $ cue startTicking $ tonal ctxTicking $ len 8 $ entropy 0.2 $ gen
+sClimb   <- seek "stravinsky:40 bach:30 wagner:30" $ cue startClimb $ tonal ctxClimb $ len 8 $ entropy 0.5 $ gen
+
+-- Form: ~550s (540s + 10s gap)
+-- Mortality arc: ticking clock → bass theme → strings join → brass enters →
+-- INEXORABLE ASCENT → fff CLIMAX (1.0) → subsiding → clock returns → dying → silence
+form =
+  [ at    0    0.0   0.0   sTicking  -- silence
+  , at    5    0.15  0.15  sTicking  -- ticking clock: cold flute/harp chords
+  , at   60    0.2   0.2   sTicking  -- double bass theme enters beneath
+  , at  120    0.3   0.3   sTicking  -- strings gradually join
+  , at  200    0.5   0.5   sClimb   -- building: brass enters
+  , at  280    0.7   0.7   sClimb   -- inexorable ascent
+  , at  340    1.0   1.0   sClimb   -- CLIMAX: fff — the weight of existence
+  , at  380    0.5   0.5   sClimb   -- subsiding
+  , at  440    0.2   0.2   sTicking  -- clock returns, quieter now
+  , at  500    0.1   0.1   sTicking  -- dying into outer space
+  , at  540    0.0   0.0   sTicking  -- silence
+  , at  550    0.0   0.0   sTicking  -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- The Clock: ticking ostinato (harp + flute)
+clock f k d = p "clock" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 2]/4"
+        , alto    = "[1 0 1 0]/4"
+        }
+  f
+    $ stack [silence
+        , harp  (0, 1) k vl flow Soprano
+        , flute (0, 1) k vl flow Alto
+    ] |* vel d
+
+-- The Bass Theme: slow, expansive, ponderous mortality
+bassTheme f k d = p "bass" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass = "0"
+        }
+  f
+    $ stack [silence
+        , contrabass (0, 1) k vl grid Bass8vb
+        , cello      (0, 1) k vl grid Bass
+    ] |* vel d
+
+-- Strings building: gradually joining the ascent
+mortalStrg f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0]/4"
+        , alto    = "[1 0 2 1]/4"
+        , tenor   = "2"
+        }
+  f
+    $ stack [silence
+        , violin1 (0.2, 1) k vl flow Soprano
+        , violin2 (0.2, 1) k vl flow Alto
+        , viola   (0.3, 1) k vl flow Tenor
+    ] |* vel d
+
+-- Brass: entering for the climax, maximum weight
+mortalBrss f k d = p "brss" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0]/4"
+        , tenor   = "[0 1 2 0]/4"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , horn     (0.4, 1) k vl flow Soprano
+        , trombone (0.5, 1) k vl flow Tenor
+        , basstrom (0.6, 1) k vl grid Bass8vb
+    ] |* vel d
+
+-- Percussion: only at the climax
+mortalPerc f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass = "0"
+        }
+  f
+    $ stack [silence
+        , timpani (0.6, 1) k vl grid Bass8vb
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (warp "[1 2 3 4]/8")
+  putStrLn "THE PLANETS — V. Saturn, the Bringer of Old Age"
+  mapM_ id [hush, setbpm tempo
+    ,clock      f k  $ d 0.7
+    ,bassTheme  f k  $ d 0.8
+    ,mortalStrg f k  $ d 0.75
+    ,mortalBrss f k  $ d 0.85
+    ,mortalPerc f k  $ d 0.7
+    ]
+
+hush''

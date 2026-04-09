@@ -1,0 +1,116 @@
+-- ============================================================================
+-- AUTUMN — I. ALLEGRO
+-- The Four Seasons, Op. 8 No. 3, RV 293 — Antonio Vivaldi (1725)
+-- ============================================================================
+--
+-- Super-structure position: 0.58 (Approaching golden ratio — PRIMARY)
+--
+-- "The peasants celebrate by dancing and singing
+--  The pleasure of the rich harvest,
+--  And full of Bacchus' liquor,
+--  They end their rejoicings with a sleep."
+--
+-- The harvest festival — the golden ratio climax of the Four Seasons'
+-- super-structure. Peasants dance and sing in celebration, "full of Bacchus'
+-- liquor." The movement is boisterous, earthy, communal. Vivaldi marks one
+-- section "l'ubracio" (the drunk) in the score — the solo violin stumbles
+-- with off-beat accents, sliding passages, and unexpected rhythmic lurches
+-- as the peasant becomes increasingly intoxicated. Eventually the drunk
+-- falls asleep, and the movement dissolves into quiet.
+--
+-- This is the philosophical peak of the cycle: abundance, gratitude, the
+-- fruits of labour, the Dionysian joy of harvest. After Summer's violence,
+-- Autumn answers with celebration. The drunk peasant is comic but also
+-- tender — a universal human moment of release after hard work.
+--
+-- Adaptation: Two progressions — sFeast (celebration, moderate entropy) and
+-- sDrunk (slightly higher entropy for comic stumbling). Full strings for
+-- the dance. Harp for festive color. The drunk is encoded in the voice
+-- lines: irregular patterns for the stumbling violin.
+-- ============================================================================
+
+tempo = 112
+
+startFeast <- lead "F maj"
+startDrunk <- lead "F maj"
+
+let ctxFeast = hcKey "1b"
+             $ hContext
+
+let ctxDrunk = hcKey "1b"
+             $ hContext
+
+sFeast <- seek "bach:40 mozart:40 debussy:20" $ cue startFeast $ tonal ctxFeast $ len 8 $ entropy 0.35 $ gen
+sDrunk <- seek "bach:40 mozart:40 debussy:20" $ cue startDrunk $ tonal ctxDrunk $ len 8 $ entropy 0.45 $ gen
+
+-- Form: ~330s (320s + 10s gap)
+-- Celebration → dancing → drinking → THE DRUNK → falls asleep
+form =
+  [ at    0    0.0   0.0   sFeast   -- silence
+  , at    5    0.6   0.6   sFeast   -- harvest celebration begins
+  , at   50    0.75  0.75  sFeast   -- dancing intensifies
+  , at  100    0.9   0.9   sFeast   -- full celebration: peak of abundance
+  , at  150    0.7   0.7   sDrunk   -- Bacchus' liquor: the drinking begins
+  , at  200    0.8   0.8   sDrunk   -- l'ubracio: the drunk stumbles
+  , at  250    0.5   0.5   sDrunk   -- growing sleepy
+  , at  290    0.2   0.2   sDrunk   -- falls asleep
+  , at  320    0.0   0.0   sDrunk   -- silence
+  , at  330    0.0   0.0   sDrunk   -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Solo violin: leads the dance, then becomes the drunk
+solo f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0 3 1 2 0]/4"
+        , alto    = "[0 2 3 1]/4"
+        }
+  f
+    $ stack [silence
+        , violin1 (0, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Dancing strings: the peasant ensemble
+peasants f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 1 2 0 3 0 2 1]/4"
+        , alto    = "[1 3 0 2]/4"
+        , tenor   = "[2 0 1 3]/4"
+        , bass    = "[0 1 0 2]/4"
+        }
+  f
+    $ stack [silence
+        , violin2    (0.3, 1) k vl flow Alto
+        , viola      (0.3, 1) k vl flow Tenor
+        , cello      (0, 1)   k vl grid Bass    # pizz
+        , contrabass (0, 1)   k vl grid Bass8vb # pizz
+    ] |* vel d
+
+-- Festive color: harp celebration
+celebration f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[0 1 2 3 0 2 1 3]/4"
+        , alto    = "[1 0 2 1]/4"
+        }
+  f
+    $ stack [silence
+        , harp (0, 1) k vl flow Soprano
+        , oboe (0.4, 1) k vl flow Alto
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (rep sFeast 1)
+  putStrLn "THE FOUR SEASONS — Autumn I. Allegro"
+  mapM_ id [hush, setbpm tempo
+    ,solo        f k  $ d 0.9
+    ,peasants    f k  $ d 0.75
+    ,celebration f k  $ d 0.6
+    ]
+
+hush''

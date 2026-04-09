@@ -1,0 +1,108 @@
+-- ============================================================================
+-- II. VENUS, THE BRINGER OF PEACE
+-- The Planets, Op. 32 — Gustav Holst (1914-16)
+-- ============================================================================
+--
+-- Super-structure position: 1/4 (Inciting event)
+-- After the primal violence of Mars, Venus arrives as its perfect antidote —
+-- the spectral narrative's first contrast, the event that redefines the arc.
+--
+-- Venus opens with a solo horn theme answered quietly by flutes and oboes,
+-- followed by a second theme given to solo violin. The music proceeds
+-- "tranquilly" with oscillating chords from flutes and harps, decorated
+-- with celesta. Holst places most music in the middle and upper registers;
+-- harps, celesta, and glockenspiel characterize Venus's heavenly nature.
+--
+-- Though supremely serene, the harmony is sophisticated: simultaneous key
+-- signatures create a "mishmash tonality" — some instruments in flats,
+-- others in sharps — while maintaining overall calm. The tritonal
+-- relationships of Mars resolve into upward perfect fourths (in the horn
+-- and violin solos) and downward perfect fifths.
+--
+-- This is peace not as absence of conflict but as its conscious opposite:
+-- to achieve peace, one must desire it. The movement is an invocation.
+--
+-- Adaptation: Solo horn as primary voice, harp for oscillating chords,
+-- high-register flute and oboe for celestial color. Strings transparent,
+-- in upper registers. Ultra-low entropy, consonant — maximum serenity.
+-- ============================================================================
+
+tempo = 60
+
+start <- lead "Eb maj"
+
+let ctx = consonant
+        $ hcKey "3b"
+        $ hContext
+
+s <- seek "debussy" $ cue start $ tonal ctx $ len 8 $ entropy 0.15 $ gen
+
+-- Form: ~310s (300s + 10s gap)
+-- Peace arc: invocation → celestial warmth → oscillating serenity → fading
+form =
+  [ at    0    0.0   0.0   s     -- silence
+  , at    5    0.2   0.2   s     -- solo horn: opening invocation
+  , at   50    0.3   0.3   s     -- flutes and oboes answer
+  , at  100    0.35  0.35  s     -- second theme: warmth builds
+  , at  150    0.3   0.3   s     -- oscillating chords, celestial plateau
+  , at  200    0.2   0.2   s     -- return of opening horn
+  , at  260    0.15  0.15  s     -- fading into tranquillity
+  , at  300    0.0   0.0   s     -- silence
+  , at  310    0.0   0.0   s     -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Solo horn + harp: the invocation to peace
+peace f k d = p "peace" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1]/4"
+        , alto    = "[1 0 1 2]/4"
+        }
+  f
+    $ stack [silence
+        , horn (0, 1) k vl flow Soprano
+        , harp (0, 1) k vl flow Alto
+    ] |* vel d
+
+-- Celestial woodwinds: answering the horn
+celestial f k d = p "celestial" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 3]/4"
+        , alto    = "[1 2 0 1]/4"
+        }
+  f
+    $ stack [silence
+        , flute (0.2, 1) k vl flow Soprano
+        , oboe  (0.2, 1) k vl flow Alto
+    ] |* vel d
+
+-- Transparent high strings
+peaceStrg f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "3"
+        , alto    = "1"
+        , tenor   = "2"
+        }
+  f
+    $ stack [silence
+        , violin1 (0.2, 1) k vl flow Soprano8va
+        , viola   (0.2, 1) k vl flow Alto
+        , cello   (0.2, 1) k vl grid Tenor
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (warp "[1 2 3 4]/8")
+  putStrLn "THE PLANETS — II. Venus, the Bringer of Peace"
+  mapM_ id [hush, setbpm tempo
+    ,peace     f k  $ d 0.8
+    ,celestial f k  $ d 0.6
+    ,peaceStrg f k  $ d 0.5
+    ]
+
+hush''

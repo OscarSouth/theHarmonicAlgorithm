@@ -1,0 +1,69 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 2 IN F MAJOR, BWV 1047 — II. ANDANTE
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- The Andante shifts to D minor. Crucially, the trumpet is ABSENT — the
+-- brilliant voice that dominated the first movement is silenced, creating
+-- an immediate shift in character. Only the three softer soloists remain:
+-- recorder (flute), oboe, and violin, weaving a contrapuntal trio over
+-- gentle string accompaniment and continuo.
+--
+-- The absence of the trumpet transforms the texture from concerto grosso
+-- brilliance to chamber music intimacy — three voices in conversation
+-- without the dominating fourth.
+-- ============================================================================
+
+tempo = 60
+
+start <- lead "D min"
+
+let ctx = consonant
+        $ hcKey "1b"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.15 $ gen
+
+form =
+  [ at    0    0.0   0.0   s
+  , at    5    0.2   0.2   s     -- three soloists enter: intimate
+  , at   40    0.25  0.25  s     -- contrapuntal development
+  , at   80    0.3   0.3   s     -- gentle peak
+  , at  120    0.25  0.25  s     -- subsiding
+  , at  160    0.2   0.2   s     -- closing
+  , at  200    0.0   0.0   s
+  , at  210    0.0   0.0   s     -- gap
+  ]
+
+-- NO HORN in this movement
+
+recorder f k d = p "flute" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 2 3 1 2 1 0 1]/4"}
+  f $ stack [silence, flute (0, 1) k vl flow Soprano] |* vel d
+
+oboeVoice f k d = p "oboe" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 0 1 2 1 2 3 2]/4"}
+  f $ stack [silence, oboe (0, 1) k vl flow Alto] |* vel d
+
+soloViolin f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 2 1 0 1 0 2 3]/4"}
+  f $ stack [silence, violin1 (0, 1) k vl flow Soprano] |* vel d
+
+strg f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~", alto = "1", tenor = "2", bass = "0"}
+  f $ stack [silence, violin2 (0, 1) k vl flow Alto, viola (0, 1) k vl flow Tenor
+        , cello (0, 1) k vl grid Bass] |* vel d
+
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 0 2 1]/4"}
+  f $ stack [silence, harp (0, 1) k vl flow Alto] |* vel d
+
+do
+  let
+    f = id; d = (* 1); k = iK tempo form (warp "[1 2 3 4]/8")
+  putStrLn "BRANDENBURG NO. 2 — II. Andante"
+  mapM_ id [hush, setbpm tempo
+    ,recorder f k $ d 0.75, oboeVoice f k $ d 0.7, soloViolin f k $ d 0.75
+    ,strg f k $ d 0.55, continuo f k $ d 0.5]
+
+hush''

@@ -121,6 +121,9 @@ launch = mapM_ ($ silence) [
   p "juno",
   p "drumbruteImpact",
   p "subKick",
+  p "click",
+  p "count",
+  p "rise",
   p "wind",
   p "brss",
   p "strg",
@@ -258,6 +261,14 @@ hh' pat = stack [
   struct (fmap (`elem` ["o","2"]) pat) $ midinote 63 #ch 10 #sustain 0.05 #vel 0.5
   ]
 :}
+
+-------------------------------------------------------------------------------
+-- Performance Utilities (count, metronome)
+-------------------------------------------------------------------------------
+
+metronome ks d = p "click" $ click (slow 4 $ fast ks "1") |= vel "[1 0.2@126]/4" |* vel d
+
+count k d = p "count" $ midinote (fromIntegral . (+7) <$> snd k) # ch 10 # sustain 0.05 |* vel d
 
 -------------------------------------------------------------------------------
 -- Q-Link Controller Bridge (CC 100-110 via qlink-bridge.scd → OSC port 6010)

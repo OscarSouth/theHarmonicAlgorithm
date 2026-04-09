@@ -7,7 +7,7 @@
 theHarmonicAlgorithm is a Haskell library for generating harmonic progressions trained on the Yale Classical Archives Corpus (YCACL). It combines music theory, graph databases, and probabilistic selection to create musically coherent chord progressions.
 
 The system generates progressions by:
-1. Storing cadence transitions from the Bach chorales corpus in Neo4j
+1. Storing cadence transitions from the YCACL (80+ composers) in Neo4j
 2. Applying harmonic constraints (overtones, key signatures, root motion)
 3. Evaluating candidate cadences using dissonance and voice leading costs
 4. Selecting next chords probabilistically using gamma-distribution sampling
@@ -68,7 +68,17 @@ This document is for **developers** who want to:
 - Fix bugs or optimize performance
 - Contribute to the codebase
 
-For usage instructions, see [README.md](README.md) and [live/USER_GUIDE.tidal](live/USER_GUIDE.tidal).
+For usage instructions, see [README.md](README.md), [USER_GUIDE.md](USER_GUIDE.md), and [live/USER_GUIDE.tidal](live/USER_GUIDE.tidal).
+
+### Three Principles
+
+The project is organised around three principles that trace its trajectory from the 2016 thesis through to the V3 system:
+
+1. **The Harmonic Algorithm** — *Generative harmony and integration.* The R→E→T pipeline (Section 2) that generates harmonic progressions from learned transition probabilities. Originating as an exhaustive combinatorial mapping of overtone triads (2016), diagnosed through Wiggins' Creative Systems Framework (2018), and realised in V3 as a Markov walk through Neo4j with gamma-distribution sampling.
+
+2. **Algorithmic Orchestration** — *Live-coded orchestration with abstracted musical elements.* The paradigm of scoring for a virtual orchestra via TidalCycles, where musical elements are abstracted into three concerns: harmony/contexts (the Harmonic Algorithm), form/constants (the Spectral Narrative), and interfaces/timbres (instrument functions, voice lines, articulations). See [ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md).
+
+3. **The Spectral Narrative** — *Kinetics framework and algorithmic structural design.* Macro-level compositional arc as programmable structure: form defined in wall-clock seconds carrying three signals (kinetics, dynamics, progression), with proportional nodes following a dramatic arc through exposition, development, cumulation, and resolution. See Section 7 and [USER_GUIDE.md](USER_GUIDE.md) Section 7.
 
 ---
 
@@ -621,71 +631,48 @@ lookupChord prog idx =
 
 **Arrangement with Kinetics**:
 ```haskell
-arrange :: (Double, Double) -> VoiceFunction -> (Progression -> Progression)
-        -> Pattern Int -> Kinetics -> (Int, Int) -> [Pattern Int] -> Pattern ValueMap
+arrange :: (Double, Double) -> IK -> (Int, Int) -> VoiceFunction
+        -> (Progression -> Progression) -> [Pattern Int] -> Pattern ValueMap
 ```
 
-`arrange` reads the active progression from `kProg k` via `innerJoin`, applies a progression modifier (e.g. `overlapF 0` or `id`), and masks events by the kinetics signal range. The kinetics context replaces the old direct progression parameter, enabling form-driven range gating and reactive progression switching.
+`arrange` reads the active progression from `kProg k` via `innerJoin`, applies a progression modifier (e.g. `overlapF 0` or `id`), and masks events by the kinetics signal range. The `IK` tuple `(Kinetics, Pattern Int)` bundles both kinetics context and chord selection pattern, replacing the old separate progression and kinetics parameters.
 
-**Pattern Syntax** (TidalCycles):
+**Current Usage** (TidalCycles):
 ```haskell
--- Simple index pattern
-d1 $ note (harmony prog "0 1 2 3") # s "superpiano"
+-- Create IK context from form and chord pattern
+let k = iK tempo [at 0 1 1 prog] (rep prog 1)
 
--- Euclidean rhythm
-d1 $ note (harmony prog (run 8)) # s "superpiano"
+-- Arrange with flow voicing
+d01 $ arrange (0,1) k (-9,9) flow id ["0 1 2 3"] # ch 01
 
--- Nested patterns
-d1 $ note (harmony prog "<0 [1 2] 3>") # s "superpiano"
+-- Arrange with grid voicing (root locked in bass)
+d01 $ arrange (0,1) k (-9,9) grid (overlapF 0) ["0 1 2 3"] # ch 01
 ```
+
+For full usage examples, see [USER_GUIDE.md](USER_GUIDE.md) and [live/USER_GUIDE.tidal](live/USER_GUIDE.tidal).
 
 ### 7.2 Voicing Strategies
 
-The `Interface.Tidal.Arranger` module provides voicing functions:
+The `Interface.Tidal.Arranger` module provides voicing functions (type: `Progression -> [[Int]]`):
 
-**Flow Voicing** (voice-led, cyclic DP smoothing):
-```haskell
-flow :: Progression -> [[Int]]
-flow prog =
-  let states = toList (unProgression prog)
-      chords = map (toTriad . fromCadenceState) states
-      voicings = solveFlow chords  -- Cyclic DP optimization
-   in map chordPitches voicings
-```
+| Function | Module | Algorithm | Description |
+|----------|--------|-----------|-------------|
+| `flow` | Arranger | `solveFlow` (cyclic DP) | Smoothest voice leading, any inversion |
+| `grid` | Arranger | `solveRoot` (cyclic DP) | Root locked in bass, smooth upper voices |
+| `lite` | Arranger | `normalizeByFirstRoot` | First-root normalised, no DP |
+| `root` | Arranger | `bassVoicing` | Root pitch class only (mono) |
+| `fund` | Groove | `fundToInt` | Harmonic root, inversion-invariant (mono) |
 
-**Grid Voicing** (root locked in bass):
-```haskell
-grid :: Progression -> [[Int]]
-grid prog = map rootPosition (progChords prog)
-```
-
-**Lite Voicing** (literal intervals, no voice leading):
-```haskell
-lite :: Progression -> [[Int]]
-lite prog = literalVoicing prog
-```
-
-**Root Extraction** (single pitch):
-```haskell
-root :: Progression -> [[Int]]
-root prog = map (\chord -> [head (chordIntervals chord)]) (progChords prog)
-```
-
-**Fund Extraction** (harmonic root, inversion-invariant):
-```haskell
-fund :: Progression -> [[Int]]
--- Always returns the true harmonic root, regardless of chord inversion
--- Used primarily with subKick for kick drums and sub bass
-```
+See source files for implementation details: `src/Harmonic/Interface/Tidal/Arranger.hs:273-305`, `src/Harmonic/Interface/Tidal/Groove.hs:26-29`.
 
 **Launcher Paradigm** (kinetics-driven):
 ```haskell
 -- Example: Juno synthesizer with flow voicing and kinetics
-juno f r d k = p "juno" $ f $ arrange (0,1) flow id r k (-9,9) ["pattern"]
-  |* vel (kDynamic k) |* vel d
+juno f k d = p "juno" $ f $ arrange (0,1) k (-9,9) flow id ["pattern"]
+  |* vel d
 
--- Usage in TidalCycles (k = formK tempo form)
-juno id (rep s4 1) 0.9 k
+-- Usage in TidalCycles (k = iK tempo form (warp "0 1 2 3"))
+juno id k 0.9
 ```
 
 ---
@@ -743,17 +730,18 @@ juno id (rep s4 1) 0.9 k
 
 ## 9. Extension Points
 
+*The examples below show illustrative patterns for extending the system. No such implementations currently exist — they demonstrate the approach, not working code.*
+
 ### 9.1 Adding New Voicing Strategies
 
 To add a new voicing strategy (e.g., "wide" for large pitch ranges):
 
-1. **Add voicing function** to `Interface.Tidal.Arranger`:
+1. **Add voicing function** to `Interface.Tidal.Arranger` (type must be `Progression -> [[Int]]`):
 ```haskell
 wide :: Progression -> [[Int]]
 wide prog =
-  let states = toList (unProgression prog)
-      chords = map (toTriad . fromCadenceState) states
-   in map wideVoicing chords  -- Your voicing logic
+  let raw = map (map fromIntegral) $ literalVoicing' prog
+   in wideVoicing raw  -- Your voicing logic here
 ```
 
 2. **Update exports** in `Lib.hs`:
@@ -777,8 +765,8 @@ describe "wide voicing" $ do
 4. **Document** in `live/USER_GUIDE.tidal`:
 ```haskell
 -- Wide voicing (large pitch ranges)
-d1 $ note (harmony prog (run 4)) # s "superpiano"
-   # sound (voiceBy wide prog (run 4))
+let k = iK tempo [at 0 1 1 prog] (rep prog 1)
+d01 $ arrange (0,1) k (-9,9) wide id ["0 1 2 3"] # ch 01
 ```
 
 ### 9.2 Custom Evaluation Functions
@@ -944,8 +932,10 @@ Measured on M1 MacBook Pro (2021), Neo4j local Docker:
 ### Documentation
 - **Project overview**: `README.md`
 - **User guide**: `USER_GUIDE.md`
+- **Interactive tutorial**: `live/USER_GUIDE.tidal`
+- **Algorithmic orchestration**: `ALGORITHMIC_ORCHESTRATION.md`
 - **Architecture**: `ARCHITECTURE.md` (this file)
-- **TidalCycles tutorial**: `live/USER_GUIDE.tidal`
+- **Changelog**: `CHANGELOG.md`
 - **Development guidelines**: `CLAUDE.md`
 
 ### Configuration
@@ -969,8 +959,8 @@ Measured on M1 MacBook Pro (2021), Neo4j local Docker:
 - **PitchClass**: ℤ₁₂ cyclic group element representing pitch-class (0=C, 1=C#, ..., 11=B)
 - **Progression**: Monoid-wrapped sequence of CadenceState
 - **FormNode**: A point in a form definition: wall-clock time, kinetics level (0–1), dynamic level (0–1), and active progression
-- **Kinetics**: Realized form signals: kSignal (continuous kinetics 0–1), kDynamic (continuous dynamics 0–1), kProg (discrete progression step function)
-- **ki (range gating)**: `ki (lo, hi) k pat` — masks pattern events by kinetics signal level, only passing when kSignal is within the specified range
+- **Kinetics**: Realized form signals: kSignal (continuous kinetics 0–1), kDynamic (continuous dynamics 0–1), kProg (discrete progression step function). Bundled with chord selection pattern as `IK = (Kinetics, Pattern Int)` via `iK tempo form chordPat`
+- **ki (range gating)**: `ki (lo, hi) k pat` — masks pattern events by kinetics signal level, only passing when kSignal is within the specified range. `k :: IK = (Kinetics, Pattern Int)`
 - **slate**: Gated stack — `slate range k [pats]` — combines ki range gating with stack for layered drum/instrument activation
 - **Zero-Form**: Intervals shifted so first pitch = 0 (transposition-invariant)
 

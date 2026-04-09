@@ -1,0 +1,145 @@
+-- ============================================================================
+-- SPRING — I. ALLEGRO
+-- The Four Seasons, Op. 8 No. 1, RV 269 — Antonio Vivaldi (1725)
+-- ============================================================================
+--
+-- Super-structure position: 0.08 (Emergence)
+--
+-- "Spring has arrived with joyful festive airs,
+--  The birds sing out in sweet and cheerful song!
+--  The streams, amid gentle breezes,
+--  Whisper softly as they murmur along.
+--  The sky is covered in black clouds,
+--  Thunder and lightning announce the storm coming.
+--  When they are silent, the birds
+--  Resume their delicious and sweet songs."
+--
+-- Vivaldi opens the Four Seasons with an explosion of joy — the solo violin
+-- and ripieno strings announce spring's arrival in a jubilant ritornello.
+-- Three bird species sing in succession (depicted by trilling, high-register
+-- violin passages). Murmuring streams flow beneath (rippling arpeggios).
+-- Then a sudden thunderstorm erupts — tremolo strings, violent dynamics —
+-- before subsiding as the birds resume their song.
+--
+-- The movement alternates between ritornello (full ensemble, E major
+-- celebration) and episodes (solo violin with programmatic content). This
+-- alternation maps naturally to kinetics: tutti passages at higher kinetics,
+-- solo episodes lighter.
+--
+-- Adaptation: violin1 as soloist. Flute + oboe for birdsong. Harp for
+-- murmuring streams. Timpani for thunder. Two progressions: sSpring
+-- (joyful) and sStorm (turbulent).
+-- ============================================================================
+
+tempo = 120
+
+startSpring <- lead "E maj"
+startStorm  <- lead "E min"
+
+let ctxSpring = hcKey "4#"
+              $ hContext
+
+let ctxStorm = dissonant
+             $ hcKey "*"
+             $ hContext
+
+sSpring <- seek "bach" $ cue startSpring $ tonal ctxSpring $ len 8 $ entropy 0.3 $ gen
+sStorm  <- seek "bach" $ cue startStorm $ tonal ctxStorm $ len 4 $ entropy 0.6 $ gen
+
+-- Form: ~230s (220s + 10s gap)
+-- Joy → birds → streams → STORM → birds return → joy
+form =
+  [ at    0    0.0   0.0   sSpring  -- silence
+  , at    5    0.5   0.5   sSpring  -- spring arrives: joyful ritornello
+  , at   35    0.4   0.4   sSpring  -- birds sing: solo + flute/oboe
+  , at   65    0.35  0.35  sSpring  -- streams murmur: harp arpeggios
+  , at   95    0.6   0.6   sStorm   -- THUNDERSTORM: sudden dark clouds
+  , at  130    0.5   0.5   sStorm   -- storm rages
+  , at  155    0.3   0.3   sSpring  -- storm passes: birds resume
+  , at  185    0.5   0.5   sSpring  -- joyful conclusion
+  , at  220    0.0   0.0   sSpring  -- end
+  , at  230    0.0   0.0   sSpring  -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Solo violin: the protagonist
+solo f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0 1 2 3 0]/4"
+        , alto    = "[0 1 2 3]/4"
+        }
+  f
+    $ stack [silence
+        , violin1 (0, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Ripieno strings: ritornello ensemble
+ripieno f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1]/4"
+        , alto    = "[1 0 1 2]/4"
+        , tenor   = "2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , violin2    (0.3, 1) k vl flow Alto
+        , viola      (0.3, 1) k vl flow Tenor
+        , cello      (0, 1)   k vl grid Bass
+        , contrabass (0, 1)   k vl grid Bass8vb
+    ] |* vel d
+
+-- Birdsong: flute + oboe trilling in high register
+birds f k d = p "birds" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 1 3 0 3 2 3 1]/4"
+        , alto    = "[1 3 0 3 2 3 1 3]/4"
+        }
+  f
+    $ stack [silence
+        , flute (0.3, 0.7) k vl flow Soprano
+        , oboe  (0.3, 0.7) k vl flow Alto
+    ] |* vel d
+
+-- Continuo: harp as harpsichord (murmuring streams)
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[0 1 2 3]/4"
+        , alto    = "[1 2 3 0]/4"
+        }
+  f
+    $ stack [silence
+        , harp (0, 1) k vl flow Alto
+    ] |* vel d
+
+-- Thunder: timpani + bassdrum for storm
+thunder f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass = "0"
+        }
+  f
+    $ stack [silence
+        , timpani (0.5, 1) k vl grid Bass8vb
+        , slate (0.5, 1) k [silence
+            , bassdrum "[1 . 1 .]/4"
+            ]
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (rep sSpring 1)
+  putStrLn "THE FOUR SEASONS — Spring I. Allegro"
+  mapM_ id [hush, setbpm tempo
+    ,solo     f k  $ d 0.9
+    ,ripieno  f k  $ d 0.7
+    ,birds    f k  $ d 0.6
+    ,continuo f k  $ d 0.5
+    ,thunder  f k  $ d 0.7
+    ]
+
+hush''

@@ -49,7 +49,7 @@ form =
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
 -- Ethereal texture: harp harmonics, low winds, distant percussion
-descent f r k d = p "descent" $ do
+descent f k d = p "descent" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "3"
         , alto    = "1"
@@ -58,14 +58,14 @@ descent f r k d = p "descent" $ do
         }
   f
     $ stack [silence
-        , harp    (0, 1)   flow Soprano    r k vl
-        , flute   (0.2, 1) flow Alto       r k vl
-        , bassoon (0.2, 1) flow Tenor8vb   r k vl
-        , timpani (0.3, 1) grid Bass8vb    r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , harp    (0, 1)   k vl flow Soprano
+        , flute   (0.2, 1) k vl flow Alto
+        , bassoon (0.2, 1) k vl flow Tenor8vb
+        , timpani (0.3, 1) k vl grid Bass8vb
+    ] |* vel d
 
 -- Muted strings: sustaining chords as atmosphere
-veil f r k d = p "veil" $ do
+veil f k d = p "veil" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "3"
         , alto    = "1"
@@ -73,23 +73,22 @@ veil f r k d = p "veil" $ do
         }
   f
     $ stack [silence
-        , viola      (0, 1) flow Alto       r k vl
-        , cello      (0, 1) grid Bass       r k vl
-        , contrabass (0, 1) grid Bass8vb    r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , viola      (0, 1) k vl flow Alto
+        , cello      (0, 1) k vl grid Bass
+        , contrabass (0, 1) k vl grid Bass8vb
+    ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────
 
 do
   let
-    r = warp "[1 2 3 4]/8"
     f = id
     d = (* 1)
-    k = formK tempo form
+    k = iK tempo form (warp "[1 2 3 4]/8")
   putStrLn "ORPHEUS — IV. Interlude (Descent to Hades)"
   mapM_ id [hush, setbpm tempo
-    ,descent f r k  $ d 0.8
-    ,veil    f r k  $ d 0.6
+    ,descent f k  $ d 0.8
+    ,veil    f k  $ d 0.6
     ]
 
 hush''

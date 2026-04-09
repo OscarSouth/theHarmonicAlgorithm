@@ -162,7 +162,7 @@ module Harmonic.Lib (
   overlapF,
 
   -- Form / Kinetics
-  FormNode(..), Kinetics(..), at, formK,
+  FormNode(..), Kinetics(..), IK, at, iK, formK,
   ki, slate, withForm,
   -- Arranger functions (voicing paradigms)
   rotate, excerpt, insert, switch, clone, extract,
@@ -251,7 +251,7 @@ import Harmonic.Interface.Tidal.Arranger (
   )
 import Harmonic.Interface.Tidal.Groove (subKick, fund)
 import Harmonic.Interface.Tidal.Form (
-    FormNode(..), Kinetics(..), at, formK,
+    FormNode(..), Kinetics(..), IK, at, iK, formK,
     ki, slate, withForm
   )
 import Harmonic.Interface.Tidal.Instruments

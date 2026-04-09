@@ -1,6 +1,6 @@
 # Algorithmic Orchestration
 
-Scoring music for a virtual orchestra via TidalCycles live coding.
+Scoring music for a virtual orchestra via TidalCycles live coding. This document is the operational guide for the **Algorithmic Orchestration** principle — the paradigm of abstracting musical elements into three concerns: harmony/contexts (the Harmonic Algorithm), form/constants (the Spectral Narrative), and interfaces/timbres (instrument functions, voice lines, articulations).
 
 ## Signal Chain
 
@@ -60,7 +60,7 @@ Where `d = (* 1)` in the launcher — a dynamics multiplier applied via `$`.
 Every block (section or blend) has the same two-part structure:
 
 ```tidal
-{name} f r k d = p "{name}" $ do
+{name} f k d = p "{name}" $ do
   let vl = voiceLines {_vl = "~"
         -- , soprano = "3"
         -- , alto    = "1"
@@ -69,13 +69,13 @@ Every block (section or blend) has the same two-part structure:
         }
   f
     $ stack [silence
-        , instrument (ki) vf Voice r k vl
+        , instrument (ki_range) k vl voiceFunc Voice
         , ...
-    ] |* vel (kDynamic k) |* vel d
+    ] |* vel d
 ```
 
 1. **Voice declaration** (`vl`): `voiceLines` with optional overrides
-2. **Instrument stack**: each line is an instrument with kinetics range, voicing paradigm, voice assignment
+2. **Instrument stack**: each line is an instrument with kinetics range, IK context, voice lines, voicing paradigm, voice assignment
 
 ## Instrument Functions
 
@@ -84,15 +84,15 @@ Every block (section or blend) has the same two-part structure:
 Each instrument is a partial application of `instrument range channel`:
 
 ```haskell
-instrument :: (Int, Int) -> Int -> (Double, Double) -> VoiceFunction -> Voice -> Pattern Int -> Kinetics -> VoiceLines -> ControlPattern
+instrument :: (Int, Int) -> Int -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
 ```
 
 Pipeline: `arrange` → `# ch` → `|+ oct` → `clip`
 
 ```haskell
-flute    = instrument (48, 86)  1   -- MIDI range C3-D6
-oboe     = instrument (46, 81)  2
-clarinet = instrument (26, 82)  3
+flute    = instrument (-12, 26)  1   -- C3-D6  (MIDI 48-86)
+oboe     = instrument ( -2, 33)  2   -- Bb3-A6 (MIDI 58-93)
+clarinet = instrument (-22, 34)  3   -- D2-Bb6 (MIDI 38-94)
 -- etc.
 ```
 
@@ -102,6 +102,79 @@ clarinet = instrument (26, 82)  3
 bassdrum pat = struct pat $ midinote 36 # ch 9 # sustain 0.05
 tamtam   pat = struct pat $ midinote 31 # ch 11 # sustain 0.5
 ```
+
+## Instrument Catalogue
+
+### Pitched Instruments
+
+| Instrument | Ch | Tidal Range | MIDI Range | Pitch Range | Section |
+|---|---|---|---|---|---|
+| Flute | 1 | (-12, 26) | 48–86 | C3–D6 | Wind |
+| Oboe | 2 | (-2, 33) | 58–93 | Bb3–A6 | Wind |
+| Clarinet | 3 | (-22, 34) | 38–94 | D2–Bb6 | Wind |
+| Bassoon | 4 | (-28, 15) | 32–75 | Bb1–Eb5 | Wind |
+| Horn | 5 | (-29, 17) | 31–77 | B1–F5 | Brass |
+| Trombone | 6 | (-28, 17) | 32–77 | Bb1–F5 | Brass |
+| Bass Trombone | 6 | (-39, -5) | 21–55 | A0–G3 | Brass |
+| Harp | 7 | (-29, 42) | 31–102 | B1–F#7 | Plucked |
+| Timpani | 8 | (-22, 0) | 38–60 | D2–C4 | Pitched perc |
+| Violin 1 | 16 | (-5, 45) | 55–105 | G3–A7 | Strings (arco) |
+| Violin 2 | 16 | (-5, 45) | 55–105 | G3–A7 | Strings (arco) |
+| Viola | 16 | (-12, 28) | 48–88 | C3–E6 | Strings (arco) |
+| Cello | 16 | (-24, 24) | 36–84 | C2–C6 | Strings (arco) |
+| Contrabass | 16 | (-36, 0) | 24–60 | C1–C4 | Strings (arco) |
+
+Tidal note 0 = MIDI 60 = middle C. Ranges are enforced by `clip` inside each instrument function.
+
+### Unpitched Percussion
+
+| Instrument | Ch | MIDI Note | Usage |
+|---|---|---|---|
+| Bass Drum | 9 | 36 (C2) | `bassdrum pat` |
+| Tam-tam | 11 | 31 (G1) | `tamtam pat` |
+
+### subKick (separate signal chain — `"thru"` device, not JV-1010)
+
+| Part | Ch | MIDI | Notes |
+|---|---|---|---|
+| Sub | 10 | 36–47 | C2–B2 (pitch class + 36, mapped from harmonic root) |
+| Kick | 10 | 48 | C3 (fixed) |
+| Silence | 10 | 35 | B1 (no sample) |
+
+### String Articulations
+
+Strings default to arco (ch 16). Override with `#`:
+
+| Articulation | Ch | Alias | Usage |
+|---|---|---|---|
+| Pizzicato | 12 | `pizz` | `# pizz` or `tutti pizz f k $ d 0.7` |
+| Spiccato | 13 | `spicc` | `# spicc` |
+| Marcato | 14 | `marc` | `# marc` |
+| Legato | 15 | `legg` | `# legg` |
+| Arco | 16 | `arco` | Default (same as string channel) |
+
+### JV-1010 Pan Positions
+
+| Ch | Instrument | Pan |
+|---|---|---|
+| 1 | Flute | -10 |
+| 2 | Oboe | 10 |
+| 3 | Clarinet | -15 |
+| 4 | Bassoon | 15 |
+| 5 | Horns | -22 |
+| 6 | Trombones | 18 |
+| 7 | Harp | -25 |
+| 8 | Timpani | -18 |
+| 9 | Bass drum | -6 |
+| 10 | subKick/MPC | 0 |
+| 11 | Tam-tam | 22 |
+| 12–16 | Strings | 0 |
+
+### Target Ensemble
+
+2 flutes (doubling piccolo), 2 oboes (doubling cor anglais), 2 clarinets, 2 bassoons, 2 horns, 2 trombones (doubling bass trombone), 1 timpanist, 1 percussionist, 1 harp, 8 vn1, 6 vn2, 4 va, 3 vc, 2 cb
+
+For interactive range tests, see [`live/ORCHESTRAL_CATALOGUE.tidal`](live/ORCHESTRAL_CATALOGUE.tidal).
 
 ## Voice Line System
 
@@ -218,11 +291,12 @@ Voicings are pre-computed once at construction time (not per TidalCycles frame).
 ### Usage
 
 ```tidal
-p "subKick" $ subKick fund (rep s4 1) dyn k
-  (maxDur, subOnStr, subOffStr, kickStr)
+subk f k d = p "subKick"
+  $ f
+    $ subKick d k root (maxDur, subOnStr, subOffStr, kickStr)
 ```
 
-- `fund` — always returns the harmonic root regardless of inversion (preferred over `bass` for kick/sub)
+- `root` or `fund` — always returns the harmonic root regardless of inversion
 - Sub group gates at `(0.1, 1)`, kick at `(0.2, 1)` via `ki`
 - `maxDur < 1` triggers auto-off; `maxDur >= 1` means manual-off only
 
@@ -231,16 +305,16 @@ p "subKick" $ subKick fund (rep s4 1) dyn k
 Per-instrument kinetics ranges create crescendo ordering:
 
 ```tidal
-tutti art f r k d =
+tutti art f k d =
   ...
     -- Strings foundation (always)
-    , violin1    (0, 1)   flow Soprano    r k vl # art
+    , violin1    (0, 1)   k vl flow Soprano    # art
     -- Winds enter at 0.2
-    , flute      (0.2, 1) flow Soprano    r k vl
+    , flute      (0.2, 1) k vl flow Soprano
     -- Brass at 0.5
-    , horn       (0.5, 1) flow Soprano    r k vl
+    , horn       (0.5, 1) k vl flow Soprano
     -- Percussion at peak
-    , timpani    (0.8, 1) root Bass8vb    r k vl
+    , timpani    (0.8, 1) k vl grid Bass8vb
 ```
 
 As kinetics rises from 0→1, instruments enter progressively.
@@ -250,31 +324,31 @@ As kinetics rises from 0→1, instruments enter progressively.
 ### Basic: wind section
 
 ```tidal
-,wind f r k $ d 0.9
+,wind f k $ d 0.9
 ```
 
 ### Custom voice lines
 
 ```tidal
-wind' f r k d = p "wind" $ do
+wind' f k d = p "wind" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[3 2]/4"
         , bass    = "[0 1]/4"
         }
   f
     $ stack [silence
-        , flute    (0,1) flow Soprano    r k vl
-        , oboe     (0,1) flow Alto       r k vl
-        , clarinet (0,1) flow Tenor8vb   r k vl
-        , bassoon  (0,1) flow Bass8vb    r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , flute    (0,1) k vl flow Soprano
+        , oboe     (0,1) k vl flow Alto
+        , clarinet (0,1) k vl flow Tenor8vb
+        , bassoon  (0,1) k vl flow Bass8vb
+    ] |* vel d
 ```
 
 ### Full orchestra with articulation switching
 
 ```tidal
-,tutti arco f r k $ d 0.9    -- arco strings
-,tutti pizz f r k $ d 0.7    -- pizzicato strings
+,tutti arco f k $ d 0.9    -- arco strings
+,tutti pizz f k $ d 0.7    -- pizzicato strings
 ```
 
 ### Combined launcher
@@ -282,15 +356,14 @@ wind' f r k d = p "wind" $ do
 ```tidal
 do
   let
-    r = warp "[1 2 3 4]/8"
     f = (swingBy 0.04 2)
     d = (* 1)
-    k = formK tempo form
+    k = iK tempo form (warp "[1 2 3 4]/8")
   mapM_ id [hush, setbpm tempo
-    ,wind f r k       $ d 0.9
-    ,strg f r k       $ d 0.8
-    ,brss f r k       $ d 0.9
-    ,perc f r k       $ d 0.7
-    ,subk f r k       $ d 1
+    ,wind f k       $ d 0.9
+    ,strg f k       $ d 0.8
+    ,brss f k       $ d 0.9
+    ,perc f k       $ d 0.7
+    ,subk f k       $ d 1
    ]
 ```

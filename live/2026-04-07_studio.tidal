@@ -1,16 +1,22 @@
-p07 f r k d = d07 $ do
+p07 f k d = d07 $ do
   let o = ch 07
   f
     $ stack [silence
        -- --
-      ,arrange (0,1) flow (overlapF 0) r k (-9,9) ["~"
+      ,arrange (0,1) k (-9,9) flow (overlapF 0) ["~"
+        -- ,degrade "[0 . <2 -2> <1 -1>]/4"
+        -- ,"[2 0 0@2 . 2 0 0@2 . 1@2 <0 2> <1 0> . ~ <~ [-2 -1 0 1]>]/8"
+      ]# o |* vel 0.5 |+ oct 2 |= legato 0.99
+       -- --
+      ,arrange (0.1,1) k (-9,9) flow (overlapF 0) ["~"
         -- ,"[1,2,3]*2"
         -- ,"[~ ~ ~ ~ . 3]" |+ 6
-        ,"[1,2,3]/4" -- |- "[0 1 2 2]/16"
-        ,"[0 1 2 3 4 3 2 1]/2" |+ "[0 1 2 3]/16"
-      ]# o |* vel 0.8 |+ oct 0 |* legato 0.99
+        -- ,"[1,2,3]*2" -- |- "[0 1 2 2]/16"
+        ,"[[0,1,2] . [0,1,2]*2]/8" |- 3 -- |- "[0 1 2 2]/16"
+        -- ,"[0 1 2 3 4 3 2 1]/2" |+ "[0 1 2 3]/16"
+      ]# o |* vel 0.8 |+ oct 1 |* legato 0.99
        -- --
-      ,arrange (0,1) grid (overlapF 0) r k (-9,9) ["~"
+      ,arrange (0,1) k (-9,9) grid (overlapF 0) ["~"
         -- ,"[0]/8"
         ,"[0,5]/4"
       ]# o |* vel 0.7 |- oct 1 |= legato 0.99
@@ -24,14 +30,18 @@ k909 f k d = p "909kit" $ do
   f
     $ stack [silence
        -- --
-      ,slate (0,1) k [silence
+      ,slate (0.8,1) k [silence
         -- ,ride "[1 . 1 1]" #vel (1-exP) |* vel (lfo tri 0.08 0.5) |+ humanise 0.2
-        ]
-      ,slate (0,1) k [silence
+        ,snare "[0 1]/2"
         ,hh "[~ 1]" -- #vel exP
         ]
+      ,slate (0.4,0.8) k [silence
+        ,hh "[~ 1]" -- #vel exP
+        -- ,snare "[0 1]/2"
+        ,snap "[0 1]/2"
+        ]
        -- --
-    ]# o # legato 0.01 |* vel (kDynamic k) |* vel d
+    ]# o # legato 0.01 |* vel d
 
 kmpc f k d = p "mpckit" $ do
   let o = ch 10
@@ -39,12 +49,13 @@ kmpc f k d = p "mpckit" $ do
     -- $ mask "0 1 0 1"
     $ stack [silence
        -- --
-      ,slate (0,1) k [silence
+      ,slate (0.5,1) k [silence
         -- ,hh "1 1 2 1"
         -- ,hh "0 1"
+        -- ,snare "[0 1]/2" |* vel 0.4
         ,hh "0 2?" |* vel 0.2
         ]
-      ,slate (0,1) k [silence
+      ,slate (0.2,1) k [silence
         -- ,click "[0 1]/2" |*vel 0.2
         ,sometimesBy 0.1 (>>hh "2") $ sometimesBy 0.05 (fast 2) $ degradeBy 0.4 $ hh "[1]*4" |* vel (lfo saw 0.1 0.4)
         ]
@@ -53,35 +64,37 @@ kmpc f k d = p "mpckit" $ do
         -- ,2 <~ (rarely (stut 4 0.5 0.5) $ click "[1(3,8) . 0 1 [0 1] 0]/4") |* vel 0.1
         ]
        -- --
-    ]# o # legato 0.01 |* vel (kDynamic k) |* vel d
+    ]# o # legato 0.01 |* vel d
 
-subk f r k d = p "subKick"
+subk f k d = p "subKick"
   $ f
-    $ subKick root r d k ( 1/4
-      -- ,"[1!3 [1 1]]"
+    $ subKick d k root ( 1/4
+      ,"[1(3,8) . ~]"
       -- ,"[1(3,8)]*2"
-      ,"[1]/2"
+      -- ,"[1]/2"
       -- ,"[0 0 0 0]"
-      ,"[0 1 0 0]"
+      ,"[[0 1 0 0] 0 0 0]"
       -- ,"[~]"
       ,"1*4"
     )
 
-m32 f r k d = p "moogMother32" $ do
+m32 f k d = p "moogMother32" $ do
   let o = ch 14
   f
     $ stack [silence
        -- --
-      ,mono $ arrange (0,1) grid (overlapF 0) r k (-9,9) ["~"
-        ,"[0(5,16)]/4" |+ "[0 1 2 3]/8" |+ "[3 2 1 0]"
+      ,mono $ arrange (0.2,1) k (-9,9) flow (overlapF 0) ["~"
+        -- ,"[0(5,16)]/4" |+ "[0 1 2 3]/8" |+ "[3 2 1 0]"
+        -- ,"[0 1 2 3 4 3 2 1]/2" |+ "[0 1 2 3]/16"
+        ,"[2 0 0@2 . 2 0 0@2 . 1@2 <0 2> <1 0> . ~ <~ [-2 -1 0 1]>]/8"
         -- ,"[0 ~ ~ 0 . ~]/2" |+ "0 3"
-      ]# o |- oct 1 |* vel 1
+      ]# o |- oct 0 |* vel 1
        -- --
       -- ,portamento 0.0
        -- --
     ] |* vel d
 
-mdf f r k d = p "moogDFAM" $ 0.036 <~ do
+mdf f k d = p "moogDFAM" $ 0.036 <~ do
   let (osc1,osc2) = (ch 11, ch 12)
   let pat = "0"
   f
@@ -89,17 +102,27 @@ mdf f r k d = p "moogDFAM" $ 0.036 <~ do
        -- --
       ,steptrig "[1 2 3 4 5 6 7 8]/2"
        -- --
-      ,arrange (0,1) flow (overlapF 0) r k (-9,9) ["~"
+      ,arrange (0,1) k (-9,9) flow (overlapF 0) ["~"
         -- ,pat
       ]# osc1 |* vel 1 |- oct 1
        -- --
-      ,arrange (0,1) flow (overlapF 0) r k (-9,9) ["~"
+      ,arrange (0,1) k (-9,9) flow (overlapF 0) ["~"
         -- ,pat
       ]# osc2 |* vel 1 |- oct 1
        -- --
     ]# legato 0.25 |* vel d
 
--- count
--- sync hardware
+rise f k d = p "rise" $ do
+  f
+    $ stack [silence
+       -- --
+      ,arrange (0,1) k (-9,9) flow (overlapF 0) ["~"
+        ,"[-9,-8,-7,-6,-5,-4,-3,-2,-1,0,1,2,3,4,5,6,7,8,9]/2"
+      ] |* vel 0.99
+       -- --
+      ,segment 128 $ cc 1 (kSignal $ fst k)
+       -- --
+    ]# ch 01
+    |* vel d
 
 hush

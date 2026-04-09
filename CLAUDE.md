@@ -6,13 +6,7 @@ A Haskell library for generating harmonic progressions trained on the Yale Class
 
 ## Architecture
 
-Four-layer system following the **Creative Systems Framework (R→E→T)**:
-- **Layer A (Memory)**: R component - Rules/constraints, CSV parsing, Neo4j writes
-- **Layer B (Brain)**: Types - pitch-class algebra, harmony naming, voice leading
-- **Layer C (Hands)**: E→T components - Evaluation (database queries), Traversal (probabilistic selection)
-- **Layer D (Voice)**: Interface - TidalCycles bridge, pattern lookup, arrangement
-
-**Note**: The "R" in Layer A refers to the R→E→T (Rules→Evaluation→Traversal) pipeline, not the R programming language.
+Four-layer system following Wiggins' Creative Systems Framework (R→E→T). For the full architecture, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 Key directories:
 - `src/Harmonic/Rules/Types/` - Music theory primitives (Pitch, Harmony, Progression)

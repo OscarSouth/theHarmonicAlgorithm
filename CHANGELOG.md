@@ -157,8 +157,50 @@ discrete step functions for progression switching.
   and reactive progression switching within arrangement blocks
 - `subKick` now takes `Kinetics` instead of a raw `Progression`,
   with built-in ki gating on sub (0.1–1) and kick (0.2–1) groups
-- Launcher paradigm updated: `f s r d` → `f r d k` — progression is
-  read from kinetics context, not passed directly
+- Launcher paradigm updated: `f s r d` → `f k d` — progression and
+  chord selection pattern are read from `IK` context, not passed directly
+- `iK bpm form chordPat` bundles Kinetics with a chord selection pattern
+  into a single `IK` value, replacing separate progression and kinetics
+  parameters throughout the interface
+
+**Algorithmic Orchestration** — Scoring for a virtual orchestra via
+TidalCycles live coding. Musical elements are abstracted into three
+concerns: harmony/contexts (the Harmonic Algorithm), form/constants
+(the Spectral Narrative), and interfaces/timbres (the Orchestra module).
+
+- `instrument` function: arrange → channel → octave shift → MIDI range
+  clip pipeline. Each orchestral instrument is a partial application with
+  built-in range enforcement — the composer sees only voice assignment
+  and kinetics range, never raw MIDI numbers
+- 15 pitched instrument functions: `flute`, `oboe`, `clarinet`, `bassoon`
+  (winds, ch 1–4); `horn`, `trombone`, `basstrom` (brass, ch 5–6);
+  `harp` (ch 7); `timpani` (ch 8); `violin1`, `violin2`, `viola`,
+  `cello`, `contrabass` (strings, default arco ch 16). Each with
+  physically accurate MIDI range clipping
+- Unpitched percussion: `bassdrum` (ch 9, MIDI 36), `tamtam` (ch 11,
+  MIDI 31) — struct-based pattern triggering
+- Voice line system: `VoiceLines` record with SATB fields, `voiceLines`
+  defaults (`soprano = "3"`, `alto = "1"`, `tenor = "2"`, `bass = "0"`).
+  Override individual voices per block; `_vl` field enables comma-leading
+  syntax
+- `Voice` type with 20 variants: `Soprano`, `Alto`, `Tenor`, `Bass` plus
+  `8va`, `15va`, `8vb`, `15vb` octave shifts for each. Italian musical
+  terminology for register displacement
+- String articulation channel aliases: `pizz` (ch 12), `spicc` (ch 13),
+  `marc` (ch 14), `legg` (ch 15), `arco` (ch 16). Override with `#`:
+  `violin1 (0,1) k vl flow Soprano # pizz`
+- Orchestral section blocks: `wind` (fl/ob/cl/bn), `brss` (hn/trb/btrb),
+  `strg` (vn1/vn2/va/vc/cb), `perc` (timp/harp/bd/tam)
+- Timbral blends: `chalumeau` (dark warmth: cl+bn+hn), `pastorale`
+  (mid-register: fl+ob+cl), `brillante` (bright top: fl 8va at high k),
+  `maestoso` (full winds+brass), `tutti` (full orchestra with kinetics
+  crescendo ordering — strings always, winds at 0.2, brass at 0.5,
+  percussion at 0.8)
+- Per-instrument kinetics ranges create progressive crescendo:
+  instruments enter as the spectral narrative's kinetics signal rises
+  from 0→1, building from solo to full orchestral texture
+- See `ALGORITHMIC_ORCHESTRATION.md` for the full instrument catalogue,
+  JV-1010 channel map, pan positions, and target ensemble specification
 
 ### Performance & Hardware Updates (2026-04)
 

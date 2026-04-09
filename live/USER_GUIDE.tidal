@@ -31,36 +31,30 @@ let
 -- Step 2: Generate harmonic composition
 s4 <- seek "*" $ cue start $ tonal ctx $ entropy 0.5 $ gen
 
--- Step 3: Define chord selection pattern
--- warp parses a mininotation string into a Pattern Int
--- rep auto-derives sequential selection from progression length
-let r = rep s4 1
-
--- Step 4: Define instrument interface
-p01 f r d k = d01 $ do
+-- Step 3: Define instrument interface
+p01 f k d = d01 $ do
   let o = ch 01
   f
     $ stack [silence
        -- --
-      ,arrange (0,1) grid (overlapF 0) r k (-9,9) ["~"
+      ,arrange (0,1) k (-9,9) grid (overlapF 0) ["~"
         ,"<0 1 2 3>"
         ]# o |* vel 1
        -- --
-    ] |* vel (kDynamic k) |* vel d
+    ] |* vel d
 
--- Step 5: Launch
+-- Step 4: Launch
 do
   let
     f = id
-    r = rep s4 1
     d = 0.9
-    k = formK tempo [at 0 1 1 s4]
+    k = iK tempo [at 0 1 1 s4] (rep s4 1)
   putStrLn $ "GO ¬¬"
   mapM_ id [hush, setbpm tempo
-    ,p01 f r d k
+    ,p01 f k d
    ]
 
--- Step 6: Stop playback
+-- Step 5: Stop playback
 hush'
 
 -- ══════════════════════════════════════════════════════════
@@ -208,10 +202,9 @@ do
     ctx = hcRoots "0# fall" $ hcKey "0#" $ hContext
   s8 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
   let
-    r = rep s8 1
-    k = formK 120 [at 0 1 1 s8]
+    k = iK 120 [at 0 1 1 s8] (rep s8 1)
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) grid id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) grid id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -254,10 +247,9 @@ do
     ctx = hcKey "0#" $ hContext
   s4 <- seek "*" $ cue start $ tonal ctx $ entropy 0.5 $ gen
   let
-    r = rep s4 1
-    k = formK 120 [at 0 1 1 s4]
+    k = iK 120 [at 0 1 1 s4] (rep s4 1)
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) flow id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) flow id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -301,10 +293,9 @@ do
     ctx = dissonant $ hcKey "0#" $ hContext
   s4 <- seek "*" $ cue start $ tonal ctx $ entropy 0.5 $ gen
   let
-    r = rep s4 1
-    k = formK 120 [at 0 1 1 s4]
+    k = iK 120 [at 0 1 1 s4] (rep s4 1)
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) flow id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) flow id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -317,10 +308,9 @@ do
     ctx = consonant $ hcKey "0#" $ hContext
   s4 <- seek "*" $ cue start $ tonal ctx $ entropy 0.5 $ gen
   let
-    r = rep s4 1
-    k = formK 120 [at 0 1 1 s4]
+    k = iK 120 [at 0 1 1 s4] (rep s4 1)
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) flow id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) flow id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -333,10 +323,9 @@ do
     ctx = dissonant $ hcRoots "0# fall" $ hcKey "0#" $ hContext  -- rising tension + descending bass
   s8 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
   let
-    r = rep s8 1
-    k = formK 120 [at 0 1 1 s8]
+    k = iK 120 [at 0 1 1 s8] (rep s8 1)
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) grid id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) grid id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -376,10 +365,9 @@ do
     ctx = invSkip 2 $ hcKey "0#" $ hContext
   s8 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
   let
-    r = rep s8 1
-    k = formK 120 [at 0 1 1 s8]
+    k = iK 120 [at 0 1 1 s8] (rep s8 1)
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) flow id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) flow id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -392,10 +380,9 @@ do
     ctx = invSkip 8 $ hcKey "0#" $ hContext
   s8 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
   let
-    r = rep s8 1
-    k = formK 120 [at 0 1 1 s8]
+    k = iK 120 [at 0 1 1 s8] (rep s8 1)
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) flow id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) flow id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -408,10 +395,9 @@ do
     ctx = invSkip 1 $ dissonant $ hcRoots "0# fall" $ hcKey "0#" $ hContext
   s8 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
   let
-    r = rep s8 1
-    k = formK 120 [at 0 1 1 s8]
+    k = iK 120 [at 0 1 1 s8] (rep s8 1)
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) grid id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) grid id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -430,27 +416,25 @@ hush'
 -- 3.1 Pattern Block Anatomy
 -- ──────────────────────────────────────────────────────────
 
--- Pattern blocks: pXX f r d k = dNN $ do ...
--- Four parameters:
+-- Pattern blocks: pXX f k d = dNN $ do ...
+-- Three parameters:
 --   f = transformation (id, slow, fast, rev)
---   r = chord selection pattern (Pattern Int, via warp or rep)
+--   k = IK context (carries progression, form signals, chord selection)
 --   d = dynamics scalar (Double)
---   k = kinetics context (carries progression, form signals)
 
 -- Minimal example (MIDI piano on channel 1):
-p01 f r d k = d01 $ do
+p01 f k d = d01 $ do
   let o = ch 01
-  f $ arrange (0,1) flow id r k (-9,9) ["~"
+  f $ arrange (0,1) k (-9,9) flow id ["~"
       ,"0 1 2 3"
-    ]# o |* vel (kDynamic k) |* vel d
+    ]# o |* vel d
 
 -- Execute with minimal launcher:
 do
   let
-    r = rep state 1
-    k = formK 120 [at 0 1 1 state]
+    k = iK 120 [at 0 1 1 state] (rep state 1)
   mapM_ id [hush, setbpm 120
-    ,p01 id r 0.7 k
+    ,p01 id k 0.7
    ]
 
 hush'
@@ -462,28 +446,27 @@ hush'
 
 -- Stack multiple arrange blocks for layered manipulation:
 -- allows separate dynamics, voicing, overlap, and kinetics range
-p03 f r d k = d03 $ do
+p03 f k d = d03 $ do
   let o = ch 01
   f
     $ stack [silence
         -- Voice 1: Flowing chords (upper half of form)
-        ,arrange (0.5,1) flow id r k (-9,9) ["~"
+        ,arrange (0.5,1) k (-9,9) flow id ["~"
           ,"[6]/4"
           ,"[0,1,2,3]/4"
         ]# o |* vel 0.8
         -- Voice 2: Root bass line (always on)
-        ,arrange (0,1) grid id r k (-9,9) ["~"
+        ,arrange (0,1) k (-9,9) grid id ["~"
           ,"0*2"
         ]# o |* vel 1 |- oct 2
-      ] |* vel (kDynamic k) |* vel d
+      ] |* vel d
 
 -- Execute:
 do
   let
-    r = rep state 1
-    k = formK 100 [at 0 1 1 state]
+    k = iK 100 [at 0 1 1 state] (rep state 1)
   mapM_ id [hush, setbpm 100
-    ,p03 id r 0.7 k
+    ,p03 id k 0.7
    ]
 
 hush'
@@ -501,8 +484,7 @@ hush'
 -- The f parameter accepts global transformations:
 do
   let
-    r = rep state 1
-    k = formK 120 [at 0 1 1 state]
+    k = iK 120 [at 0 1 1 state] (rep state 1)
   -- Try each:
   -- let f = id           -- no change
   -- let f = slow 2       -- half speed
@@ -511,7 +493,7 @@ do
   -- let f = slow 2 . rev -- compose functions
   let f = swingBy 0.1 2  -- swing
   mapM_ id [hush, setbpm 120
-    ,p01 f r 0.9 k
+    ,p01 f k 0.9
    ]
 
 hush'
@@ -523,21 +505,21 @@ hush'
 
 -- Full production launcher with all features:
 
-p01 f r d k = d01 $ do
+p01 f k d = d01 $ do
   let o = ch 01
   f $ stack [silence,
     -- Chords (flow voicing, upper form)
-    arrange (0.5,1) flow id r k (-9,9) ["~", "[0,1,2,3]/4"]
+    arrange (0.5,1) k (-9,9) flow id ["~", "[0,1,2,3]/4"]
       # o |* vel 0.8,
 
     -- Bass (grid voicing, always on)
-    arrange (0,1) grid id r k (-9,9) ["~", "0*2"]
+    arrange (0,1) k (-9,9) grid id ["~", "0*2"]
       # o |* vel 1 |- oct 2,
 
     -- Melody (flow voicing, high octave, peak only)
-    arrange (0.8,1) flow id r k (-9,9) ["~", "[2 4 5]@3"]
+    arrange (0.8,1) k (-9,9) flow id ["~", "[2 4 5]@3"]
       # o |* vel 0.6 |+ oct 1
-  ] |* vel (kDynamic k) |* vel d
+  ] |* vel d
 
 -- Generate and perform:
 do
@@ -546,12 +528,11 @@ do
     ctx = hcKey "0#" $ hContext
   s8 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
   let
-    r = rep s8 1
     f = id
-    k = formK 120 [at 0 1 1 s8]
+    k = iK 120 [at 0 1 1 s8] (rep s8 1)
   putStrLn $ "LAUNCH¬¬"
   mapM_ id [hush, setbpm 120
-    ,p01 f r 0.7 k
+    ,p01 f k 0.7
    ]
 
 hush'
@@ -577,8 +558,7 @@ let
 
 s4 <- seek "*" $ cue start $ tonal ctx $ entropy 0.5 $ gen
 
-let r = rep s4 1
-let k = formK 120 [at 0 1 1 s4]
+let k = iK 120 [at 0 1 1 s4] (rep s4 1)
 
 
 -- ──────────────────────────────────────────────────────────
@@ -589,7 +569,7 @@ let k = formK 120 [at 0 1 1 s4]
 -- Best for: pads, harmonic beds, smooth melodies
 do
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) flow id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) flow id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -604,7 +584,7 @@ hush'
 -- Best for: bass instruments, rooted chords
 do
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) grid id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) grid id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -619,7 +599,7 @@ hush'
 -- Best for: exact reproduction, debugging
 do
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) lite id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) lite id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -634,7 +614,7 @@ hush'
 -- Best for: bass lines, percussion
 do
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) root id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) root id
       ["0*2"] # ch 01 |- oct 2 |* vel 0.9
    ]
 
@@ -649,7 +629,7 @@ hush'
 -- Best for: kicks, alternate bass patterns
 do
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) fund id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) fund id
       ["0*2"] # ch 01 |- oct 2 |* vel 0.9
    ]
 
@@ -669,19 +649,19 @@ hush'
 do
   setbpm 80
   -- flow: smoothest voice leading
-  d01 $ arrange (0,1) flow id r k (-9,9)
+  d01 $ arrange (0,1) k (-9,9) flow id
     ["0 1 2 3"] # ch 01
   -- grid: root locked in bass
-  d02 $ arrange (0,1) grid id r k (-9,9)
+  d02 $ arrange (0,1) k (-9,9) grid id
     ["0 1 2 3"] # ch 01
   -- lite: literal (no optimization)
-  d03 $ arrange (0,1) lite id r k (-9,9)
+  d03 $ arrange (0,1) k (-9,9) lite id
     ["0 1 2 3"] # ch 01
   -- root: root note only
-  d04 $ arrange (0,1) root id r k (-9,9)
+  d04 $ arrange (0,1) k (-9,9) root id
     ["0*2"] # ch 01 |- oct 1
   -- fund: harmonic root (inversion-invariant)
-  d05 $ arrange (0,1) fund id r k (-9,9)
+  d05 $ arrange (0,1) k (-9,9) fund id
     ["0*2"] # ch 01 |- oct 2
 
 hush'
@@ -691,30 +671,29 @@ hush'
 -- 4.7 Voicing in arrange Function
 -- ──────────────────────────────────────────────────────────
 
--- arrange :: (Double, Double) -> VoiceFunction
---   -> (Progression -> Progression)
---   -> Pattern Int -> Kinetics -> (Int, Int)
+-- arrange :: (Double, Double) -> IK -> (Int, Int)
+--   -> VoiceFunction -> (Progression -> Progression)
 --   -> [Pattern Int] -> ControlPattern
 -- VoiceFunction: flow, grid, lite, root, fund
 -- Modifier: id, overlapF 0, overlapB 1, etc.
 
-p01 f r d k = d01 $ do
+p01 f k d = d01 $ do
   let o = ch 01
   f
     $ stack [silence
       -- Chords (flow voicing, upper form):
-      ,arrange (0.5,1) flow id r k (-9,9) ["~"
+      ,arrange (0.5,1) k (-9,9) flow id ["~"
         ,"[0,1,2,3]/4"
       ]# o |* vel 0.8
       -- Bass (grid voicing, always on):
-      ,arrange (0,1) grid id r k (-9,9) ["~"
+      ,arrange (0,1) k (-9,9) grid id ["~"
         ,"0*2"
       ]# o |* vel 1 |- oct 1
       -- Single bass note (root voicing):
-      ,arrange (0,1) root id r k (-9,9) ["~"
+      ,arrange (0,1) k (-9,9) root id ["~"
         ,"0*4"
       ]# o |* vel 1.2 |- oct 2
-    ] |* vel (kDynamic k) |* vel d
+    ] |* vel d
 
 -- Execute:
 do
@@ -723,11 +702,10 @@ do
     ctx = hcKey "0#" $ hContext
   s8 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
   let
-    r = rep s8 1
-    k = formK 100 [at 0 1 1 s8]
+    k = iK 100 [at 0 1 1 s8] (rep s8 1)
   putStrLn $ "LAUNCH¬¬"
   mapM_ id [hush, setbpm 100
-    ,p01 id r 0.7 k
+    ,p01 id k 0.7
    ]
 
 hush'
@@ -761,12 +739,12 @@ let
 
 s8 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
 
-p01 f r d k = d01 $ do
+p01 f k d = d01 $ do
   let o = ch 01
   f
-    $ arrange (0,1) flow id r k (-9,9) ["~"
+    $ arrange (0,1) k (-9,9) flow id ["~"
       ,"[0,1,2,3]/4"
-    ]# o |* vel (kDynamic k) |* vel d
+    ]# o |* vel d
 
 
 -- ──────────────────────────────────────────────────────────
@@ -777,10 +755,9 @@ p01 f r d k = d01 $ do
 do
   let
     s = transposeP 0 $ rotate 2 s8
-    r = rep s8 1
-    k = formK 120 [at 0 1 1 s]
+    k = iK 120 [at 0 1 1 s] (rep s8 1)
   mapM_ id [hush, setbpm 120
-    ,p01 id r 0.9 k
+    ,p01 id k 0.9
    ]
 
 hush'
@@ -794,10 +771,9 @@ hush'
 do
   let
     sub = excerpt 4 7 s8
-    r = rep sub 1
-    k = formK 120 [at 0 1 1 sub]
+    k = iK 120 [at 0 1 1 sub] (rep sub 1)
   mapM_ id [hush, setbpm 120
-    ,p01 id r 0.9 k
+    ,p01 id k 0.9
    ]
 
 hush'
@@ -811,10 +787,9 @@ hush'
 do
   let
     s = transposeP 5 s8
-    r = rep s8 1
-    k = formK 120 [at 0 1 1 s]
+    k = iK 120 [at 0 1 1 s] (rep s8 1)
   mapM_ id [hush, setbpm 120
-    ,p01 id r 0.9 k
+    ,p01 id k 0.9
    ]
 
 hush'
@@ -827,10 +802,9 @@ hush'
 do
   let
     s = transposeP 0 $ reverse s8
-    r = rep s8 1
-    k = formK 120 [at 0 1 1 s]
+    k = iK 120 [at 0 1 1 s] (rep s8 1)
   mapM_ id [hush, setbpm 120
-    ,p01 id r 0.9 k
+    ,p01 id k 0.9
    ]
 
 hush'
@@ -853,10 +827,9 @@ state2 <- seek "*" $ cue start2 $ tonal ctx $ entropy 0.5 $ gen
 do
   let
     fused = fuse [state1, state2]
-    r = rep fused 1
-    k = formK 120 [at 0 1 1 fused]
+    k = iK 120 [at 0 1 1 fused] (rep fused 1)
   mapM_ id [hush, setbpm 120
-    ,p01 id r 0.9 k
+    ,p01 id k 0.9
    ]
 
 hush'
@@ -870,10 +843,9 @@ hush'
 do
   let
     expanded = expandP 2 s8
-    r = rep expanded 1
-    k = formK 120 [at 0 1 1 expanded]
+    k = iK 120 [at 0 1 1 expanded] (rep expanded 1)
   mapM_ id [hush, setbpm 120
-    ,p01 id r 0.9 k
+    ,p01 id k 0.9
    ]
 
 hush'
@@ -889,10 +861,9 @@ hush'
 do
   let
     s = transposeP 0 $ progOverlapF 1 s8
-    r = rep s8 1
-    k = formK 120 [at 0 1 1 s]
+    k = iK 120 [at 0 1 1 s] (rep s8 1)
   mapM_ id [hush, setbpm 120
-    ,p01 id r 0.9 k
+    ,p01 id k 0.9
    ]
 
 hush'
@@ -923,20 +894,18 @@ hush'
 do
   let
     s = transposeP 0 $ reverse $ transposeP 5 $ rotate 2 s8
-    r = rep s8 1
-    k = formK 120 [at 0 1 1 s]
+    k = iK 120 [at 0 1 1 s] (rep s8 1)
   mapM_ id [hush, setbpm 120
-    ,p01 id r 0.9 k
+    ,p01 id k 0.9
    ]
 
 -- Extract section, expand, add overlap:
 do
   let
     modified = progOverlapF 1 $ expandP 2 $ excerpt 2 5 s8
-    r = rep modified 1
-    k = formK 120 [at 0 1 1 modified]
+    k = iK 120 [at 0 1 1 modified] (rep modified 1)
   mapM_ id [hush, setbpm 120
-    ,p01 id r 0.9 k
+    ,p01 id k 0.9
    ]
 
 hush'
@@ -953,8 +922,6 @@ let
 
 s4 <- seek "*" $ cue start $ tonal ctx $ entropy 0.5 $ gen
 
-let k = formK 120 [at 0 1 1 s4]
-
 
 -- ──────────────────────────────────────────────────────────
 -- 6.1 warp - Parse Mininotation Chord Selection
@@ -965,19 +932,22 @@ let k = formK 120 [at 0 1 1 s4]
 -- Values are 1-indexed: "1" selects the first chord.
 
 -- Sequential: one chord per bar over 4 bars
-d1 $ arrange (0,1) flow id (warp "[1 2 3 4]/4") k (-9,9)
+let k = iK 120 [at 0 1 1 s4] (warp "[1 2 3 4]/4")
+d1 $ arrange (0,1) k (-9,9) flow id
   ["[0 1 2 3]"] # ch 01
 
 hush'
 
 -- All chords in one bar
-d1 $ arrange (0,1) flow id (warp "[1 2 3 4]") k (-9,9)
+let k = iK 120 [at 0 1 1 s4] (warp "[1 2 3 4]")
+d1 $ arrange (0,1) k (-9,9) flow id
   ["[0 1 2 3]"] # ch 01
 
 hush'
 
 -- Static single chord
-d1 $ arrange (0,1) flow id (warp "1") k (-9,9)
+let k = iK 120 [at 0 1 1 s4] (warp "1")
+d1 $ arrange (0,1) k (-9,9) flow id
   ["[0 1 2 3]"] # ch 01
 
 hush'
@@ -992,13 +962,15 @@ hush'
 -- rep s4 1   = "[1 2 3 4]/4" (for a 4-chord progression, 1 bar each)
 -- rep s4 0.5 = half bar per chord (twice as fast)
 
-d1 $ arrange (0,1) flow id (rep s4 1) k (-9,9)
+let k = iK 120 [at 0 1 1 s4] (rep s4 1)
+d1 $ arrange (0,1) k (-9,9) flow id
   ["[0 1 2 3]"] # ch 01
 
 hush'
 
 -- Faster harmonic rhythm (half bar per chord):
-d1 $ arrange (0,1) flow id (rep s4 0.5) k (-9,9)
+let k = iK 120 [at 0 1 1 s4] (rep s4 0.5)
+d1 $ arrange (0,1) k (-9,9) flow id
   ["[0 1 2 3]"] # ch 01
 
 hush'
@@ -1011,25 +983,29 @@ hush'
 -- The core power of warp: mininotation controls harmonic form.
 
 -- AABA form: chord 1 repeated, chord 2 for the bridge
-d1 $ arrange (0,1) flow id (warp "[1 1 2 1]/4") k (-9,9)
+let k = iK 120 [at 0 1 1 s4] (warp "[1 1 2 1]/4")
+d1 $ arrange (0,1) k (-9,9) flow id
   ["[0 1 2 3]"] # ch 01 # legato 1
 
 hush'
 
 -- Probabilistic: chord 2 appears randomly
-d1 $ arrange (0,1) flow id (warp "[1 2? 3 4]/4") k (-9,9)
+let k = iK 120 [at 0 1 1 s4] (warp "[1 2? 3 4]/4")
+d1 $ arrange (0,1) k (-9,9) flow id
   ["[0 1 2 3]"] # ch 01 # legato 1
 
 hush'
 
 -- Alternating across bars: chord 1, then <chord 1 or chord 2>
-d1 $ arrange (0,1) flow id (warp "[1 <1 2>]") k (-9,9)
+let k = iK 120 [at 0 1 1 s4] (warp "[1 <1 2>]")
+d1 $ arrange (0,1) k (-9,9) flow id
   ["[0 1 2 3]"] # ch 01 # legato 1
 
 hush'
 
 -- Variable harmonic rhythm: chord 1 gets half, chords 1-2 split the other half
-d1 $ arrange (0,1) flow id (warp "[1 [1 2]]/2") k (-9,9)
+let k = iK 120 [at 0 1 1 s4] (warp "[1 [1 2]]/2")
+d1 $ arrange (0,1) k (-9,9) flow id
   ["[0 1 2 3]"] # ch 01 # legato 1
 
 hush'
@@ -1049,19 +1025,19 @@ hush'
 --   Pattern restarts for each chord. No temporal distortion.
 --   Best for rhythmic patterns that should repeat per chord.
 
--- Both now take kinetics range + modifier + Kinetics context.
+-- Both now take IK context with bundled chord selection.
 
 -- Compare:
-let r = warp "[1 2 3 4]/4"
+let k = iK 120 [at 0 1 1 s4] (warp "[1 2 3 4]/4")
 
 -- arrange: notes sustain through chord boundaries
-d1 $ arrange (0,1) flow id r k (-9,9)
+d1 $ arrange (0,1) k (-9,9) flow id
   ["[0 1 2 3]"] # ch 01 # legato 2
 
 hush'
 
 -- arrange': pattern restarts per chord slot
-d1 $ arrange' (0,1) flow id r k (-9,9)
+d1 $ arrange' (0,1) k (-9,9) flow id
   ["[0 1 2 3]"] # ch 01 # legato 2
 
 hush'
@@ -1106,17 +1082,18 @@ form =
 -- 7.2 Realizing a Form
 -- ──────────────────────────────────────────────────────────
 
--- formK converts form + BPM into Kinetics signals:
--- formK :: Double -> [FormNode] -> Kinetics
+-- iK converts form + BPM + chord selection into an IK tuple:
+-- iK :: Double -> [FormNode] -> Pattern Int -> IK
 --
--- Kinetics has three signals:
+-- IK bundles Kinetics signals with chord selection:
 --   kSignal  :: Pattern Double  (kinetics level 0-1, continuous)
 --   kDynamic :: Pattern Double  (dynamic envelope 0-1, continuous)
 --   kProg    :: Pattern Progression  (active progression, step function)
+--   chord selection pattern (Pattern Int)
 
 let
   tempo = 120
-  k = formK tempo form
+  k = iK tempo form (rep s0 1)
 
 
 -- ──────────────────────────────────────────────────────────
@@ -1127,7 +1104,7 @@ let
 -- kSignal = pure 1, kDynamic = pure 1, kProg = pure s
 -- Equivalent to having no form at all.
 
-let k = formK 120 [at 0 1 1 s0]
+let k = iK 120 [at 0 1 1 s0] (rep s0 1)
 
 -- This is the simplest way to use kinetics:
 -- everything passes, everything plays at full level.
@@ -1137,7 +1114,7 @@ let k = formK 120 [at 0 1 1 s0]
 -- 7.4 Range Gating with ki
 -- ──────────────────────────────────────────────────────────
 
--- ki :: (Double, Double) -> Kinetics -> Pattern a -> Pattern a
+-- ki :: (Double, Double) -> IK -> Pattern a -> Pattern a
 -- Events only pass when kSignal is within [lo, hi] (inclusive).
 
 -- This is how voices activate at different points in the form:
@@ -1145,9 +1122,9 @@ let k = formK 120 [at 0 1 1 s0]
 -- ki (0.0, 0.3) k bassPat   -- only in quiet sections
 
 -- arrange already has ki built in via its first parameter:
--- arrange (0.5, 1) flow id r k (-9,9) pats
+-- arrange (0.5, 1) k (-9,9) flow id pats
 -- is equivalent to:
--- ki (0.5, 1) k $ arrangeCore flow prog r (-9,9) pats
+-- ki (0.5, 1) k $ arrangeCore flow prog (-9,9) pats
 
 
 -- ──────────────────────────────────────────────────────────
@@ -1171,7 +1148,7 @@ let k = formK 120 [at 0 1 1 s0]
 
 -- Example: single-state form (constant signals)
 let form = [at 0 1 1 s]
-    k = formK 120 form
+    k = iK 120 form (rep s 1)
 
 
 -- ──────────────────────────────────────────────────────────
@@ -1184,9 +1161,9 @@ let upper = (0.5, 1)    -- upper half only
 let peak  = (0.8, 1)    -- near peak only
 
 -- Use in arrange:
--- arrange cresc flow id r k (-9,9) pats   -- always active
--- arrange upper flow id r k (-9,9) pats   -- upper form only
--- arrange peak  flow id r k (-9,9) pats   -- peak only
+-- arrange cresc k (-9,9) flow id pats   -- always active
+-- arrange upper k (-9,9) flow id pats   -- upper form only
+-- arrange peak  k (-9,9) flow id pats   -- peak only
 
 
 -- ──────────────────────────────────────────────────────────
@@ -1194,28 +1171,27 @@ let peak  = (0.8, 1)    -- near peak only
 -- ──────────────────────────────────────────────────────────
 
 -- Define a launcher that uses form-driven range gating:
-p03 f r d k = d03 $ do
+p03 f k d = d03 $ do
   let o = ch 01
   f
     $ stack [silence
-      ,arrange upper flow (overlapF 0) r k (-9,9) ["~"
+      ,arrange upper k (-9,9) flow (overlapF 0) ["~"
         ,"[1,2,3]/8"
       ]# o |* vel 0.4 |- oct 1 |* legato 0.99
-      ,arrange cresc grid (overlapF 0) r k (-9,9) ["~"
+      ,arrange cresc k (-9,9) grid (overlapF 0) ["~"
         ,"[0 [0,4]]/8"
       ]# o |* vel 0.9 |- oct 2 |= legato 0.99
-    ] |* vel (kDynamic k) |* vel d
+    ] |* vel d
 
 -- Launch with inline form:
 do
   let
-    r = warp "[1 2 3 4]/8"
     f = (swingBy 0.04 2)
     d = 0.9
-    k = formK tempo form
+    k = iK tempo form (warp "[1 2 3 4]/8")
   putStrLn $ "GO ¬¬"
   mapM_ id [hush, setbpm tempo
-    ,p03 f r d k
+    ,p03 f k d
    ]
 
 hush'
@@ -1226,15 +1202,14 @@ hush'
 -- ══════════════════════════════════════════════════════════
 -- Goal: MPC-style drum patterns following harmonic roots
 
--- subKick :: (Progression -> [[Int]]) -> Pattern Int
---         -> Pattern Double -> Kinetics
+-- subKick :: Pattern Double -> IK
+--         -> (Progression -> [[Int]])
 --         -> (Time, String, String, String) -> ControlPattern
 --
 -- Parameters:
---   voice strategy (fund or root)
---   chord selection pattern (1-indexed, via warp or rep)
 --   dynamics pattern (> 0 = sub active)
---   kinetics context (carries progression + form gating)
+--   IK context (carries progression, form signals, chord selection)
+--   voice strategy (fund or root)
 --   (maxDur, subOnPat, subOffPat, kickPat)
 --
 -- Built-in ki gating: sub at (0.1, 1), kick at (0.2, 1)
@@ -1245,7 +1220,7 @@ let
 
 s4 <- seek "*" $ cue start $ tonal ctx $ entropy 0.5 $ gen
 
-let k = formK 120 [at 0 1 1 s4]
+let k = iK 120 [at 0 1 1 s4] (rep s4 1)
 
 
 -- ──────────────────────────────────────────────────────────
@@ -1253,7 +1228,7 @@ let k = formK 120 [at 0 1 1 s4]
 -- ──────────────────────────────────────────────────────────
 
 -- fund ensures kick follows the true harmonic root (not bass note)
-p "subKick" $ subKick fund (rep s4 1) 1 k
+p "subKick" $ subKick 1 k fund
   (1/4, "[1(3,8)]/2", "[1(5,8,-2)]/2", "[1(3,8)]/2")
 
 hush'
@@ -1268,7 +1243,8 @@ hush'
 -- For kick drums, fund is the correct choice.
 
 -- Using warp for AABA form:
-p "subKick" $ subKick fund (warp "[1 1 2 1]/4") 1 k
+-- (chord selection is now bundled in k via iK)
+p "subKick" $ subKick 1 k fund
   (1/4, "[1(3,8)]/2", "[1(5,8,-2)]/2", "[1(3,8)]/2")
 
 hush'
@@ -1281,13 +1257,13 @@ hush'
 -- Vary the patterns for different groove feels:
 
 -- Sparse euclidean:
-p "subKick" $ subKick fund (rep s4 1) 1 k
+p "subKick" $ subKick 1 k fund
   (1/4, "[1(3,8)]", "[1(5,8,-2)]", "[1(3,8)]")
 
 hush'
 
 -- Dense with dynamics:
-p "subKick" $ subKick fund (rep s4 1) (range 0.5 1 rand) k
+p "subKick" $ subKick (range 0.5 1 rand) k fund
   (1/4, "[1(5,8)]", "[1(3,8,-1)]", "[1(4,8)]")
 
 hush'
@@ -1315,10 +1291,9 @@ simpleProg = fromChords [
 
 do
   let
-    r = rep simpleProg 1
-    k = formK 120 [at 0 1 1 simpleProg]
+    k = iK 120 [at 0 1 1 simpleProg] (rep simpleProg 1)
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) flow id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) flow id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -1346,10 +1321,9 @@ readableProg = fromChords [
 
 do
   let
-    r = rep readableProg 1
-    k = formK 120 [at 0 1 1 readableProg]
+    k = iK 120 [at 0 1 1 readableProg] (rep readableProg 1)
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) flow id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) flow id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -1388,10 +1362,9 @@ state2 = fromChords form2  -- ABAB
 -- Play AABA:
 do
   let
-    r = rep state1 1
-    k = formK 120 [at 0 1 1 state1]
+    k = iK 120 [at 0 1 1 state1] (rep state1 1)
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) flow id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) flow id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -1403,10 +1376,9 @@ baseProg = fromChords (aSection ++ bSection)
 
 do
   let
-    r = warp "[1 2 1 2 3 4 1 2]/8"  -- AABA via chord selection
-    k = formK 120 [at 0 1 1 baseProg]
+    k = iK 120 [at 0 1 1 baseProg] (warp "[1 2 1 2 3 4 1 2]/8")  -- AABA via chord selection
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) flow id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) flow id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -1453,10 +1425,9 @@ prog4 <- seek "ravel:2 stravinsky:1 mozart:1" $ cue start $ tonal ctx $ len 8 $ 
 -- Play and compare:
 do
   let
-    r = rep prog3 1
-    k = formK 120 [at 0 1 1 prog3]
+    k = iK 120 [at 0 1 1 prog3] (rep prog3 1)
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) flow id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) flow id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -1478,10 +1449,9 @@ jazzProg <- seek "debussy ravel" $ cue start $ tonal jazzCtx $ len 16 $ entropy 
 
 do
   let
-    r = rep jazzProg 1
-    k = formK 120 [at 0 1 1 jazzProg]
+    k = iK 120 [at 0 1 1 jazzProg] (rep jazzProg 1)
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) flow id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) flow id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -1496,10 +1466,9 @@ bluesProg <- seek "*" $ cue start $ tonal bluesCtx $ len 12 $ entropy 0.4 $ gen
 
 do
   let
-    r = rep bluesProg 1
-    k = formK 100 [at 0 1 1 bluesProg]
+    k = iK 100 [at 0 1 1 bluesProg] (rep bluesProg 1)
   mapM_ id [hush, setbpm 100
-    ,d01 $ arrange (0,1) flow id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) flow id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -1514,10 +1483,9 @@ modalProg <- seek "debussy" $ cue start $ tonal modalCtx $ len 8 $ entropy 0.7 $
 
 do
   let
-    r = rep modalProg 1
-    k = formK 120 [at 0 1 1 modalProg]
+    k = iK 120 [at 0 1 1 modalProg] (rep modalProg 1)
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) flow id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) flow id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -1532,10 +1500,9 @@ bassProg <- seek "*" $ cue start $ tonal bassCtx $ len 8 $ entropy 0.5 $ gen
 
 do
   let
-    r = rep bassProg 1
-    k = formK 120 [at 0 1 1 bassProg]
+    k = iK 120 [at 0 1 1 bassProg] (rep bassProg 1)
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) flow id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) flow id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -1567,10 +1534,9 @@ p3 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.8 $ gen
 
 do
   let
-    r = rep p2 1
-    k = formK 120 [at 0 1 1 p2]
+    k = iK 120 [at 0 1 1 p2] (rep p2 1)
   mapM_ id [hush, setbpm 120
-    ,d01 $ arrange (0,1) flow id r k (-9,9)
+    ,d01 $ arrange (0,1) k (-9,9) flow id
       ["0 1 2 3"] # ch 01 |* vel 0.9
    ]
 
@@ -1621,33 +1587,33 @@ bridge <- seek "debussy:0.75 bach:0.25" $ cue startB $ tonal ctx $ len 8 $ entro
 -- ──────────────────────────────────────────────────────────
 
 -- p01: Main chords (MIDI piano)
-p01 f r d k = d01 $ do
+p01 f k d = d01 $ do
   let o = ch 01
   f
     $ stack [silence
       -- Chords (flow voicing, upper form):
-      ,arrange (0.5,1) flow id r k (-9,9) ["~"
+      ,arrange (0.5,1) k (-9,9) flow id ["~"
         ,"[0,1,2,3]/4"
       ]# o |* vel 0.8
       -- Melody (flow voicing, high octave, peak only):
-      ,arrange (0.8,1) flow id r k (-9,9) ["~"
+      ,arrange (0.8,1) k (-9,9) flow id ["~"
         ,"[2 4 5]@3"
       ]# o |* vel 0.6 |+ oct 1
-    ] |* vel (kDynamic k) |* vel d
+    ] |* vel d
 
 -- p02: Bass line (MIDI piano)
-p02 f r d k = d02 $ do
+p02 f k d = d02 $ do
   let o = ch 02
-  f $ arrange (0,1) grid id r k (-9,9) ["~"
+  f $ arrange (0,1) k (-9,9) grid id ["~"
         ,"0*2"
-      ]# o |* vel 1 |- oct 2 |* vel (kDynamic k) |* vel d
+      ]# o |* vel 1 |- oct 2 |* vel d
 
 -- p03: Arpeggios (MIDI piano)
-p03 f r d k = d03 $ do
+p03 f k d = d03 $ do
   let o = ch 03
-  f $ arrange (0.5,1) flow id r k (-9,9) ["~"
+  f $ arrange (0.5,1) k (-9,9) flow id ["~"
         ,"0 1 2 3 4 5 6 7"
-      ]# o |* vel 0.7 |* vel (kDynamic k) |* vel d
+      ]# o |* vel 0.7 |* vel d
 
 
 -- ──────────────────────────────────────────────────────────
@@ -1657,11 +1623,10 @@ p03 f r d k = d03 $ do
 -- INTRO (verse, sparse — single-state form)
 do
   let
-    r = rep verse 1
-    k = formK 90 [at 0 1 1 verse]
+    k = iK 90 [at 0 1 1 verse] (rep verse 1)
   putStrLn $ "LAUNCH¬¬"
   mapM_ id [hush, setbpm 90
-    ,p01 id r 0.5 k
+    ,p01 id k 0.5
    ]
 
 hush'
@@ -1669,12 +1634,11 @@ hush'
 -- VERSE (full texture)
 do
   let
-    r = rep verse 1
-    k = formK 100 [at 0 1 1 verse]
+    k = iK 100 [at 0 1 1 verse] (rep verse 1)
   putStrLn $ "LAUNCH¬¬"
   mapM_ id [hush, setbpm 100
-    ,p01 id r 0.7 k
-    ,p02 id r 0.7 k
+    ,p01 id k 0.7
+    ,p02 id k 0.7
    ]
 
 hush'
@@ -1683,13 +1647,12 @@ hush'
 do
   let
     s = transposeP 5 chorus
-    r = rep chorus 1
-    k = formK 105 [at 0 1 1 s]
+    k = iK 105 [at 0 1 1 s] (rep chorus 1)
   putStrLn $ "LAUNCH¬¬"
   mapM_ id [hush, setbpm 105
-    ,p01 id r 0.8 k
-    ,p02 id r 0.8 k
-    ,p03 id r 0.6 k
+    ,p01 id k 0.8
+    ,p02 id k 0.8
+    ,p03 id k 0.6
    ]
 
 hush'
@@ -1698,12 +1661,11 @@ hush'
 do
   let
     s = transposeP 0 $ reverse bridge
-    r = rep bridge 1
-    k = formK 80 [at 0 1 1 s]
+    k = iK 80 [at 0 1 1 s] (rep bridge 1)
   putStrLn $ "LAUNCH¬¬"
   mapM_ id [hush, setbpm 80
-    ,p01 (slow 2) r 0.7 k
-    ,p02 (slow 2) r 0.7 k
+    ,p01 (slow 2) k 0.7
+    ,p02 (slow 2) k 0.7
    ]
 
 hush'
@@ -1711,12 +1673,11 @@ hush'
 -- OUTRO (verse, fading)
 do
   let
-    r = rep verse 1
-    k = formK 90 [at 0 1 1 verse]
+    k = iK 90 [at 0 1 1 verse] (rep verse 1)
   putStrLn $ "LAUNCH¬¬"
   mapM_ id [hush, setbpm 90
-    ,p01 id r 0.5 k
-    ,p02 id r 0.3 k
+    ,p01 id k 0.5
+    ,p02 id k 0.3
    ]
 
 hush'
@@ -1734,34 +1695,32 @@ let
 s32 <- seek "*" $ cue start $ tonal ctx $ len 32 $ entropy 0.5 $ gen
 
 -- Launcher with transformation support:
-p01 f r d k = d01 $ do
+p01 f k d = d01 $ do
   let o = ch 01
   f
     $ stack [silence
-      ,arrange (0,1) flow id r k (-9,9) ["~"
+      ,arrange (0,1) k (-9,9) flow id ["~"
         ,"[0,1,2,3]/4"
       ]# o |* vel 0.8
-    ] |* vel (kDynamic k) |* vel d
+    ] |* vel d
 
 -- Live: excerpt different sections, use warp for form
 do
   let
     sub = excerpt 0 7 s32
-    r = rep sub 1
-    k = formK 100 [at 0 1 1 sub]
+    k = iK 100 [at 0 1 1 sub] (rep sub 1)
   putStrLn $ "LAUNCH¬¬"
   mapM_ id [hush, setbpm 100
-    ,p01 id r 0.7 k
+    ,p01 id k 0.7
    ]
 
 do
   let
     sub = excerpt 8 15 s32
-    r = warp "[1 1 2 1 3 4 5 6]/8"  -- AABA-style form
-    k = formK 100 [at 0 1 1 sub]
+    k = iK 100 [at 0 1 1 sub] (warp "[1 1 2 1 3 4 5 6]/8")  -- AABA-style form
   putStrLn $ "LAUNCH¬¬"
   mapM_ id [hush, setbpm 100
-    ,p01 id r 0.7 k
+    ,p01 id k 0.7
    ]
 
 hush'
@@ -1845,7 +1804,7 @@ hush'
 -- 12.3 Voicing Functions
 -- ──────────────────────────────────────────────────────────
 
--- VoiceFunctions (first argument to arrange / arrange'):
+-- VoiceFunctions (passed to arrange / arrange' after IK and register):
 -- flow :: VoiceFunction  -- Smoothest voice leading (flexible inversion)
 -- grid :: VoiceFunction  -- Root locked in bass (top notes lead smoothly)
 -- lite :: VoiceFunction  -- Literal (first-root normalized, no other changes)
@@ -1879,23 +1838,24 @@ hush'
 -- 12.5 Pattern Interface
 -- ──────────────────────────────────────────────────────────
 
--- arrange :: (Double, Double) -> VoiceFunction
---         -> (Progression -> Progression) -> Pattern Int
---         -> Kinetics -> (Int, Int) -> [Pattern Int] -> ControlPattern
+-- arrange :: (Double, Double) -> IK -> (Int, Int)
+--         -> VoiceFunction -> (Progression -> Progression)
+--         -> [Pattern Int] -> ControlPattern
 --   Onset-join with kinetics range gating.
 --   Range: (lo, hi) — only active when kSignal in range
+--   IK: bundled kinetics + chord selection (from iK)
 --   VoiceFunction: flow, grid, lite, root, fund
 --   Modifier: id, overlapF 0, overlapB 1, etc.
 --   Register: (-9, 9) typical
 --   Patterns: ["~", "[0,1,2,3]/4"] etc.
 
--- arrange' :: (Double, Double) -> VoiceFunction
---          -> (Progression -> Progression) -> Pattern Int
---          -> Kinetics -> (Int, Int) -> [Pattern Int] -> ControlPattern
+-- arrange' :: (Double, Double) -> IK -> (Int, Int)
+--          -> VoiceFunction -> (Progression -> Progression)
+--          -> [Pattern Int] -> ControlPattern
 --   Squeeze with kinetics range gating.
 
--- subKick :: (Progression -> [[Int]]) -> Pattern Int
---         -> Pattern Double -> Kinetics
+-- subKick :: Pattern Double -> IK
+--         -> (Progression -> [[Int]])
 --         -> (Time, String, String, String) -> ControlPattern
 --   Sub/kick groove with kinetics gating. Use fund.
 --   Sub gates at (0.1, 1), kick gates at (0.2, 1).
@@ -1908,14 +1868,14 @@ hush'
 -- at :: Double -> Double -> Double -> Progression -> FormNode
 --   Construct a form node at time/kinetics/dynamic/progression.
 
--- formK :: Double -> [FormNode] -> Kinetics
---   Realize form definition into looping Kinetics signals.
---   Single-node form: formK bpm [at 0 1 1 s] = constant signals.
+-- iK :: Double -> [FormNode] -> Pattern Int -> IK
+--   Bundle form + chord selection into performance context.
+--   Single-node form: iK bpm [at 0 1 1 s] (rep s 1) = constant signals.
 
--- ki :: (Double, Double) -> Kinetics -> Pattern a -> Pattern a
+-- ki :: (Double, Double) -> IK -> Pattern a -> Pattern a
 --   Range gate: mask by kinetics signal level.
 
--- slate :: (Double, Double) -> Kinetics -> [Pattern a] -> Pattern a
+-- slate :: (Double, Double) -> IK -> [Pattern a] -> Pattern a
 --   Gated stack (ki + stack).
 
 -- withForm :: Kinetics -> (Progression -> Pattern ValueMap) -> Pattern ValueMap
@@ -1962,34 +1922,34 @@ hush'
 -- ──────────────────────────────────────────────────────────
 
 -- Single-state form (no arc):
--- let k = formK tempo [at 0 1 1 prog]
+-- let k = iK tempo [at 0 1 1 prog] (rep prog 1)
 
 -- Full chords (flow voicing):
--- d01 $ arrange (0,1) flow id (rep prog 1) k (-9,9) ["[0,1,2,3]/4"] # ch 01
+-- d01 $ arrange (0,1) k (-9,9) flow id ["[0,1,2,3]/4"] # ch 01
 
 -- Bass line (grid voicing, low octave):
--- d02 $ arrange (0,1) grid id (rep prog 1) k (-9,9) ["0*2"] # ch 01 |- oct 2
+-- d02 $ arrange (0,1) k (-9,9) grid id ["0*2"] # ch 01 |- oct 2
 
 -- Arpeggios (flow voicing):
--- d03 $ arrange (0,1) flow id (rep prog 1) k (-9,9) ["0 1 2 3 4 5 6 7"] # ch 01
+-- d03 $ arrange (0,1) k (-9,9) flow id ["0 1 2 3 4 5 6 7"] # ch 01
 
 -- With forward overlap:
--- arrange (0,1) flow (overlapF 0) r k (-9,9) pats
+-- arrange (0,1) k (-9,9) flow (overlapF 0) pats
 
 -- Multi-voice stack with kinetics ranges:
 -- d01 $ stack [
---   arrange (0.5,1) flow id r k (-9,9) ["[0,1,2,3]/4"] # ch 01,
---   arrange (0,1) grid id r k (-9,9) ["0*2"] # ch 01 |- oct 2
--- ] |* vel (kDynamic k)
+--   arrange (0.5,1) k (-9,9) flow id ["[0,1,2,3]/4"] # ch 01,
+--   arrange (0,1) k (-9,9) grid id ["0*2"] # ch 01 |- oct 2
+-- ]
 
 -- Launcher block pattern:
--- p01 f r d k = d01 $ do
+-- p01 f k d = d01 $ do
 --   let o = ch 01
---   f $ arrange (0,1) flow id r k (-9,9) ["pattern"]
---     # o |* vel (kDynamic k) |* vel d
+--   f $ arrange (0,1) k (-9,9) flow id ["pattern"]
+--     # o |* vel d
 
 -- Groove (sub/kick following harmonic root):
--- p "subKick" $ subKick fund (rep prog 1) 1 k
+-- p "subKick" $ subKick 1 k fund
 --   (1/4, "[1(3,8)]/2", "[1(5,8,-2)]/2", "[1(3,8)]/2")
 
 

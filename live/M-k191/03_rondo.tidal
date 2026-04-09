@@ -1,0 +1,134 @@
+-- ============================================================================
+-- III. RONDO: TEMPO DI MENUETTO — Bassoon Concerto in B-flat major, K.191
+-- W. A. Mozart (1774)
+-- ============================================================================
+--
+-- Super-structure positions: 0.75–1.0 (Peak → Convergence)
+-- The spectral narrative converges with grace rather than bombast. Peak
+-- kinetics 0.55: the concerto ends not with a dramatic climax but with
+-- courtly wit and a wink. The rondo's playful energy is the resolution
+-- of the arc — joy as conclusion, not triumph. "Till Eulenspiegel
+-- irreverence" dissolving into charm.
+--
+-- The finale is a minuet-rondo — a form favoured by J.C. Bach that combines
+-- the courtly elegance of the minuet with the structural clarity of the
+-- rondo. The orchestra presents a formal refrain in triple metre, all
+-- propriety and measured grace. Then the bassoon enters and immediately
+-- begins "undercutting the galant formality of the refrain with its
+-- frolicking triplets and semiquavers."
+--
+-- Two contrasting episodes allow the soloist to display increasingly
+-- intricate figuration — "courtly triplet arpeggiations becoming markedly
+-- faster and more intricate" — while the orchestra maintains the minuet's
+-- decorum. The concerto's wit emerges fully when the bassoon finally plays
+-- the refrain itself, doing so with what one commentator called "Till
+-- Eulenspiegel irreverence." This irreverence "seems to infect the
+-- orchestra" — first and second violins "dance airily around the bassoon"
+-- while "oboes cluck approvingly."
+--
+-- The movement reveals the eighteen-year-old Mozart's understanding that
+-- instrumental music can be theatrical without a stage: the bassoon is a
+-- character, the orchestra its foil, and the rondo form their comedy of
+-- manners. The concerto ends not with bombast but with grace, charm, and
+-- a wink.
+--
+-- Adaptation: Rondo form encoded as A-B-A-C-A-Coda kinetics arc. Higher
+-- entropy (0.3) than the other movements for the playful episodes. Strings
+-- with pizzicato bass for the dance foundation. Oboes for "clucking"
+-- interjections. Horns sustain the harmonic pedal beneath the play.
+-- ============================================================================
+
+tempo = 96
+
+start <- lead "Bb maj"
+
+let ctx = hcKey "2b"
+        $ hContext
+
+s <- seek "mozart" $ cue start $ tonal ctx $ len 8 $ entropy 0.3 $ gen
+
+-- Form: ~310s loop (300s music + 10s gap)
+-- Rondo: A(tutti) → B(bassoon frolics) → A(return) → C(intricate) →
+--        A(irreverent) → coda
+form =
+  [ at    0    0.0   0.0   s     -- silence
+  , at    5    0.4   0.4   s     -- A: minuet refrain, orchestral tutti
+  , at   45    0.3   0.3   s     -- B: first episode, bassoon frolics
+  , at   90    0.45  0.45  s     -- A: rondo return, fuller texture
+  , at  120    0.35  0.4   s     -- C: second episode, more intricate
+  , at  170    0.5   0.5   s     -- A: final return, peak vitality
+  , at  220    0.5   0.55  s     -- bassoon plays refrain, infects orchestra
+  , at  260    0.4   0.4   s     -- coda: conclusive, bright
+  , at  290    0.2   0.2   s     -- winding down
+  , at  300    0.0   0.0   s     -- end
+  , at  310    0.0   0.0   s     -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Bassoon soloist: playful protagonist (always active)
+soloist f k d = p "soloist" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 1 2 0 3 2 1 0]/4"
+        , alto    = "[0 2 1 3]/4"
+        }
+  f
+    $ stack [silence
+        , bassoon (0, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Strings: minuet dance foundation
+minuet f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 0]/4"
+        , alto    = "[1 0 1 2]/4"
+        , tenor   = "[2 1 2 0]/4"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , violin1    (0.3, 1) k vl flow Soprano
+        , violin2    (0.3, 1) k vl flow Alto
+        , viola      (0.3, 1) k vl flow Tenor
+        , cello      (0, 1)   k vl grid Bass    # pizz
+        , contrabass (0, 1)   k vl grid Bass8vb # pizz
+    ] |* vel d
+
+-- Oboes "clucking approvingly" + flute dancing
+birdcall f k d = p "wind" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 . 2 .]/4"
+        , alto    = "[1 . 0 .]/4"
+        }
+  f
+    $ stack [silence
+        , oboe  (0.3, 1) k vl flow Soprano
+        , flute (0.4, 1) k vl flow Alto
+    ] |* vel d
+
+-- Horns: harmonic ground beneath the dance
+pedal f k d = p "pedal" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass = "0"
+        }
+  f
+    $ stack [silence
+        , horn (0.4, 1) k vl flow Bass
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (rep s 1)
+  putStrLn "MOZART K.191 — III. Rondo: Tempo di Menuetto"
+  mapM_ id [hush, setbpm tempo
+    ,soloist  f k  $ d 0.9
+    ,minuet   f k  $ d 0.7
+    ,birdcall f k  $ d 0.5
+    ,pedal    f k  $ d 0.4
+    ]
+
+hush''

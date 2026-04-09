@@ -1,0 +1,101 @@
+-- ============================================================================
+-- VII. NEPTUNE, THE MYSTIC
+-- The Planets, Op. 32 — Gustav Holst (1915)
+-- ============================================================================
+--
+-- Super-structure position: 0.945 (TERTIARY convergence → equilibrium)
+-- The spectral narrative dissolves into cosmic silence. Neptune is the final
+-- convergence — human experience transcended, consciousness expanding into
+-- the infinite void between stars.
+--
+-- The first orchestral piece in history to end with a fade-out.
+--
+-- Neptune opens with whole-tone and bitonal harmonics (E minor and G# minor
+-- oscillating), creating an eerie, tonally ambiguous atmosphere. Celesta,
+-- flute, and harps play major roles — "depicting lonely wisdom." The
+-- orchestration is minimal, translucent, otherworldly.
+--
+-- The revolutionary ending: the orchestra gradually falls silent, leaving
+-- only a wordless offstage women's chorus singing "a soft, eerie melody."
+-- Holst's performance instruction: "This bar is to be repeated until the
+-- sound is lost in the distance." A door between the singers and the
+-- auditorium is to be "gradually closed" during the final repetitions.
+-- The effect is infinite dissolution — music becoming silence becoming
+-- eternity.
+--
+-- Neptune predated widespread musical fade-outs by decades. Its
+-- otherworldly, drifting texture became a precursor to ambient music and
+-- a staple of science fiction soundtracks.
+--
+-- Adaptation: Most minimal orchestration in the entire suite. Harp and
+-- flute only, with the faintest suggestion of high strings. The offstage
+-- chorus is simulated by harp in its highest register with flute doubling.
+-- No brass, no timpani, no bass strings. Kinetics never exceeds 0.2 and
+-- the final nodes descend through 0.05 to 0.02 before reaching zero —
+-- the algorithmic fade-out, the door closing on the sound.
+-- ============================================================================
+
+tempo = 52
+
+start <- lead "E min"
+
+let ctx = consonant
+        $ hcKey "*"
+        $ hContext
+
+s <- seek "debussy" $ cue start $ tonal ctx $ len 8 $ entropy 0.1 $ gen
+
+-- Form: ~370s (360s + 10s gap)
+-- Mystic arc: crystalline emergence → floating → dissolving → the door closing → silence
+form =
+  [ at    0    0.0   0.0   s     -- silence
+  , at    5    0.2   0.2   s     -- ethereal emergence: harp, flute
+  , at   60    0.2   0.2   s     -- wordless chorus (harp + flute high)
+  , at  120    0.15  0.15  s     -- floating in infinite space
+  , at  200    0.1   0.1   s     -- dissolving: structure fading
+  , at  280    0.05  0.05  s     -- barely audible: the door closing
+  , at  340    0.02  0.02  s     -- almost inaudible: sound lost in distance
+  , at  360    0.0   0.0   s     -- infinite silence
+  , at  370    0.0   0.0   s     -- the void
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- The Mystic: harp (celestial) + flute (ethereal)
+mystic f k d = p "mystic" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 0]/4"
+        , alto    = "[1 0 1 2]/4"
+        }
+  f
+    $ stack [silence
+        , harp  (0, 1) k vl flow Soprano
+        , flute (0, 1) k vl flow Alto
+    ] |* vel d
+
+-- The Cosmos: high strings as distant harmonics
+cosmos f k d = p "cosmos" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "3"
+        , alto    = "1"
+        }
+  f
+    $ stack [silence
+        , violin1 (0.1, 1) k vl flow Soprano8va
+        , viola   (0.1, 1) k vl flow Alto
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (warp "[1 2 3 4]/8")
+  putStrLn "THE PLANETS — VII. Neptune, the Mystic"
+  mapM_ id [hush, setbpm tempo
+    ,mystic f k  $ d 0.6
+    ,cosmos f k  $ d 0.3
+    ]
+
+hush''

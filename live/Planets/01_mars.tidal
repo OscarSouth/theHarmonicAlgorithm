@@ -1,0 +1,117 @@
+-- ============================================================================
+-- I. MARS, THE BRINGER OF WAR
+-- The Planets, Op. 32 — Gustav Holst (1914)
+-- ============================================================================
+--
+-- Super-structure position: 1/8 (Establishing)
+-- The spectral narrative begins with primal energy — war as the foundation
+-- of human experience, the oldest and most terrible archetype.
+--
+-- Holst composed Mars in 1914, just before WWI erupted. The movement opens
+-- with the most famous ostinato in orchestral music: a relentless 5/4 pattern
+-- played col legno (striking strings with the wood of the bow), creating a
+-- mechanical, inhuman quality that prophesied the industrial slaughter to
+-- come. The unbalanced 5/4 metre generates perpetual instability — the
+-- listener can never settle.
+--
+-- The ostinato begins quietly in percussion, harp, and col legno strings,
+-- then brass fanfares enter with aggressive, bitonal harmony (G against Db
+-- — an unresolvable tritone-related clash). The movement builds inexorably
+-- through "gigantic climaxes depicting battles, rage, and a triumphal march"
+-- to a catastrophic ffff climax before dissolving.
+--
+-- Holst called it "an experiment in rhythm and clashing keys." Its violence
+-- surprised even him.
+--
+-- Adaptation: Maximum aggression from our chamber forces. All strings in
+-- grid voicing (raw, angular — no voice-leading smoothing). Brass entering
+-- via kinetics. High entropy, dissonant drift. The ostinato quality is
+-- encoded in fast, repetitive voice line patterns.
+-- ============================================================================
+
+tempo = 80
+
+start <- lead "G# min"
+
+let ctx = dissonant
+        $ hcKey "*"
+        $ hContext
+
+s <- seek "stravinsky:60 bartok:40" $ cue start $ tonal ctx $ len 8 $ entropy 0.7 $ gen
+
+-- Form: ~430s (420s + 10s gap)
+-- War arc: quiet menace → brass enter → intensification → catastrophic fff → aftermath
+form =
+  [ at    0    0.0   0.0   s     -- silence
+  , at    5    0.3   0.3   s     -- ostinato begins: col legno, quiet menace
+  , at   60    0.5   0.5   s     -- brass fanfares enter
+  , at  120    0.7   0.7   s     -- march intensifies, full brass
+  , at  210    0.85  0.85  s     -- CLIMAX: fff, maximum forces
+  , at  300    0.7   0.7   s     -- sustained fury
+  , at  360    0.5   0.5   s     -- dissolution begins
+  , at  400    0.2   0.2   s     -- aftermath
+  , at  420    0.0   0.0   s     -- end
+  , at  430    0.0   0.0   s     -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- The Ostinato: strings in grid voicing, relentless rhythmic patterns
+ostinato f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[0 1 0 3]*4"
+        , alto    = "[3 0 1 0]*4"
+        , tenor   = "[1 0 3 0]*4"
+        , bass    = "[0 0 -1 0]*2"
+        }
+  f
+    $ stack [silence
+        , violin1    (0, 1) k vl grid Soprano
+        , violin2    (0, 1) k vl grid Alto
+        , viola      (0, 1) k vl grid Tenor
+        , cello      (0, 1) k vl grid Bass
+        , contrabass (0, 1) k vl grid Bass8vb
+    ] |* vel d
+
+-- War Brass: fanfares and martial fury entering at higher kinetics
+warBrass f k d = p "brss" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[0 3 0 1]*2"
+        , alto    = "[1 0 3 0]*2"
+        , bass    = "[0 -1 0 0]*2"
+        }
+  f
+    $ stack [silence
+        , horn     (0.4, 1) k vl flow Soprano
+        , trombone (0.4, 1) k vl grid Tenor
+        , basstrom (0.4, 1) k vl grid Bass8vb
+    ] |* vel d
+
+-- War Percussion: timpani pulse and bassdrum impact
+warPerc f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass = "[0 0 -1 0]*2"
+        }
+  f
+    $ stack [silence
+        , timpani (0.3, 1) k vl grid Bass8vb
+        , slate (0.5, 1) k [silence
+            , bassdrum "[1 . 1 . 1]/4"
+            ]
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (warp "[1 2 3 4 3 2 1 4]/4")
+  putStrLn "THE PLANETS — I. Mars, the Bringer of War"
+  mapM_ id [hush, setbpm tempo
+    ,ostinato f k  $ d 0.9
+    ,warBrass f k  $ d 0.85
+    ,warPerc  f k  $ d 0.8
+    ]
+
+hush''

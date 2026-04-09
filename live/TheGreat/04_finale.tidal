@@ -1,0 +1,164 @@
+-- ============================================================================
+-- IV. FINALE. ALLEGRO VIVACE
+-- Symphony No. 9 in C major, D. 944 "The Great" — Franz Schubert (1825-28)
+-- ============================================================================
+--
+-- Super-structure positions: SECONDARY (0.855) through TERTIARY (0.945)
+-- The absolute peak of the entire symphony — 1.0 — is reserved for the
+-- coda, where the opening horn theme returns.
+--
+-- The largest movement: 1154 bars of relentless energy. A brass fanfare
+-- launches the orchestra into an extended sonata form with six unique
+-- thematic elements. The famous repeated-note theme drives forward with
+-- unstoppable rhythmic momentum, while triplet figuration (connecting
+-- back to Movement I) "bursts forth excitedly" across the strings.
+--
+-- New melodic material emerges quietly on oboes and bassoons with
+-- "whirring triplets" in accompanying violins — a moment of intimate
+-- beauty within the symphonic torrent. The development section features
+-- Schubert's characteristic "restless harmonic shifts always searching
+-- for new keys," driven forward through modulation. Midway through,
+-- Schubert pays tribute to Beethoven by quoting from the finale of
+-- Beethoven's Ninth Symphony — a fleeting but unmistakable homage.
+--
+-- THE CODA: the opening horn call from Movement I returns — carried now
+-- by trombones and full strings, with overwhelming power. This is the
+-- symphony's ultimate cyclic moment: what began as a solo, unaccompanied
+-- horn "roughly hewn from marble" is now the entire orchestra in
+-- triumphant unison. The "heavenly length" reveals its purpose: the
+-- journey from one lonely voice to universal affirmation. The final
+-- cadence is shattering — fortissimo C's over three octaves in every
+-- instrument simultaneously.
+--
+-- Adaptation: Two progressions — sFinale (relentless energy) and sReturn
+-- (the horn theme's triumphant coda). The horn returns at (0.7,1),
+-- meaning it only enters in the final coda section where kinetics exceeds
+-- 0.7. Everything builds toward that moment. Peak 1.0 — the only moment
+-- in the entire four-movement symphony at absolute maximum.
+-- ============================================================================
+
+tempo = 138
+
+-- ── GENERATION ──────────────────────────────────────────
+
+startFinale <- lead "C maj"
+startReturn <- lead "C maj"
+
+let ctxFinale = hcKey "0#"
+              $ hContext
+
+let ctxReturn = consonant
+              $ hcKey "0#"
+              $ hContext
+
+sFinale <- seek "beethoven:50 brahms:50" $ cue startFinale $ tonal ctxFinale $ len 8 $ entropy 0.4 $ gen
+sReturn <- seek "brahms:40 beethoven:30 bach:30" $ cue startReturn $ tonal ctxReturn $ len 8 $ entropy 0.2 $ gen
+
+-- Form: ~850s (840s + 10s gap)
+-- Relentless energy → development → recapitulation → THE CODA (horn returns, 1.0)
+form =
+  [ at    0    0.0   0.0   sFinale   -- silence
+  , at    5    0.6   0.6   sFinale   -- brass fanfare → full orchestra
+  , at   60    0.7   0.7   sFinale   -- repeated-note theme: relentless drive
+  , at  130    0.8   0.8   sFinale   -- triplet figuration explodes
+  , at  200    0.6   0.6   sFinale   -- second theme: oboe+bassoon quietly
+  , at  280    0.75  0.75  sFinale   -- development: restless modulations
+  , at  380    0.85  0.85  sFinale   -- development climax
+  , at  460    0.7   0.7   sFinale   -- recapitulation
+  , at  540    0.8   0.8   sFinale   -- building toward coda
+  -- THE CODA: the horn theme returns — the circle closes
+  , at  620    0.85  0.85  sReturn   -- horn call from Movement I returns
+  , at  680    0.9   0.9   sReturn   -- trombones carry the theme
+  , at  720    0.95  0.95  sReturn   -- massive orchestral climax building
+  , at  770    1.0   1.0   sReturn   -- ABSOLUTE PEAK: fff over three octaves
+  , at  810    0.7   0.7   sReturn   -- final cadence: shattering
+  , at  840    0.0   0.0   sReturn   -- end
+  , at  850    0.0   0.0   sReturn   -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Finale strings: relentless, repeated-note energy
+finaleStrg f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[0 1 2 3]*4"
+        , alto    = "[3 2 0 1]*4"
+        , tenor   = "[1 0 3 2]*4"
+        , bass    = "[0 1 0 2]/4"
+        }
+  f
+    $ stack [silence
+        , violin1    (0, 1)   k vl flow Soprano
+        , violin2    (0, 1)   k vl flow Alto
+        , viola      (0, 1)   k vl flow Tenor
+        , cello      (0, 1)   k vl grid Bass
+        , contrabass (0, 1)   k vl grid Bass8vb
+    ] |* vel d
+
+-- Winds: active throughout with repeated-note patterns
+finaleWind f k d = p "wind" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 1 2 0 3 2 1 3]/4"
+        , alto    = "[1 0 1 2]/4"
+        , bass    = "[0 1 0 2]/4"
+        }
+  f
+    $ stack [silence
+        , flute   (0.3, 1) k vl flow Soprano
+        , oboe    (0.3, 1) k vl flow Alto
+        , clarinet(0.3, 1) k vl flow Alto
+        , bassoon (0.3, 1) k vl flow Bass
+    ] |* vel d
+
+-- Maximum brass: Schubert's revolutionary trombone writing
+finaleBrss f k d = p "brss" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0 1 2 3 0]/4"
+        , tenor   = "[0 1 2 0]/4"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , horn     (0.3, 1) k vl flow Soprano
+        , trombone (0.5, 1) k vl flow Tenor
+        , basstrom (0.5, 1) k vl grid Bass8vb
+    ] |* vel d
+
+-- The Horn Return: the opening call comes home (CODA ONLY)
+-- Enters only when kinetics > 0.7 — the final moments
+hornReturn f k d = p "hornreturn" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0 1 2 3 1]/4"
+        }
+  f
+    $ stack [silence
+        , horn (0.7, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Timpani: rhythmic drive throughout
+finalePerc f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass = "[0 0 -1 0]*2"
+        }
+  f
+    $ stack [silence
+        , timpani (0.4, 1) k vl grid Bass8vb
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (rep sFinale 1)
+  putStrLn "THE GREAT — IV. Finale. Allegro vivace"
+  mapM_ id [hush, setbpm tempo
+    ,finaleStrg  f k  $ d 0.85
+    ,finaleWind  f k  $ d 0.7
+    ,finaleBrss  f k  $ d 0.85
+    ,hornReturn  f k  $ d 0.9
+    ,finalePerc  f k  $ d 0.65
+    ]
+
+hush''

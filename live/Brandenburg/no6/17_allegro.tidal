@@ -1,0 +1,74 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 6 IN B-FLAT MAJOR, BWV 1051 — I. [ALLEGRO]
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- Super-structure position: Convergence — the set dissolves into intimacy.
+--
+-- The darkest and most intimate of the six concertos. Conspicuously
+-- WITHOUT VIOLINS — the highest sounds are given to two violas, creating
+-- an unprecedentedly mellow sonority described as "joyful bluish purple."
+-- Two violas da gamba (our violas in different voice assignments) provide
+-- middle-to-low color. Cello and continuo complete the ensemble.
+--
+-- The opening features extraordinary contrapuntal writing: the two violas
+-- enter in canon separated by only two sixteenth notes — so close they
+-- nearly overlap, creating an effect of shadowed echoing. The movement
+-- has a unique quality: chamber music masquerading as a concerto, intimate
+-- conversation rather than virtuosic display.
+--
+-- Adaptation: NO violin1, NO violin2. Viola at (0,1) is the highest voice.
+-- Two viola parts in different Voice assignments (Soprano and Alto) create
+-- the canon. Cello and contrabass for depth. Harp as continuo.
+-- The lowest, darkest, most inward-facing orchestration in the set.
+-- ============================================================================
+
+tempo = 104
+
+start <- lead "Bb maj"
+
+let ctx = hcKey "2b"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.2 $ gen
+
+form =
+  [ at    0    0.0   0.0   s
+  , at    5    0.4   0.4   s     -- violas enter in canon
+  , at   50    0.3   0.3   s     -- episode: first viola
+  , at   90    0.45  0.45  s     -- ritornello
+  , at  130    0.3   0.3   s     -- episode: second viola
+  , at  170    0.5   0.5   s     -- ritornello: peak (modest)
+  , at  220    0.35  0.35  s     -- episode
+  , at  270    0.45  0.45  s     -- concluding ritornello
+  , at  320    0.25  0.25  s     -- fading
+  , at  350    0.0   0.0   s
+  , at  360    0.0   0.0   s     -- gap
+  ]
+
+-- NO VIOLINS in this concerto
+
+viola1 f k d = p "viola1" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 2 1 0 1 2 3 0]/4"}
+  f $ stack [silence, viola (0, 1) k vl flow Soprano] |* vel d
+
+viola2 f k d = p "viola2" $ do
+  let vl = voiceLines {_vl = "~", alto = "[0 3 2 1 0 1 2 3]/4"}
+  f $ stack [silence, viola (0, 1) k vl flow Alto] |* vel d
+
+lowStrg f k d = p "bass" $ do
+  let vl = voiceLines {_vl = "~", bass = "[0 1 0 2]/4"}
+  f $ stack [silence, cello (0, 1) k vl grid Bass, contrabass (0, 1) k vl grid Bass8vb] |* vel d
+
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 0 2 1]/4"}
+  f $ stack [silence, harp (0, 1) k vl flow Alto] |* vel d
+
+do
+  let
+    f = id; d = (* 1); k = iK tempo form (rep s 1)
+  putStrLn "BRANDENBURG NO. 6 — I. [Allegro]"
+  mapM_ id [hush, setbpm tempo
+    ,viola1 f k $ d 0.8, viola2 f k $ d 0.75, lowStrg f k $ d 0.7, continuo f k $ d 0.6]
+
+hush''

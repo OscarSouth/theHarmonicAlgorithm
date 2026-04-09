@@ -1,0 +1,224 @@
+-- ============================================================================
+-- II. ANDANTE CON MOTO
+-- Symphony No. 9 in C major, D. 944 "The Great" — Franz Schubert (1825-28)
+-- ============================================================================
+--
+-- Super-structure positions: 3/8 (Development) through golden ratio (PRIMARY)
+--
+-- The second movement is a pilgrimage. It opens with one of the most
+-- perfectly constructed orchestral unfoldings in all of symphonic music:
+--
+--   SCENE 1: Walking bass alone — cello and bass establish a steady,
+--            step-by-step quarter-note pulse. Just footsteps, nothing else.
+--            The "walking" quality suggests a physical journey — a
+--            procession through landscape.
+--
+--   SCENE 2: Violas fill in harmonic foundation. The walking becomes
+--            a procession — still no melody, just the march's framework.
+--
+--   SCENE 3: The oboe enters with the theme — "the jaunty, swing-along
+--            memorable theme," one of the most beloved melodies in all
+--            symphonic literature. Sweet, slightly plaintive, folk-like
+--            in its simplicity and "veiled quirkiness."
+--
+--   SCENE 4: Clarinet answers the oboe. The two woodwinds converse,
+--            passing the melody back and forth — a duet discovering
+--            the theme together, as if two voices finding a shared song.
+--
+--   SCENE 5: Oboe returns, reasserting the original line — but now with
+--            clarinet's warmth surrounding it. The melody is enriched by
+--            having been shared.
+--
+--   SCENE 6: Strings boldly restate the theme. The same melody that
+--            began as an intimate wind solo now has the full authority
+--            of the string section — same theme, transformed power.
+--
+--   SCENE 7: Full orchestra builds. Brass and woodwinds layer in.
+--            The walking bass never stops — it has been continuous since
+--            the first bar, providing the unbroken thread of the journey.
+--
+--   SCENE 8: The first section reaches fullness — the march at its
+--            most symphonic, every voice engaged.
+--
+-- This opening is a journey in microcosm: from solitary footsteps to
+-- a melody discovered, shared, and amplified into universal experience.
+-- The movement alternates between A minor (the march, assertive) and
+-- F major (a more distant, lyrical, consoling landscape) — as if walking
+-- through alternating emotional territories while the bass pulse continues.
+--
+-- The golden ratio of the entire symphony's super-structure falls within
+-- this movement's climax — the march transformed into something
+-- devastating, the journey's most profound moment.
+--
+-- Adaptation: Walking bass (cello/bass pizzicato) is the eternal
+-- foundation — always (0,1). The oboe theme enters at (0.15,1).
+-- Each subsequent instrument enters at progressively higher kinetics
+-- thresholds, creating the scene-by-scene unfolding through the form arc.
+-- ============================================================================
+
+tempo = 76
+
+-- ── GENERATION ──────────────────────────────────────────
+
+startMarch   <- lead "A min"
+startLyrical <- lead "F maj"
+
+let ctxMarch = hcKey "0#"
+             $ hContext
+
+let ctxLyrical = consonant
+               $ hcKey "1b"
+               $ hContext
+
+sMarch   <- seek "bach:40 brahms:30 debussy:30" $ cue startMarch $ tonal ctxMarch $ len 8 $ entropy 0.25 $ gen
+sLyrical <- seek "debussy:40 brahms:30 bach:30" $ cue startLyrical $ tonal ctxLyrical $ len 8 $ entropy 0.2 $ gen
+
+-- Form: ~850s (840s + 10s gap)
+-- GRANULAR OPENING: 8 scenes of instrumental unfolding (~145s)
+-- Then the journey continues through march/lyrical alternation
+form =
+  [ at    0    0.0   0.0   sMarch    -- silence
+  -- THE OPENING: the journey begins
+  , at    5    0.15  0.15  sMarch    -- SCENE 1: Walking bass alone — just footsteps
+  , at   20    0.15  0.15  sMarch    -- SCENE 2: Violas fill in — the procession
+  , at   35    0.2   0.2   sMarch    -- SCENE 3: Oboe enters — the beloved theme
+  , at   55    0.25  0.25  sMarch    -- SCENE 4: Clarinet answers — two voices converse
+  , at   75    0.3   0.3   sMarch    -- SCENE 5: Oboe returns enriched
+  , at   95    0.4   0.4   sMarch    -- SCENE 6: Strings boldly restate
+  , at  120    0.5   0.5   sMarch    -- SCENE 7: Full orchestra builds
+  , at  145    0.55  0.6   sMarch    -- SCENE 8: March at fullest
+  -- THE JOURNEY CONTINUES
+  , at  180    0.4   0.4   sLyrical  -- F major: consoling second theme
+  , at  240    0.5   0.5   sLyrical  -- lyrical expansion
+  , at  310    0.6   0.65  sMarch    -- march returns, more intense
+  , at  400    0.7   0.7   sMarch    -- development: the march transformed
+  , at  480    0.85  0.85  sMarch    -- CLIMAX: golden ratio of super-structure
+  , at  540    0.6   0.6   sLyrical  -- lyrical return: consolation
+  , at  620    0.5   0.5   sMarch    -- march recapitulation
+  , at  700    0.4   0.4   sLyrical  -- final lyrical passage
+  , at  770    0.25  0.25  sMarch    -- coda: the journey nears its end
+  , at  820    0.1   0.1   sMarch    -- fading footsteps
+  , at  840    0.0   0.0   sMarch    -- silence
+  , at  850    0.0   0.0   sMarch    -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- The Walking Bass: eternal footsteps (ALWAYS present)
+walkingBass f k d = p "bass" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass = "0"
+        }
+  f
+    $ stack [silence
+        , cello      (0, 1) k vl grid Bass    # pizz
+        , contrabass (0, 1) k vl grid Bass8vb # pizz
+    ] |* vel d
+
+-- The Oboe Theme: the beloved march melody (enters Scene 3)
+oboeTheme f k d = p "oboe" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1 2 1 0 1]/4"
+        }
+  f
+    $ stack [silence
+        , oboe (0.15, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Clarinet Answer: the dialogue partner (enters Scene 4)
+clarinetAnswer f k d = p "clarinet" $ do
+  let vl = voiceLines {_vl = "~"
+        , alto = "[1 0 1 2 1 2 3 2]/4"
+        }
+  f
+    $ stack [silence
+        , clarinet (0.2, 1) k vl flow Alto
+    ] |* vel d
+
+-- Harmonic fill: viola from early on (enters Scene 2)
+harmonicFill f k d = p "fill" $ do
+  let vl = voiceLines {_vl = "~"
+        , tenor = "2"
+        }
+  f
+    $ stack [silence
+        , viola (0.12, 1) k vl flow Tenor
+    ] |* vel d
+
+-- Strings taking the melody boldly (enters Scene 6)
+marchStrg f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1 2 1 0 1]/4"
+        , alto    = "[1 0 1 2 1 2 3 2]/4"
+        }
+  f
+    $ stack [silence
+        , violin1 (0.3, 1) k vl flow Soprano
+        , violin2 (0.3, 1) k vl flow Alto
+    ] |* vel d
+
+-- Brass: adding weight at climactic moments
+marchBrass f k d = p "brss" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0]/4"
+        , tenor   = "[0 1 2 0]/4"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , horn     (0.4, 1) k vl flow Soprano
+        , trombone (0.5, 1) k vl flow Tenor
+        , basstrom (0.6, 1) k vl grid Bass8vb
+    ] |* vel d
+
+-- Harp: harmonic warmth (continuo role)
+marchContinuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~"
+        , alto = "[1 0 2 1]/4"
+        }
+  f
+    $ stack [silence
+        , harp (0.2, 1) k vl flow Alto
+    ] |* vel d
+
+-- Flute: brightness when the winds expand
+brightness f k d = p "flute" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 0]/4"
+        }
+  f
+    $ stack [silence
+        , flute (0.3, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Timpani: march punctuation
+marchPerc f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass = "0"
+        }
+  f
+    $ stack [silence
+        , timpani (0.6, 1) k vl grid Bass8vb
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (warp "[1 2 3 4]/8")
+  putStrLn "THE GREAT — II. Andante con moto"
+  mapM_ id [hush, setbpm tempo
+    ,walkingBass    f k  $ d 0.8
+    ,oboeTheme      f k  $ d 0.85
+    ,clarinetAnswer f k  $ d 0.7
+    ,harmonicFill   f k  $ d 0.6
+    ,marchStrg      f k  $ d 0.75
+    ,marchBrass     f k  $ d 0.8
+    ,marchContinuo  f k  $ d 0.5
+    ,brightness     f k  $ d 0.6
+    ,marchPerc      f k  $ d 0.6
+    ]
+
+hush''

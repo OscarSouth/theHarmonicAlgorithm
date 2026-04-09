@@ -1,0 +1,77 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 1 IN F MAJOR, BWV 1046 — III. ALLEGRO
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- The third movement returns to F major with all forces engaged. The horns
+-- return with renewed vigor. The ritornello is more driving and compact
+-- than the first movement — a concentrated burst of contrapuntal energy
+-- building to the concerto's most sustained fortissimo. The violino
+-- piccolo and oboes interweave with the horn calls.
+--
+-- Adaptation: All forces at maximum density (for Bach — peak 0.7).
+-- Terraced dynamics: tutti at 0.6-0.7, episodes at 0.4.
+-- ============================================================================
+
+tempo = 112
+
+start <- lead "F maj"
+
+let ctx = hcKey "1b"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.3 $ gen
+
+form =
+  [ at    0    0.0   0.0   s
+  , at    5    0.6   0.6   s     -- ritornello: all forces
+  , at   40    0.4   0.4   s     -- episode
+  , at   70    0.65  0.65  s     -- ritornello return
+  , at  100    0.4   0.4   s     -- episode: horn + piccolo
+  , at  140    0.7   0.7   s     -- ritornello: peak
+  , at  180    0.45  0.45  s     -- episode
+  , at  220    0.65  0.65  s     -- final ritornello
+  , at  260    0.5   0.5   s     -- conclusion
+  , at  270    0.0   0.0   s
+  , at  280    0.0   0.0   s     -- gap
+  ]
+
+horns f k d = p "horns" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 0 3 1 3 2 3 0]/4"
+        }
+  f $ stack [silence, horn (0, 1) k vl flow Soprano] |* vel d
+
+piccolo f k d = p "piccolo" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 1 2 0 3 2 1 0]/4"
+        }
+  f $ stack [silence, violin1 (0, 1) k vl flow Soprano8va] |* vel d
+
+winds f k d = p "wind" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1]/4"
+        , bass    = "0"
+        }
+  f $ stack [silence, oboe (0.2, 1) k vl flow Alto, bassoon (0.2, 1) k vl flow Bass] |* vel d
+
+ripieno f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , alto = "[1 2 1 0]/4", tenor = "[2 1 0 2]/4", bass = "0"
+        }
+  f $ stack [silence, violin2 (0.3, 1) k vl flow Alto, viola (0.3, 1) k vl flow Tenor
+        , cello (0, 1) k vl grid Bass, contrabass (0, 1) k vl grid Bass8vb] |* vel d
+
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 0 2 1]/4"}
+  f $ stack [silence, harp (0, 1) k vl flow Alto] |* vel d
+
+do
+  let
+    f = id; d = (* 1); k = iK tempo form (rep s 1)
+  putStrLn "BRANDENBURG NO. 1 — III. Allegro"
+  mapM_ id [hush, setbpm tempo
+    ,horns f k $ d 0.85, piccolo f k $ d 0.8, winds f k $ d 0.7
+    ,ripieno f k $ d 0.7, continuo f k $ d 0.6]
+
+hush''

@@ -1,0 +1,99 @@
+-- ============================================================================
+-- SPRING — II. LARGO E PIANISSIMO SEMPRE
+-- The Four Seasons, Op. 8 No. 1, RV 269 — Antonio Vivaldi (1725)
+-- ============================================================================
+--
+-- Super-structure position: 0.17
+--
+-- "And in the pleasant flowery meadow,
+--  To the soft murmur of leaves and plants,
+--  The goatherd sleeps, his faithful dog beside him."
+--
+-- The most intimate movement in the Four Seasons. Vivaldi marks it
+-- "pianissimo sempre" — always very quiet. The solo violin plays a calm,
+-- sustained melody representing the sleeping goatherd ("il capraro che
+-- dorme" written in the score). Beneath, violas play gentle rustling
+-- figures (the murmur of leaves), while a single viola part is explicitly
+-- marked "il cane che grida" — the barking dog, rendered as sharp staccato
+-- figures that persistently punctuate the pastoral stillness.
+--
+-- The genius is in the juxtaposition: perfect peace (sleeping shepherd,
+-- gentle nature) disturbed only by the faithful dog's alert vigilance.
+-- The barking never wakes the sleeper. The two worlds coexist.
+--
+-- Adaptation: Ultra-quiet throughout, peak kinetics 0.2. Violin1 as
+-- sleeping goatherd. Harp for rustling leaves. Oboe for the barking dog
+-- (staccato patterns with rests).
+-- ============================================================================
+
+tempo = 52
+
+start <- lead "B maj"
+
+let ctx = consonant
+        $ hcKey "5#"
+        $ hContext
+
+s <- seek "bach:50 debussy:50" $ cue start $ tonal ctx $ len 8 $ entropy 0.1 $ gen
+
+-- Form: ~180s (170s + 10s gap)
+-- Pastoral calm throughout — barely rises above a whisper
+form =
+  [ at    0    0.0   0.0   s     -- silence
+  , at    5    0.15  0.15  s     -- goatherd sleeps: solo violin, gentle
+  , at   40    0.2   0.2   s     -- leaves murmur: harp joins
+  , at   80    0.2   0.2   s     -- dog barks: oboe staccato enters
+  , at  120    0.15  0.15  s     -- deep sleep resumes
+  , at  160    0.1   0.1   s     -- fading
+  , at  170    0.0   0.0   s     -- silence
+  , at  180    0.0   0.0   s     -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- The sleeping goatherd: violin1 solo, sustained, dreaming
+goatherd f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1]/4"
+        }
+  f
+    $ stack [silence
+        , violin1 (0, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Rustling leaves: harp gentle arpeggiation
+leaves f k d = p "leaves" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[0 1 2 1]/4"
+        , alto    = "[1 2 3 2]/4"
+        }
+  f
+    $ stack [silence
+        , harp (0.1, 1) k vl flow Alto
+    ] |* vel d
+
+-- The barking dog: oboe staccato punctuation
+dog f k d = p "dog" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 . 3 . 3 .]*2"
+        }
+  f
+    $ stack [silence
+        , oboe (0.15, 1) k vl flow Soprano
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (warp "[1 2 3 4]/8")
+  putStrLn "THE FOUR SEASONS — Spring II. Largo"
+  mapM_ id [hush, setbpm tempo
+    ,goatherd f k  $ d 0.6
+    ,leaves   f k  $ d 0.4
+    ,dog      f k  $ d 0.35
+    ]
+
+hush''

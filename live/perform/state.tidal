@@ -12,14 +12,12 @@ start <- lead "E min"
 
 ctx = invSkip 1
   -- $ consonant
-  -- $ hcRoots "*"
-  $ hcRoots "0# rise"
-  $ hcKey "*"
-  -- $ hcKey "*"
+  $ hcRoots "E A B fall"
+  $ hcKey "1#"
   $ hContext
 
-s <- seek "*"
-  $ len 8
+s <- seek "debussy bach"
+  $ len 4
   $ cue start
   $ tonal ctx
   $ entropy 0.3
@@ -28,26 +26,29 @@ s <- seek "*"
  -- '' ¬¬
 do
   let
-    r = warp "[1 2 3 4 5 6 7 8]/16"
-    -- r = warp "[2 4 3 1]/4"
-    f = (swingBy 0.07 2)
-    d = (* 1)
-    k = formK tempo [at 0 0 0 s
-      ,at 30 1 1 s
-      ]
+    r = warp "[1 [4 3@2] 2 1]/4"
+    -- r = warp "[1 3 [2 [3 2]] 1]/4"
+    f = (swingBy 0.04 2)
+    d = (*1)
+    k = iK tempo [at 0 0 0.1 s
+      ,at 81 1 1 s
+      ,at 100 0 0.1 s
+      ] r
   putStrLn $ "LAUNCH ¬¬"
   print s
-  mapM_ id [launch, setbpm tempo
-    -- ,wind f r k $d 0.6
-    -- ,strg f r k $d 0.8
-    -- ,brss f r k $d 0.9
-    -- ,perc f r k $d 1
-    ,p07  f r k $d 0.9
-    ,subk f r k $d 0.1
-    -- ,k909 f k $d 0.8
-    -- ,kmpc f k $d 0.8
-    -- ,m32  f r k $d 0.9
-    -- ,mdf f r k $d 0.9
+  mapM_ id [hush, setbpm tempo
+    -- ,metronome 4 $d 0.2
+    -- ,count k $d 0.6
+    -- ,wind f k $d 0.6
+    -- ,strg f k $d 0.8
+    -- ,brss f k $d 0.9
+    -- ,perc f k $d 1
+    ,p07  f k $d 0.9
+    ,subk f k $d 0.1
+    ,k909 f k $d 0.8
+    ,kmpc f k $d 0.3
+    -- ,m32  f k $d 0.9
+    ,mdf f k $d 0.9
    ]
 
-hush''
+hush

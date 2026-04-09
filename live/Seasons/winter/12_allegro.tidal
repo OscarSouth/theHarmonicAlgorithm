@@ -1,0 +1,130 @@
+-- ============================================================================
+-- WINTER — III. ALLEGRO
+-- The Four Seasons, Op. 8 No. 4, RV 297 — Antonio Vivaldi (1725)
+-- ============================================================================
+--
+-- Super-structure position: 1.0 (TERTIARY — convergence)
+--
+-- "To walk on the ice with tentative steps,
+--  Going carefully for fear of falling.
+--  To go in haste, slide, and fall down to the ground,
+--  To go again on the ice and run,
+--  In case the ice cracks and opens.
+--  To hear leaving their iron-gated house
+--  Sirocco, Boreas, and all the winds in battle —
+--  This is winter, but it brings joy."
+--
+-- The finale of the Four Seasons. The solo violin tentatively steps onto
+-- ice, then slides, falls, gets up, runs, falls again. Vivaldi depicts
+-- every stage: cautious descending octaves (tentative steps), sudden loud
+-- accents followed by silence (falling), rapid ascending runs (getting up
+-- and running), harmonic disruptions (ice cracking). Then the winds emerge
+-- from their "iron-gated house" — Sirocco and Boreas battle in multiple
+-- melodic lines suggesting opposing forces.
+--
+-- The final line of the sonnet — "This is winter, but it brings joy" —
+-- transforms the movement's ending. Despite all the hardship, the driving
+-- rhythmic energy and ultimate resolution affirm life's persistence through
+-- winter's worst. The cycle is complete. After winter: spring again.
+--
+-- Adaptation: Two progressions — sIce (cautious, lower entropy) and sWinds
+-- (battling, higher entropy, dissonant). Violin1 as the skater. Flute for
+-- cold wind (Boreas). Full strings for the wind battle. The ending
+-- resolves with energy — this is winter, but it brings joy.
+-- ============================================================================
+
+tempo = 120
+
+startIce   <- lead "F min"
+startWinds <- lead "F min"
+
+let ctxIce = hcKey "4b"
+           $ hContext
+
+let ctxWinds = dissonant
+             $ hcKey "*"
+             $ hContext
+
+sIce   <- seek "bach:50 debussy:50" $ cue startIce $ tonal ctxIce $ len 8 $ entropy 0.4 $ gen
+sWinds <- seek "bach:50 stravinsky:50" $ cue startWinds $ tonal ctxWinds $ len 4 $ entropy 0.7 $ gen
+
+-- Form: ~230s (220s + 10s gap)
+-- Ice skating → falling → running → ice cracks → winds battle → JOY
+form =
+  [ at    0    0.0   0.0   sIce     -- silence
+  , at    5    0.4   0.4   sIce     -- tentative steps on ice
+  , at   30    0.5   0.5   sIce     -- haste: sliding, speeding up
+  , at   55    0.6   0.6   sIce     -- falling! getting up, running
+  , at   85    0.55  0.55  sIce     -- more careful now
+  , at  110    0.65  0.65  sWinds   -- ice cracks open: danger
+  , at  140    0.75  0.75  sWinds   -- Sirocco and Boreas: the winds battle
+  , at  175    0.6   0.6   sWinds   -- "this is winter..."
+  , at  200    0.4   0.4   sIce     -- "...but it brings joy"
+  , at  220    0.0   0.0   sIce     -- the cycle is complete
+  , at  230    0.0   0.0   sIce     -- gap / silence before the next spring
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- The skater: violin1 tentative, then sliding, then falling
+skating f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0 . 3 2 1]*2"
+        }
+  f
+    $ stack [silence
+        , violin1 (0, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Ice and strings: cautious then chaotic
+ice f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 1 2 0]*2"
+        , alto    = "[1 0 3 2]*2"
+        , tenor   = "[2 3 0 1]*2"
+        , bass    = "[0 0 -1 0]*2"
+        }
+  f
+    $ stack [silence
+        , violin2    (0.3, 1) k vl flow Alto
+        , viola      (0.3, 1) k vl flow Tenor
+        , cello      (0, 1)   k vl grid Bass
+        , contrabass (0, 1)   k vl grid Bass8vb
+    ] |* vel d
+
+-- The winds: flute as Boreas (cold North Wind)
+winds f k d = p "wind" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 1 3 0 3 2 3 1]*2"
+        }
+  f
+    $ stack [silence
+        , flute (0.4, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Continuo
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~"
+        , alto = "[1 0 2 1]/4"
+        }
+  f
+    $ stack [silence
+        , harp (0, 1) k vl flow Alto
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (rep sIce 1)
+  putStrLn "THE FOUR SEASONS — Winter III. Allegro"
+  mapM_ id [hush, setbpm tempo
+    ,skating  f k  $ d 0.9
+    ,ice      f k  $ d 0.75
+    ,winds    f k  $ d 0.6
+    ,continuo f k  $ d 0.5
+    ]
+
+hush''

@@ -1,0 +1,94 @@
+-- ============================================================================
+-- AUTUMN — II. ADAGIO MOLTO
+-- The Four Seasons, Op. 8 No. 3, RV 293 — Antonio Vivaldi (1725)
+-- ============================================================================
+--
+-- Super-structure position: 0.67
+--
+-- "Each peasant ceases his dance and song.
+--  The mild air gives pleasure,
+--  And the season invites many
+--  To enjoy a sweet slumber."
+--
+-- After the harvest festival, the village sleeps. The dancing and singing
+-- have ceased. The mild autumn air is pleasant. This is communal rest after
+-- communal labour and celebration — not the anxious exhaustion of Summer II
+-- but genuine, earned peace.
+--
+-- Vivaldi writes gentle, cradling music in D minor (the relative minor of
+-- F major). The texture is warm, homophonic — a lullaby for an entire
+-- village. The solo violin sings softly over sustained string chords.
+--
+-- In the spectral super-structure, this valley between Autumn I (harvest
+-- celebration) and Autumn III (the hunt) provides necessary respite at
+-- the suite's deepest point of contentment.
+--
+-- Adaptation: Muted strings only. Ultra-quiet, peak kinetics 0.2. The
+-- quietest movement alongside Spring II. Warm, consonant, barely there.
+-- ============================================================================
+
+tempo = 48
+
+start <- lead "D min"
+
+let ctx = consonant
+        $ hcKey "1b"
+        $ hContext
+
+s <- seek "debussy" $ cue start $ tonal ctx $ len 8 $ entropy 0.1 $ gen
+
+-- Form: ~180s (170s + 10s gap)
+-- Deep, earned slumber — barely rises above silence
+form =
+  [ at    0    0.0   0.0   s     -- silence
+  , at    5    0.15  0.15  s     -- sleep begins: gentle strings
+  , at   40    0.2   0.2   s     -- deep slumber: warmest point
+  , at   85    0.2   0.2   s     -- sustained peace
+  , at  120    0.15  0.15  s     -- dreaming
+  , at  155    0.1   0.1   s     -- fading deeper
+  , at  170    0.0   0.0   s     -- silence
+  , at  180    0.0   0.0   s     -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Slumber: muted strings as a lullaby
+slumber f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "3"
+        , alto    = "1"
+        , tenor   = "2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , violin1 (0, 1) k vl flow Soprano
+        , violin2 (0, 1) k vl flow Alto
+        , viola   (0, 1) k vl flow Tenor
+        , cello   (0, 1) k vl grid Bass
+    ] |* vel d
+
+-- Continuo: gentle harp sustain
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~"
+        , alto = "1"
+        }
+  f
+    $ stack [silence
+        , harp (0, 1) k vl flow Alto
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (warp "[1 2 3 4]/8")
+  putStrLn "THE FOUR SEASONS — Autumn II. Adagio molto"
+  mapM_ id [hush, setbpm tempo
+    ,slumber  f k  $ d 0.5
+    ,continuo f k  $ d 0.35
+    ]
+
+hush''

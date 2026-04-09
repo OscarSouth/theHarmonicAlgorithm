@@ -599,16 +599,16 @@ ex66 = notesToPCs <$> [
 -- PERFORMANCE INTERFACE (p07 on ch 07 — piano)
 -- ============================================================================
 
-p07 f s r d = d07 $ do
+p07 f k d = d07 $ do
   let o = ch 07
   f
     $ stack [silence
        -- --
-      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+      ,arrange (0,1) k (-9,9) flow (overlapF 0) ["~"
         ,"0 1 2"                          -- triadic flow voicing
       ]# o |* vel 0.4 |- oct 1 |= legato 4
        -- --
-      ,arrange root (overlapF 0 s) r (-9,9) ["~"
+      ,arrange (0,1) k (-9,9) root (overlapF 0) ["~"
         ,"0"                              -- bass root
       ]# o |* vel 0.6 |- oct 3 |= legato 0.95
        -- --
@@ -633,13 +633,12 @@ form = [
   -- '' ¬¬
 do
   let
-    r = warp "0 1 2 3"
     f = id
     d = (* 1)
-    k = formK tempo form
+    k = iK tempo form (warp "0 1 2 3")
   putStrLn $ "LAUNCH ¬¬"
   mapM_ id [hush, setbpm tempo
-    ,p07 f s r k       $ d 0.8
+    ,p07 f k            $ d 0.8
    ]
 
 hush''

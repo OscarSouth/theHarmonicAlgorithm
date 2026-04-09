@@ -1,21 +1,21 @@
 -------------------------------------------------------------------------------
--- examples.tidal - Example progressions using Phase B API
--- 
+-- examples.tidal - Example progressions
+--
 -- Demonstrates the Harmonic Algorithm's core workflow:
---   1. Define starting state with initCadenceState
+--   1. Define starting state with initCadenceState or lead
 --   2. Generate progressions using Markov walk through Neo4j
---   3. Voice and arrange progressions for TidalCycles
+--   3. Voice and arrange progressions for TidalCycles via iK/arrange
 -------------------------------------------------------------------------------
 
 bars = 2
 tempo = 90
 
 -- Instrument launcher pattern
-p01 f s r d = d01 $ do
+p01 f k d = d01 $ do
   let o = ch 01
   f
     $ stack [silence
-      ,arrange flow (overlapF 1 s) r (-9,9) ["~"
+      ,arrange (0,1) k (-9,9) flow (overlapF 1) ["~"
         ,slow 4 $ palindrome $ 8 -| run 16
       ]# o |* vel 1
     ] |* vel d
@@ -39,8 +39,9 @@ let prog1 = fromCadenceStates
       , initCadenceState 5 "E" [0,3,7]   -- Em (iv)
       ]
 
--- Play with roots
--- d1 $ note (voiceBy Roots prog1 "<0 1 2 3>") # s "superpiano"
+-- Play with current arrange paradigm (requires iK context):
+-- let k = iK 90 [at 0 1 1 prog1] (rep prog1 1)
+-- d01 $ arrange (0,1) k (-9,9) grid id ["0 1 2 3"] # ch 01
 
 -------------------------------------------------------------------------------
 -- EXAMPLE 2: Using HarmonicContext filters
@@ -60,16 +61,21 @@ let bassCtx = hcOvertones "E A D G" $ hContext
 -- Current state (can be modified during performance)
 state = prog1
 
+s = transposeP (0) state
+
+form = [
+  at    0   1   1   s
+  ]
+
 do
   let
     dyn = 0.8
-    rep = bars
-    s = transposeP (0) state
     f = (swingBy 0.07 2)
-    (d,r) = ((*dyn),rep)
+    d = (*dyn)
+    k = iK tempo form (rep s 1)
   putStrLn . show $ s
   mapM_ id [hush, setbpm tempo
-   ,p01 f s r $d 0.7
+   ,p01 f k $d 0.7
    ]
 
 -------------------------------------------------------------------------------

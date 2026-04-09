@@ -1,0 +1,95 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 5 IN D MAJOR, BWV 1050 — I. ALLEGRO
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- Super-structure position: GOLDEN RATIO — the most historically
+-- significant concerto in the set.
+--
+-- This movement contains the first extended keyboard cadenza in Western
+-- music history. The harpsichord (our harp) begins as continuo — its
+-- traditional subordinate role — then gradually accumulates virtuosic
+-- figuration until, at the climactic moment, the entire ripieno drops
+-- out and the harpsichord solos for 65 measures of dazzling passage work.
+-- When the ensemble returns, the hierarchical relationship has been
+-- permanently altered: the keyboard has become a soloist.
+--
+-- Three soloists form the concertino: harpsichord (harp), transverse
+-- flute, and violin. The ritornello principle governs the structure,
+-- but with the harpsichord's part growing inexorably more complex until
+-- it breaks free entirely.
+--
+-- The cadenza is encoded in the kinetics: activity builds from 0.5 to
+-- 0.7 across the movement, then kinetics drops to 0.1 (harp alone)
+-- before snapping back to 0.7 for the orchestral conclusion.
+-- ============================================================================
+
+tempo = 96
+
+startAllegro <- lead "D maj"
+startCadenza <- lead "D maj"
+
+let ctxAllegro = hcKey "2#"
+               $ hContext
+
+let ctxCadenza = consonant
+               $ hcKey "2#"
+               $ hContext
+
+sAllegro <- seek "bach" $ cue startAllegro $ tonal ctxAllegro $ len 8 $ entropy 0.25 $ gen
+sCadenza <- seek "bach" $ cue startCadenza $ tonal ctxCadenza $ len 8 $ entropy 0.1 $ gen
+
+form =
+  [ at    0    0.0   0.0   sAllegro
+  , at    5    0.5   0.5   sAllegro  -- ritornello: three soloists + ripieno
+  , at   50    0.35  0.35  sAllegro  -- episode: flute + violin
+  , at   90    0.55  0.55  sAllegro  -- ritornello
+  , at  130    0.4   0.4   sAllegro  -- episode: harpsichord increasingly active
+  , at  175    0.6   0.6   sAllegro  -- ritornello: fuller
+  , at  215    0.5   0.5   sAllegro  -- harpsichord figuration intensifies
+  , at  260    0.65  0.65  sAllegro  -- building: harpsichord nearly dominant
+  , at  300    0.7   0.7   sAllegro  -- pre-cadenza: maximum ensemble tension
+  -- THE CADENZA: harpsichord breaks free
+  , at  320    0.1   0.1   sCadenza  -- CADENZA: harp alone — the revolution
+  , at  370    0.15  0.15  sCadenza  -- cadenza: crystalline passage work
+  -- RETURN
+  , at  390    0.65  0.65  sAllegro  -- ripieno returns: the world has changed
+  , at  410    0.5   0.5   sAllegro  -- concluding ritornello
+  , at  420    0.0   0.0   sAllegro
+  , at  430    0.0   0.0   sAllegro  -- gap
+  ]
+
+-- The Harpsichord: from continuo to soloist (ALWAYS present)
+harpsichord f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0 1 2 3 0]/4"
+        , alto    = "[0 1 2 3 0 2 1 3]/4"
+        , bass    = "0"
+        }
+  f $ stack [silence, harp (0, 1) k vl flow Soprano] |* vel d
+
+-- Solo flute (transverse)
+soloFlute f k d = p "flute" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 2 3 1 2 1 0 1]/4"}
+  f $ stack [silence, flute (0.2, 1) k vl flow Alto] |* vel d
+
+-- Solo violin
+soloViolin f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 2 1 0 1 2 3 1]/4"}
+  f $ stack [silence, violin1 (0.2, 1) k vl flow Soprano] |* vel d
+
+-- Ripieno: drops out during cadenza (kinetics threshold 0.3)
+ripieno f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 2 1 0]/4", tenor = "2", bass = "0"}
+  f $ stack [silence, violin2 (0.3, 1) k vl flow Alto, viola (0.3, 1) k vl flow Tenor
+        , cello (0.2, 1) k vl grid Bass, contrabass (0.2, 1) k vl grid Bass8vb] |* vel d
+
+do
+  let
+    f = id; d = (* 1); k = iK tempo form (rep sAllegro 1)
+  putStrLn "BRANDENBURG NO. 5 — I. Allegro (with harpsichord cadenza)"
+  mapM_ id [hush, setbpm tempo
+    ,harpsichord f k $ d 0.9, soloFlute f k $ d 0.7, soloViolin f k $ d 0.75
+    ,ripieno f k $ d 0.6]
+
+hush''

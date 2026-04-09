@@ -1,0 +1,56 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 5 IN D MAJOR, BWV 1050 — II. AFFETTUOSO
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- The Affettuoso modulates to B minor — a shift from D major's brilliance
+-- to the relative minor's introspection. Only the three soloists play:
+-- harpsichord (harp), flute, and violin. The ripieno is entirely absent.
+-- This is a trio sonata — the most intimate texture in the set, three
+-- equal voices in contrapuntal conversation. The marking "affettuoso"
+-- (affectionately) suggests tender, expressive playing.
+-- ============================================================================
+
+tempo = 52
+
+start <- lead "B min"
+
+let ctx = consonant
+        $ hcKey "2#"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.15 $ gen
+
+form =
+  [ at    0    0.0   0.0   s
+  , at    5    0.2   0.2   s     -- three soloists: trio sonata
+  , at   50    0.25  0.25  s     -- contrapuntal development
+  , at  100    0.3   0.3   s     -- gentle peak: voices intertwine
+  , at  150    0.25  0.25  s     -- subsiding
+  , at  200    0.2   0.2   s     -- closing
+  , at  240    0.0   0.0   s
+  , at  250    0.0   0.0   s     -- gap
+  ]
+
+-- Three soloists only — NO ripieno
+
+harpsichord f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 2 3 1 2 1 0 1]/4", bass = "0"}
+  f $ stack [silence, harp (0, 1) k vl flow Soprano] |* vel d
+
+soloFlute f k d = p "flute" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[1 0 1 2 1 2 3 2]/4"}
+  f $ stack [silence, flute (0, 1) k vl flow Alto] |* vel d
+
+soloViolin f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 2 1 0 1 0 2 3]/4"}
+  f $ stack [silence, violin1 (0, 1) k vl flow Soprano] |* vel d
+
+do
+  let
+    f = id; d = (* 1); k = iK tempo form (warp "[1 2 3 4]/8")
+  putStrLn "BRANDENBURG NO. 5 — II. Affettuoso"
+  mapM_ id [hush, setbpm tempo
+    ,harpsichord f k $ d 0.8, soloFlute f k $ d 0.7, soloViolin f k $ d 0.75]
+
+hush''

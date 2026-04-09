@@ -1,0 +1,139 @@
+-- ============================================================================
+-- SUMMER — I. ALLEGRO NON MOLTO
+-- The Four Seasons, Op. 8 No. 2, RV 315 — Antonio Vivaldi (1725)
+-- ============================================================================
+--
+-- Super-structure position: 0.33 (Development tension)
+--
+-- "Under the harsh burning summertime sun,
+--  The shepherds, the flock, and the pines steep in heat.
+--  The cuckoo begins to sing, and immediately
+--  The dove and goldfinch join him.
+--  A light breeze is blowing, but Boreas
+--  Woke up to suddenly fight with his neighbour.
+--  And the shepherd cries because above his head,
+--  The formidable storm and its destiny approach."
+--
+-- The contrast with Spring is immediate — G minor, heavy, oppressive. The
+-- opening is languid and sparse, depicting exhaustion under relentless sun.
+-- Three bird species enter in succession: the cuckoo (repeated high notes),
+-- the dove (softer repetitions), the goldfinch (rapid trills). A light
+-- breeze briefly breaks the heat, then Boreas (the North Wind) attacks
+-- violently. The shepherd cries out as the storm approaches — solo violin
+-- wailing over turbulent accompaniment.
+--
+-- The movement's genius is its arc from lethargy to violence, depicting not
+-- just weather but the emotional experience of a summer day turning hostile.
+--
+-- Adaptation: Two progressions — sHeat (languid, low entropy) and sTempest
+-- (violent, high entropy, dissonant). Flute for bird calls. Timpani for
+-- approaching thunder. The kinetics arc mirrors the weather: low → birds →
+-- breeze → sudden storm.
+-- ============================================================================
+
+tempo = 80
+
+startHeat    <- lead "G min"
+startTempest <- lead "G min"
+
+let ctxHeat = hcKey "2b"
+            $ hContext
+
+let ctxTempest = dissonant
+               $ hcKey "*"
+               $ hContext
+
+sHeat    <- seek "debussy" $ cue startHeat $ tonal ctxHeat $ len 8 $ entropy 0.3 $ gen
+sTempest <- seek "stravinsky:50 bach:50" $ cue startTempest $ tonal ctxTempest $ len 8 $ entropy 0.7 $ gen
+
+-- Form: ~320s (310s + 10s gap)
+-- Heat → bird calls → breeze → STORM APPROACHES → shepherd cries → full storm
+form =
+  [ at    0    0.0   0.0   sHeat     -- silence
+  , at    5    0.3   0.3   sHeat     -- oppressive heat: languid, sparse
+  , at   50    0.35  0.35  sHeat     -- cuckoo, dove, goldfinch enter
+  , at   90    0.4   0.4   sHeat     -- light breeze
+  , at  120    0.55  0.55  sTempest  -- Boreas attacks: wind shifts
+  , at  160    0.65  0.65  sTempest  -- storm building rapidly
+  , at  200    0.75  0.75  sTempest  -- shepherd cries: full storm approaching
+  , at  250    0.6   0.6   sTempest  -- storm rages
+  , at  290    0.3   0.3   sTempest  -- aftermath
+  , at  310    0.0   0.0   sTempest  -- end
+  , at  320    0.0   0.0   sTempest  -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Solo violin: shepherd, then wailing against storm
+solo f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0 1 0 2 3]/4"
+        }
+  f
+    $ stack [silence
+        , violin1 (0, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Strings: sparse heat then violent storm
+heat f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 . 2 . 1 .]/4"
+        , alto    = "[1 . 0 . 2 .]/4"
+        , tenor   = "2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , violin2    (0.3, 1) k vl flow Alto
+        , viola      (0.3, 1) k vl flow Tenor
+        , cello      (0, 1)   k vl grid Bass
+        , contrabass (0, 1)   k vl grid Bass8vb
+    ] |* vel d
+
+-- Bird calls: flute for cuckoo, dove, goldfinch
+birdcalls f k d = p "birds" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 3 . . 2 2 . . 3 1 3 1 3 1 3 0]/4"
+        }
+  f
+    $ stack [silence
+        , flute (0.2, 0.6) k vl flow Soprano
+    ] |* vel d
+
+-- Continuo
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~"
+        , alto = "[1 0 2 1]/4"
+        }
+  f
+    $ stack [silence
+        , harp (0, 1) k vl flow Alto
+    ] |* vel d
+
+-- Thunder approaching
+thunder f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass = "0"
+        }
+  f
+    $ stack [silence
+        , timpani (0.5, 1) k vl grid Bass8vb
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (rep sHeat 1)
+  putStrLn "THE FOUR SEASONS — Summer I. Allegro non molto"
+  mapM_ id [hush, setbpm tempo
+    ,solo      f k  $ d 0.9
+    ,heat      f k  $ d 0.7
+    ,birdcalls f k  $ d 0.5
+    ,continuo  f k  $ d 0.5
+    ,thunder   f k  $ d 0.7
+    ]
+
+hush''

@@ -36,9 +36,26 @@ the *rules* of what's harmonically possible, *evaluate* the quality of each
 option using voice leading and dissonance scoring, then *traverse* the space
 probabilistically — balancing between the familiar and the unexpected.
 
-`[video: 60-second overview — generating a progression from a single chord,`
-`hearing it come to life through TidalCycles and SuperCollider, the harmony`
-`unfolding in real time as patterns evolve and layer]`
+The project is built around three principles:
+
+- **The Harmonic Algorithm** — the generative engine. An R→E→T pipeline
+  that produces harmonic progressions from learned transition probabilities,
+  originating in a 2016 exhaustive overtone analysis and realised
+  computationally in Haskell with Neo4j as the graph backend.
+
+- **Algorithmic Orchestration** — the performance paradigm. Musical elements
+  are abstracted into harmony (contexts and generation), form (the spectral
+  narrative), and interfaces (instrument timbres and voice lines), enabling
+  live-coded orchestral scoring via TidalCycles.
+
+- **The Spectral Narrative** — the structural framework. Macro-level
+  compositional arc encoded as programmable kinetics signals in wall-clock
+  time, carrying continuous intensity and dynamics envelopes that drive
+  instrument activation, voice density, and harmonic switching.
+
+<!-- [video: 60-second overview — generating a progression from a single chord,
+hearing it come to life through TidalCycles and SuperCollider, the harmony
+unfolding in real time as patterns evolve and layer] -->
 
 ___
 
@@ -65,29 +82,17 @@ The same starting chord can lead to radically different musical outcomes.
 A single parameter — entropy — controls the balance between familiar harmonic
 motion and surprising, exploratory leaps:
 
-`[audio: a progression generated with low entropy (0.2) — smooth, conventional`
-`voice leading, the kind of movement Bach would recognise]`
-
-`[audio: the same starting chord with high entropy (0.8) — unexpected turns,`
-`distant modulations, the algorithm venturing into unfamiliar harmonic territory]`
+<!-- [audio: low entropy (0.2) — smooth, conventional voice leading] -->
+<!-- [audio: high entropy (0.8) — unexpected turns, distant modulations] -->
 
 The system also lets you blend the harmonic sensibilities of different composers.
 These aren't presets — they're weighted combinations of learned transition
 probabilities:
 
-`[audio: a progression weighted "bach" — strong functional harmony,`
-`clear cadential motion]`
-
-`[audio: the same starting point weighted "debussy" — more colourful,`
-`less predictable, modal inflections creeping in]`
-
-`[audio: a weighted blend "bach:30 debussy:70" — functional foundations`
-`with impressionistic colour, a stylistic fusion that neither composer`
-`would have written alone]`
-
-`[video: a live coding session — building a piece from scratch in TidalCycles,`
-`generating progressions on the fly, layering rhythm and melody over`
-`algorithmically generated harmony, the music evolving in real time]`
+<!-- [audio: "bach" — strong functional harmony, clear cadential motion] -->
+<!-- [audio: "debussy" — colourful, modal inflections] -->
+<!-- [audio: "bach:30 debussy:70" — functional foundations with impressionistic colour] -->
+<!-- [video: live coding session — building a piece from scratch in TidalCycles] -->
 
 ___
 
@@ -96,43 +101,32 @@ ___
 Let's start simple. Here's what it looks like to generate your first
 progression — just a starting chord, a length, and an entropy value:
 
-`[gif: launching stack ghci, creating a harmonic context, generating`
-`an 8-chord progression from C major — watching the output appear,`
-`each chord following naturally from the last]`
+<!-- [gif: launching stack ghci, generating an 8-chord progression from C major] -->
 
 Now let's apply some constraints. The Harmonic Algorithm lets you filter
 by key signature, overtone series, and root motion — narrowing the
 harmonic possibilities to match your musical context:
 
-`[gif: applying a key filter and an overtone filter based on bass guitar`
-`tuning (E A D G), watching the available harmonic choices narrow to`
-`structures that ring naturally on the instrument]`
+<!-- [gif: applying key/overtone filters, watching choices narrow] -->
 
 Things get interesting when you bring this into TidalCycles. The library
 integrates directly — generated progressions become patterns you can
 manipulate, voice, and perform live:
 
-`[gif: TidalCycles in action — using arrange and voiceBy to transform`
-`a generated progression into layered patterns, bass notes separated`
-`from upper voicings, everything cycling and evolving]`
+<!-- [gif: TidalCycles — arrange transforms a progression into layered patterns] -->
 
 You don't always need the algorithm to generate for you. Sometimes you
 want to build progressions by hand — the changes to a standard, a
 specific harmonic idea — and use the library's voicing and arrangement
 tools to bring them to life:
 
-`[gif: constructing the chord changes to a jazz standard explicitly`
-`using note names, then arranging and voicing them through TidalCycles,`
-`hearing the piece take shape]`
+<!-- [gif: explicit chord construction with note names, arranged through TidalCycles] -->
 
 And here's the composer blending in action — switching between learned
 styles and hearing how the same harmonic starting point leads to
 completely different musical journeys:
 
-`[gif: generating progressions with "bach", then "debussy", then a`
-`weighted blend — the terminal output side by side with the sound,`
-`the character of each composer's harmonic language audible in the`
-`generated movement]`
+<!-- [gif: composer blending — "bach", "debussy", weighted blend side by side] -->
 
 ___
 
@@ -176,17 +170,25 @@ ___
 
 Once you're up and running, there's plenty to explore:
 
-**[Interactive User Guide](live/USER_GUIDE.tidal)** — a hands-on tutorial
-that walks through everything from your first chord to live performance,
-with examples you can run directly in TidalCycles.
+**[User Guide](USER_GUIDE.md)** — complete feature reference, readable
+without a running TidalCycles environment.
+
+**[Interactive User Guide](live/USER_GUIDE.tidal)** — the same guide as a
+hands-on tutorial with examples you can run directly in TidalCycles.
 
 **[Worked Examples](live/examples/)** — complete pieces you can play with
 immediately, including a jazz standard arrangement and a traditional tune
 with form transformation.
 
+**[Algorithmic Orchestration](ALGORITHMIC_ORCHESTRATION.md)** — scoring for
+a virtual orchestra: instrument catalogue, voice lines, sections, blends,
+and the subKick groove interface.
+
 **[Architecture Guide](ARCHITECTURE.md)** — the technical deep dive into
 how the system works: the four-layer architecture, the R→E→T pipeline,
 zero-form cadence storage, and the graph database model.
+
+**[Changelog](CHANGELOG.md)** — V3 features and migration notes.
 
 **[Contributor Guidelines](CLAUDE.md)** — for anyone who'd like to
 contribute: the vertical slice workflow, mandatory verification steps,

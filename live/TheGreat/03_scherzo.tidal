@@ -1,0 +1,161 @@
+-- ============================================================================
+-- III. SCHERZO. ALLEGRO VIVACE
+-- Symphony No. 9 in C major, D. 944 "The Great" — Franz Schubert (1825-28)
+-- ============================================================================
+--
+-- Super-structure position: 3/4 (Peak)
+--
+-- A massive, Beethovenian scherzo — "forceful strings in unison" launching
+-- the movement with determined energy, complemented by "frolicking horns
+-- and oboes." The main scherzo section in C major is relentless, driving,
+-- orchestrally dense — Schubert channelling the Beethoven of the Eroica
+-- and Seventh symphonies.
+--
+-- The Trio section provides the scherzo's most Schubertian moment: a
+-- Ländler in A major — a rustic Austrian folk dance, the kind that would
+-- have been heard in the taverns and village squares of early 19th century
+-- Austria. The mediant relationship (C major to A major — a third lower)
+-- is characteristically Schubertian, creating surprise and warmth. Where
+-- the scherzo is Beethovenian force, the trio is Viennese charm.
+--
+-- The scherzo returns da capo, now even more forceful, building to the
+-- movement's climactic peak. This is the highest sustained kinetics in the
+-- symphony until the finale's coda.
+--
+-- Adaptation: Two progressions — sScherzo (forceful, Beethoven-weighted)
+-- and sTrio (charming, Mozart-weighted). Full strings unison for the
+-- scherzo, lighter texture for the trio (harp for ländler quality).
+-- ============================================================================
+
+tempo = 138
+
+-- ── GENERATION ──────────────────────────────────────────
+
+startScherzo <- lead "C maj"
+startTrio    <- lead "A maj"
+
+let ctxScherzo = hcKey "0#"
+               $ hContext
+
+let ctxTrio = consonant
+            $ hcKey "3#"
+            $ hContext
+
+sScherzo <- seek "beethoven:50 brahms:50" $ cue startScherzo $ tonal ctxScherzo $ len 8 $ entropy 0.4 $ gen
+sTrio    <- seek "mozart:50 bach:50" $ cue startTrio $ tonal ctxTrio $ len 8 $ entropy 0.2 $ gen
+
+-- Form: ~790s (780s + 10s gap)
+-- Scherzo → Trio (Ländler) → Scherzo da capo
+form =
+  [ at    0    0.0   0.0   sScherzo  -- silence
+  -- SCHERZO
+  , at    5    0.7   0.7   sScherzo  -- forceful opening: strings unison
+  , at   60    0.8   0.8   sScherzo  -- main theme: horns + oboes frolicking
+  , at  130    0.9   0.9   sScherzo  -- scherzo peak
+  , at  200    0.6   0.6   sScherzo  -- subsiding toward trio
+  -- TRIO: Ländler
+  , at  240    0.4   0.4   sTrio     -- A major: rustic Austrian dance
+  , at  310    0.5   0.5   sTrio     -- trio peak: charming, flowing
+  , at  380    0.4   0.4   sTrio     -- trio fading
+  -- SCHERZO DA CAPO
+  , at  420    0.7   0.7   sScherzo  -- scherzo returns, even more forceful
+  , at  500    0.85  0.85  sScherzo  -- scherzo intensifies
+  , at  580    0.9   0.9   sScherzo  -- scherzo climax: movement peak
+  , at  660    0.7   0.7   sScherzo  -- coda
+  , at  740    0.5   0.5   sScherzo  -- winding down
+  , at  780    0.0   0.0   sScherzo  -- end
+  , at  790    0.0   0.0   sScherzo  -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Scherzo strings: forceful unison driving
+scherzoStrg f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[0 1 2 3]*4"
+        , alto    = "[3 2 0 1]*4"
+        , tenor   = "[1 0 3 2]*4"
+        , bass    = "[0 1 0 2]/4"
+        }
+  f
+    $ stack [silence
+        , violin1    (0, 1)   k vl flow Soprano
+        , violin2    (0, 1)   k vl flow Alto
+        , viola      (0, 1)   k vl flow Tenor
+        , cello      (0, 1)   k vl grid Bass
+        , contrabass (0, 1)   k vl grid Bass8vb
+    ] |* vel d
+
+-- Frolicking winds: oboe, flute, clarinet, bassoon
+scherzoWind f k d = p "wind" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 1 2 0 3 2 1 3]/4"
+        , alto    = "[1 3 0 2 1 0 3 1]/4"
+        , bass    = "[0 1 0 2]/4"
+        }
+  f
+    $ stack [silence
+        , flute   (0.3, 1) k vl flow Soprano
+        , oboe    (0.3, 1) k vl flow Alto
+        , clarinet(0.3, 1) k vl flow Alto
+        , bassoon (0.3, 1) k vl flow Bass
+    ] |* vel d
+
+-- Beethovenian brass weight
+scherzoBrss f k d = p "brss" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 0 3 1]/4"
+        , tenor   = "[0 1 0 2]/4"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , horn     (0.4, 1) k vl flow Soprano
+        , trombone (0.5, 1) k vl flow Tenor
+        , basstrom (0.5, 1) k vl grid Bass8vb
+    ] |* vel d
+
+-- Trio: Ländler — rustic Austrian dance (lighter texture)
+trio f k d = p "trio" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1]/4"
+        , alto    = "[1 0 1 2]/4"
+        , tenor   = "2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , violin1 (0, 1)   k vl flow Soprano
+        , violin2 (0, 1)   k vl flow Alto
+        , clarinet(0.3, 1) k vl flow Soprano
+        , harp    (0, 1)   k vl flow Tenor
+        , cello   (0, 1)   k vl grid Bass    # pizz
+    ] |* vel d
+
+-- Timpani
+scherzoPerc f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass = "0"
+        }
+  f
+    $ stack [silence
+        , timpani (0.5, 1) k vl grid Bass8vb
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (rep sScherzo 1)
+  putStrLn "THE GREAT — III. Scherzo. Allegro vivace"
+  mapM_ id [hush, setbpm tempo
+    ,scherzoStrg f k  $ d 0.85
+    ,scherzoWind f k  $ d 0.7
+    ,scherzoBrss f k  $ d 0.8
+    ,trio        f k  $ d 0.7
+    ,scherzoPerc f k  $ d 0.65
+    ]
+
+hush''

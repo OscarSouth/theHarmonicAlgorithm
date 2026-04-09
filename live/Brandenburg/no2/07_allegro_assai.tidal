@@ -1,0 +1,70 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 2 IN F MAJOR, BWV 1047 — III. ALLEGRO ASSAI
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- The finale is a fugue. The trumpet returns with blazing authority,
+-- presenting the fugue subject which is then taken up by each soloist
+-- in turn — a four-voice fugal exposition in concerto form. The ripieno
+-- provides structural pillars between fugal entries. The movement is a
+-- tour de force of contrapuntal virtuosity, each instrument maintaining
+-- its independent voice while serving the larger fugal architecture.
+-- ============================================================================
+
+tempo = 128
+
+start <- lead "F maj"
+
+let ctx = hcKey "1b"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.3 $ gen
+
+form =
+  [ at    0    0.0   0.0   s
+  , at    3    0.5   0.5   s     -- fugue subject: trumpet enters
+  , at   30    0.55  0.55  s     -- answer: flute
+  , at   55    0.6   0.6   s     -- third entry: oboe
+  , at   80    0.65  0.65  s     -- fourth entry: violin — full exposition
+  , at  110    0.5   0.5   s     -- episode
+  , at  140    0.7   0.7   s     -- stretto: all voices, peak density
+  , at  175    0.55  0.55  s     -- final episode
+  , at  200    0.65  0.65  s     -- concluding fugue
+  , at  210    0.0   0.0   s
+  , at  220    0.0   0.0   s     -- gap
+  ]
+
+trumpet f k d = p "horn" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 2 1 0 1 2 3 1]/4"}
+  f $ stack [silence, horn (0, 1) k vl flow Soprano] |* vel d
+
+recorder f k d = p "flute" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 2 1 0 1 2 3 1]/4"}
+  f $ stack [silence, flute (0.15, 1) k vl flow Alto] |* vel d
+
+oboeVoice f k d = p "oboe" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 2 1 0 1 2 3 1]/4"}
+  f $ stack [silence, oboe (0.2, 1) k vl flow Tenor] |* vel d
+
+soloViolin f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 2 1 0 1 2 3 1]/4"}
+  f $ stack [silence, violin1 (0.25, 1) k vl flow Soprano] |* vel d
+
+ripieno f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 2 1 0]/4", tenor = "2", bass = "0"}
+  f $ stack [silence, violin2 (0.3, 1) k vl flow Alto, viola (0.3, 1) k vl flow Tenor
+        , cello (0, 1) k vl grid Bass, contrabass (0, 1) k vl grid Bass8vb] |* vel d
+
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 0 2 1]/4"}
+  f $ stack [silence, harp (0, 1) k vl flow Alto] |* vel d
+
+do
+  let
+    f = id; d = (* 1); k = iK tempo form (rep s 1)
+  putStrLn "BRANDENBURG NO. 2 — III. Allegro assai"
+  mapM_ id [hush, setbpm tempo
+    ,trumpet f k $ d 0.85, recorder f k $ d 0.75, oboeVoice f k $ d 0.7
+    ,soloViolin f k $ d 0.8, ripieno f k $ d 0.65, continuo f k $ d 0.55]
+
+hush''

@@ -39,16 +39,16 @@
   'pattern block':
     'prefix': 'p'
     'body': '''
-      p$1 f r k d = d$1 $ do
+      p$1 f k d = d$1 $ do
         let o = ch $1
         f
           $ stack [silence
              -- --
-            ,arrange (0,1) flow (overlapF 0) r k (-9,9) ["~"
+            ,arrange (0,1) k (-9,9) flow (overlapF 0) ["~"
               ,$2
             ]# o |* vel 1
              -- --
-          ] |* vel (kDynamic k) |* vel d
+          ] |* vel d
       $3
     '''
 
@@ -56,7 +56,7 @@
   'arrange block':
     'prefix': 'rrange'
     'body': '''
-      arrange (0,1) flow (overlapF 0) r k (-9,9) ["~"
+      arrange (0,1) k (-9,9) flow (overlapF 0) ["~"
         ,$1
       ]# o |* vel 1
        -- --
@@ -68,13 +68,12 @@
     'body': """
       do
         let
-          r = rep s 1
           f = id
           d = (* 1)
-          k = formK tempo form
+          k = iK tempo form (warp "[1 2 3 4]/8")
         putStrLn $ "LAUNCH¬¬\\n" ++ show s
         mapM_ id [launch, setbpm tempo
-         -- ,p01  f r k $ d 0.9
+         -- ,p01  f k $ d 0.9
          ]
       $1
     """
@@ -83,9 +82,9 @@
   'subkick block':
     'prefix': 'subk'
     'body': '''
-      subk f r k d = p "subKick"
+      subk f k d = p "subKick"
         $ f
-          $ subKick root r d k ( 1/4
+          $ subKick d k root ( 1/4
             ,"$1"
             ,"0 1 0 -"
             ,"1*4"
@@ -98,7 +97,7 @@
   'orchestral section':
     'prefix': 'orchsec'
     'body': '''
-      $1 f r k d = p "$1" $ do
+      $1 f k d = p "$1" $ do
         let vl = voiceLines {_vl = "~"
               -- , soprano = "3"
               -- , alto    = "1"
@@ -107,11 +106,11 @@
               }
         f
           $ stack [silence
-              , $2 (0,1) flow Soprano    r k vl
-              , $3 (0,1) flow Alto       r k vl
-              , $4 (0,1) flow Tenor8vb   r k vl
-              , $5 (0,1) flow Bass8vb    r k vl
-          ] |* vel (kDynamic k) |* vel d
+              , $2 (0,1) k vl flow Soprano
+              , $3 (0,1) k vl flow Alto
+              , $4 (0,1) k vl flow Tenor8vb
+              , $5 (0,1) k vl flow Bass8vb
+          ] |* vel d
     '''
 
 
@@ -120,16 +119,15 @@
     'body': """
       do
         let
-          r = warp "[1 2 3 4]/8"
           f = id
           d = (* 1)
-          k = formK tempo form
+          k = iK tempo form (warp "[1 2 3 4]/8")
         putStrLn $ "ORCHESTRAL LAUNCH¬¬"
         mapM_ id [launch, setbpm tempo
-         -- ,wind f r k       $ d 0.9
-         -- ,strg f r k       $ d 0.8
-         -- ,brss f r k       $ d 0.9
-         -- ,perc f r k       $ d 0.7
+         -- ,wind f k       $ d 0.9
+         -- ,strg f k       $ d 0.8
+         -- ,brss f k       $ d 0.9
+         -- ,perc f k       $ d 0.7
          ]
       $1
     """
@@ -257,4 +255,70 @@
         , at  (bar * 84)        0.0   0.0   verse    -- fine
         , at  (bar * 84 + 10)   0.0   0.0   verse    -- silence (10s gap)
         ]
+    '''
+
+
+  # ── Additional Snippets ──────────────────────────────────
+
+  'lead':
+    'prefix': 'lead'
+    'body': '''
+      start <- lead "$1"
+    '''
+
+
+  'harmonic context':
+    'prefix': 'ctx'
+    'body': '''
+      ctx = $1hContext
+    '''
+
+
+  'orchestral blend':
+    'prefix': 'orchblend'
+    'body': '''
+      $1 f k d = p "$1" $ do
+        let vl = voiceLines {_vl = "~"
+              -- , soprano = "3/4"
+              -- , alto    = "1/4"
+              -- , tenor   = "2/4"
+              -- , bass    = "0/4"
+              }
+        f
+          $ stack [silence
+              , $2 (0,1) k vl flow Soprano
+              , $3 (0,1) k vl flow Alto
+              , $4 (0,1) k vl flow Tenor8vb
+          ] |* vel d
+    '''
+
+
+  'tutti (full orchestra)':
+    'prefix': 'tutti'
+    'body': '''
+      tutti art f k d = p "tutti" $ do
+        let vl = voiceLines {_vl = "~"
+              -- , soprano = "3/4"
+              -- , alto    = "1/4"
+              -- , tenor   = "2/4"
+              -- , bass    = "0/4"
+              }
+        f
+          $ stack [silence
+              -- Strings foundation (always)
+              , violin1    (0, 1)   k vl flow Soprano    # art
+              , viola      (0, 1)   k vl flow Alto       # art
+              , cello      (0, 1)   k vl flow Tenor8vb   # art
+              , contrabass (0, 1)   k vl grid Bass8vb    # art
+              -- Winds enter at 0.2
+              , flute      (0.2, 1) k vl flow Soprano
+              , oboe       (0.2, 1) k vl flow Alto
+              , clarinet   (0.2, 1) k vl flow Tenor8vb
+              , bassoon    (0.2, 1) k vl flow Bass8vb
+              -- Brass at 0.5
+              , horn       (0.5, 1) k vl flow Soprano
+              , trombone   (0.5, 1) k vl flow Bass8vb
+              -- Percussion at peak
+              , timpani    (0.8, 1) k vl grid Bass8vb
+          ] |* vel d
     '''

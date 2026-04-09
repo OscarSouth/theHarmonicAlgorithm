@@ -60,7 +60,7 @@ form =
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
 -- Apollo's lyre: harp (transfigured) + horns (divine counterpoint)
-apotheosis f r k d = p "apotheosis" $ do
+apotheosis f k d = p "apotheosis" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[0 1 2 3]/4"
         , alto    = "[1 2 3 0]/4"
@@ -69,13 +69,13 @@ apotheosis f r k d = p "apotheosis" $ do
         }
   f
     $ stack [silence
-        , harp (0, 1) flow Soprano    r k vl
-        , horn (0, 1) flow Soprano    r k vl
-        , horn (0, 1) flow Alto       r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , harp (0, 1) k vl flow Soprano
+        , horn (0, 1) k vl flow Soprano
+        , horn (0, 1) k vl flow Alto
+    ] |* vel d
 
 -- High strings: violin harmonics, the music ascending to the stars
-ascension f r k d = p "ascension" $ do
+ascension f k d = p "ascension" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[3 2 3 0]/4"
         , alto    = "1"
@@ -83,23 +83,22 @@ ascension f r k d = p "ascension" $ do
         }
   f
     $ stack [silence
-        , violin1 (0.2, 1) flow Soprano8va r k vl
-        , viola   (0.3, 1) flow Alto       r k vl
-        , cello   (0.2, 1) grid Bass       r k vl
-    ] |* vel (kDynamic k) |* vel d
+        , violin1 (0.2, 1) k vl flow Soprano8va
+        , viola   (0.3, 1) k vl flow Alto
+        , cello   (0.2, 1) k vl grid Bass
+    ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────
 
 do
   let
-    r = warp "[1 2 3 4]/8"
     f = id
     d = (* 1)
-    k = formK tempo form
+    k = iK tempo form (warp "[1 2 3 4]/8")
   putStrLn "ORPHEUS — XIII. Apotheosis of Orpheus"
   mapM_ id [hush, setbpm tempo
-    ,apotheosis f r k  $ d 0.9
-    ,ascension  f r k  $ d 0.6
+    ,apotheosis f k  $ d 0.9
+    ,ascension  f k  $ d 0.6
     ]
 
 hush''

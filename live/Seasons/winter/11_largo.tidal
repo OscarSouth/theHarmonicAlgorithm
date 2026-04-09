@@ -1,0 +1,105 @@
+-- ============================================================================
+-- WINTER — II. LARGO
+-- The Four Seasons, Op. 8 No. 4, RV 297 — Antonio Vivaldi (1725)
+-- ============================================================================
+--
+-- Super-structure position: 0.92
+--
+-- "To spend quiet and happy times by the fire,
+--  While outside the rain soaks everyone."
+--
+-- The most sophisticated texture in the Four Seasons. Four independent
+-- layers coexist simultaneously:
+--
+-- 1. FOREGROUND: Solo violin plays a warm, legato melody — contentment by
+--    the fireside, the opposite of Winter I's angular cold.
+-- 2. MIDDLE GROUND: Violins play pizzicato — rain pattering against the
+--    window. Vivaldi marks this "forte," creating a striking textural
+--    contrast with the quiet solo.
+-- 3. BACKGROUND: Violas sustain quiet, long notes — the room itself,
+--    warm and still.
+-- 4. FOUNDATION: Cello gently energises the pulse with light octaves.
+--
+-- Inside vs outside. Comfort vs hostility. Vivaldi depicts both
+-- simultaneously — the rain's persistent tap-tap against the window is
+-- heard alongside the fire's warmth. The movement is a study in
+-- coexisting realities rendered through orchestral layering.
+--
+-- Adaptation: Violin1 for fireside warmth (legato melody). Harp for rain
+-- (staccato arpeggiation — replacing pizzicato violins). Viola for warm
+-- sustained background. Ultra-quiet, peak 0.25. The gentlest movement
+-- in the Winter concerto.
+-- ============================================================================
+
+tempo = 48
+
+start <- lead "Ab maj"
+
+let ctx = consonant
+        $ hcKey "4b"
+        $ hContext
+
+s <- seek "debussy" $ cue start $ tonal ctx $ len 8 $ entropy 0.1 $ gen
+
+-- Form: ~180s (170s + 10s gap)
+-- Fireside warmth: intimate, layered, sustained peace
+form =
+  [ at    0    0.0   0.0   s     -- silence
+  , at    5    0.15  0.15  s     -- fire kindled: solo violin enters
+  , at   35    0.25  0.25  s     -- rain begins: harp pattering joins
+  , at   70    0.25  0.25  s     -- full texture: warmth + rain + room
+  , at  110    0.2   0.2   s     -- contentment deepens
+  , at  145    0.15  0.15  s     -- fading toward sleep
+  , at  170    0.0   0.0   s     -- silence
+  , at  180    0.0   0.0   s     -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Fireside: solo violin, warm legato
+fireside f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1]/4"
+        }
+  f
+    $ stack [silence
+        , violin1 (0, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Rain on the window: harp as pizzicato substitute
+rain f k d = p "rain" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[0 1 0 2 0 1 0 3]/4"
+        }
+  f
+    $ stack [silence
+        , harp (0.15, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Warm room: sustained viola + bass foundation
+warmth f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , alto = "1"
+        , bass = "0"
+        }
+  f
+    $ stack [silence
+        , viola (0, 1) k vl flow Alto
+        , cello (0, 1) k vl grid Bass
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (warp "[1 2 3 4]/8")
+  putStrLn "THE FOUR SEASONS — Winter II. Largo"
+  mapM_ id [hush, setbpm tempo
+    ,fireside f k  $ d 0.7
+    ,rain     f k  $ d 0.5
+    ,warmth   f k  $ d 0.4
+    ]
+
+hush''

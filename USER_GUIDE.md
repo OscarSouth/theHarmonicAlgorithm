@@ -230,24 +230,23 @@ ___
 ### 3.1 Pattern Block Anatomy
 
 The launcher paradigm is the core of the TidalCycles interface. A pattern
-block is a function with four parameters:
+block is a function with three parameters:
 
 - **f** — a transformation function (id, slow 2, fast 2, rev, swingBy)
-- **r** — a chord selection pattern (which chord is active when)
+- **k** — IK context (kinetics + chord selection pattern, bundled via `iK`)
 - **d** — dynamics (velocity scaling)
-- **k** — kinetics context (form, progression, dynamics envelope)
 
-The progression is no longer passed directly — it comes from the kinetics
-context (`kProg k`), which also carries the form's kinetics and dynamic
-signals.
+The progression and chord selection pattern come from the IK context
+(`kProg k` carries the active progression, `kSignal`/`kDynamic` carry
+the form's kinetics and dynamic signals).
 
 A minimal launcher looks like this:
 
 ```haskell
-p01 f r d k = d01 $ do
+p01 f k d = d01 $ do
   let o = ch 01
-  f $ arrange (0,1) flow id r k (-9,9) ["~", "0 1 2 3"]
-    # o |* vel (kDynamic k) |* vel d
+  f $ arrange (0,1) k (-9,9) flow (overlapF 0) ["~", "0 1 2 3"]
+    # o |* vel d
 ```
 
 You define the launcher once, then call it with different kinetics contexts,
@@ -264,14 +263,14 @@ layered textures — each voice with its own voicing strategy, register,
 dynamics, kinetics range, and note pattern:
 
 ```haskell
-p03 f r d k = d03 $ do
+p03 f k d = d03 $ do
   let o = ch 01
   f $ stack [silence
-    ,arrange (0.5,1) flow id r k (-9,9) ["~", "[0,1,2,3]/4"]
+    ,arrange (0.5,1) k (-9,9) flow (overlapF 0) ["~", "[0,1,2,3]/4"]
       # o |* vel 0.8
-    ,arrange (0,1) root id r k (-9,9) ["~", "0*2"]
+    ,arrange (0,1) k (-9,9) grid (overlapF 0) ["~", "0*2"]
       # o |* vel 1 |- oct 2
-  ] |* vel (kDynamic k) |* vel d
+  ] |* vel d
 ```
 
 The kinetics range (first argument to `arrange`) controls when each voice
@@ -290,11 +289,11 @@ harmony itself:
 
 ```haskell
 -- Try each:
-p01 id r d k          -- no change
-p01 (slow 2) r d k    -- half speed
-p01 (fast 2) r d k    -- double speed
-p01 rev r d k         -- reversed
-p01 (swingBy 0.1 2) r d k  -- swing feel
+p01 id k d            -- no change
+p01 (slow 2) k d      -- half speed
+p01 (fast 2) k d      -- double speed
+p01 rev k d           -- reversed
+p01 (swingBy 0.1 2) k d  -- swing feel
 ```
 
 You can compose transformations: `slow 2 . rev` plays the progression
@@ -332,13 +331,13 @@ situations where you want the harmony to flow without jumps.
 `[video: flow voicing — a 4-chord progression played with smooth, minimal
 voice movement between each chord, the upper voices barely shifting]`
 
-### 4.2 root — Root Position
+### 4.2 grid — Root Locked Position
 
 Root note always in the bass, with the upper voices still optimised for
-smooth movement. Best for bass instruments and any situation where you want
-a clear harmonic foundation.
+smooth movement via cyclic DP. Best for grounded chords and any situation
+where you want a clear harmonic foundation with smooth upper voices.
 
-`[video: root voicing — the same progression with the root firmly in the
+`[video: grid voicing — the same progression with the root firmly in the
 bass every time, a solid grounded feel]`
 
 ### 4.3 lite — Literal
@@ -350,19 +349,20 @@ optimisation. Best for direct control or when you want the raw intervals.
 optimisation, hearing the jumps and angles that the algorithm would
 normally smooth out]`
 
-### 4.4 bass — Bass Note Only
+### 4.4 root — Root Note Only
 
-Extracts just the lowest voice as a monophonic line. Best for bass lines
+Extracts the root pitch class as a monophonic line. Best for bass lines
 and situations where you want a single-note part that follows the harmony.
 
-`[video: bass voicing — just the bass note from each chord, a single
-melodic line tracing the bottom of the harmony]`
+`[video: root voicing — just the root note from each chord, a single
+melodic line tracing the harmony]`
 
 ### 4.5 fund — Harmonic Root
 
-Always returns the harmonic root regardless of inversion. Where `bass`
-might give you a third or fifth when the chord is inverted, `fund` always
-gives you the true root. Best for kick drums and sub bass.
+Always returns the harmonic root regardless of inversion. Where `root`
+follows the generated lowest pitch (which might be a third or fifth when
+inverted), `fund` always gives you the true harmonic root. Best for kick
+drums and sub bass.
 
 `[video: fund voicing — the harmonic root on every chord, steady and
 inversion-invariant, perfect for a kick drum that always locks to the
@@ -371,8 +371,8 @@ fundamental]`
 ### 4.6 Comparison
 
 All five voicings playing the same progression simultaneously reveal their
-different characters — flow is smooth, root is grounded, lite is angular,
-bass traces the bottom, and fund anchors everything to the harmonic root.
+different characters — flow is smooth, grid is grounded, lite is angular,
+root traces the pitch class, and fund anchors everything to the harmonic root.
 
 `[video: all five voicings playing simultaneously on separate MIDI channels
 — hearing how they layer and contrast, each one contributing a different
@@ -381,21 +381,21 @@ musical quality to the same underlying harmony]`
 ### 4.7 Voicing in arrange
 
 In practice, you combine voicings in a single launcher — flow for chords,
-root for bass, bass or fund for a kick pattern. Each voice can have its
+grid for bass, root or fund for a kick pattern. Each voice can have its
 own kinetics range for form-driven activation:
 
 ```haskell
 f $ stack [silence
-  ,arrange (0.5,1) flow id r k (-9,9) ["~", "[0,1,2,3]/4"]
+  ,arrange (0.5,1) k (-9,9) flow (overlapF 0) ["~", "[0,1,2,3]/4"]
     # o |* vel 0.8
-  ,arrange (0,1) root id r k (-9,9) ["~", "0*2"]
+  ,arrange (0,1) k (-9,9) grid (overlapF 0) ["~", "0*2"]
     # o |* vel 1 |- oct 1
-  ,arrange (0,1) bass id r k (-9,9) ["~", "0*4"]
+  ,arrange (0,1) k (-9,9) root id ["~", "0*4"]
     # o |* vel 1.2 |- oct 2
-] |* vel (kDynamic k) |* vel d
+] |* vel d
 ```
 
-`[video: a full launcher combining flow chords, root bass, and bass kick
+`[video: a full launcher combining flow chords, grid bass, and root kick
 — hearing how the different voicing strategies create a complete, layered
 arrangement from a single progression]`
 
@@ -562,9 +562,8 @@ Two arrangement strategies, both with kinetics range gating:
 - **arrange'** (squeeze) — the full pattern restarts for each chord slot.
   Best for rhythmic patterns that should repeat per chord.
 
-Both take the same parameters: `(lo, hi)` kinetics range, voice function,
-progression modifier, chord pattern, kinetics context, register, and
-input patterns.
+Both take the same parameters: `(lo, hi)` kinetics range, IK context,
+MIDI register, voice function, progression modifier, and input patterns.
 
 `[video: arrange vs arrange' — the same pattern through both strategies,
 hearing sustained notes glide through chord changes with arrange, and
@@ -576,9 +575,10 @@ ___
 
 ### 7.1 Overview
 
-The Kinetics framework encodes macro-level compositional arc as programmable
-structure. A form is defined in wall-clock seconds, realized as TidalCycles
-patterns, and loops endlessly. It carries three signals:
+The Kinetics framework implements the **Spectral Narrative** — macro-level
+compositional arc as programmable structure. A form is defined in wall-clock
+seconds, realized as TidalCycles patterns, and loops endlessly. It carries
+three signals:
 
 - **kSignal** — kinetics level (0–1), continuous piecewise linear
   interpolation. Used for range gating: controlling which voices are active.
@@ -715,15 +715,15 @@ places the sub register below all orchestral instruments with no overlap.
 the harmonic root, the low end locking to whatever chord is active,
 creating a groove that's harmonically aware]`
 
-### 8.2 fund vs bass for Kick Patterns
+### 8.2 fund vs root for Kick Patterns
 
-For kick drums, use `fund` rather than `bass`. When chords are inverted,
-`bass` follows the lowest voice (which might be a third or fifth), while
-`fund` always follows the true harmonic root.
+For kick drums, use `fund` rather than `root`. When chords are inverted,
+`root` follows the generated lowest pitch (which might be a third or
+fifth), while `fund` always follows the true harmonic root.
 
-`[video: fund vs bass for kicks on an inverted chord progression — hearing
-the kick stay on the root with fund, and wander to the inversion's bass
-note with bass — fund is the right choice for drums]`
+`[video: fund vs root for kicks on an inverted chord progression — hearing
+the kick stay on the root with fund, and wander to the inversion's lowest
+note with root — fund is the right choice for drums]`
 
 ### 8.3 Groove Patterns
 
@@ -742,6 +742,10 @@ subKick fund (rep s4 1) (range 0.5 1 rand) k
 `[video: different groove patterns — a sparse euclidean feel, then a denser
 pattern with random dynamics adding human variation — the same harmonic
 progression, completely different rhythmic energy]`
+
+For full orchestral scoring — instrument catalogue, voice lines, sections,
+blends, and the complete Algorithmic Orchestration paradigm — see
+[ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md).
 
 ___
 
@@ -968,9 +972,9 @@ ___
 | Function | Bass | Voice Leading | Best For |
 |----------|------|---------------|----------|
 | `flow` | Any | Smooth (cyclic DP) | Pads, harmonic beds |
-| `root` | Root | Smooth (cyclic DP) | Bass, grounded chords |
+| `grid` | Root | Smooth (cyclic DP) | Grounded chords |
 | `lite` | Any | None | Direct control |
-| `bass` | Lowest | Mono | Bass lines |
+| `root` | Root PC | Mono | Bass lines |
 | `fund` | Root | Mono | Kicks, sub bass |
 
 ### Transformation
@@ -1005,9 +1009,9 @@ ___
 
 | Function | Strategy |
 |----------|----------|
-| `arrange range voice modifier r k register pats` | Onset-join with kinetics range gating |
-| `arrange' range voice modifier r k register pats` | Squeeze with kinetics range gating |
-| `subKick voice r dyn k tuple` | Sub/kick groove with kinetics gating |
+| `arrange range k register voice modifier pats` | Onset-join with kinetics range gating |
+| `arrange' range k register voice modifier pats` | Squeeze with kinetics range gating |
+| `subKick dyn k voice tuple` | Sub/kick groove with kinetics gating |
 
 ### Form & Kinetics
 
@@ -1015,6 +1019,7 @@ ___
 |----------|---------|
 | `at time kin dyn prog` | Construct a form node |
 | `formK bpm nodes` | Realize form into Kinetics signals |
+| `iK bpm nodes chordPat` | Realize form into IK (Kinetics + chord pattern) |
 | `ki (lo, hi) k pat` | Range gate: mask by kinetics signal |
 | `slate range k pats` | Gated stack (ki + stack) |
 | `withForm k f` | Apply function with reactive progression |

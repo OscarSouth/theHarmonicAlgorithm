@@ -1,0 +1,132 @@
+-- ============================================================================
+-- AUTUMN — III. ALLEGRO (LA CACCIA — THE HUNT)
+-- The Four Seasons, Op. 8 No. 3, RV 293 — Antonio Vivaldi (1725)
+-- ============================================================================
+--
+-- Super-structure position: 0.75 (PEAK)
+--
+-- "The hunters are ready just before dawn,
+--  With horns and rifles and a small pack of dogs.
+--  Their prey flees quickly, they follow its scent,
+--  Now they surprise it, stunned by the noise
+--  Of the rifles and dogs; it tries to fight back,
+--  But weakened by fleeing, it struggles and dies."
+--
+-- The most kinetically intense movement in the Four Seasons — the PEAK
+-- of the spectral narrative super-structure. Dawn breaks. Hunters gather
+-- with horns, rifles, and dogs. The chase begins. The prey flees, the
+-- hunters follow. The pursuit escalates — surprise, gunshots, the dogs
+-- barking. The animal tries to fight back but, weakened by running,
+-- finally falls.
+--
+-- Vivaldi depicts the entire hunt as a dramatic narrative: horn-call
+-- figures in the strings (mimicking natural horns), sharp staccato for
+-- gunshots, panicked rapid passages for the fleeing prey, and a final
+-- diminuendo as the animal dies. This is program music at its most vivid.
+--
+-- Adaptation: The only movement using horn (for hunting calls). Timpani
+-- for gunshot accents. Solo violin as the fleeing prey (panicked, rapid).
+-- Full strings energetic. Maximum kinetics 0.95 — the highest action
+-- point in the entire Four Seasons.
+-- ============================================================================
+
+tempo = 132
+
+start <- lead "F maj"
+
+let ctx = hcKey "1b"
+        $ hContext
+
+s <- seek "bach:50 mozart:50" $ cue start $ tonal ctx $ len 8 $ entropy 0.4 $ gen
+
+-- Form: ~210s (200s + 10s gap)
+-- Dawn → horns → chase → guns → fight → death
+form =
+  [ at    0    0.0   0.0   s     -- silence
+  , at    3    0.5   0.5   s     -- dawn: hunters ready
+  , at   25    0.7   0.7   s     -- horns sound: the hunt begins
+  , at   55    0.85  0.85  s     -- chase: prey flees, hunters follow
+  , at   90    0.95  0.95  s     -- guns and dogs: maximum action
+  , at  130    0.8   0.8   s     -- prey fights back
+  , at  160    0.5   0.5   s     -- weakening: the struggle
+  , at  185    0.2   0.2   s     -- death: silence falls
+  , at  200    0.0   0.0   s     -- end
+  , at  210    0.0   0.0   s     -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Solo violin: the fleeing prey (panicked, virtuosic)
+prey f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 1 0 2 3 0 1 2]*2"
+        }
+  f
+    $ stack [silence
+        , violin1 (0, 1) k vl flow Soprano
+    ] |* vel d
+
+-- The hunt: full strings, energetic
+hunt f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 0 3 1 2 0]/4"
+        , alto    = "[1 0 1 2 1 3 0 2]/4"
+        , tenor   = "[2 1 0 2]/4"
+        , bass    = "[0 1 0 2]/4"
+        }
+  f
+    $ stack [silence
+        , violin2    (0.3, 1) k vl flow Alto
+        , viola      (0.3, 1) k vl flow Tenor
+        , cello      (0, 1)   k vl grid Bass
+        , contrabass (0, 1)   k vl grid Bass8vb
+    ] |* vel d
+
+-- Hunting horns: the only movement using horn
+horns f k d = p "horns" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 . 3 . 0 . 3 .]*2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , horn (0.3, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Gunshots and dogs: timpani accents
+guns f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass = "[0 . 0 . . .]*2"
+        }
+  f
+    $ stack [silence
+        , timpani (0.5, 1) k vl grid Bass8vb
+    ] |* vel d
+
+-- Continuo
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~"
+        , alto = "[1 0 2 1]/4"
+        }
+  f
+    $ stack [silence
+        , harp (0, 1) k vl flow Alto
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (rep s 1)
+  putStrLn "THE FOUR SEASONS — Autumn III. La caccia (The Hunt)"
+  mapM_ id [hush, setbpm tempo
+    ,prey     f k  $ d 0.9
+    ,hunt     f k  $ d 0.8
+    ,horns    f k  $ d 0.7
+    ,guns     f k  $ d 0.65
+    ,continuo f k  $ d 0.5
+    ]
+
+hush''

@@ -1,0 +1,141 @@
+-- ============================================================================
+-- I. ALLEGRO — Bassoon Concerto in B-flat major, K.191
+-- W. A. Mozart (1774)
+-- ============================================================================
+--
+-- Super-structure positions: 0.125–0.375 (Establishing → Development)
+-- The spectral narrative opens here — dignified brilliance, the bassoon
+-- introduced as protagonist. Peak kinetics 0.6: galant elegance, not
+-- Romantic excess. The arc across all three movements places the emotional
+-- weight at the slow movement (golden ratio), with this Allegro as the
+-- establishing frame and the Rondo as convergence.
+--
+-- The first concerto to establish the bassoon as a virtuoso soloist. Written
+-- in Salzburg when Mozart was eighteen, K.191 treats the instrument not as
+-- a comic novelty but as a dignified, singing protagonist — exploiting what
+-- one commentator called "the sweet tenor voice of the bassoon."
+--
+-- The Allegro is a sonata-form movement in galant style. An orchestral
+-- ritornello of 34 bars introduces two contrasting themes: a "proudly
+-- striding, wide-ranging" first theme perfectly fashioned for the bassoon's
+-- character, and a "spiky" staccato second theme given to the violins
+-- against sustained oboes and horns. The bassoon enters after this
+-- orchestral exposition with its own purposeful statement, developing
+-- both themes with cantabile lines, rapid figuration, and vertiginous
+-- leaps spanning nearly two octaves.
+--
+-- A brief minor-mode shadow passes through the development — "typical but
+-- still marvelously effective" — before the recapitulation, where Mozart
+-- reverses the orchestral roles: the bassoon plays the staccato tune while
+-- the violins take the countermelody. A brilliant cadenza based on the
+-- opening motif (Bb-Bb-D-Bb) precedes the final tutti.
+--
+-- Mozart's original scoring: solo bassoon, 2 oboes, 2 horns in Bb, strings.
+-- A light Classical orchestra without clarinets, trumpets, or timpani —
+-- the galant ideal of transparent elegance.
+--
+-- Adaptation: Bassoon as permanent soloist at (0,1). Strings, oboes, flute,
+-- and horns enter/exit via kinetics to create tutti/solo contrast. The
+-- concerto's dialogue structure is encoded in the kinetics arc: full
+-- orchestra for ritornellos, chamber texture for solo passages.
+-- ============================================================================
+
+tempo = 108
+
+start <- lead "Bb maj"
+
+let ctx = consonant
+        $ hcKey "2b"
+        $ hContext
+
+s <- seek "mozart" $ cue start $ tonal ctx $ len 8 $ entropy 0.25 $ gen
+
+-- Form: ~490s loop (480s music + 10s gap)
+-- Concerto sonata form: tutti → solo → tutti → solo → development →
+-- recapitulation → cadenza → final tutti
+form =
+  [ at    0    0.0   0.0   s     -- silence
+  , at    5    0.5   0.5   s     -- opening tutti/ritornello: full orchestra
+  , at   60    0.3   0.3   s     -- solo exposition: bassoon enters, lighter
+  , at  120    0.5   0.5   s     -- orchestral tutti transition
+  , at  150    0.35  0.4   s     -- solo continues: second theme area
+  , at  210    0.5   0.6   s     -- development: minor-mode shadow, tension
+  , at  270    0.4   0.5   s     -- recapitulation: role reversal
+  , at  360    0.1   0.1   s     -- cadenza: bassoon alone (near-silence)
+  , at  390    0.5   0.6   s     -- final tutti: conclusive
+  , at  450    0.3   0.3   s     -- winding down
+  , at  480    0.0   0.0   s     -- end
+  , at  490    0.0   0.0   s     -- silence gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Bassoon soloist: the protagonist (always active)
+soloist f k d = p "soloist" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0 1 2 3 0]/4"
+        , alto    = "[1 0 2 3]/4"
+        , tenor   = "2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , bassoon (0, 1) k vl flow Soprano
+    ] |* vel d
+
+-- String accompaniment: harmonic foundation
+strg f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1]/4"
+        , alto    = "[1 2 1 0]/4"
+        , tenor   = "[2 1 0 2]/4"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , violin1    (0.3, 1) k vl flow Soprano
+        , violin2    (0.3, 1) k vl flow Alto
+        , viola      (0.3, 1) k vl flow Tenor
+        , cello      (0, 1)   k vl grid Bass
+        , contrabass (0, 1)   k vl grid Bass8vb
+    ] |* vel d
+
+-- Oboes + flute: color and dialogue
+wind f k d = p "wind" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 . 2 . 1 .]/4"
+        , alto    = "[1 . 0 . 2 .]/4"
+        }
+  f
+    $ stack [silence
+        , oboe  (0.3, 1) k vl flow Alto
+        , flute (0.4, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Horns: harmonic pedals in tutti passages
+fanfare f k d = p "fanfare" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "3"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , horn (0.4, 1) k vl flow Soprano
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (rep s 1)
+  putStrLn "MOZART K.191 — I. Allegro"
+  mapM_ id [hush, setbpm tempo
+    ,soloist f k  $ d 0.9
+    ,strg    f k  $ d 0.7
+    ,wind    f k  $ d 0.6
+    ,fanfare f k  $ d 0.5
+    ]
+
+hush''
