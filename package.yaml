@@ -1,8 +1,19 @@
 name:                theHarmonicAlgorithm
-version:             0.1.0
+version:             3.0.0
 license:             BSD3
-author:              "HarmAlgo Team"
-maintainer:          ""
+author:              "Oscar South"
+maintainer:          "oscarsouth@gmail.com"
+copyright:           "2018-2026 Oscar South"
+synopsis:            "Real-time harmonic progression generation for TidalCycles live performance"
+description:         >
+  theHarmonicAlgorithm is a live performance instrument for generating and
+  shaping harmonic progressions in real time, trained on over 80 composers
+  from the Yale Classical Archives Corpus. It integrates with TidalCycles
+  via a form and kinetics framework, five voicing strategies, and a full
+  virtual orchestra of 15 instruments.
+category:            "Music Composition"
+homepage:            "https://github.com/OscarSouth/theHarmonicAlgorithm"
+github:              "OscarSouth/theHarmonicAlgorithm"
 
 dependencies:
   - base >= 4.14 && < 5

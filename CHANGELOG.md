@@ -1,231 +1,204 @@
-# Changelog
+# Changelog for theHarmonicAlgorithm
 
-## V3 (2026-03-13)
+## Version 3.0.0 is here! (2026)
 
-V3 is a ground-up rebuild of The Harmonic Algorithm. What started as a
-command line interface for navigating harmonic space has become a live
-performance instrument — deeply integrated with TidalCycles, capable of
-channelling the harmonic sensibilities of over 80 composers from the Yale
-Classical Archives Corpus, and designed to be played in real time.
+Version 3.0.0 is a complete rebuild. The Harmonic Algorithm has grown into a
+live performance instrument built around three interlocking systems: **The
+Harmonic Algorithm** — the R→E→T generation engine, now capable of channelling
+and blending the harmonic sensibilities of over 80 composers from the Yale
+Classical Archives Corpus; **The Spectral Narrative** — a form and kinetics
+framework that programs macro-level compositional arc as data, in wall-clock
+seconds; and **Algorithmic Orchestration** — a full virtual orchestra of 15
+instruments brought into the TidalCycles live coding environment.
 
-### New Musical Possibilities
+The design throughout is composable. Harmonic contexts, generation parameters,
+voicing strategies, form structures, and orchestral assignments are all small
+pieces that can be combined, overridden, or commented out and inferred.
+The aim is an instrument you can navigate fluidly in real time.
 
-**Composer Blending** — You can now channel different composers' harmonic
-sensibilities and blend them with weighted ratios. `"bach"` gives you strong
-functional harmony. `"debussy"` brings colourful modal movement.
-`"debussy:0.75 bach:0.25"` creates a stylistic fusion that neither would
-have written alone. The wildcard `"*"` aggregates across the entire corpus.
-Blended composers even get a creative portmanteau name in the output.
+### Harmonic Generation
 
-**Five Voicing Strategies** — Each one reshapes how a progression sounds
-without changing the harmony itself. `flow` finds the smoothest voice leading
-using cyclic dynamic programming. `grid` keeps the root locked in the bass
-with optimised upper voices. `lite` gives you the raw intervals. `root`
-extracts just the root note as a melodic line. `fund` always returns the
-harmonic fundamental regardless of inversion — essential for kick drums and
-sub bass.
+**Composer Blending** — Channel a single composer's harmonic style, blend
+multiple with weighted ratios (`"debussy:0.75 bach:0.25"`), or aggregate across
+the full corpus with `"*"`. Blended composers get a portmanteau name in the
+output.
 
-**Entropy as a Creativity Dial** — A single parameter controls the balance
-between the familiar and the surprising. At 0.3, the algorithm follows the
-most common cadences — safe, consonant, Bach-approved. At 0.8, it reaches
-deeper into the probability space for unexpected harmonic turns and distant
-modulations. The same starting chord can lead to radically different
-musical outcomes.
+**Entropy Control** — A single float (0.0–1.0) dials between the familiar and
+the surprising. At 0.3 the algorithm favours the most common cadences — safe,
+consonant. At 0.8 it reaches into less-travelled harmonic territory for 
+unexpected turns and distant modulations.
 
-**Groove Interface** — `subKick` creates MPC-style kick and sub bass patterns
-that follow the harmonic root of the current chord. Rhythm and harmony
-unified — the low end always locks to the harmony, even as the progression
-changes underneath.
+**Dissonance Drift** — `dissonant ctx` and `consonant ctx` shape the tension
+arc across a progression. The algorithm selects the best musical choice meeting
+the constraint — not just the most or least dissonant option.
 
-**Explicit Construction** — You don't always need the algorithm to generate
-for you. Build progressions by hand with pitch-class lists or readable note
-names (`notesToPCs [C, E, G]`). Define musical sections (A, B) and assemble
-them into different forms — AABA, ABAB, AABB — hearing the same material
-create different structures.
+**Bass Direction** — Force the bass line to ascend or descend stepwise through
+the filtered pitch space for roots with `rise`/`fall` in the roots string. 
+A numeric suffix skips notes: `rise2` selects every second, `rise3` every 
+third, up to `rise6` for a tritone leap in a chromatic context. 
+Combine with key and root filters to shape the path.
 
-**Progression Manipulation** — Reshape generated harmony in real time:
-`rotate` shifts the starting point, `excerpt` pulls out a section,
-`transposeP` shifts everything to a new key, `reverse` plays it backwards,
-`fuse` joins progressions end to end, `expandP` slows the harmonic rhythm.
-All composable — chain them together for complex transformations.
+**Inversion Spacing** — `invSkip N` enforces a minimum number of root-position
+chords between any two inversions — direct control over harmonic density and
+stability across a progression.
 
-**Three-Part Filtering** — Constrain the harmonic space with overtones,
-key signatures, and root motion filters. Bass guitar tuning (`"E A D G"`),
-jazz contexts (`"*" "2#" "D F# A"`), blues roots (`"*" "1b" "F Bb C"`) —
-the filtering system shapes the musical character as much as the notes
-themselves. Removal syntax (`"-Bb'"`) subtracts specific pitches.
+**`lead`** — Construct a starting state from a readable string: `lead "E min
+(5)"` gives E minor arrived at by ascending five semitones. Root, quality, and movement are
+each optional, falling through to random when omitted.
 
-**Bass Direction** — Force the bass line to move in a single direction
-with `"0# rise"` or `"0# fall"` in the roots string. The algorithm
-selects the closest allowed bass note above (rise) or below (fall) the
-current one, creating stepwise ascending or descending bass motion through
-the filtered pitch space. Append a number 2–6 to skip notes: `"0# rise2"`
-moves by thirds, `"0# rise3"` by fourths, up to `"0# rise6"` for sixths.
-The step walks through the allowed set in order, wrapping around if it
-exceeds the set size. Combine with key and root filters to shape the
-path — `"*" "1b 4 5" "key rise"` produces a rising bass line through
-the mixolydian degrees.
+### Voicing
 
-**Dissonance Drift** — Shape the harmonic tension arc across a
-progression. `dissonant ctx` filters each generation step to candidates
-with equal or greater dissonance than the current chord, building tension
-over time. `consonant ctx` does the opposite, gradually resolving toward
-simpler harmony. The filter applies after pool construction but before
-selection, preserving the normal scoring hierarchy — you get the best
-musical choice that meets the constraint, not just the most or least
-dissonant option. Composes with bass direction:
-`consonant (dissonant ctx)` — last modifier wins.
+**Five Voicing Strategies** — `flow` finds the smoothest path through the full
+progression using cyclic dynamic programming. `grid` keeps the root locked in
+the bass with optimised upper voices. `lite` gives the raw intervals. `root`
+extracts the root as a melodic line. `fund` always returns the harmonic
+fundamental regardless of inversion — essential for kick drums and sub bass.
 
-**Inversion Spacing** — Control how often chord inversions appear in
-generated progressions. `invSkip 2 $ ctx` ensures at least 2
-root-position chords between any two inversions. `invSkip 0` (default)
-allows inversions freely. The starting state counts toward the spacing —
-a root-position start with `invSkip 1` means the first generated step
-can already be an inversion. Composes with all other context modifiers.
+**Rebuilt Voice Leading Engine** — Voicings are now solved globally across the
+entire progression including wrap-around, producing the kind of smooth contrary
+motion and minimal leaps that previously required manual arrangement. The
+improvement in voice smoothness is audible.
 
-**`lead` — String-Parsed Starting State** — `lead :: String -> IO CadenceState`
-constructs a starting chord from a human-readable string. Root, quality, and
-movement can each be omitted to fall through to randomness. `lead "E min (5)"`
-gives E minor arrived by ascending 5th. `lead "E"` gives E with a random
-quality and random movement. `lead ""` is fully random. Recognised quality
-shorthands include `maj`, `min`, `dim`, `aug`, `7`, `dom7`, `maj7`, `min7`,
-`hdim`, `sus2`, `sus4`, `6`, `m6` — all other names try to match the internal
-quality map directly. Prints `root quality` to the console on construction.
+### Progression Tools
 
-**Modifier-Based Context API** — `hContext` is now a zero-argument
-chromatic default. Filters are applied as composable modifier functions:
-`hcOvertones "E A D G"`, `hcKey "0#"`, `hcRoots "C E G"`. Wildcard
-filters are simply omitted instead of explicitly passed as `"*"`.
-Individual lines can be commented out to fall back to defaults.
-`dissonant`, `consonant`, and `invSkip N` compose naturally in the
-same chain: `invSkip 2 $ consonant $ hcKey "0#" $ hContext`.
+**Progression Manipulation** — `rotate`, `excerpt`, `transposeP`, `reverse`,
+`fuse`, `expandP` reshape generated harmony in real time. All composable — chain
+them for complex transformations.
 
-**Modifier-Based Gen API** — `gen`, `gen'`, and `gen''` are now bare
-config values (`GenConfig` type) instead of multi-argument functions.
-Parameters are applied as composable modifiers: `cue` (starting state),
-`len` (progression length), `entropy` (gamma shape), `tonal` (harmonic
-context). `seek` is the terminal modifier that executes generation:
-`s <- seek "*" $ cue start $ tonal ctx $ len 4 $ entropy 0.3 $ gen`.
-The composer string is passed to `seek` rather than embedded in the
-config, keeping it visible at the call site. Follows the same pattern
-as the `hContext` modifier rework — individual modifiers can be
-commented out to fall back to defaults. The old positional interface
-remains available as `genPrint`, `genPrint'`, `genPrint''`, and
-`genSilent`/`genStandard`/`genVerbose` are unchanged.
+**Explicit Construction** — Build progressions by hand with pitch-class lists or
+readable note names (`notesToPCs [C, E, G]`). Define musical sections and
+assemble them into different formal arrangements.
 
-**Pattern Launcher Paradigm** — Define reusable instrument blocks with
-four parameters: transformation, progression, chord selection, and dynamics.
-Stack multiple voices with independent voicing, register, and rhythm.
-Launch and relaunch through a session with different progressions and
-transformations.
+**Three-Part Filtering** — Overtones, key signatures, and root motion filters
+in a single composable chain. Removal syntax (`-Bb'`) subtracts specific
+pitches. The filter shapes musical character as much as the notes themselves.
 
-### Under the Hood
+### Groove
 
-The generation engine was rebuilt for reliability and performance:
-- Voice leading uses cyclic dynamic programming for globally optimal
-  voicings across the full progression (including wrap-around)
-- A shared RNG eliminates thousands of `/dev/urandom` reads per generation
-- Pre-parsed harmonic contexts use `IntSet` for O(1) membership tests
-- The Builder module was split into focused sub-modules (Types, Core,
-  Diagnostics, Portmanteau) with a facade re-export preserving the API
-- Several correctness fixes ensure the algorithm produces what it claims —
-  `mostConsonant` now matches the canonical Dissonance module, unknown
-  note names throw errors instead of silently defaulting, and all
-  generation functions use identical candidate pools
+**subKick** — MPC-style kick and sub bass logic that follows the harmonic root
+of the current chord. The low end always locks to the harmony, even as the
+progression changes underneath. Complimentary MPC program will be provided.
 
-**Form & Kinetics Framework** — Macro-level compositional arc is now
-programmable structure. Define forms in wall-clock seconds that loop
-endlessly, with continuous interpolation for kinetics and dynamics, and
-discrete step functions for progression switching.
+### Form & Kinetics
 
-- `FormNode` and `Kinetics` types encode form as data: time, kinetics
-  level (0–1), dynamic level (0–1), and active progression at each node
-- `at` constructor and `formK` realization: define nodes with `at`,
-  realize them into looping TidalCycles patterns with `formK bpm nodes`
-- `ki` range gating: `ki (lo, hi) k` masks patterns by kinetics signal
-  level — elements only active when `kSignal` is within range
-- `slate` gated stack: combine `ki` + `stack` for drum layers that
-  activate at different intensity levels
-- `withForm` reactive switching: apply a function taking `Progression`
-  to a `Kinetics` context via `innerJoin`
-- Forms are now inline declarations with snippet templates — see
-  `live/snippets.cson` for spectral narrative and pop form snippets
-- Single-state forms produce constant signals, recreating "formless"
-  behaviour: `formK tempo [at 0 1 1 s]`
-- `arrange` and `arrange'` now take a kinetics range, progression
-  modifier, and `Kinetics` context — enabling form-driven range gating
-  and reactive progression switching within arrangement blocks
-- `subKick` now takes `Kinetics` instead of a raw `Progression`,
-  with built-in ki gating on sub (0.1–1) and kick (0.2–1) groups
-- Launcher paradigm updated: `f s r d` → `f k d` — progression and
-  chord selection pattern are read from `IK` context, not passed directly
-- `iK bpm form chordPat` bundles Kinetics with a chord selection pattern
-  into a single `IK` value, replacing separate progression and kinetics
-  parameters throughout the interface
+**Form & Kinetics Framework** — Programs macro-level compositional arc as data.
+Forms are defined in wall-clock seconds and loop endlessly, with continuous
+interpolation for kinetics and dynamics, and discrete progression switching at
+defined nodes. Concise, explicit, long form evolving and dynamic structure.
 
-**Algorithmic Orchestration** — Scoring for a virtual orchestra via
-TidalCycles live coding. Musical elements are abstracted into three
-concerns: harmony/contexts (the Harmonic Algorithm), form/constants
-(the Spectral Narrative), and interfaces/timbres (the Orchestra module).
+**`at` / `formK`** — Declare form nodes with `at time kinetics dynamics
+progression`, realise into looping TidalCycles patterns with `formK bpm nodes`.
+Single-node forms produce constant signals, recreating formless behaviour.
 
-- `instrument` function: arrange → channel → octave shift → MIDI range
-  clip pipeline. Each orchestral instrument is a partial application with
-  built-in range enforcement — the composer sees only voice assignment
-  and kinetics range, never raw MIDI numbers
-- 15 pitched instrument functions: `flute`, `oboe`, `clarinet`, `bassoon`
-  (winds, ch 1–4); `horn`, `trombone`, `basstrom` (brass, ch 5–6);
-  `harp` (ch 7); `timpani` (ch 8); `violin1`, `violin2`, `viola`,
-  `cello`, `contrabass` (strings, default arco ch 16). Each with
-  physically accurate MIDI range clipping
-- Unpitched percussion: `bassdrum` (ch 9, MIDI 36), `tamtam` (ch 11,
-  MIDI 31) — struct-based pattern triggering
-- Voice line system: `VoiceLines` record with SATB fields, `voiceLines`
-  defaults (`soprano = "3"`, `alto = "1"`, `tenor = "2"`, `bass = "0"`).
-  Override individual voices per block; `_vl` field enables comma-leading
-  syntax
-- `Voice` type with 20 variants: `Soprano`, `Alto`, `Tenor`, `Bass` plus
-  `8va`, `15va`, `8vb`, `15vb` octave shifts for each. Italian musical
-  terminology for register displacement
-- String articulation channel aliases: `pizz` (ch 12), `spicc` (ch 13),
-  `marc` (ch 14), `legg` (ch 15), `arco` (ch 16). Override with `#`:
-  `violin1 (0,1) k vl flow Soprano # pizz`
-- Orchestral section blocks: `wind` (fl/ob/cl/bn), `brss` (hn/trb/btrb),
-  `strg` (vn1/vn2/va/vc/cb), `perc` (timp/harp/bd/tam)
-- Timbral blends: `chalumeau` (dark warmth: cl+bn+hn), `pastorale`
-  (mid-register: fl+ob+cl), `brillante` (bright top: fl 8va at high k),
-  `maestoso` (full winds+brass), `tutti` (full orchestra with kinetics
-  crescendo ordering — strings always, winds at 0.2, brass at 0.5,
-  percussion at 0.8)
-- Per-instrument kinetics ranges create progressive crescendo:
-  instruments enter as the spectral narrative's kinetics signal rises
-  from 0→1, building from solo to full orchestral texture
-- See `ALGORITHMIC_ORCHESTRATION.md` for the full instrument catalogue,
-  JV-1010 channel map, pan positions, and target ensemble specification
+**`ki` / `slate` / `withForm`** — Range-gate patterns by kinetics level, combine
+gated layers into stacks, and reactively switch progressions as the form
+unfolds. Instrument layers activate and deactivate as the signal rises and falls.
 
-### Performance & Hardware Updates (2026-04)
+### Algorithmic Orchestration
 
-**Voice Leading Cache** — `arrange` and `arrange'` now pre-compute voicings
-at pattern construction time. All unique progressions in `kProg k` are
-resolved once; per-frame lambdas do a list lookup instead of running the
-cyclic DP solver. With 16+ stacked instrument calls (full orchestral mode),
-this reduces voice leading work from ~800 solves/second to 2–3. Skip
-messages in full orchestral mode drop to negligible levels.
+**Instrument Functions** — 15 pitched instruments — `flute`, `oboe`,
+`clarinet`, `bassoon`, `horn`, `trombone`, `basstrom`, `harp`, `timpani`, and
+the full string section — each with physically accurate MIDI range clipping.
+Assign a voice and a kinetics range; the instrument handles everything else.
 
-**subKick Hardware Routing** — `subKick` now routes to MIDI channel 10
-on the `"thru"` device. Sub pitches map to MIDI C2–B2 (36–47) via
-pitch class → `pitch_class + 36`, placing the sub register below all
-orchestral instrument ranges with no overlap. Kick is fixed at C3 (MIDI 48).
-The CC64 sustain mechanism and `sustain 0.01` architecture are unchanged.
+**VoiceLines / Voice** — SATB voice assignment with `8va`, `15va`, `8vb`,
+`15vb` octave shifts for fine register placement across the full orchestral
+range.
 
-**Frame Rate & Segment Density** — Frame timespan set to `1/30` (~33ms)
-for better headroom with complex pattern graphs. `segment` density reduced
-across Form.hs (16), BootTidal `lfo` (16), and subKick `sustainOn` (16)
-— all remain musically sufficient for their respective purposes.
+**String Articulations** — `pizz`, `spicc`, `marc`, `legg`, `arco` channel
+aliases for instant timbral switching per instrument block.
 
-### Migration from V2
+**Section Blocks + Timbral Blends** — `wind`, `brss`, `strg`, `perc` group
+instruments into sections. `chalumeau`, `pastorale`, `brillante`, `maestoso`,
+`tutti` are orchestral colour presets for quick ensemble changes.
 
-- The public API is preserved through facade re-exports — existing code
-  should work unchanged
-- `GeneratorConfig` has been simplified to a single field (`gcPoolSize`)
-- The experimental homing mechanism has been removed (it was never
-  part of the musical interface)
+**Progressive Crescendo** — Instruments enter as the kinetics signal rises from
+0→1, building from solo to full orchestral texture. The Spectral Narrative
+drives the orchestration.
+
+### API
+
+**Modifier-Based Context API** — `hContext` is a zero-argument chromatic
+default. Filters apply as a composable chain: `invSkip 2 $ consonant $ hcKey
+"0#" $ hContext`. Comment out individual lines to fall back to defaults.
+
+**Modifier-Based Gen API** — `gen` is a bare config value composed with
+modifiers: `s <- seek "*" $ cue start $ tonal ctx $ len 4 $ entropy 0.3 $ gen`.
+The composer string stays visible at the call site.
+
+**Pattern Launcher Paradigm** — Reusable instrument blocks with transformation,
+progression, chord selection, and dynamics. Launch and relaunch through a
+session with different progressions and contexts.
+
+### Performance
+
+**~500× Faster Generation at Runtime** — A deep-dive into Haskell's native
+data types and algorithmic complexity produced a ground-up overhaul of the
+generation engine's core data paths. The harmonic context was reparsing text
+strings ~690 times per generation step; it now uses a pre-parsed `IntSet` for
+O(1) membership. Chord chain construction was O(n²) list append; it is now
+constant-time. The random number generator was opening `/dev/urandom` ~4,600
+times per 8-chord progression; it is now a single shared handle. The voice
+leading solver moved from O(n) list indexing to O(1) with `Data.Vector`. These
+improvements compound: generation that once felt sluggish or impractical now
+runs immediately.
+
+**400× Faster in Full Orchestral Mode** — The generation engine was completely
+rewritten: voicings are pre-computed once at pattern construction time rather
+than solved per frame. With 16+ stacked instrument calls, voice leading work
+drops from ~800 solver calls per second to 2–3.
+
+__________________________________________________________________________________
+
+
+## Version 2.0.0 has arrived! (2022)
+
+Version 2.0.0 takes the algorithm out of the terminal and into the concert
+hall or studio. Two architectural changes make this possible:
+
+The in-memory Markov tables have been replaced by a Neo4j graph database as a
+persistent backend. Cadence transitions from the Yale Classical Archives Corpus
+are stored as transposition-invariant zero-form nodes — fast enough for
+adjacency-based traversal in an interpreted environment that the algorithm can
+now run inside TidalCycles without interrupting the performance. The graph is
+populated once from the corpus CSV data and queried at pattern time.
+
+The initial TidalCycles interface allows The Harmonic Algorithm to be
+interacted with during a live session. Generative functions, the launcher,
+and performance interfaces allow generated progressions to be patterned and
+transformed in real time — chords becoming musical patterns that can be
+manipulated, layered, and interracted with within a TidalCycles setup.
+
+## Version 1.1.1
+
+More intelligent naming logic with regard to slash chord notation.
+Removed some system specific path dependencies.
+
+## Version 1.1.0
+
+Version 1.1.0 makes a few refinements to the codebase as well as introducing
+a new feature -- Random Sequences!
+
+Random sequences allow the performer/composer to traverse deterministic space
+(move through musical cadences!) at a much faster rate and give a 'higher up'
+viewpoint to the character and nature of harmonic motion in a given musical
+context. The performer/composer can then 'jump in' to any point of the
+generated sequence and move through musical space in 'blocks' of harmony.
+
+__________________________________________________________________________________
+
+
+## Version 1.0.0 is complete! (2018)
+
+The Harmonic Algorithm 1.0.0 implements a generation, filtering and
+exploration algorithm for triadic musical data, with a focus on composing
+with the overtones of an instrument and scope for use in traditional
+composition, instrumental study or even live performance.
+
+This functionality is augmented by a conceptually complete Markov Chain
+Machine Learning implementation, trained on Bach Chorale harmonisation data
+retrieved from the UCI Machine Learning Repository (Dua, D., Karra Taniskidou,
+E., 2017 http://archive.ics.uci.edu/ml).
+
+In version 1.0.0 of The Harmonic Algorithm, a command line interface is
+provided for interaction with the underlying musical and numerical algorithms.

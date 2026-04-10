@@ -136,7 +136,7 @@ violin1, violin2, viola, cello, contrabass :: (Double, Double) -> IK -> VoiceLin
 violin1    = instrument ( -5, 45) 16  -- G3–A7  (MIDI 55–105)
 violin2    = instrument ( -5, 45) 16  -- G3–A7  (MIDI 55–105)
 viola      = instrument (-12, 28) 16  -- C3–E6  (MIDI 48–88)
-cello      = instrument (-24, 24) 16  -- C2–C5  (MIDI 36–84)
+cello      = instrument (-24, 24) 16  -- C2–C6  (MIDI 36–84)
 contrabass = instrument (-36,  0) 16  -- C1–C4  (MIDI 24–60)
 
 -------------------------------------------------------------------------------

@@ -12,7 +12,7 @@ services:
       - ./neo4j/logs:/logs
       - ./neo4j/plugins:/plugins
     environment:
-      - NEO4J_AUTH=neo4j/password
+      - NEO4J_AUTH=neo4j/password  # local development default — not a secret
       - NEO4JLABS_PLUGINS=["apoc"]
       - NEO4J_dbms_security_procedures_allowlist=apoc.coll.*,apoc.load.*,apoc.*
       - NEO4J_dbms_security_procedures_unrestricted=apoc.coll.*,apoc.load.*,apoc.*

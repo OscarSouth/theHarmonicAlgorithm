@@ -5,8 +5,8 @@ cabal-version: 1.12
 -- see: https://github.com/sol/hpack
 
 name:           theHarmonicAlgorithm
-version:        0.1.0
-author:         HarmAlgo Team
+version:        3.0.0
+author:         Oscar South
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple

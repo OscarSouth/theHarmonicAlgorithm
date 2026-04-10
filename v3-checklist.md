@@ -6,9 +6,9 @@ Completion reference for the V3 release, generated from static analysis of the f
 
 ## 1. Security (BLOCKING)
 
-- [ ] **Externalise Neo4j credentials** — `src/Harmonic/Config.hs:14-21` hardcodes `neo4jPassword = "password"`, `neo4jUser = "neo4j"`, `neo4jUri = "bolt://localhost:7687"`. These are fine for local development but a security risk if the repo goes public. Options: (a) read from environment variables with a fallback default, (b) document that these are development-only defaults and acceptable for a local-first tool.
-- [ ] **docker-compose.yml** — `NEO4J_AUTH=neo4j/password` on line 15. Same concern. Add a comment noting this is the local development default.
-- [ ] **Add `.env` patterns to .gitignore** — future-proofing if env files are ever introduced.
+- [x] **Neo4j credentials** — Local-first tool; Neo4j runs on localhost via docker-compose with matching defaults. No network exposure. Config.hs documented with Haddock explaining the design; credentials are docker defaults, not secrets.
+- [x] **docker-compose.yml** — Added inline comment noting `NEO4J_AUTH` is a local development default.
+- [x] **Add `.env` patterns to .gitignore** — Added `.env`, `.env.*`, `!.env.example`.
 
 ---
 
@@ -16,24 +16,24 @@ Completion reference for the V3 release, generated from static analysis of the f
 
 `package.yaml` is missing several fields expected for a released package:
 
-- [ ] **version**: Currently `0.1.0`. Bump to `3.0.0` to match the V3 designation).
-- [ ] **maintainer**: Empty string. Use `"oscarsouth@gmail.com"` (is there any issue with bot scraping exposing this?).
-- [ ] **synopsis**: Missing. One-line summary, max ~80 chars. e.g. `"Real-time harmonic and timbral generation with Neo4j and TidalCycles"`
-- [ ] **description**: Missing. 2-3 sentences for package registries.
-- [ ] **category**: Missing. Use `"Music Composition"`.
-- [ ] **homepage**: Missing. e.g. `"https://github.com/OscarSouth/theHarmonicAlgorithm"`
-- [ ] **github**: Missing. e.g. `"OscarSouth/theHarmonicAlgorithm"`
-- [ ] **copyright**: Currently `"2018 Oscar South"`. Update to `"2018-2026 Oscar South"`.
+- [x] **version**: Bumped to `3.0.0`.
+- [x] **maintainer**: Set to `"oscarsouth@gmail.com"`.
+- [x] **synopsis**: Added.
+- [x] **description**: Added.
+- [x] **category**: Set to `"Music Composition"`.
+- [x] **homepage**: Set to `"https://github.com/OscarSouth/theHarmonicAlgorithm"`.
+- [x] **github**: Set to `"OscarSouth/theHarmonicAlgorithm"`.
+- [x] **copyright**: Updated to `"2018-2026 Oscar South"`.
 
 ---
 
 ## 3. Git Hygiene
 
 - [ ] **Commit all current changes** — 36 modified files and several new files (ORCHESTRAL_CATALOGUE.tidal, composition suites) are uncommitted.
-- [ ] **Remove .DS_Store from tracking** — `git rm --cached .DS_Store` then add to .gitignore.
+- [ ] **Remove .DS_Store from tracking** — `git rm --cached .DS_Store` (already in .gitignore, but may still be tracked).
 - [ ] **Decide on untracked composition suites** — `live/Brandenburg/`, `live/Planets/`, `live/Seasons/`, `live/TheGreat/`, `live/M-k191/` (47 untracked files). Either commit them as portfolio pieces or add to .gitignore if they're private/WIP.
-- [ ] **Add to .gitignore**: `.claude/`, `.serena/`, `.mcp.json` (development tool metadata).
-- [ ] **LICENSE copyright year** — Currently "2018". Update to "2018-2026".
+- [x] **Add to .gitignore**: `.claude/`, `.serena/`, `.mcp.json` already present; `.env` patterns added.
+- [x] **LICENSE copyright year** — Updated to "2018-2026".
 
 ---
 
@@ -123,11 +123,11 @@ Items discovered during analysis that aren't bugs but are worth knowing:
 
 - [ ] **`live/demo.tidal` uses legacy API** — Marked with a legacy header (done in this session), but consider whether to keep, update, or remove it entirely for V3.
 - [ ] **`live/notes.txt` is informal brainstorming** — Pattern mapping investigation notes. Either move to `notes/` (gitignored) or formalise into a "Future Work" section somewhere.
-- [ ] **`literal` is an alias for `lite`** — Both are exported from Lib.hs. The USER_GUIDE documents `lite`; `literal` is undocumented. Consider whether to keep the alias or deprecate it.
-- [ ] **`voiceBy` legacy function** — Still exported from Lib.hs/Bridge.hs. Maps old `VoiceType` enum to new voicing functions. Used in `demo.tidal`. Consider whether to keep for backwards compatibility or remove.
-- [ ] **`harmony` legacy function** — Still exported from Bridge.hs. Used in `demo.tidal` and ARCHITECTURE.md extension examples (now updated). Same consideration.
-- [ ] **`defaultContext` alias** — Exported alongside `hContext`. Both do the same thing. Consider keeping one.
-- [ ] **Cello range comment** — `Orchestra.hs:139` says `C2-C5 (MIDI 36-84)` but MIDI 84 is C6, not C5. The code is correct (the clip range works), but the comment has a typo.
+- [ ] **`literal` is an alias for `lite`** — Imported directly in `GrooveSpec.hs`; safe to keep until tests are updated.
+- [ ] **`voiceBy` legacy function** — Tested directly in `BridgeSpec.hs` (4 test cases for `Roots`/`Grid`/`Harmony`/`Voiced`). Safe to keep until tests are updated or removed.
+- [x] **`harmony` legacy function** — Only used in `live/userguide_explore.tidal` (being stripped for release). Safe to remove.
+- [x] **`defaultContext` alias** — Only used in `live/` files (being stripped for release). Safe to remove.
+- [x] **Cello range comment** — Fixed: `C2–C5` → `C2–C6` (MIDI 84 = C6).
 
 ---
 

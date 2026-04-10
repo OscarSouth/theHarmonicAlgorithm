@@ -20,6 +20,11 @@ neo4j/
 .DS_Store
 Thumbs.db
 
+# Environment / secrets (future-proofing)
+.env
+.env.*
+!.env.example
+
 # Haskell artifacts
 *.hi
 *.o
