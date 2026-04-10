@@ -67,6 +67,17 @@ stack test
 
 Only proceed if all checks pass.
 
+**For offline-only verification (no Neo4j):**
+
+```haskell
+-- In stack ghci:
+import Harmonic.Lib
+let start = initCadenceState 0 "C" [0,4,7]
+prog <- genSilent start 4 "none" 0.5 hContext
+print prog   -- Should show 4-chord progression
+-- Offline tests: stack test --test-arguments="--match offline"
+```
+
 ## Memory Systems (MCP Servers)
 
 This project uses **two memory systems** to preserve knowledge across sessions. Both should be actively used throughout development.
@@ -266,16 +277,19 @@ import Harmonic.Rules.Types.Progression
 import Harmonic.Lib
 
 -- Create context and starting state
-ctx <- harmonicContext "*" "*" "*"
 let start = initCadenceState 0 "C" [0,4,7]
 
--- Test generation (requires Neo4j)
-prog <- genSilent start 4 "*" 0.5 ctx
+-- Offline test (no Neo4j required)
+prog <- genSilent start 4 "none" 0.5 hContext
 print prog  -- Should show 4-chord progression
 
--- Test different verbosity levels
-prog' <- genStandard start 4 "*" 0.5 ctx  -- With diagnostics
-prog'' <- genVerbose start 4 "*" 0.5 ctx  -- Full traces
+-- Online test (requires Neo4j)
+prog <- genSilent start 4 "*" 0.5 hContext
+print prog  -- Should show 4-chord progression
+
+-- Test different verbosity levels (online)
+prog' <- genStandard start 4 "*" 0.5 hContext  -- With diagnostics
+prog'' <- genVerbose start 4 "*" 0.5 hContext  -- Full traces (shows Mode: online)
 ```
 
 #### Interface (src/Harmonic/Interface/Tidal/Bridge.hs)

@@ -6,10 +6,21 @@ cabal-version: 1.12
 
 name:           theHarmonicAlgorithm
 version:        3.0.0
+synopsis:       Real-time harmonic progression generation for TidalCycles live performance
+description:    theHarmonicAlgorithm is a live performance instrument for generating and shaping harmonic progressions in real time, trained on over 80 composers from the Yale Classical Archives Corpus. It integrates with TidalCycles via a form and kinetics framework, five voicing strategies, and a full virtual orchestra of 15 instruments.
+category:       Music Composition
+homepage:       https://github.com/OscarSouth/theHarmonicAlgorithm
+bug-reports:    https://github.com/OscarSouth/theHarmonicAlgorithm/issues
 author:         Oscar South
+maintainer:     oscarsouth@gmail.com
+copyright:      2018-2026 Oscar South
 license:        BSD3
 license-file:   LICENSE
 build-type:     Simple
+
+source-repository head
+  type: git
+  location: https://github.com/OscarSouth/theHarmonicAlgorithm
 
 library
   exposed-modules:

@@ -1,0 +1,66 @@
+theHarmonicAlgorithm — Third-Party Notices
+==========================================
+
+-------------------------------------------------------------------------------
+1. YCACL Corpus Data
+-------------------------------------------------------------------------------
+
+The harmonic transition graph is trained on the Yale Classical Archives Corpus
+(YCACL), obtained from the UCI Machine Learning Repository:
+
+  Dua, D. and Karra Taniskidou, E. (2017). UCI Machine Learning Repository.
+  Irvine, CA: University of California, School of Information and Computer Science.
+  http://archive.ics.uci.edu/ml
+
+  Original data: jsbach_chorals_harmony.data (Bach Chorale harmonisation)
+  Extended corpus: ycacl_sequences.csv (Yale Classical Archives)
+
+Users who need to rebuild the database from source can obtain the corpus files
+from the UCI repository directly.
+
+-------------------------------------------------------------------------------
+2. TidalCycles
+-------------------------------------------------------------------------------
+
+The Interface.Tidal modules depend on TidalCycles (GPL-3.0):
+
+  TidalCycles — Live coding music with Haskell
+  Alex McLean and contributors
+  https://tidalcycles.org
+  License: GPL-3.0
+
+  hosc — Haskell Open Sound Control
+  Rohan Drape and contributors
+  License: GPL-3.0
+
+-------------------------------------------------------------------------------
+3. Hindemith Dissonance Table
+-------------------------------------------------------------------------------
+
+The Dissonance scoring module is based on interval consonance values derived
+from Paul Hindemith's harmonic theory:
+
+  Hindemith, P. (1937). The Craft of Musical Composition, Book 1.
+  Schott Music. English translation (1942) by Arthur Mendel.
+
+-------------------------------------------------------------------------------
+4. Creative Systems Framework
+-------------------------------------------------------------------------------
+
+The R→E→T architectural model follows Wiggins' Creative Systems Framework:
+
+  Wiggins, G. A. (2006). A preliminary framework for description, analysis
+  and comparison of creative systems. Knowledge-Based Systems, 19(7), 449-458.
+
+-------------------------------------------------------------------------------
+5. Haskell Dependencies
+-------------------------------------------------------------------------------
+
+All Haskell package dependencies are listed in package.yaml. The majority are
+licensed under BSD-2-Clause or BSD-3-Clause. Notable exceptions:
+
+  tidal, hosc, tidal-core, tidal-link — GPL-3.0 (see section 2)
+  hasbolt — Apache-2.0 (Neo4j Bolt driver)
+
+Full license texts are available via each package on Hackage:
+https://hackage.haskell.org

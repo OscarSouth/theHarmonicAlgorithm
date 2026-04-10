@@ -92,6 +92,9 @@ probabilities:
 <!-- [audio: "bach" — strong functional harmony, clear cadential motion] -->
 <!-- [audio: "debussy" — colourful, modal inflections] -->
 <!-- [audio: "bach:30 debussy:70" — functional foundations with impressionistic colour] -->
+
+Use `"none"` to bypass the graph entirely — no Neo4j required. Progressions
+are shaped by your context filters and entropy alone.
 <!-- [video: live coding session — building a piece from scratch in TidalCycles] -->
 
 ___

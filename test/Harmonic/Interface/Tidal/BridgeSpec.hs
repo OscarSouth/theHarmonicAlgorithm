@@ -7,7 +7,7 @@
 --
 -- Validates the Bridge module:
 --   * Modulo wrap behavior for pattern indices
---   * Voice extraction functions (flow, voiceBy)
+--   * Voice extraction functions (flow)
 --   * Pattern-based lookup functions
 --   * Patterned chord selection (arrange, arrange')
 --   * Chord selection helpers (warp, rep, lookupChordAt)
@@ -172,24 +172,6 @@ spec = do
         let chord0 = lookupChord testProgression 0
             chord100 = lookupChord testProgression 100
         chord0 `shouldBe` chord100
-
-  describe "VoiceType enum" $ do
-
-    it "Roots extracts root notes" $ do
-      let voicings = voiceBy Roots testProgression (pure 0)
-      voicings `seq` True `shouldBe` True
-
-    it "Grid extracts locked-root voicings" $ do
-      let voicings = voiceBy Grid testProgression (pure 0)
-      voicings `seq` True `shouldBe` True
-
-    it "Harmony extracts full chords" $ do
-      let voicings = voiceBy Harmony testProgression (pure 0)
-      voicings `seq` True `shouldBe` True
-
-    it "Voiced extracts voice-led chords" $ do
-      let voicings = voiceBy Voiced testProgression (pure 0)
-      voicings `seq` True `shouldBe` True
 
   describe "extract" $ do
 

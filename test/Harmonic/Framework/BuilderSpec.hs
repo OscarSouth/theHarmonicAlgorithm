@@ -28,7 +28,7 @@ import qualified Data.Text as T
 import Data.Text (Text)
 import Data.List (sort)
 
-import Harmonic.Framework.Builder (HarmonicContext(..), GeneratorConfig(..), defaultContext, defaultConfig, Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, TransformTrace(..), AdvanceTrace(..), StepDiagnostic(..), harmonicContext, matchesContext, parseComposersWithOrder, makePortmanteau, extractByPosition, takeFromBeginning, takeFromEnd, takeFromMiddle, GenConfig(..), GenMode(..), Verbosity(..), defaultGenConfig, gen, gen', gen'', genGrid, genFrom, cue, len, seek, entropy, tonal, hContext)
+import Harmonic.Framework.Builder (HarmonicContext(..), GeneratorConfig(..), defaultConfig, Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, TransformTrace(..), AdvanceTrace(..), StepDiagnostic(..), harmonicContext, matchesContext, parseComposersWithOrder, makePortmanteau, extractByPosition, takeFromBeginning, takeFromEnd, takeFromMiddle, GenConfig(..), GenMode(..), Verbosity(..), defaultGenConfig, gen, gen', gen'', genGrid, genFrom, cue, len, seek, entropy, tonal, hContext, genSilent)
 import Harmonic.Framework.Builder.Core (applyDriftFilter, matchesContextWithTarget)
 import Harmonic.Framework.Builder.Types (parseContextOnce)
 import Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
@@ -46,21 +46,21 @@ spec :: Spec
 spec = do
   describe "HarmonicContext" $ do
     
-    describe "defaultContext" $ do
+    describe "hContext" $ do
       it "has wildcard overtones filter" $ do
-        _hcOvertones defaultContext `shouldBe` "*"
+        _hcOvertones hContext `shouldBe` "*"
         -- Verify wildcard parses to all 12 pitch classes
-        sort (parseOvertones $ _hcOvertones defaultContext) `shouldBe` [0..11]
+        sort (parseOvertones $ _hcOvertones hContext) `shouldBe` [0..11]
       
       it "has wildcard key filter" $ do
-        _hcKey defaultContext `shouldBe` "*"
+        _hcKey hContext `shouldBe` "*"
         -- Verify wildcard parses to all 12 pitch classes
-        sort (parseKey $ _hcKey defaultContext) `shouldBe` [0..11]
+        sort (parseKey $ _hcKey hContext) `shouldBe` [0..11]
       
       it "has wildcard roots filter" $ do
-        _hcRoots defaultContext `shouldBe` "*"
+        _hcRoots hContext `shouldBe` "*"
         -- Verify wildcard parses to all 12 pitch classes
-        sort (parseFunds $ _hcRoots defaultContext) `shouldBe` [0..11]
+        sort (parseFunds $ _hcRoots hContext) `shouldBe` [0..11]
     
     describe "harmonicContext smart constructor" $ do
       -- Overtone series filtering (pitch class sets)
@@ -645,11 +645,11 @@ spec = do
 
     describe "dissonant/consonant modifiers" $ do
       it "dissonant sets drift to Dissonant" $ do
-        _hcDrift (dissonant defaultContext) `shouldBe` Dissonant
+        _hcDrift (dissonant hContext) `shouldBe` Dissonant
       it "consonant sets drift to Consonant" $ do
-        _hcDrift (consonant defaultContext) `shouldBe` Consonant
-      it "defaultContext has Free drift" $ do
-        _hcDrift defaultContext `shouldBe` Free
+        _hcDrift (consonant hContext) `shouldBe` Consonant
+      it "hContext has Free drift" $ do
+        _hcDrift hContext `shouldBe` Free
       it "harmonicContext defaults to Free" $ do
         _hcDrift (harmonicContext "*" "*" "*") `shouldBe` Free
 
@@ -720,31 +720,31 @@ spec = do
 
     describe "hcOvertones" $ do
       it "sets overtone filter" $ do
-        let ctx = hcOvertones "E A D G" $ defaultContext
+        let ctx = hcOvertones "E A D G" $ hContext
         _hcOvertones ctx `shouldBe` "E A D G"
 
       it "hContext alone has wildcard overtones" $ do
-        _hcOvertones defaultContext `shouldBe` "*"
+        _hcOvertones hContext `shouldBe` "*"
 
     describe "hcKey" $ do
       it "sets key filter" $ do
-        let ctx = hcKey "1#" $ defaultContext
+        let ctx = hcKey "1#" $ hContext
         _hcKey ctx `shouldBe` "1#"
 
       it "hContext alone has wildcard key" $ do
-        _hcKey defaultContext `shouldBe` "*"
+        _hcKey hContext `shouldBe` "*"
 
     describe "hcRoots" $ do
       it "sets roots filter" $ do
-        let ctx = hcRoots "C E G" $ defaultContext
+        let ctx = hcRoots "C E G" $ hContext
         _hcRoots ctx `shouldBe` "C E G"
 
       it "hContext alone has wildcard roots" $ do
-        _hcRoots defaultContext `shouldBe` "*"
+        _hcRoots hContext `shouldBe` "*"
 
     describe "modifier composition" $ do
       it "all modifiers compose in any order" $ do
-        let ctx = invSkip 2 $ consonant $ hcRoots "C G" $ hcKey "1#" $ hcOvertones "E A D G" $ defaultContext
+        let ctx = invSkip 2 $ consonant $ hcRoots "C G" $ hcKey "1#" $ hcOvertones "E A D G" $ hContext
         _hcOvertones ctx `shouldBe` "E A D G"
         _hcKey ctx `shouldBe` "1#"
         _hcRoots ctx `shouldBe` "C G"
@@ -752,19 +752,19 @@ spec = do
         _hcInversionSpacing ctx `shouldBe` 2
 
       it "later modifiers override earlier ones" $ do
-        let ctx = hcKey "2#" $ hcKey "1#" $ defaultContext
+        let ctx = hcKey "2#" $ hcKey "1#" $ hContext
         _hcKey ctx `shouldBe` "2#"
 
     describe "invSkip modifier" $ do
       it "sets inversion spacing on context" $ do
-        let ctx = invSkip 3 $ defaultContext
+        let ctx = invSkip 3 $ hContext
         _hcInversionSpacing ctx `shouldBe` 3
 
       it "default context has inversion spacing 0" $ do
-        _hcInversionSpacing defaultContext `shouldBe` 0
+        _hcInversionSpacing hContext `shouldBe` 0
 
       it "composes with other modifiers" $ do
-        let ctx = invSkip 2 $ dissonant $ defaultContext
+        let ctx = invSkip 2 $ dissonant $ hContext
         _hcInversionSpacing ctx `shouldBe` 2
         _hcDrift ctx `shouldBe` Dissonant
 
@@ -884,3 +884,26 @@ spec = do
           gc = genFrom prog (1, 2)  -- cue should be position 4 (G)
       result <- _gcCue gc
       H.stateCadenceRoot result `shouldBe` P.G
+
+  -- These tests run without Neo4j — offline mode uses only the consonanceFallback mechanism
+  describe "offline mode (seek \"none\")" $ do
+    it "generates a progression without Neo4j connection" $ do
+      let start = H.initCadenceState 0 "C" [0,4,7]
+      prog <- genSilent start 4 "none" 0.5 hContext
+      Prog.progLength prog `shouldBe` 4
+
+    it "returns correct length for various sizes" $ do
+      let start = H.initCadenceState 0 "G" [0,4,7]
+      prog8 <- genSilent start 8 "none" 0.2 hContext
+      Prog.progLength prog8 `shouldBe` 8
+
+    it "respects key context filter offline" $ do
+      let ctx = hcKey "0#" hContext  -- C major
+          start = H.initCadenceState 0 "C" [0,4,7]
+      prog <- genSilent start 4 "none" 0.3 ctx
+      Prog.progLength prog `shouldBe` 4
+
+    it "seek \"none\" modifier works end-to-end" $ do
+      let start = H.initCadenceState 0 "C" [0,4,7]
+      prog <- seek "none" $ cue start $ len 4 $ gen
+      Prog.progLength prog `shouldBe` 4

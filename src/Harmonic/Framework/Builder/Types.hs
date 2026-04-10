@@ -13,7 +13,6 @@ module Harmonic.Framework.Builder.Types
     HarmonicContext(..)
   , harmonicContext
   , hContext
-  , defaultContext
 
     -- * Context Modifiers
   , Drift(..)
@@ -124,10 +123,6 @@ harmonicContext o k r = HarmonicContext o k r Free 0
 -- @
 hContext :: HarmonicContext
 hContext = HarmonicContext "*" "*" "*" Free 0
-
--- |Default context: no filtering (wildcards everywhere)
-defaultContext :: HarmonicContext
-defaultContext = HarmonicContext "*" "*" "*" Free 0
 
 -------------------------------------------------------------------------------
 -- Dissonance Drift

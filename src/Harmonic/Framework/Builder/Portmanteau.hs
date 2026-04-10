@@ -57,15 +57,16 @@ parseComposersWithOrder input
 
 -- | Generate portmanteau from composer string (preserving input order)
 -- Takes weighted portions from beginning/middle/end based on POSITION
--- Returns Nothing for "*" or empty input
+-- Returns Nothing for "*", empty input, or "none" (offline mode)
 makePortmanteau :: Text -> Maybe Text
-makePortmanteau input =
-  case parseComposersWithOrder input of
-    []  -> Nothing
-    [(name, _)] -> Just (T.toTitle name)
-    composers
-      | any ((== "*") . fst) composers -> Nothing
-      | otherwise -> Just . T.toTitle . T.concat $ buildFragments composers
+makePortmanteau input
+  | T.toLower input == "none" = Nothing
+  | otherwise = case parseComposersWithOrder input of
+      []               -> Nothing
+      [(name, _)]      -> Just (T.toTitle name)
+      composers
+        | any ((== "*") . fst) composers -> Nothing
+        | otherwise -> Just . T.toTitle . T.concat $ buildFragments composers
   where
     buildFragments composers = zipWith extractPart [0..] composers
       where

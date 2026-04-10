@@ -1,5 +1,7 @@
 # Changelog for theHarmonicAlgorithm
 
+__________________________________________________________________________________
+
 ## Version 3.0.0 is here! (2026)
 
 Version 3.0.0 is a complete rebuild. The Harmonic Algorithm has grown into a
@@ -22,6 +24,11 @@ The aim is an instrument you can navigate fluidly in real time.
 multiple with weighted ratios (`"debussy:0.75 bach:0.25"`), or aggregate across
 the full corpus with `"*"`. Blended composers get a portmanteau name in the
 output.
+
+**Offline Mode** — Pass `"none"` as the composer string to bypass the graph
+entirely and generate using only the fallback mechanism. No Neo4j required.
+Progressions are shaped by context filters (overtones, key, roots, drift,
+inversion spacing) and entropy — fully musical, without corpus-trained style.
 
 **Entropy Control** — A single float (0.0–1.0) dials between the familiar and
 the surprising. At 0.3 the algorithm favours the most common cadences — safe,
@@ -58,6 +65,32 @@ fundamental regardless of inversion — essential for kick drums and sub bass.
 entire progression including wrap-around, producing the kind of smooth contrary
 motion and minimal leaps that previously required manual arrangement. The
 improvement in voice smoothness is audible.
+
+### Arrangement
+
+**Rewritten `arrange`** — V2 arrangement had two persistent problems: erratic
+behaviour at TidalCycles cycle boundaries, and notes crossing a harmony boundary
+would generate a spurious new onset rather than sustaining. Both are fixed. Notes
+now sustain naturally through harmony changes; new onsets only occur within the
+harmonic boundary that the note began in. `arrange` maps the input pattern across
+progression states — the pattern runs at its own speed, pitch-mapped to whichever
+chord is active at each onset.
+
+**`squeeze`** — An alternative where the pattern plays within each state rather
+than across them. Each chord slot gets the full pattern from the start, compressed
+to fit its duration. Use when you want per-chord pattern distribution; use
+`arrange` when the pattern should flow independently of harmony.
+
+**`warp`** — Defines the chord selection pattern in mininotation:
+`warp "[1 2 1 3]/4"` steps through chords 1, 2, 1, 3 over four bars. The
+divisor maps directly to physical bars, so the harmonic rhythm is readable at a
+glance. Any TidalCycles operator — probabilities, euclidean rhythms, palindromes
+— applies. `rep prog 1` auto-derives the selection from a progression's length for
+the common case of N bars per chord.
+
+**Overlap** — `overlapF N` (and `overlapB`, `progOverlap`) expand a chord's pitch
+set with pitches from neighbouring chords, producing natural sustain and legato
+across harmony changes.
 
 ### Progression Tools
 
@@ -116,7 +149,7 @@ instruments into sections. `chalumeau`, `pastorale`, `brillante`, `maestoso`,
 0→1, building from solo to full orchestral texture. The Spectral Narrative
 drives the orchestration.
 
-### API
+### Harmonic Generation API
 
 **Modifier-Based Context API** — `hContext` is a zero-argument chromatic
 default. Filters apply as a composable chain: `invSkip 2 $ consonant $ hcKey
@@ -148,8 +181,18 @@ rewritten: voicings are pre-computed once at pattern construction time rather
 than solved per frame. With 16+ stacked instrument calls, voice leading work
 drops from ~800 solver calls per second to 2–3.
 
-__________________________________________________________________________________
+### Testing
 
+**Comprehensive Test Suite** — V3 ships with a 13-module HSpec and QuickCheck
+test suite covering the full library: Z₁₂ pitch-class algebra, chord naming,
+progression monoid laws, filter and overtone constraints, dissonance scoring,
+voice leading costs, composer weight parsing, probabilistic selection, the
+generation engine, the TidalCycles bridge, groove interface, and form/kinetics
+framework. Property-based tests verify algebraic invariants across arbitrary
+inputs — pitch wrap, transposition, voice leading cost bounds. The suite runs
+on every change and provides a stable foundation for ongoing development.
+
+__________________________________________________________________________________
 
 ## Version 2.0.0 has arrived! (2022)
 
@@ -186,7 +229,6 @@ context. The performer/composer can then 'jump in' to any point of the
 generated sequence and move through musical space in 'blocks' of harmony.
 
 __________________________________________________________________________________
-
 
 ## Version 1.0.0 is complete! (2018)
 

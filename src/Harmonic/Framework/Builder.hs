@@ -152,7 +152,6 @@ module Harmonic.Framework.Builder
   , HarmonicContext(..)
   , harmonicContext
   , hContext
-  , defaultContext
 
     -- * Context Modifiers
   , Drift(..)
@@ -182,6 +181,7 @@ import qualified Database.Bolt as Bolt
 import qualified Data.Text as T
 import           Data.Text (Text)
 import           Control.Monad (forM_, when)
+import           Data.Char (toLower)
 import           Data.List (intercalate)
 import           System.Random.MWC (createSystemRandom, uniformRM)
 
@@ -199,6 +199,20 @@ import           Harmonic.Framework.Builder.Types
 import           Harmonic.Framework.Builder.Portmanteau
 import           Harmonic.Framework.Builder.Diagnostics
 import           Harmonic.Framework.Builder.Core
+
+-------------------------------------------------------------------------------
+-- Mode Display
+-------------------------------------------------------------------------------
+
+-- |Format the generation mode line for diagnostic output headers.
+-- Shows offline status or the distinct composer names used for online generation.
+composerModeStr :: String -> String
+composerModeStr s
+  | map toLower s == "none" = "Mode: offline (fallback only — no graph)"
+  | s == "*"                = "Mode: online (composers: all)"
+  | otherwise               = "Mode: online (composers: " ++ names ++ ")"
+  where
+    names = intercalate ", " (map (T.unpack . fst) (parseComposersWithOrder (T.pack s)))
 
 -------------------------------------------------------------------------------
 -- Main Generation Function
@@ -261,22 +275,16 @@ generateWith :: GeneratorConfig
              -> HarmonicContext
              -> IO Prog.Progression
 generateWith config start len composerStr entropy context = do
-  -- Parse composer blend string (e.g., "bach:0.3 debussy:0.7" → Map)
-  let composerWeights = Q.parseComposerWeights composerStr
-      pctx = parseContextOnce context
-
-  -- Create single RNG for entire generation run
+  let pctx = parseContextOnce context
   rng <- createSystemRandom
-
-  -- Connect to Neo4j
-  pipe <- connectNeo4j
-
-  -- Generate the cadence chain (len-1 steps since start counts as first chord)
-  chain <- Bolt.run pipe $ buildChain config rng entropy context pctx composerWeights start (len - 1)
-
-  Bolt.close pipe
-
-  -- Convert chain to Progression (chain already includes start)
+  chain <- if map toLower (T.unpack composerStr) == "none"
+    then buildChainOffline config rng entropy context pctx start (len - 1)
+    else do
+      let composerWeights = Q.parseComposerWeights composerStr
+      pipe <- connectNeo4j
+      result <- Bolt.run pipe $ buildChain config rng entropy context pctx composerWeights start (len - 1)
+      Bolt.close pipe
+      pure result
   pure $ chainToProgression chain
 
 -------------------------------------------------------------------------------
@@ -320,6 +328,7 @@ genPrint' start len composerStr entropy ctx = do
   putStrLn ""
   putStrLn $ "Generation: " ++ gdStartRoot diag ++ " " ++ gdStartCadence diag
              ++ " → " ++ show (gdActualLen diag) ++ " chords (entropy " ++ show (gdEntropy diag) ++ ")"
+  putStrLn $ composerModeStr composerStr
   putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
   -- Show starting state as bar 1
@@ -387,22 +396,16 @@ genPrint' start len composerStr entropy ctx = do
 genWith' :: GeneratorConfig -> H.CadenceState -> Int -> String -> Double -> HarmonicContext
          -> IO (Prog.Progression, GenerationDiagnostics)
 genWith' config start len composerStr entropy context = do
-  -- Parse composer blend string (e.g., "bach:0.3 debussy:0.7" → Map)
-  let composerWeights = Q.parseComposerWeights (T.pack composerStr)
-      pctx = parseContextOnce context
-
-  -- Create single RNG for entire generation run
+  let pctx = parseContextOnce context
   rng <- createSystemRandom
-
-  -- Connect to Neo4j
-  pipe <- connectNeo4j
-
-  -- Generate the cadence chain with diagnostics
-  (chain, stepDiags) <- Bolt.run pipe $ buildChainWithDiag config rng entropy context pctx composerWeights start (len - 1)
-
-  Bolt.close pipe
-
-  -- Convert chain to Progression
+  (chain, stepDiags) <- if map toLower composerStr == "none"
+    then buildChainOfflineWithDiag config rng entropy context pctx start (len - 1)
+    else do
+      let composerWeights = Q.parseComposerWeights (T.pack composerStr)
+      pipe <- connectNeo4j
+      result <- Bolt.run pipe $ buildChainWithDiag config rng entropy context pctx composerWeights start (len - 1)
+      Bolt.close pipe
+      pure result
   let prog = chainToProgression chain
       diag = GenerationDiagnostics
         { gdStartCadence = show (extractCadence start)
@@ -413,7 +416,6 @@ genWith' config start len composerStr entropy context = do
         , gdSteps = stepDiags
         , gdProgression = prog
         }
-
   pure (prog, diag)
 
 -------------------------------------------------------------------------------
@@ -445,6 +447,7 @@ genPrint'' start len composerStr entropy ctx = do
   putStrLn ""
   putStrLn $ "Verbose Generation: " ++ gdStartRoot diag ++ " " ++ gdStartCadence diag
              ++ " → " ++ show (gdActualLen diag) ++ " chords (entropy " ++ show (gdEntropy diag) ++ ")"
+  putStrLn $ composerModeStr composerStr
   putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
   -- Show starting state as bar 1
@@ -502,22 +505,16 @@ genPrint'' start len composerStr entropy ctx = do
 genWith'' :: GeneratorConfig -> H.CadenceState -> Int -> String -> Double -> HarmonicContext
           -> IO (Prog.Progression, GenerationDiagnostics)
 genWith'' config start len composerStr entropy context = do
-  -- Parse composer blend string (e.g., "bach:0.3 debussy:0.7" → Map)
-  let composerWeights = Q.parseComposerWeights (T.pack composerStr)
-      pctx = parseContextOnce context
-
-  -- Create single RNG for entire generation run
+  let pctx = parseContextOnce context
   rng <- createSystemRandom
-
-  -- Connect to Neo4j
-  pipe <- connectNeo4j
-
-  -- Generate the cadence chain with max diagnostics (verbosity = 2)
-  (chain, stepDiags) <- Bolt.run pipe $ buildChainWithDiagV config rng 2 entropy context pctx composerWeights start (len - 1)
-
-  Bolt.close pipe
-
-  -- Convert chain to Progression
+  (chain, stepDiags) <- if map toLower composerStr == "none"
+    then buildChainOfflineWithDiagV config rng 2 entropy context pctx start (len - 1)
+    else do
+      let composerWeights = Q.parseComposerWeights (T.pack composerStr)
+      pipe <- connectNeo4j
+      result <- Bolt.run pipe $ buildChainWithDiagV config rng 2 entropy context pctx composerWeights start (len - 1)
+      Bolt.close pipe
+      pure result
   let prog = chainToProgression chain
       diag = GenerationDiagnostics
         { gdStartCadence = show (extractCadence start)
@@ -528,7 +525,6 @@ genWith'' config start len composerStr entropy context = do
         , gdSteps = stepDiags
         , gdProgression = prog
         }
-
   pure (prog, diag)
 
 -------------------------------------------------------------------------------

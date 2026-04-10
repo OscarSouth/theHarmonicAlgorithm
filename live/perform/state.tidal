@@ -1,3 +1,5 @@
+tempo = 77
+
  -- TRANSPORT
 mapM_ id [p "transport"
  $ seqP
@@ -6,19 +8,17 @@ mapM_ id [p "transport"
  ,setcps (tempo/60)
  ]
 
-tempo = 97
-
 start <- lead "E min"
 
 ctx = invSkip 1
   -- $ consonant
-  $ hcRoots "E A B fall"
-  $ hcKey "1#"
+  -- $ hcRoots "E A B fall"
+  -- $ hcKey "1#"
   $ hContext
 
 s <- seek "debussy bach"
   $ len 4
-  $ cue start
+  -- $ cue start
   $ tonal ctx
   $ entropy 0.3
   $ gen
@@ -26,8 +26,8 @@ s <- seek "debussy bach"
  -- '' ¬¬
 do
   let
-    r = warp "[1 [4 3@2] 2 1]/4"
-    -- r = warp "[1 3 [2 [3 2]] 1]/4"
+    -- r = warp "[1 [4 3@2] 2 1]/4"
+    r = warp "[1 2 3 4 5 6 7 8]/32"
     f = (swingBy 0.04 2)
     d = (*1)
     k = iK tempo [at 0 0 0.1 s
@@ -44,11 +44,11 @@ do
     -- ,brss f k $d 0.9
     -- ,perc f k $d 1
     ,p07  f k $d 0.9
-    ,subk f k $d 0.1
-    ,k909 f k $d 0.8
-    ,kmpc f k $d 0.3
+    -- ,subk f k $d 0.1
+    -- ,k909 f k $d 0.8
+    -- ,kmpc f k $d 0.3
     -- ,m32  f k $d 0.9
-    ,mdf f k $d 0.9
+    -- ,mdf f k $d 0.9
    ]
 
 hush

@@ -260,6 +260,7 @@ hush'
 -- "bach" = name a single composer
 -- "debussy:0.75 bach:0.25" = weighted blend
 -- "ravel stravinsky mozart:2" = equal+double
+-- "none" = offline mode; bypass graph, use fallback only (no Neo4j required)
 
 -- ENTROPY
 -- creativity parameter

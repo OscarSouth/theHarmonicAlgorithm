@@ -173,6 +173,7 @@ generation:
 - `"bach"` — a single composer's learned transitions
 - `"debussy:0.75 bach:0.25"` — a weighted blend
 - `"ravel stravinsky mozart:2"` — equal weight with a double dose of Mozart
+- `"none"` — offline mode; bypass the graph entirely, use fallback only (no Neo4j required)
 
 **Entropy** is the creativity parameter. Low values (< 0.3) produce
 conservative, consonant progressions that follow the most common cadences.
@@ -819,11 +820,17 @@ different harmonic sensibilities through the same system:
 prog0 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen                    -- all composers
 prog1 <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen                  -- Bach alone
 prog2 <- seek "debussy:0.75 bach:0.25" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen  -- weighted blend
+prog3 <- seek "none" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen                   -- offline, no Neo4j
 ```
 
 Weights are normalised, so `"ravel:2 stravinsky:1 mozart:1"` gives you
 50% Ravel, 25% each of Stravinsky and Mozart. Blended composers get a
 creative portmanteau name in the output header.
+
+`"none"` bypasses the graph entirely. Progressions are shaped purely by your
+context filters (overtones, key, roots, drift) and entropy — no corpus required.
+Useful for getting started before populating the database, or for exploring
+the fallback mechanism's consonance-guided generation on its own.
 
 `[video: comparing wildcard (all composers) vs "bach" (strong functional
 harmony) vs "debussy" (colourful modal movement) vs the weighted blend

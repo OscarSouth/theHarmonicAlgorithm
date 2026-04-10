@@ -19,7 +19,7 @@
 -- import Harmonic.Lib
 --
 -- let start = initCadenceState 0 "C" [0,4,7]
---     ctx = defaultContext
+--     ctx = hContext
 --
 -- -- Silent: Just get the progression
 -- prog1 <- genSilent start 8 "*" 0.5 ctx
@@ -117,7 +117,7 @@ module Harmonic.Lib (
   genPrint, genPrint', genPrint'',
 
   -- ========== CONTEXT & CONFIGURATION ==========
-  HarmonicContext(..), harmonicContext, hContext, defaultContext,
+  HarmonicContext(..), harmonicContext, hContext,
   Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip,
   GeneratorConfig(..), defaultConfig,
 
@@ -158,7 +158,7 @@ module Harmonic.Lib (
   -- Pattern-level operations
   VoiceFunction, voiceRange,
   arrange, arrange', warp, rep, lookupChordAt,
-  lookupChord, lookupProgression, VoiceType(..), voiceBy, harmony,
+  lookupChord, lookupProgression,
   overlapF,
 
   -- Form / Kinetics
@@ -223,7 +223,7 @@ import Harmonic.Framework.Builder (
     genSilent', genStandard', genVerbose',
     printDiagnostics,
     -- Context & types
-    HarmonicContext(..), harmonicContext, hContext, defaultContext,
+    HarmonicContext(..), harmonicContext, hContext,
     Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip,
     GeneratorConfig(..), defaultConfig,
     StepDiagnostic(..), GenerationDiagnostics(..), TransformTrace(..), AdvanceTrace(..)
@@ -237,7 +237,7 @@ import Harmonic.Rules.Import.Transform
 import Harmonic.Interface.Tidal.Bridge (
     VoiceFunction, voiceRange,
     arrange, arrange', warp, rep, lookupChordAt,
-    lookupChord, lookupProgression, VoiceType(..), voiceBy, harmony,
+    lookupChord, lookupProgression,
     overlapF
   )
 import Harmonic.Interface.Tidal.Arranger (

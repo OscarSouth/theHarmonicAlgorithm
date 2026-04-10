@@ -9,10 +9,15 @@
 -- These functions run inside the Bolt action monad for Neo4j access.
 
 module Harmonic.Framework.Builder.Core
-  ( -- * Chain Building
+  ( -- * Chain Building (online, requires Neo4j)
     buildChain
   , buildChainWithDiag
   , buildChainWithDiagV
+
+    -- * Chain Building (offline, no Neo4j required)
+  , buildChainOffline
+  , buildChainOfflineWithDiag
+  , buildChainOfflineWithDiagV
 
     -- * Conversion
   , chainToProgression
@@ -77,36 +82,23 @@ buildChain config gen ent context pctx composerWeights start totalSteps = do
           [1..totalSteps]
   pure $ reverse revChain
 
--- |Unified single step for chain building.
+-- |Core body for a single chain-building step (plain IO, no Bolt dependency).
 --
--- When verbosity is Nothing, skips diagnostic construction entirely.
--- When verbosity is Just n, collects diagnostics at level n:
---   Just 1 = standard diagnostics (rendered chord populated)
---   Just 2 = maximum diagnostics (full TransformTrace and AdvanceTrace)
---
--- Algorithm:
---   1. Query graph for transitions from current cadence
---   2. Filter by HarmonicContext (pure predicate filtering)
---   3. Sort by confidence (highest first)
---   4. Generate consonanceFallback candidates, filter by R constraints
---   5. Gamma-select from unified pool using entropy
---   6. Advance state and optionally build diagnostic record
-stepChainCore :: GeneratorConfig
-              -> GenIO            -- ^ Shared random generator
+-- Takes pre-fetched transitions and executes the full filtering/scoring/selection logic.
+-- Used by both the online Bolt wrapper ('stepChainCore') and offline path ('stepChainOffline').
+-- When transitions is empty (offline mode), generation relies entirely on consonanceFallback.
+stepChainBody :: GeneratorConfig
+              -> GenIO
               -> Maybe Int        -- ^ Nothing = no diagnostics, Just n = verbosity level
               -> Double           -- ^ Entropy [0,1]
               -> HarmonicContext
-              -> ParsedContext    -- ^ Pre-parsed context for O(1) lookups
-              -> ComposerWeights  -- ^ Composer blend weights
-              -> ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic]) -- ^ ((Current, revChain, nonInvCount), revDiags)
-              -> Int              -- ^ Current step number
-              -> Bolt.BoltActionT IO ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
-stepChainCore _config gen mVerbosity ent _context pctx composerWeights ((current, revChain, nonInvCount), revDiags) stepNum = do
-  let currentShow = T.pack $ show (extractCadence current)
-
-  -- Fetch all transitions from current cadence
-  transitions <- fetchTransitions currentShow
-
+              -> ParsedContext
+              -> ComposerWeights
+              -> ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
+              -> Int
+              -> [(H.Cadence, ComposerWeights)]   -- ^ Pre-fetched transitions (empty for offline)
+              -> IO ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
+stepChainBody _config gen mVerbosity ent _context pctx composerWeights ((current, revChain, nonInvCount), revDiags) stepNum transitions = do
   -- Compute bass direction target (if rise/fall is active)
   let prevBassPC = P.unPitchClass (P.pitchClass (H.stateCadenceRoot current))
       bassTarget = case pcBassDirection pctx of
@@ -125,7 +117,7 @@ stepChainCore _config gen mVerbosity ent _context pctx composerWeights ((current
 
   -- Build candidate pool: graph candidates + consonanceFallback
   -- NO POOL SIZE LIMIT - use full 660-candidate fallback generation
-  fallbackAll <- liftIO $ consonanceFallbackParsed gen current pctx
+  fallbackAll <- consonanceFallbackParsed gen current pctx
   -- Apply R constraints to fallback candidates (same as graph candidates)
   let unfilteredFallback = [(cad, score) | (cad, score, _, _, _) <- fallbackAll]
       filteredFallback = filter (\(cad, _) -> matchesContextWithTarget bassTarget pctx current cad) unfilteredFallback
@@ -177,7 +169,7 @@ stepChainCore _config gen mVerbosity ent _context pctx composerWeights ((current
               in diag : revDiags
       pure ((current, current : revChain, nonInvCount), diags)
     else do
-      idx <- liftIO $ gammaIndexScaledWith gen ent (length finalPool)
+      idx <- gammaIndexScaledWith gen ent (length finalPool)
       let nextCadence = fst (finalPool !! idx)
           (newState, advTrace) = advanceStateTraced current nextCadence
           newCounter = if H.isInversion nextCadence then 0 else nonInvCount + 1
@@ -220,6 +212,44 @@ stepChainCore _config gen mVerbosity ent _context pctx composerWeights ((current
 
       pure ((newState, newState : revChain, newCounter), diags)
 
+-- |Unified single step for chain building (online, requires Neo4j).
+--
+-- Fetches graph transitions via Bolt then delegates all logic to 'stepChainBody'.
+-- When verbosity is Nothing, skips diagnostic construction entirely.
+-- When verbosity is Just n, collects diagnostics at level n:
+--   Just 1 = standard diagnostics (rendered chord populated)
+--   Just 2 = maximum diagnostics (full TransformTrace and AdvanceTrace)
+stepChainCore :: GeneratorConfig
+              -> GenIO
+              -> Maybe Int
+              -> Double
+              -> HarmonicContext
+              -> ParsedContext
+              -> ComposerWeights
+              -> ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
+              -> Int
+              -> Bolt.BoltActionT IO ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
+stepChainCore config gen mVerbosity ent context pctx composerWeights acc@((current, _, _), _) stepNum = do
+  let currentShow = T.pack $ show (extractCadence current)
+  transitions <- fetchTransitions currentShow
+  liftIO $ stepChainBody config gen mVerbosity ent context pctx composerWeights acc stepNum transitions
+
+-- |Offline single step for chain building (no Neo4j required).
+--
+-- Passes empty transitions to 'stepChainBody', so generation relies entirely
+-- on the consonanceFallback mechanism (~660 candidates shaped by context filters).
+stepChainOffline :: GeneratorConfig
+                 -> GenIO
+                 -> Maybe Int
+                 -> Double
+                 -> HarmonicContext
+                 -> ParsedContext
+                 -> ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
+                 -> Int
+                 -> IO ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
+stepChainOffline config gen mVerbosity ent context pctx acc stepNum =
+  stepChainBody config gen mVerbosity ent context pctx mempty acc stepNum []
+
 -------------------------------------------------------------------------------
 -- Chain Building with Diagnostics
 -------------------------------------------------------------------------------
@@ -255,6 +285,66 @@ buildChainWithDiagV config gen verbosity ent context pctx composerWeights start 
   let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
   ((_current, revChain, _counter), revDiags) <-
     foldM (stepChainCore config gen (Just verbosity) ent context pctx composerWeights)
+          ((start, [start], initCounter), [])
+          [1..totalSteps]
+  pure (reverse revChain, reverse revDiags)
+
+-------------------------------------------------------------------------------
+-- Offline Chain Building (plain IO, no Bolt/Neo4j)
+-------------------------------------------------------------------------------
+
+-- |Build cadence chain offline (no Neo4j required).
+--
+-- Uses only the consonanceFallback mechanism — no graph traversal.
+-- Progressions are shaped by context filters (overtones, key, roots, drift,
+-- inversion spacing) and entropy. Fully musical without corpus-trained style.
+buildChainOffline :: GeneratorConfig
+                  -> GenIO
+                  -> Double
+                  -> HarmonicContext
+                  -> ParsedContext
+                  -> H.CadenceState
+                  -> Int
+                  -> IO [H.CadenceState]
+buildChainOffline config gen ent context pctx start totalSteps = do
+  let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
+  ((_current, revChain, _counter), _noDiags) <-
+    foldM (stepChainOffline config gen Nothing ent context pctx)
+          ((start, [start], initCounter), [])
+          [1..totalSteps]
+  pure $ reverse revChain
+
+-- |Build cadence chain offline with standard diagnostic collection.
+buildChainOfflineWithDiag :: GeneratorConfig
+                           -> GenIO
+                           -> Double
+                           -> HarmonicContext
+                           -> ParsedContext
+                           -> H.CadenceState
+                           -> Int
+                           -> IO ([H.CadenceState], [StepDiagnostic])
+buildChainOfflineWithDiag config gen ent context pctx start totalSteps = do
+  let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
+  ((_current, revChain, _counter), revDiags) <-
+    foldM (stepChainOffline config gen (Just 1) ent context pctx)
+          ((start, [start], initCounter), [])
+          [1..totalSteps]
+  pure (reverse revChain, reverse revDiags)
+
+-- |Build cadence chain offline with configurable verbosity diagnostics.
+buildChainOfflineWithDiagV :: GeneratorConfig
+                            -> GenIO
+                            -> Int
+                            -> Double
+                            -> HarmonicContext
+                            -> ParsedContext
+                            -> H.CadenceState
+                            -> Int
+                            -> IO ([H.CadenceState], [StepDiagnostic])
+buildChainOfflineWithDiagV config gen verbosity ent context pctx start totalSteps = do
+  let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
+  ((_current, revChain, _counter), revDiags) <-
+    foldM (stepChainOffline config gen (Just verbosity) ent context pctx)
           ((start, [start], initCounter), [])
           [1..totalSteps]
   pure (reverse revChain, reverse revDiags)

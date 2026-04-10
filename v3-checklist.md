@@ -108,12 +108,12 @@ Things you might not have thought of:
 - [ ] **Badges** — Consider adding build status, license, and Hackage version badges to README.md header.
 
 ### Distribution
-- [ ] **Pre-built Neo4j dump** — For users who don't want to run `stack run`, consider providing a Neo4j database dump file they can restore. Saves the R dependency and corpus processing time.
-- [ ] **Minimal working example** — `live/examples.tidal` exists but Example 1 and 2 have generation lines commented out (require Neo4j). Consider a fully self-contained example using `fromCadenceStates` that works without Neo4j.
+- [ ] **Pre-built Neo4j dump** — Requires populated database + docker dump + hosting decision (GitHub release asset). Deferred.
+- [x] **Minimal working example** — `live/demo.tidal` restructured: Example 1 is fully offline (`fromCadenceStates` + `iK` + `arrange`, no Neo4j); generation lines clearly labelled as ONLINE. Header explains offline vs online paths. `seek "none"` provides an algorithmic offline path (consonance fallback, no corpus) complementing manual `fromCadenceStates` construction.
 
 ### Legal
-- [ ] **YCACL corpus license** — The Yale Classical Archives Corpus is from the UCI Machine Learning Repository. Verify redistribution rights. If the CSV can't be redistributed, document how users can obtain it themselves.
-- [ ] **Third-party attribution** — README acknowledges Wiggins, McLean, Hindemith, UCI. Consider a formal NOTICES or THIRD-PARTY-LICENSES file if any dependencies require it.
+- [x] **YCACL corpus license** — Source documented in `NOTICES` file with UCI attribution and instructions for users to obtain corpus files directly if redistribution rights are unclear.
+- [x] **Third-party attribution** — `NOTICES` file created covering: YCACL/UCI corpus, TidalCycles (GPL-3.0), hosc (GPL-3.0), Hindemith dissonance theory, Wiggins CSF, hasbolt (Apache-2.0), and all Haskell dependencies.
 
 ---
 
@@ -121,12 +121,13 @@ Things you might not have thought of:
 
 Items discovered during analysis that aren't bugs but are worth knowing:
 
-- [ ] **`live/demo.tidal` uses legacy API** — Marked with a legacy header (done in this session), but consider whether to keep, update, or remove it entirely for V3.
-- [ ] **`live/notes.txt` is informal brainstorming** — Pattern mapping investigation notes. Either move to `notes/` (gitignored) or formalise into a "Future Work" section somewhere.
-- [ ] **`literal` is an alias for `lite`** — Imported directly in `GrooveSpec.hs`; safe to keep until tests are updated.
-- [ ] **`voiceBy` legacy function** — Tested directly in `BridgeSpec.hs` (4 test cases for `Roots`/`Grid`/`Harmony`/`Voiced`). Safe to keep until tests are updated or removed.
-- [x] **`harmony` legacy function** — Only used in `live/userguide_explore.tidal` (being stripped for release). Safe to remove.
-- [x] **`defaultContext` alias** — Only used in `live/` files (being stripped for release). Safe to remove.
+- [x] **`live/demo.tidal`** — Deleted for V3 release.
+- [x] **`live/notes.txt`** — Moved to `notes/notes.txt` (gitignored).
+- [x] **`literal` is an alias for `lite`** — Kept intentionally; descriptive name adds clarity.
+- [x] **`voiceBy` / `VoiceType`** — Removed (duplicate entry; see above).
+- [x] **`harmony` legacy function** — Removed from Bridge.hs and all exports.
+- [x] **`defaultContext` alias** — Removed from Builder/Types.hs, Builder.hs facade, and all exports. Lib.hs usage example updated to `hContext`.
+- [x] **`voiceBy` / `VoiceType`** — Removed from Bridge.hs and all exports; corresponding smoke tests removed from BridgeSpec.hs.
 - [x] **Cello range comment** — Fixed: `C2–C5` → `C2–C6` (MIDI 84 = C6).
 
 ---

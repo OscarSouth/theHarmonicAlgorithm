@@ -36,11 +36,6 @@ module Harmonic.Interface.Tidal.Bridge
   , lookupChord
   , lookupProgression
 
-    -- * Voice Extraction
-  , VoiceType(..)
-  , voiceBy
-  , harmony
-
     -- * Progression Overlap (Re-exports from Arranger)
   , overlapF
   , overlapB
@@ -294,32 +289,6 @@ lookupProgression prog idxPat =
   let len = P.progLength prog
       voicings = A.flow prog
   in fmap (\idx -> voicings !! (idx `mod` len)) idxPat
-
--------------------------------------------------------------------------------
--- Voice Extraction
--------------------------------------------------------------------------------
-
--- |Voice type for extraction strategy
-data VoiceType = Roots | Grid | Harmony | Voiced
-  deriving (Show, Eq)
-
--- |Extract specific voice type from a progression pattern.
-voiceBy :: VoiceType -> P.Progression -> Pattern Int -> Pattern [Int]
-voiceBy vtype prog idxPat =
-  let voiceFunc = case vtype of
-        Roots   -> A.root
-        Grid    -> A.grid
-        Harmony -> A.lite
-        Voiced  -> A.flow
-      voicings = voiceFunc prog
-      len = length voicings
-  in fmap (\idx -> voicings !! (idx `mod` len)) idxPat
-
--- |Convenience function: lookup progression and convert to note pattern.
-harmony :: P.Progression -> Pattern Int -> Pattern ValueMap
-harmony prog idxPat =
-  let voicings = lookupProgression prog idxPat
-  in note $ fmap (fromIntegral . head) voicings
 
 -------------------------------------------------------------------------------
 -- Progression Overlap (Re-exports from Arranger)
