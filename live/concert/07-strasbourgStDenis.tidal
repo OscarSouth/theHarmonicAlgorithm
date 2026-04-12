@@ -1,0 +1,133 @@
+-- ══════════════════════════════════════════════════════════
+-- Concert 07 — Strasbourg St Denis
+-- ══════════════════════════════════════════════════════════
+--
+-- Roy Hargrove's 16-bar cool jazz head. Cm7 / Dm7 / EbMaj7
+-- through F7sus4 → BbMaj7 → G7♭9 turnaround, three times
+-- with a final four-bar stretch.
+--
+-- Concert version: piano (ch 1) primary, ride/brush (ch 10)
+-- and kick (ch 9) supporting. Synth drones (Moog, SH-101)
+-- below, commented out.
+
+tempo = 120
+bars = 1
+
+-- ──────────────────────────────────────────────────────────
+-- Harmony (V2 verbatim — 16-bar head)
+-- ──────────────────────────────────────────────────────────
+
+strasbougStDenis =
+  [ [0, 3, 7, 10]    -- bar  1: Cm7
+  , [2, 5, 9, 0]     -- bar  2: Dm7
+  , [3, 7, 10, 2]    -- bar  3: EbMaj7
+  , [3, 7, 10, 2]    --          (repeat)
+  , [0, 3, 7, 10]    -- bar  5: Cm7
+  , [2, 5, 9, 0]     -- bar  6: Dm7
+  , [3, 7, 10, 2]    -- bar  7: EbMaj7
+  , [3, 7, 10, 2]    --          (repeat)
+  , [0, 3, 7, 10]    -- bar  9: Cm7
+  , [2, 5, 9, 0]     -- bar 10: Dm7
+  , [3, 7, 10, 2]    -- bar 11: EbMaj7
+  , [5, 10, 0, 3]    -- bar 12: F7sus4
+  , [10, 2, 5, 9]    -- bar 13: BbMaj7
+  , [10, 2, 5, 9]    --          (repeat)
+  , [7, 11, 5, 8]    -- bar 15: G7♭9no5
+  , [7, 11, 5, 8]    --          (repeat)
+  ]
+
+state = prog strasbougStDenis
+
+-- ──────────────────────────────────────────────────────────
+-- Piano (ch 1)
+-- ──────────────────────────────────────────────────────────
+
+p01 f k d = d01 $ do
+  let o = ch 01
+  f
+    $ stack [silence
+      ,arrange (0, 1) k (-15, -6) root id ["~"
+        ,"[0]/2"
+      ]# o |* vel 0.75 |= legato 0.97
+      ,arrange (0, 1) k (-6, 6) flow (overlapF 0) ["~"
+        ,"[0 . ~ 2 ~]/2"
+      ]# o |* vel 0.65 |= legato 0.9
+      ,arrange (0, 1) k (-3, 9) flow (overlapF 1) ["~"
+        ,degradeBy 0.15 $ "[0 ~ 1 ~ . ~ 2 ~ 1]/2"
+      ]# o |* vel 0.55 |= legato 0.85
+      ,arrange (0, 1) k (0, 14) flow (overlapF 1) ["~"
+        ,degradeBy 0.3 $ "[<2 4 3 5> . ~ <4 2>]/2"
+      ]# o |+ oct 1 |* vel 0.5 |= legato 0.85
+    ] |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- MPC brushes (ch 10)
+-- ──────────────────────────────────────────────────────────
+
+kmpc f d = p "mpckit" $ do
+  let o = ch 10
+  f
+    $ stack [silence
+      ,ride "[1 . 1 1]" |* vel (lfo tri 0.08 0.5) |+ humanise 0.2
+      ,hh "0 1" |* vel 0.4
+      ,degradeBy 0.8 $ snare "[0 1]/2" |* vel 0.35
+    ]# o # legato 0.01 |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- 909 kick (ch 9)
+-- ──────────────────────────────────────────────────────────
+
+k909 f d = p "909kit" $ do
+  let o = ch 9
+  f
+    $ stack [silence
+      ,kick "1"
+      ,hh "0 1" |* vel 0.6
+    ]# o # legato 0.01 |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- Extended instrumentation (optional)
+-- ──────────────────────────────────────────────────────────
+
+-- SH-101 pad (ch 15)
+-- s101 f k d = p "sh101" $ do
+--   let o = ch 15
+--   f
+--     $ stack [silence
+--       ,arrange (0, 1) k (-9, 9) flow (overlapF 1) ["~"
+--         ,"[-3, 0, 2]/4"
+--       ]# o |* vel 0.6 |= legato 0.99
+--     ] |* vel d
+
+-- Moog Mother-32 bass (ch 14)
+-- m32 f k d = p "moogMother32" $ do
+--   let o = ch 14
+--   f
+--     $ stack [silence
+--       ,mono $ arrange (0, 1) k (-12, 0) flow id ["~"
+--         ,"[0 ~ ~ 0 . ~]/2"
+--       ]# o |- oct 1 |* vel 1
+--       -- ,portamento 0.0
+--     ] |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- Launch
+-- ──────────────────────────────────────────────────────────
+
+do
+  let
+    f = swingBy 0.05 2
+    d = (* 0.9)
+    form = [at 0 1 1 state]
+    k = iK tempo form (rep state 1)
+  putStrLn "Concert 07 — Strasbourg St Denis"
+  print state
+  mapM_ id [hush, setbpm tempo
+    , p01  f k $ d 0.9
+    , kmpc f   $ d 0.5
+    , k909 f   $ d 0.7
+    -- , s101 f k $ d 0.6
+    -- , m32  f k $ d 0.8
+    ]
+
+hush

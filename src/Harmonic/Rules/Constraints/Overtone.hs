@@ -46,6 +46,7 @@ module Harmonic.Rules.Constraints.Overtone
     -- * Overtone Annotation
   , annotateOvertones
   , formatOvertoneAnnotation
+  , formatOvertoneAnnotationPipe
   ) where
 
 import GHC.Generics (Generic)
@@ -226,6 +227,26 @@ formatOvertoneAnnotation tuning pitches pcToName =
                 , not (null sources)
                 ]
   in if null entries then "" else "{" ++ intercalate ", " entries ++ "}"
+  where
+    formatSources sources =
+      let grouped = groupByString sources
+      in intercalate "/" [ name ++ formatNums nums | (name, nums) <- grouped ]
+    formatNums [n] = show n
+    formatNums ns  = intercalate "+" (map show ns)
+    groupByString sources =
+      let names = nub [name | (name, _) <- sources]
+      in [ (name, [num | (n, num) <- sources, n == name]) | name <- names ]
+
+-- |Format overtone annotation in pipe-delimited style for inline display.
+-- Produces: @"overtones=| Bb: E2 | D: G3/A4 |"@  (empty string if no annotations)
+formatOvertoneAnnotationPipe :: [(String, Int)] -> [Int] -> (Int -> String) -> String
+formatOvertoneAnnotationPipe tuning pitches pcToName =
+  let annotated = annotateOvertones tuning pitches
+      entries = [ pcToName p ++ ": " ++ formatSources sources
+                | (p, sources) <- annotated
+                , not (null sources)
+                ]
+  in if null entries then "" else "overtones=| " ++ concatMap (\e -> e ++ " | ") entries
   where
     formatSources sources =
       let grouped = groupByString sources

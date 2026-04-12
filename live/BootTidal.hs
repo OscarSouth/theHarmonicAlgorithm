@@ -263,6 +263,24 @@ hh' pat = stack [
 :}
 
 -------------------------------------------------------------------------------
+-- Rhythm Library (ported from legacy BootTidal.hs)
+--
+-- Short mininotation patterns for clave/cascara-style feels, usable with
+-- struct/mask on any instrument or drum part.
+-------------------------------------------------------------------------------
+
+son32     = "[1 [0 1] 0 1 . 0 1 1 0]/4"
+son23     = 2 <~ son32
+rumba32   = "[1 [0 1] 0 1 . 0 1 1 0]/4"
+rumba23   = 2 <~ rumba32
+bossa32   = "[1 [0 1] 0 [0 1] . 0 1 [0 1] 0]/4"
+bossa23   = 2 <~ bossa32
+bellpat32 = "[1 1 [1 1] [0 1] [1 0] [1 1] [0 1] [0 1]]/4"
+bellpat23 = 2 <~ bellpat32
+
+binaryrange lo hi = binary $ lo |+ irand (hi - lo)
+
+-------------------------------------------------------------------------------
 -- Performance Utilities (count, metronome)
 -------------------------------------------------------------------------------
 

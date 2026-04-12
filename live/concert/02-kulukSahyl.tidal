@@ -1,0 +1,153 @@
+-- ══════════════════════════════════════════════════════════
+-- Concert 02 — Kulük Sahyl
+-- ══════════════════════════════════════════════════════════
+--
+-- A modal Turkic-inspired meditation. The V2 concert
+-- arrangement used a single seven-note mode — B C♯ D E F♯
+-- G A — played as a horizontal field rather than chordal
+-- harmony, with a drone on the lowest pitch and a recurring
+-- pentatonic motif rocking above it.
+--
+-- Here the full mode is preserved as a single chord-state,
+-- voice-led from its first inversion onwards. The bass
+-- holds a B pedal; the melodic motif climbs the mode as the
+-- form unfolds.
+--
+-- Piano on ch 1. Extended instrumentation (Moog bass,
+-- SH-101 shimmer, percussive hh pulse) below.
+
+tempo = 87
+
+-- ──────────────────────────────────────────────────────────
+-- Harmony: B-centred seven-note mode, as a single state
+-- ──────────────────────────────────────────────────────────
+
+mode = prog [notesToPCs [B, C', D, E, F', G, A]]
+s    = mode
+
+-- Two melodic figures preserved from the V2 concert part:
+motifA = "[0 4 -2 -1]/4"                                            -- drifting line
+motifB = "[ [~ . 0 . ~ 2 . ~ 3 . ~ . 2 . ~ 0 . ~ 4 ]*2 [~ . 3 . ~ 2 . ~ 4 . ~ . 3 . ~ 2 . ~ 4 ]*2 ]/16"
+
+-- ──────────────────────────────────────────────────────────
+-- Form: 7m24s spectral narrative
+-- ──────────────────────────────────────────────────────────
+
+form =
+  [ at     0.0   0.0   0.0   s
+  , at    55.5   0.15  0.25  s
+  , at   111.0   0.3   0.4   s
+  , at   166.5   0.5   0.55  s
+  , at   222.0   0.45  0.55  s
+  , at   275.0   0.75  0.75  s
+  , at   333.0   1.0   0.95  s
+  , at   380.0   0.55  0.65  s
+  , at   420.0   0.2   0.3   s
+  , at   444.0   0.0   0.0   s
+  , at   454.0   0.0   0.0   s
+  ]
+
+-- ──────────────────────────────────────────────────────────
+-- Launcher: piano on ch 1
+-- ──────────────────────────────────────────────────────────
+
+p01 f k d = d01 $ do
+  let o = ch 01
+  f
+    $ stack [silence
+      -- low B drone
+      ,arrange (0, 1) k (-20, -10) root id ["~"
+        ,"[0]/4"
+      ]# o |* vel 0.7 |= legato 1
+      -- modal motifA in the lower-middle
+      ,arrange (0.15, 1) k (-6, 6) flow id ["~"
+        ,motifA
+      ]# o |* vel 0.55 |= legato 0.92
+      -- modal motifB in the upper register
+      ,arrange (0.4, 1) k (-2, 12) flow id ["~"
+        ,degradeBy 0.2 $ motifB
+      ]# o |+ oct 1 |* vel 0.5 |= legato 0.88
+      -- peak descant — scale-degree run
+      ,arrange (0.8, 1) k (2, 18) flow id ["~"
+        ,degradeBy 0.4 $ "[0 2 4 5 6 4 2 0 . 2 4 6 5 4 2 0 -1]/4"
+      ]# o |+ oct 1 |* vel 0.4 |= legato 0.85
+    ] |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- Extended instrumentation (optional)
+-- ──────────────────────────────────────────────────────────
+
+-- subKick — gentle tonic pulse on the root B
+-- subkLayer f k d = p "subKick"
+--   $ f
+--   $ subKick d k root ( 1/2
+--     ,"[1 ~ ~ ~]/2"
+--     ,"[0 0 0 0]"
+--     ,"[1 ~ ~ 1 ~ ~]/4"
+--   )
+
+-- MPC kit — hat pulse gently swells
+-- kmpc f k d = p "mpckit" $ do
+--   let o = ch 10
+--   f
+--     $ stack [silence
+--       ,slate (0.25, 1) k [silence
+--         ,sometimesBy 0.05 (>>hh "2") $ degradeBy 0.1 $ hh "[1]*4" |* vel (lfo saw 0.1 0.7)
+--         ]
+--     ]# o # legato 0.01 |* vel d
+
+-- Moog Mother-32 — deep B drone
+-- m32 f k d = p "moogMother32" $ do
+--   let o = ch 14
+--   f
+--     $ stack [silence
+--       ,mono $ arrange (0, 1) k (-12, 0) flow id ["~"
+--         ,motifA
+--       ]# o |- oct 2 |* vel 1
+--     ] |* vel d
+
+-- Moog DFAM — dual oscillator modal run
+-- mdf f k d = p "moogDFAM" $ 0.036 <~ do
+--   let (osc1, osc2) = (ch 11, ch 12)
+--   f
+--     $ stack [silence
+--       ,steptrig "[1 2 3 4 5 6 7 8]/2"
+--       ,arrange (0.3, 1) k (-9, 9) lite id ["~"
+--         ,motifB
+--       ]# osc1 |+ oct 1 |* vel 1
+--       ,arrange (0.3, 1) k (-9, 9) flow id ["~"
+--         ,motifB
+--       ]# osc2 |+ oct 2 |* vel 1
+--     ]# legato 0.25 |* vel d
+
+-- SH-101 chord pad
+-- s101 f k d = p "sh101" $ do
+--   let o = ch 15
+--   f
+--     $ stack [silence
+--       ,arrange (0.2, 1) k (-9, 9) flow id ["~"
+--         ,"[-3,0,2]/4"
+--       ]# o |* vel 0.7 |= legato 0.99
+--     ] |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- Launch
+-- ──────────────────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 0.85)
+    k = iK tempo form (rep s 1)
+  putStrLn "Concert 02 — Kulük Sahyl"
+  print s
+  mapM_ id [hush, setbpm tempo
+    , p01 f k $ d 0.8
+    -- , subkLayer f k $ d 0.7
+    -- , kmpc f k $ d 0.5
+    -- , m32  f k $ d 0.9
+    -- , mdf  f k $ d 0.9
+    -- , s101 f k $ d 0.6
+    ]
+
+hush

@@ -135,7 +135,8 @@ stepChainBody _config gen mVerbosity ent _context pctx composerWeights ((current
       spacedPool = if inversionAllowed
                    then driftedPool
                    else filter (not . H.isInversion . fst) driftedPool
-      finalPool = if null spacedPool then driftedPool else spacedPool
+      prepedalPool = if null spacedPool then driftedPool else spacedPool
+      finalPool = applyPedalFilter pctx current prepedalPool
 
   -- Select next cadence using gamma sampling
   if null finalPool
@@ -548,6 +549,52 @@ applyDriftFilter direction currentState pool =
         Consonant -> \(cad, _) -> candidateDiss cad <= currentDiss
       filtered = filter predicate pool
   in if null filtered then pool else filtered
+
+-------------------------------------------------------------------------------
+-- Pedal Tone Filter
+-------------------------------------------------------------------------------
+
+-- |Filter the candidate pool by pedal tone constraints.
+--
+-- Required tones must be present in every candidate chord (as absolute pitch
+-- classes, anywhere in the chord — root or upper voices).
+-- Preferred tones (@?@ suffix in input) are applied when doing so leaves at
+-- least 'minPedalPool' candidates; otherwise they are relaxed and only required
+-- tones are enforced. Safety fallback: never returns an empty pool.
+applyPedalFilter :: ParsedContext -> H.CadenceState -> [(H.Cadence, Double)] -> [(H.Cadence, Double)]
+applyPedalFilter pctx currentState pool
+  | IntSet.null req && IntSet.null pref = pool
+  | otherwise =
+      let cadenceAbsPCs cadence =
+            let (movement, chord) = H.deconstructCadence cadence
+                prevRoot = P.pitchClass (H.stateCadenceRoot currentState)
+                newRoot = case movement of
+                  H.Unison   -> prevRoot
+                  H.Tritone  -> P.transpose 6 prevRoot
+                  H.Asc pc   -> P.transpose (P.unPitchClass pc) prevRoot
+                  H.Desc pc  -> P.transpose (negate $ P.unPitchClass pc) prevRoot
+                  H.Empty    -> prevRoot
+                rootInt   = fromIntegral (P.unPitchClass newRoot)
+                chordInts = map (fromIntegral . P.unPitchClass) chord
+            in IntSet.fromList $ map (\i -> (i + rootInt) `mod` 12) chordInts
+          combined     = IntSet.union req pref
+          reqFiltered  = filter (IntSet.isSubsetOf req     . cadenceAbsPCs . fst) pool
+          combFiltered = filter (IntSet.isSubsetOf combined . cadenceAbsPCs . fst) pool
+          result
+            | IntSet.null pref                     = reqFiltered
+            | length combFiltered >= minPedalPool  = combFiltered
+            | not (null reqFiltered)               = reqFiltered
+            | otherwise                            = pool   -- safety
+      in result
+  where
+    req  = pcPedalRequired pctx
+    pref = pcPedalPreferred pctx
+
+-- |Minimum candidate pool size when applying preferred pedal tones.
+-- If fewer candidates remain after applying required+preferred tones,
+-- the preferred constraint is relaxed to required-only.
+minPedalPool :: Int
+minPedalPool = 10
 
 -------------------------------------------------------------------------------
 -- R Constraint Filtering

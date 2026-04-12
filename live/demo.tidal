@@ -47,8 +47,8 @@ d01 $ arrange (0,1) k1 (-9,9) grid id ["0 1 2 3"] # ch 01
 -- prog1 <- seek "bach" $ cue startB $ len 4 $ entropy 1.0 $ gen
 
 -- OFFLINE algorithmic alternative: no Neo4j, uses consonance fallback
--- let startB = initCadenceState 0 "B" [0,3,7]
--- prog1 <- seek "none" $ cue startB $ len 4 $ entropy 0.5 $ gen
+let startB = initCadenceState 0 "B" [0,3,7]
+prog1 <- seek "none" $ cue startB $ len 4 $ entropy 0.5 $ gen
 
 -------------------------------------------------------------------------------
 -- EXAMPLE 2: Generation with HarmonicContext filters (requires Neo4j)

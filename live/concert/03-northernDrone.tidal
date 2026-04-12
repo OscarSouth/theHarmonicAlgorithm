@@ -1,0 +1,160 @@
+-- ══════════════════════════════════════════════════════════
+-- Concert 03 — Northern Drone
+-- ══════════════════════════════════════════════════════════
+--
+-- Seventeen curated cadence states drifting over a C pedal.
+-- The V2 concert arrangement stored the states as a list
+-- and selected one as the starting point; here the full
+-- sequence is held as a single progression, traversed
+-- across the 12m spectral narrative via an explicit `warp`
+-- that lingers on certain states at form inflection points.
+--
+-- Each state is a slowly deepening harmonic colour — from
+-- C unison to a pentatonic climb to tritone substitutions
+-- to a final E major arrival. The form dictates which is
+-- currently sounding.
+--
+-- Piano on ch 1. Extended synth drones below.
+
+tempo = 80
+
+-- ──────────────────────────────────────────────────────────
+-- The 17 cadence states (preserved from V2)
+-- ──────────────────────────────────────────────────────────
+
+cadenceStates = prog (notesToPCs <$>
+  [ [C]                          --  0  unison
+  , [C, G]                       --  1  fifth
+  , [C, G, Ab]                   --  2  + ♭6
+  , [C, F, Ab]                   --  3  + 4
+  , [B, F, Ab]                   --  4  diminished
+  , [C, G, F]                    --  5  sus4
+  , [C, B, E, G]                 --  6  Cmaj7
+  , [C, Ab, Eb]                  --  7  Cm
+  , [C, D, Ab, F]                --  8
+  , [C, D, Ab, Bb]               --  9
+  , [C, D, Eb, G, Bb]            -- 10  Cm9
+  , [C, Eb, G]                   -- 11  Cm triad
+  , [C, Eb, F', A]               -- 12  dim-ish
+  , [C, F', D, A]                -- 13
+  , [A, B, D, F']                -- 14
+  , [E, A, B]                    -- 15
+  , [E, G', B]                   -- 16  E major arrival
+  ])
+
+s = cadenceStates
+
+-- ──────────────────────────────────────────────────────────
+-- Form: 12m spectral narrative
+-- ──────────────────────────────────────────────────────────
+
+form =
+  [ at     0.0   0.0   0.0   s
+  , at    90.0   0.15  0.3   s
+  , at   180.0   0.3   0.45  s
+  , at   270.0   0.5   0.55  s
+  , at   360.0   0.4   0.5   s
+  , at   445.0   0.75  0.8   s
+  , at   540.0   1.0   1.0   s
+  , at   615.0   0.55  0.65  s
+  , at   680.0   0.2   0.3   s
+  , at   720.0   0.0   0.0   s
+  , at   730.0   0.0   0.0   s
+  ]
+
+-- ──────────────────────────────────────────────────────────
+-- Chord selection: walk through all 17 states
+-- ──────────────────────────────────────────────────────────
+--
+-- `warp` lets us specify exactly which state plays in each
+-- bar of the loop. With 17 states at tempo 80 and one bar
+-- each, the walk takes ~51 seconds; across the 12m arc
+-- it traces roughly 14 passes through the sequence, each
+-- pass sitting inside a different kinetics range.
+
+walk = warp "[1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17]/17"
+
+-- ──────────────────────────────────────────────────────────
+-- Launcher: piano on ch 1
+-- ──────────────────────────────────────────────────────────
+
+p01 f k d = d01 $ do
+  let o = ch 01
+  f
+    $ stack [silence
+      -- low root
+      ,arrange (0, 1) k (-18, -8) root id ["~"
+        ,"[0]/4"
+      ]# o |* vel 0.7 |= legato 1
+      -- chord pad
+      ,arrange (0.1, 1) k (-6, 6) flow (progOverlapF 0) ["~"
+        ,"[0]/2"
+      ]# o |* vel 0.55 |= legato 0.97
+      -- shimmering upper voicings
+      ,arrange (0.3, 1) k (-2, 12) flow (progOverlapF 1) ["~"
+        ,degradeBy 0.4 $ fast 2 $ "[0 1 2 3]/4"
+      ]# o |+ oct 1 |* vel 0.5 |= legato 0.92
+      -- peak-only descant
+      ,arrange (0.7, 1) k (0, 16) flow (progOverlapF 2) ["~"
+        ,degradeBy 0.5 $ "[<0 2 4> <3 1 -1> <5 3 0>]/2"
+      ]# o |+ oct 1 |* vel 0.4 |= legato 0.85
+    ] |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- Extended instrumentation (optional)
+-- ──────────────────────────────────────────────────────────
+
+-- Moog Mother-32 — slow random fragments of the chord pool
+-- m32 f k d = p "moogMother32" $ do
+--   let o = ch 14
+--   f
+--     $ stack [silence
+--       ,mono $ palindrome $ arrange (0, 1) k (-9, 9) flow (progOverlapF 0) ["~"
+--         ,degradeBy 0.5 $ fast (choose [1, 2, 3, 4]) $ "[0]/4" |+ irand 5
+--       ]# o |* vel 0.3 |= legato 0.9 |- oct 1
+--     ] |* vel d
+
+-- Moog DFAM — slow trigger pattern
+-- mdf f k d = p "moogDFAM" $ 0.036 <~ do
+--   let (osc1, osc2) = (ch 11, ch 12)
+--   let pat = "0/8"
+--   f
+--     $ stack [silence
+--       ,steptrig "[1 2 3 4 5 6 7 8]/2"
+--       ,arrange (0.2, 1) k (-9, 9) flow (progOverlapF 0) ["~"
+--         ,pat
+--       ]# osc1 |* vel 1 |- oct 2
+--       ,arrange (0.2, 1) k (-9, 9) flow (progOverlapF 0) ["~"
+--         ,pat
+--       ]# osc2 |* vel 1 |- oct 1
+--     ] |* vel d
+
+-- SH-101 chord pad
+-- s101 f k d = p "sh101" $ do
+--   let o = ch 15
+--   f
+--     $ stack [silence
+--       ,arrange (0.3, 1) k (-9, 9) flow (progOverlapF 1) ["~"
+--         ,"[-1?, 0?, 1?, 2?]/8"
+--       ]# o |* vel 0.8 |= legato 0.99
+--     ] |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- Launch
+-- ──────────────────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 0.85)
+    k = iK tempo form walk
+  putStrLn "Concert 03 — Northern Drone"
+  print s
+  mapM_ id [hush, setbpm tempo
+    , p01 f k $ d 0.75
+    -- , m32  f k $ d 0.8
+    -- , mdf  f k $ d 0.7
+    -- , s101 f k $ d 0.6
+    ]
+
+hush

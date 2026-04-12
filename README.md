@@ -53,9 +53,10 @@ The project is built around three principles:
   time, carrying continuous intensity and dynamics envelopes that drive
   instrument activation, voice density, and harmonic switching.
 
-<!-- [video: 60-second overview — generating a progression from a single chord,
-hearing it come to life through TidalCycles and SuperCollider, the harmony
-unfolding in real time as patterns evolve and layer] -->
+<!-- [video ~60s: the full USER_GUIDE walkthrough in miniature — lead "C maj" →
+seek "none" → single-state form → launcher on channel 1 (piano), then layer
+an hcPedal constraint, then wrap it in a kinetics form arc with two gated
+voices rising and falling over ~45 seconds] -->
 
 ___
 
@@ -82,20 +83,23 @@ The same starting chord can lead to radically different musical outcomes.
 A single parameter — entropy — controls the balance between familiar harmonic
 motion and surprising, exploratory leaps:
 
-<!-- [audio: low entropy (0.2) — smooth, conventional voice leading] -->
-<!-- [audio: high entropy (0.8) — unexpected turns, distant modulations] -->
+<!-- [audio ~10s: entropy 0.2 — same starting state, smooth conventional voice leading, close cadences] -->
+<!-- [audio ~10s: entropy 0.8 — same starting state, unexpected turns and distant modulations] -->
 
 The system also lets you blend the harmonic sensibilities of different composers.
 These aren't presets — they're weighted combinations of learned transition
 probabilities:
 
-<!-- [audio: "bach" — strong functional harmony, clear cadential motion] -->
-<!-- [audio: "debussy" — colourful, modal inflections] -->
-<!-- [audio: "bach:30 debussy:70" — functional foundations with impressionistic colour] -->
+<!-- [audio ~10s: seek "bach" — strong functional harmony, clear cadential motion] -->
+<!-- [audio ~10s: seek "debussy" — colourful, modal inflections, parallel motion] -->
+<!-- [audio ~10s: seek "bach:30 debussy:70" — functional foundations with impressionistic colour] -->
 
 Use `"none"` to bypass the graph entirely — no Neo4j required. Progressions
 are shaped by your context filters and entropy alone.
-<!-- [video: live coding session — building a piece from scratch in TidalCycles] -->
+<!-- [video ~90s: live coding session — building a piece Section-by-Section from
+the USER_GUIDE: starting state → context with hcPedal → generation → single-state
+launcher → add a second arrange voice → wrap in a multi-node kinetics form,
+ending with a full arc rising and falling on a single piano channel] -->
 
 ___
 
@@ -104,32 +108,44 @@ ___
 Let's start simple. Here's what it looks like to generate your first
 progression — just a starting chord, a length, and an entropy value:
 
-<!-- [gif: launching stack ghci, generating an 8-chord progression from C major] -->
+<!-- [gif ~15s: USER_GUIDE Section 1 in the TidalCycles editor — executing
+`start <- lead "C maj"` and `s <- seek "none" $ cue start $ len 8 $ entropy
+0.5 $ gen'`, the generation diagnostics printing bar-by-bar with candidate
+pools visible] -->
 
 Now let's apply some constraints. The Harmonic Algorithm lets you filter
 by key signature, overtone series, and root motion — narrowing the
 harmonic possibilities to match your musical context:
 
-<!-- [gif: applying key/overtone filters, watching choices narrow] -->
+<!-- [gif ~20s: USER_GUIDE Section 4 — layering hcKey "0#", then hcPedal "C",
+then consonant onto hContext and re-running gen' after each. The candidate
+pool sizes shrink visibly in the diagnostic output as constraints narrow] -->
 
 Things get interesting when you bring this into TidalCycles. The library
 integrates directly — generated progressions become patterns you can
 manipulate, voice, and perform live:
 
-<!-- [gif: TidalCycles — arrange transforms a progression into layered patterns] -->
+<!-- [gif ~20s: USER_GUIDE Section 8 — same progression and pattern under
+arrange, then arrange', then with overlapF 2, showing how pattern-across-states
+vs pattern-within-states vs natural legato sustain reshape the musical result] -->
 
 You don't always need the algorithm to generate for you. Sometimes you
 want to build progressions by hand — the changes to a standard, a
 specific harmonic idea — and use the library's voicing and arrangement
 tools to bring them to life:
 
-<!-- [gif: explicit chord construction with note names, arranged through TidalCycles] -->
+<!-- [gif ~15s: USER_GUIDE Section 10 — building a progression by hand with
+`prog sharp (notesToPCs <$> [[C,E,G], [F,A,C'], [G,B,D], [A,C',E]])`, then
+launching it through the same p01 launcher as the generated examples] -->
 
 And here's the composer blending in action — switching between learned
 styles and hearing how the same harmonic starting point leads to
 completely different musical journeys:
 
-<!-- [gif: composer blending — "bach", "debussy", weighted blend side by side] -->
+<!-- [gif ~20s: USER_GUIDE Section 5 — the same context and cue state, with
+seek "bach", then seek "debussy", then seek "bach:30 debussy:70" side by
+side, each with audible output. The gen' header shows the composer string
+and, for blends, the portmanteau name] -->
 
 ___
 

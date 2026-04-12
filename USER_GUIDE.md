@@ -1,1053 +1,557 @@
 # The Harmonic Algorithm — User Guide
 
-This is the readable version of the interactive guide. If you'd like to
-experience a playable version where you can evaluate each example and hear
-the results in real time, open [`live/USER_GUIDE.tidal`](live/USER_GUIDE.tidal)
-in your TidalCycles editor and work through it top to bottom.
+This is the readable companion to [`live/USER_GUIDE.tidal`](live/USER_GUIDE.tidal). If you'd rather work through this interactively — evaluating each block and hearing the results as you go — open the `.tidal` file in your TidalCycles editor and scroll from top to bottom. The two files present the same material in the same order.
 
-### Prerequisites
+### MIDI output
 
-Before you begin, you'll need:
-1. Neo4j running (`docker compose up -d neo4j`)
-2. SuperCollider running with SuperDirt
-3. A TidalCycles editor plugin (VS Code, Pulsar, or nvim)
-4. `BootTidal.hs` loaded with `Harmonic.Lib`
+This system outputs MIDI on TidalCycles channels 1–16 (`d01`–`d16`). **Everything in this guide transmits on MIDI channel 1** (`d01`). Route channel 1 to a polyphonic sound — piano, Rhodes, pad, polysynth — in your MIDI setup. That's your instrument for the whole walkthrough. If you're running SuperDirt with a MIDI bridge, `ch 01` routes to channel 1 on whatever output is bound to the `"thru"` device.
+
+### Offline-first
+
+Every executable block here runs without Neo4j. Generation uses the consonance fallback (`seek "none"`). Graph-enhanced lines are shown as comments — uncomment them once you've run `docker compose up -d neo4j` to hear the same structure shaped by a composer corpus of 80+.
+
+### Setup
+
+- [Haskell Stack](https://docs.haskellstack.org/en/latest/install_and_upgrade/)
+- [Docker](https://www.docker.com/) (optional — only for composer corpus examples)
+- [TidalCycles](https://tidalcycles.org/) with SuperCollider + SuperDirt
+- `live/BootTidal.hs` loaded with `Harmonic.Lib`
+
+```bash
+stack build                       # compile the library
+docker compose up -d neo4j        # optional — graph backend
+stack run                         # optional — populate the graph
+```
+
+See [`live/BootTidal.hs`](live/BootTidal.hs) for all available helpers (`ch`, `vel`, `oct`, the `d01`–`d16` MIDI streams, `hush`/`panic`, the drum patterns).
 
 ___
 
-## 1. Quick Start
+## 1. First generation (offline)
 
-The system has three interchangeable parts that combine in a launcher block:
+**Why** — before we make any sound, let's see what the generator actually does. The simplest possible invocation produces a 4-chord progression from a starting chord, shaped only by entropy.
 
-1. **Environment** — tempo and tonal area
-2. **Composition** — a generated progression
-3. **Instrumentation** — pattern interfaces that turn harmony into sound
-
-The basic flow is: define where you're starting harmonically, generate a
-progression, set up an instrument, and launch. Here's the essence of it:
+**What** —
 
 ```haskell
--- Define your starting point and tonal area
-let start = initCadenceState 0 "C" [0,4,7]
-let ctx = hcKey "0#" $ hContext
+tempo = 90
 
--- Generate a 4-chord progression
-s4 <- seek "*" $ cue start $ tonal ctx $ entropy 0.5 $ gen
+start <- lead "C maj"
 
--- Launch on an instrument (single-state form = no arc)
-let k = formK tempo [at 0 1 1 s4]
-p01 id (rep s4 1) 0.9 k
+s <- seek "none" $ cue start $ len 4 $ entropy 0.5 $ gen
+
+print s
 ```
 
-That's it. Everything else in this guide is about the musical choices you
-can make within this framework.
+`lead` ([`Arranger.hs:506`](src/Harmonic/Interface/Tidal/Arranger.hs#L506)) parses a readable string: `"C maj"`, `"E min"`, `"Bb 7 (7)"` — root, quality, optional ascending movement. Use `initCadenceState 0 "C" [0,4,7]` if you need explicit interval control.
 
-`[video: first launch — setting up a context, generating a 4-chord
-progression from C major, hearing it play through a piano. The terminal
-shows the generated chord names as the harmony cycles]`
+`seek "none"` ([`Builder.hs:702`](src/Harmonic/Framework/Builder.hs#L702)) bypasses the graph entirely — fully musical generation using only the consonance fallback. The composer string `"*"`, `"bach"`, `"debussy"`, `"bach:25 debussy:75"` all require Neo4j; `"none"` does not.
+
+**How** — `lead` returns `IO CadenceState`, so bind with `<-`. The `seek` terminal runs the whole modifier chain. `cue` sets the starting state, `len` sets the chord count, `entropy` (0.0–1.0+) dials between the familiar and the surprising.
+
+**Try it** — change `"C maj"` to `"E min"` or `"Bb 7 (7)"`. Swap `entropy 0.5` for `0.2` (conservative) or `0.9` (adventurous). Run `print s` to see the chord names.
+
+<!-- [video ~15s: execute the 4 lines above in the TidalCycles editor. The progression prints to the terminal — show the `Generation: C maj → 4 chords` header and the chord list, then change "C maj" to "E min" and re-run to show a different progression] -->
 
 ___
 
-## 2. Core Building Blocks
+## 2. Diagnostic output (`gen'` and `gen''`)
 
-### 2.1 CadenceState — Where to Start
+**Why** — to understand *how* the algorithm is arriving at its choices. Swap `gen` for `gen'` and you get a bar-by-bar diagnostic showing the candidate pool, the selected chord, and the top alternatives at each step.
 
-A `CadenceState` is your starting chord. You define the root movement
-(0 for a fresh start), the root note name, the intervals that make up the
-chord, and whether you prefer flat or sharp notation:
+**What** —
 
 ```haskell
-let start = initCadenceState 0 "C" [0,4,7]
+s <- seek "none" $ cue start $ len 4 $ entropy 0.5 $ gen'
 ```
 
-The intervals define the chord quality — `[0,4,7]` is major, `[0,3,7]` is
-minor, `[0,3,6]` is diminished, `[0,5,7]` is sus4, `[0,4,8]` is augmented.
-You can start on any root and with any quality.
+Sample output (annotated):
 
-`[video: creating different starting chords — major, minor, diminished,
-sus4, augmented — each one generating a short progression, hearing how the
-starting quality colours everything that follows]`
+```
+Generation: C maj → 4 chords (entropy 0.5)
+Mode: offline (fallback only — no graph)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  1: C maj [starting state]
 
-### 2.2 HarmonicContext — Constraints
+  2: C → G  [0G/660F]  asc 7 → G maj  [fallback] γ=12
+     Candidates: G maj | G dom7 | G min | E min | B min | B dom7
 
-The `HarmonicContext` defines the tonal space within which chords can appear.
-It has three filters:
-
-- **Overtones** — which pitch classes are available (think of it as the
-  playable notes on your instrument)
-- **Key** — a tonal area that further narrows the available pitches
-- **Roots** — which bass notes are allowed
-
-All three default to `"*"` (wildcard — no restrictions). You can constrain
-any or all of them:
-
-```haskell
-let ctx = hcKey "1#" $ hcOvertones "E A D G" $ hContext
--- Overtones of bass guitar tuning, in G major, any root
+  3: G → D  [0G/660F]  asc 7 → D min  [fallback] γ=4
+     Candidates: D min | A min | F maj | D maj | B dim | G maj
+  …
 ```
 
-`[video: comparing a wide-open chromatic context against bass-tuned
-overtones and then strict G major key filtering — hearing how each layer
-of constraint shapes the character of the generated progressions, from
-wide and unpredictable to focused and idiomatic]`
+Field by field:
+- **`1, 2, 3`** — bar number in the progression
+- **`C → G`** — root movement (prior → posterior pitch class)
+- **`[NG/MF]`** — candidate pool: N graph candidates, M fallback candidates
+- **`asc 7`** — movement class (ascending by 7 semitones)
+- **`G maj`** — the chord selected at the posterior root
+- **`[graph]` / `[fallback]`** — which pool the selection came from
+- **`γ=N`** — the index chosen by gamma-entropy sampling (lower = safer, higher = more exploratory)
+- **`Candidates`** — the top 6 alternatives at the same posterior root
 
-### 2.3 Filter String Syntax
+`gen''` ([`Builder.hs:428`](src/Harmonic/Framework/Builder.hs#L428)) adds verbose transform and advance traces — pitch-class arithmetic at every step, DB-stored vs computed functionality, the full render pipeline. Use it when you're debugging rendering edge cases.
 
-Each modifier applies its filter to a base `hContext` (which defaults to
-all-wildcard). All filter strings support `"*"` (wildcard) and `"-"` (removal).
+**How** — use `gen` for fast generation, `gen'` to understand selection, `gen''` for debugging. All three have identical type signatures and can be swapped without touching anything else.
 
-**Overtones** (`hcOvertones`): bare note names give you the first four
-overtones of that fundamental. `"E A D G"` gives you the union of all four
-overtone series. Append a prime (`'`) for a single exact pitch: `"E'"` means
-just the pitch E, no overtones. You can combine both: `"G E' A' A#'"` gives
-you the overtones of G plus the exact pitches E, A, and A#.
+**Try it** — run `gen'` on the same seed with `entropy 0.2` vs `entropy 0.9` and watch the gamma indices shift. Add `hcKey "0#"` to the context and watch the pool sizes narrow.
 
-**Key** (`hcKey`): use sharps and flats notation for key signatures.
-`"0#"` is C major, `"1#"` is G major, `"2b"` is Bb major. Important: `"C"`
-here means the single pitch C, not the key of C major — use `"0#"` for that.
-
-**Roots** (`hcRoots`): same syntax as key, plus two special values —
-`"key"` mirrors whatever key filter you set, and `"tones"` uses the
-intersection of your overtone and key filters.
-
-You can append `rise` or `fall` to the roots string to force the bass note
-to step through the allowed set in order. `rise` always moves to the
-closest note above; `fall` always moves to the closest note below (with
-octave wrapping). This creates stepwise ascending or descending bass lines
-within whatever root set you've defined:
-
-```haskell
-hcRoots "0# fall" $ hcKey "0#" $ hContext      -- descend through C major scale tones
-hcRoots "0# rise" $ hcKey "0#" $ hContext      -- ascend through C major scale tones
-hcRoots "C E G fall" $ hcKey "0#" $ hContext   -- descend through {C, E, G}
-hcRoots "key rise" $ hcKey "0#" $ hContext     -- ascend through key-derived bass notes
-hcRoots "tones fall" $ hcKey "0#" $ hContext   -- descend through effective overtones
-```
-
-**Step sizes** — Append a number 2–6 to skip notes: `rise2` lands on the
-2nd note above, `rise3` the 3rd, and so on. The step walks through the
-allowed set in order, wrapping around if the step exceeds the set size.
-Bare `rise`/`fall` is equivalent to `rise1`/`fall1`.
-
-```haskell
-hcRoots "0# rise2" $ hcKey "0#" $ hContext     -- ascend by thirds through C major
-hcRoots "0# rise3" $ hcKey "0#" $ hContext     -- ascend by fourths through C major
-hcRoots "0# fall2" $ hcKey "0#" $ hContext     -- descend by thirds through C major
-hcRoots "C E G rise2" $ hcKey "0#" $ hContext  -- skip one in {C, E, G}: C→G→E→C...
-hcRoots "0# rise6" $ hcKey "0#" $ hContext     -- leap by sixths through C major
-```
-
-You can subtract pitches with the `-` prefix: `"E A D G -Bb'"` gives you
-the bass overtones minus Bb.
-
-`[video: walking through filter syntax examples — building up from wildcards
-to overtones to key filtering to root constraints to removal — each step
-showing the generated output narrowing and focusing, the musical character
-becoming more specific]`
-
-### 2.4 Generation
-
-Generation uses a modifier-based syntax. `gen`, `gen'`, and `gen''` are
-bare config values that differ in how much they tell you about what's
-happening:
-
-- **`gen`** — prints a musical header with the progression
-- **`genSilent`** — no output at all (for performance)
-- **`gen'`** — deeper context: per-step candidate pools, selection indices
-- **`gen''`** — full trace: transform and advance computations (for debugging)
-
-Modifiers shape the config, and `seek` is the terminal that runs it:
-
-- **`cue`** :: CadenceState -> GenConfig -> GenConfig — starting chord
-- **`len`** :: Int -> GenConfig -> GenConfig — progression length (default 4)
-- **`entropy`** :: Double -> GenConfig -> GenConfig — creativity (default 0.2)
-- **`tonal`** :: HarmonicContext -> GenConfig -> GenConfig — tonal constraints
-- **`seek`** :: String -> GenConfig -> IO Progression — composer spec (terminal, always outermost)
-
-They compose right-to-left with `$`. Swap the rightmost value to change
-verbosity level — everything else stays the same.
-
-**Composer specification** controls whose harmonic sensibilities guide the
-generation:
-- `"*"` — aggregate across all corpus composers
-- `"bach"` — a single composer's learned transitions
-- `"debussy:0.75 bach:0.25"` — a weighted blend
-- `"ravel stravinsky mozart:2"` — equal weight with a double dose of Mozart
-- `"none"` — offline mode; bypass the graph entirely, use fallback only (no Neo4j required)
-
-**Entropy** is the creativity parameter. Low values (< 0.3) produce
-conservative, consonant progressions that follow the most common cadences.
-High values (> 0.8) reach deeper into the probability space for surprising,
-less predictable movements. Around 0.5 is balanced.
-
-`[video: generating with different entropy levels — at 0.3 the harmony moves
-cautiously through familiar territory, at 0.5 it's balanced and musical,
-at 0.8 it takes unexpected turns into distant keys]`
-
-`[video: composer blending — "bach" produces strong functional harmony,
-"debussy" brings colourful modal movement, and the weighted blend
-"debussy:0.75 bach:0.25" creates something neither would have written
-alone — functional foundations with impressionistic colour]`
-
-### 2.5 Dissonance Drift
-
-You can constrain the direction of harmonic tension across a progression.
-The `dissonant` modifier ensures each subsequent chord has equal or greater
-dissonance than the current one. The `consonant` modifier does the
-opposite — each chord must be equal or less dissonant.
-
-```haskell
--- Progressions that build tension:
-s4 <- seek "*" $ cue start $ tonal (dissonant $ hcKey "0#" $ hContext) $ entropy 0.5 $ gen
-
--- Progressions that resolve:
-s4 <- seek "*" $ cue start $ tonal (consonant $ hcKey "0#" $ hContext) $ entropy 0.5 $ gen
-
--- No constraint (default):
-s4 <- seek "*" $ cue start $ tonal (hcKey "0#" $ hContext) $ entropy 0.5 $ gen
-```
-
-Dissonance is measured using Hindemith's interval vector theory. Major and
-minor triads score lowest (most consonant), while tritone-heavy and
-chromatic clusters score highest (most dissonant). The drift applies as a
-filter on the candidate pool — you still get the best musical choice
-(composer style, voice leading) that meets the constraint.
-
-Drift composes with all other context parameters:
-
-```haskell
--- Descending bass with building tension:
-s4 <- seek "*" $ cue start $ tonal (dissonant $ hcRoots "0# fall" $ hcKey "0#" $ hContext) $ len 8 $ entropy 0.5 $ gen
-```
-
-If no candidates meet the constraint at a given step (e.g., already at
-maximum dissonance with `dissonant`), the filter falls back to the full
-pool for that step — generation never fails.
+<!-- [video ~30s: run gen' with entropy 0.5, then gen' again with entropy 0.9 — annotate the bar-by-bar output with arrows showing "prior root", "pool counts", "selected chord", "gamma index", "top candidates". Highlight how high entropy pulls from further down the candidate list] -->
 
 ___
 
-## 3. Pattern Launcher Blocks
+## 3. Play the progression (`iK`, form, launcher)
 
-### 3.1 Pattern Block Anatomy
+**Why** — the shortest possible bridge from Haskell value to sound. We'll turn the progression into a TidalCycles pattern with a minimal launcher.
 
-The launcher paradigm is the core of the TidalCycles interface. A pattern
-block is a function with three parameters:
-
-- **f** — a transformation function (id, slow 2, fast 2, rev, swingBy)
-- **k** — IK context (kinetics + chord selection pattern, bundled via `iK`)
-- **d** — dynamics (velocity scaling)
-
-The progression and chord selection pattern come from the IK context
-(`kProg k` carries the active progression, `kSignal`/`kDynamic` carry
-the form's kinetics and dynamic signals).
-
-A minimal launcher looks like this:
+**What** —
 
 ```haskell
+s <- seek "none" $ cue start $ len 4 $ entropy 0.5 $ gen
+
+form = [ at 0 1 1 s ]
+
 p01 f k d = d01 $ do
   let o = ch 01
-  f $ arrange (0,1) k (-9,9) flow (overlapF 0) ["~", "0 1 2 3"]
-    # o |* vel d
+  f
+    $ stack [silence
+      , arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+        , "[0 1 2 3]/4"
+      ] # o |* vel 0.8 |= legato 0.95
+    ] |* vel d
+
+do
+  let k = iK tempo form (rep s 1)
+  mapM_ id [hush, setbpm tempo
+    , p01 id k 0.9
+    ]
 ```
 
-You define the launcher once, then call it with different kinetics contexts,
-transformations, and dynamics throughout a session.
+Three concepts here:
+- **`at time kinetics dynamics progression`** ([`Form.hs:61`](src/Harmonic/Interface/Tidal/Form.hs#L61)) — a form node. With one node the kinetics and dynamics signals are constant.
+- **`iK tempo formNodes chordSelection`** ([`Form.hs:67`](src/Harmonic/Interface/Tidal/Form.hs#L67)) — bundles everything a launcher needs into a single `IK` context.
+- **`arrange (lo,hi) k (-9,9) voicing modifier [patterns]`** ([`Bridge.hs:105`](src/Harmonic/Interface/Tidal/Bridge.hs#L105)) — maps the pattern across the progression. `(0,1)` is the kinetics range (active when kinetics is in this window), `(-9,9)` is the register.
 
-`[video: a minimal launcher block — defining p01, generating a progression,
-launching it with id (no transformation), hearing chords cycle through
-a piano sound]`
+`rep s 1` ([`Bridge.hs:86`](src/Harmonic/Interface/Tidal/Bridge.hs#L86)) auto-derives a one-chord-per-bar selection from the progression length.
 
-### 3.2 Multi-Voice Stacking
+**How** — define the launcher once. Every section below reuses `p01`. The pattern `"[0 1 2 3]/4"` cycles through chord tones. Change the pattern, re-run the `do` block, listen.
 
-You can stack multiple `arrange` blocks inside a single launcher for
-layered textures — each voice with its own voicing strategy, register,
-dynamics, kinetics range, and note pattern:
+**Try it** — change `"[0 1 2 3]/4"` to `"[0 1 2 3 4 5 6 7]/8"`. Try `"[0 2 1 3]/4"`. Swap `flow` for `grid` (next section).
 
-```haskell
-p03 f k d = d03 $ do
-  let o = ch 01
-  f $ stack [silence
-    ,arrange (0.5,1) k (-9,9) flow (overlapF 0) ["~", "[0,1,2,3]/4"]
-      # o |* vel 0.8
-    ,arrange (0,1) k (-9,9) grid (overlapF 0) ["~", "0*2"]
-      # o |* vel 1 |- oct 2
-  ] |* vel d
-```
-
-The kinetics range (first argument to `arrange`) controls when each voice
-activates — `(0.5,1)` means the flow chords only play when the form's
-kinetics signal is above 0.5, while `(0,1)` plays always.
-
-`[video: building up layers — starting with flow chords alone, then adding
-a root bass line an octave below, hearing the texture grow from sparse
-harmony to a full arrangement]`
-
-### 3.3 Transformation Functions
-
-The **f** parameter accepts any TidalCycles transformation. This means you
-can reshape the timing and character of a progression without changing the
-harmony itself:
-
-```haskell
--- Try each:
-p01 id k d            -- no change
-p01 (slow 2) k d      -- half speed
-p01 (fast 2) k d      -- double speed
-p01 rev k d           -- reversed
-p01 (swingBy 0.1 2) k d  -- swing feel
-```
-
-You can compose transformations: `slow 2 . rev` plays the progression
-backwards at half speed.
-
-`[video: applying transformations in real time to the same progression —
-normal speed, then slow 2 stretching it out, then rev playing it backwards,
-then swingBy adding a groove feel — the same harmony, completely different
-musical character each time]`
-
-### 3.4 Complete Launcher
-
-A production launcher typically has three voices — chords, bass, and melody —
-each with their own voicing, register, kinetics range, and rhythmic pattern.
-See [Section 3.4 of USER_GUIDE.tidal](live/USER_GUIDE.tidal) for the full
-example.
-
-`[video: a complete production launcher with flow chords in the mid range,
-root bass an octave below, and a melodic flow line an octave above —
-hearing a full arrangement emerge from a single generated progression]`
+<!-- [video ~30s: execute the three blocks — the launcher definition, then the do-block, hear the progression cycling. Swap the pattern from "[0 1 2 3]/4" to "[0 1 2 3 4 5 6 7]/8" and re-run — hear the density double] -->
 
 ___
 
-## 4. Voicing Strategies
+## 4. Shape the generation (`HarmonicContext`)
 
-The system provides five voicing strategies. Each one takes the same
-progression and produces a different musical result:
+**Why** — out-of-the-box generation is chromatic and unconstrained. The HarmonicContext modifiers shape what the generator can pick from: key, pitch set, bass motion, required tones, inversions, tension direction.
 
-### 4.1 flow — Smooth Voice Leading
-
-Minimal melodic movement between chords. The algorithm picks inversions that
-create the smoothest transitions. Best for pads, harmonic beds, and
-situations where you want the harmony to flow without jumps.
-
-`[video: flow voicing — a 4-chord progression played with smooth, minimal
-voice movement between each chord, the upper voices barely shifting]`
-
-### 4.2 grid — Root Locked Position
-
-Root note always in the bass, with the upper voices still optimised for
-smooth movement via cyclic DP. Best for grounded chords and any situation
-where you want a clear harmonic foundation with smooth upper voices.
-
-`[video: grid voicing — the same progression with the root firmly in the
-bass every time, a solid grounded feel]`
-
-### 4.3 lite — Literal
-
-Chords exactly as stored, first-root normalised but no voice leading
-optimisation. Best for direct control or when you want the raw intervals.
-
-`[video: lite voicing — the same progression with literal intervals, no
-optimisation, hearing the jumps and angles that the algorithm would
-normally smooth out]`
-
-### 4.4 root — Root Note Only
-
-Extracts the root pitch class as a monophonic line. Best for bass lines
-and situations where you want a single-note part that follows the harmony.
-
-`[video: root voicing — just the root note from each chord, a single
-melodic line tracing the harmony]`
-
-### 4.5 fund — Harmonic Root
-
-Always returns the harmonic root regardless of inversion. Where `root`
-follows the generated lowest pitch (which might be a third or fifth when
-inverted), `fund` always gives you the true harmonic root. Best for kick
-drums and sub bass.
-
-`[video: fund voicing — the harmonic root on every chord, steady and
-inversion-invariant, perfect for a kick drum that always locks to the
-fundamental]`
-
-### 4.6 Comparison
-
-All five voicings playing the same progression simultaneously reveal their
-different characters — flow is smooth, grid is grounded, lite is angular,
-root traces the pitch class, and fund anchors everything to the harmonic root.
-
-`[video: all five voicings playing simultaneously on separate MIDI channels
-— hearing how they layer and contrast, each one contributing a different
-musical quality to the same underlying harmony]`
-
-### 4.7 Voicing in arrange
-
-In practice, you combine voicings in a single launcher — flow for chords,
-grid for bass, root or fund for a kick pattern. Each voice can have its
-own kinetics range for form-driven activation:
+**What** —
 
 ```haskell
-f $ stack [silence
-  ,arrange (0.5,1) k (-9,9) flow (overlapF 0) ["~", "[0,1,2,3]/4"]
-    # o |* vel 0.8
-  ,arrange (0,1) k (-9,9) grid (overlapF 0) ["~", "0*2"]
-    # o |* vel 1 |- oct 1
-  ,arrange (0,1) k (-9,9) root id ["~", "0*4"]
-    # o |* vel 1.2 |- oct 2
-] |* vel d
+ctx = invSkip 1
+    $ consonant
+    $ hcPedal "C?"
+    $ hcKey "0#"
+    $ hContext
+
+s <- seek "none" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen'
+
+do
+  let k = iK tempo [at 0 1 1 s] (rep s 1)
+  mapM_ id [hush, setbpm tempo
+    , p01 id k 0.9
+    ]
 ```
 
-`[video: a full launcher combining flow chords, grid bass, and root kick
-— hearing how the different voicing strategies create a complete, layered
-arrangement from a single progression]`
-
-___
-
-## 5. Progression Manipulation
-
-Once you've generated a progression, you can transform it in real time.
-These functions reshape the harmonic material without regenerating:
-
-### 5.1 rotate — Cycle Starting Position
-
-Shifts the progression so it starts from a different chord. `rotate 2`
-on an 8-chord progression starts from chord 3.
-
-`[video: rotate — the original progression, then rotated by 2, hearing
-the same chords but starting from a different point in the phrase,
-the musical emphasis shifting]`
-
-### 5.2 excerpt — Extract Range
-
-Pulls out a section of the progression. `excerpt 4 7` extracts bars 4
-through 7.
-
-`[video: excerpt — zooming into bars 4-7 of an 8-chord progression,
-hearing just that section loop, a focused fragment of the larger whole]`
-
-### 5.3 transposeP — Shift Pitch
-
-Shifts every chord by a number of semitones. `transposeP 5` moves
-everything up a perfect fourth.
-
-`[video: transposeP — the original progression in C, then transposed up
-5 semitones to F, the same shapes and movements in a new key]`
-
-### 5.4 reverse — Reverse Order
-
-Plays the progression backwards. Familiar cadences sound completely
-different in retrograde.
-
-`[video: reverse — the progression forwards, then backwards, hearing
-how the harmonic logic inverts — resolutions become departures,
-arrivals become transitions]`
-
-### 5.5 fuse — Concatenate Progressions
-
-Joins multiple progressions end to end. Generate different sections
-separately and fuse them into a longer journey.
-
-```haskell
-let fused = fuse [state1, state2]
-```
-
-`[video: fuse — two separately generated 4-chord progressions joined
-into one 8-chord journey, hearing the transition between the two
-different harmonic worlds]`
-
-### 5.6 expandP — Repeat Chords
-
-Repeats each chord a specified number of times. `expandP 2` doubles
-the length by repeating every chord.
-
-`[video: expandP — the original progression at normal harmonic rhythm,
-then expanded so each chord plays twice, the harmony slowing down and
-breathing more]`
-
-### 5.7 progOverlapF — Add Passing Tones
-
-Adds forward overlap between chords, creating passing tones that blur
-the boundaries between one chord and the next.
-
-`[video: progOverlapF — the progression clean, then with 1-bar forward
-overlap, hearing the edges between chords soften as passing tones
-anticipate the next harmony]`
-
-### 5.8 Additional Functions
-
-Several more manipulation functions are available:
-
-- **interleave** — alternate chords from two progressions
-- **progOverlapB** — backward passing tones
-- **progOverlap** — bidirectional passing tones
-- **insert** — insert a chord at a position
-- **switch** — swap two chord positions
-- **clone** — copy a chord to another position
-- **extract** — pull out a single chord (with modulo wrap)
-
-All positions are 1-indexed and wrap with modulo.
-
-`[video: insert, switch, and clone in action — surgically modifying a
-progression by inserting a new chord, swapping two positions, and
-cloning a favourite chord to a different spot]`
-
-### 5.9 Combining Transformations
-
-Transformations compose naturally:
-
-```haskell
--- Rotate, transpose, and reverse in one expression:
-let s = transposeP 0 $ reverse $ transposeP 5 $ rotate 2 s8
-```
-
-`[video: chaining transformations — rotate, then transpose, then reverse
-applied together, the original progression transformed beyond recognition
-but still musically coherent]`
-
-___
-
-## 6. Chord Selection Patterns
-
-### 6.1 warp — Mininotation Chord Selection
-
-`warp` parses a TidalCycles mininotation string into a chord selection
-pattern. Values are 1-indexed: `"1"` selects the first chord.
-
-```haskell
-warp "[1 2 3 4]/4"   -- one chord per bar over 4 bars
-warp "[1 2 3 4]"     -- all chords in one bar
-warp "1"             -- hold the first chord
-```
-
-`[video: warp in action — sequential chord changes one per bar, then all
-four in a single bar, then holding on the first chord — hearing the
-harmonic rhythm change from slow and spacious to rapid and then static]`
-
-### 6.2 rep — Auto-Derive Sequential Pattern
-
-`rep` automatically generates a sequential selection pattern from a
-progression's length:
-
-```haskell
-rep s4 1     -- 1 bar per chord
-rep s4 0.5   -- half bar per chord (twice as fast)
-```
-
-`[video: rep at different speeds — 1 bar per chord gives a relaxed pace,
-0.5 doubles the harmonic rhythm, the same progression at two different
-speeds of change]`
-
-### 6.3 Musical Forms via Chord Patterns
-
-This is where chord selection gets powerful. The full vocabulary of
-TidalCycles mininotation is available for defining musical form:
-
-```haskell
-warp "[1 1 2 1]/4"       -- AABA form
-warp "[1 2? 3 4]/4"      -- probabilistic (chord 2 appears randomly)
-warp "[1 <1 2>]"         -- alternating per cycle
-warp "[1 [1 2]]/2"       -- variable harmonic rhythm
-```
-
-`[video: building an AABA form using warp — the same 4 chords, but chord
-selection creates a familiar verse-verse-bridge-verse structure, the form
-emerging purely from how the chords are sequenced in time]`
-
-### 6.4 arrange vs arrange'
-
-Two arrangement strategies, both with kinetics range gating:
-
-- **arrange** (onset-join) — each note maps through the chord active at
-  its onset time. Sustained notes keep their pitch across chord boundaries.
-  Best for melodic instruments.
-
-- **arrange'** (squeeze) — the full pattern restarts for each chord slot.
-  Best for rhythmic patterns that should repeat per chord.
-
-Both take the same parameters: `(lo, hi)` kinetics range, IK context,
-MIDI register, voice function, progression modifier, and input patterns.
-
-`[video: arrange vs arrange' — the same pattern through both strategies,
-hearing sustained notes glide through chord changes with arrange, and
-the pattern restart cleanly at each new chord with arrange']`
-
-___
-
-## 7. Form & Kinetics
-
-### 7.1 Overview
-
-The Kinetics framework implements the **Spectral Narrative** — macro-level
-compositional arc as programmable structure. A form is defined in wall-clock
-seconds, realized as TidalCycles patterns, and loops endlessly. It carries
-three signals:
-
-- **kSignal** — kinetics level (0–1), continuous piecewise linear
-  interpolation. Used for range gating: controlling which voices are active.
-- **kDynamic** — dynamic envelope (0–1), continuous piecewise linear
-  interpolation. Used for velocity scaling across the form.
-- **kProg** — active progression, discrete step function. Switches between
-  progressions at form boundaries.
-
-### 7.2 Defining a Form
-
-A form is a list of `FormNode` values, each constructed with `at`:
-
-```haskell
-at :: Double -> Double -> Double -> Progression -> FormNode
-at time kinetics dynamic progression
-```
-
-For example, a 30-second three-layer form:
-
-```haskell
-form =
-  [ at  0  0.0  0.3 s0    -- low: root only
-  , at 10  0.5  0.6 s0    -- mid: + upper voices
-  , at 20  1.0  1.0 s1    -- high: full, new harmony
-  , at 30  0.0  0.3 s0    -- loop back to low
-  ]
-```
-
-Between nodes, kinetics and dynamic values interpolate linearly. The
-progression holds as a step function — `s0` plays from 0–20s, `s1` from
-20–30s. At the end of the form (30s), it loops back to the beginning.
-
-### 7.3 Realizing a Form
-
-`formK` converts a form definition and a BPM into a `Kinetics` value:
-
-```haskell
-k = formK tempo form
-```
-
-This produces looping TidalCycles patterns for all three signals.
-
-### 7.4 Single-State Form (Formless)
-
-A single `at` node produces constant signals — equivalent to having no
-form at all. This is the simplest way to use the kinetics system:
-
-```haskell
-let k = formK tempo [at 0 1 1 s]
-```
-
-Here `kSignal = pure 1`, `kDynamic = pure 1`, `kProg = pure s`. Everything
-passes, everything plays at full level.
-
-### 7.5 Range Gating with ki
-
-`ki` masks a pattern by the kinetics signal level:
-
-```haskell
-ki :: (Double, Double) -> Kinetics -> Pattern a -> Pattern a
-ki (lo, hi) k pat
-```
-
-Events only pass when `kSignal` is within `[lo, hi]` (inclusive). This
-is how voices activate at different points in the form:
-
-```haskell
-ki (0.5, 1.0) k chordPattern   -- only plays in upper half of form
-ki (0.0, 0.3) k bassPattern    -- only plays in quiet sections
-```
-
-### 7.6 slate — Gated Stack
-
-`slate` combines `ki` and `stack` — gate a list of patterns by a kinetics
-range:
-
-```haskell
-slate :: (Double, Double) -> Kinetics -> [Pattern a] -> Pattern a
-slate range k pats = ki range k $ stack pats
-```
-
-Useful for drum layers that activate at different intensity levels.
-
-### 7.7 withForm — Progression Access
-
-`withForm` applies a function taking `Progression` to the kinetics context,
-reactively switching when the form changes progressions:
-
-```haskell
-withForm :: Kinetics -> (Progression -> Pattern ValueMap) -> Pattern ValueMap
-```
-
-### 7.8 Form Declarations
-
-Forms are always declared inline in performance files — visible and editable
-at the point of use. See `live/snippets.cson` for 7 editor snippet templates
-(single-state, spectral narratives at fixed and variable durations, pop forms)
-and `live/forms.tidal` for annotated reference versions.
-
-### 7.9 Range Naming Conventions
-
-When defining launcher blocks, a common pattern is naming kinetics ranges:
-
-```haskell
-let cresc = (0, 1)      -- always on, building
-let upper = (0.5, 1)    -- upper half only
-let peak  = (0.8, 1)    -- near peak only
-```
-
-___
-
-## 8. Groove / Drums Interface
-
-### 8.1 Basic subKick Usage
-
-`subKick` creates MPC-style drum patterns that follow the harmonic root.
-It reads the progression from the kinetics context and layers a sub bass,
-a kick-off pattern, and a kick pattern with built-in ki gating:
-
-```haskell
-p "subKick" $ subKick fund (rep s4 1) 1 k
-  (1/4, "[1(3,8)]/2", "[1(5,8,-2)]/2", "[1(3,8)]/2")
-```
-
-The sub group gates at `(0.1, 1)` and the kick group at `(0.2, 1)`,
-so both gradually activate as the form builds.
-
-Output routes to MIDI channel 10 on the `"thru"` device (separate from
-the JV-1010 orchestral channels). Sub pitches map to MIDI C2–B2 (36–47)
-from the harmonic root pitch class; kick is fixed at C3 (MIDI 48). This
-places the sub register below all orchestral instruments with no overlap.
-
-`[video: subKick with a basic euclidean pattern — a kick drum that follows
-the harmonic root, the low end locking to whatever chord is active,
-creating a groove that's harmonically aware]`
-
-### 8.2 fund vs root for Kick Patterns
-
-For kick drums, use `fund` rather than `root`. When chords are inverted,
-`root` follows the generated lowest pitch (which might be a third or
-fifth), while `fund` always follows the true harmonic root.
-
-`[video: fund vs root for kicks on an inverted chord progression — hearing
-the kick stay on the root with fund, and wander to the inversion's lowest
-note with root — fund is the right choice for drums]`
-
-### 8.3 Groove Patterns
-
-The euclidean pattern strings and dynamics offer a wide range of groove
-feels:
-
-```haskell
--- Sparse:
-(1/4, "[1(3,8)]", "[1(5,8,-2)]", "[1(3,8)]")
-
--- Dense with random dynamics:
-subKick fund (rep s4 1) (range 0.5 1 rand) k
-  (1/4, "[1(5,8)]", "[1(3,8,-1)]", "[1(4,8)]")
-```
-
-`[video: different groove patterns — a sparse euclidean feel, then a denser
-pattern with random dynamics adding human variation — the same harmonic
-progression, completely different rhythmic energy]`
-
-For full orchestral scoring — instrument catalogue, voice lines, sections,
-blends, and the complete Algorithmic Orchestration paradigm — see
-[ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md).
-
-___
-
-## 9. Explicit Composition
-
-### 9.1 fromChords — Building by Hand
-
-You don't always need the algorithm to generate for you. `fromChords`
-lets you build progressions explicitly from pitch-class lists:
-
-```haskell
-simpleProg = fromChords [
-    [0, 4, 7],    -- C major
-    [5, 9, 0],    -- F major
-    [7, 11, 2],   -- G major
-    [0, 4, 7]     -- C major
-  ]
-```
-
-`[video: constructing a I-IV-V-I progression explicitly — entering the
-pitch classes, launching it through a piano, hearing the most fundamental
-cadence in Western harmony]`
-
-### 9.2 Note Name Syntax
-
-For readability, use note names instead of pitch-class integers:
-
-```haskell
-readableProg = fromChords [
-    notesToPCs [C, E, G],     -- C major
-    notesToPCs [D, F', A],    -- D major (F' = F#)
-    notesToPCs [G, B, D]      -- G major
-  ]
-```
-
-Primes indicate sharps: `C'` = C#, `F'` = F#, `G'` = G#.
-
-`[video: the same progression built with note names — more readable,
-same result, hearing the chords play through the piano]`
-
-### 9.3 Form Transformation — AABA Paradigm
-
-Define sections separately, then assemble different forms from the same
-material:
-
-```haskell
-aSection = [notesToPCs [C, E, G], notesToPCs [F, A, C]]
-bSection = [notesToPCs [G, B, D], notesToPCs [D, F', A]]
-
-form1 = fromChords $ concat [aSection, aSection, bSection, aSection]  -- AABA
-form2 = fromChords $ concat [aSection, bSection, aSection, bSection]  -- ABAB
-```
-
-You can also define form through chord selection with `warp` — both
-approaches work, and you can combine them.
-
-`[video: defining A and B sections, then assembling AABA and ABAB forms —
-hearing the same harmonic material create two completely different musical
-structures, the form shaping how the listener experiences the harmony]`
-
-___
-
-## 10. Advanced Techniques
-
-### 10.1 Composer Blending
-
-The composer specification isn't just a filter — it's a way of channelling
-different harmonic sensibilities through the same system:
-
-```haskell
-prog0 <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen                    -- all composers
-prog1 <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen                  -- Bach alone
-prog2 <- seek "debussy:0.75 bach:0.25" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen  -- weighted blend
-prog3 <- seek "none" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen                   -- offline, no Neo4j
-```
-
-Weights are normalised, so `"ravel:2 stravinsky:1 mozart:1"` gives you
-50% Ravel, 25% each of Stravinsky and Mozart. Blended composers get a
-creative portmanteau name in the output header.
-
-`"none"` bypasses the graph entirely. Progressions are shaped purely by your
-context filters (overtones, key, roots, drift) and entropy — no corpus required.
-Useful for getting started before populating the database, or for exploring
-the fallback mechanism's consonance-guided generation on its own.
-
-`[video: comparing wildcard (all composers) vs "bach" (strong functional
-harmony) vs "debussy" (colourful modal movement) vs the weighted blend
-"debussy:0.75 bach:0.25" — same starting chord, four distinct musical
-personalities, hearing how the learned transitions of different composers
-shape the harmonic journey]`
-
-### 10.2 Custom Context Patterns
-
-Combine overtone, key, and root filtering for genre-specific contexts:
-
-```haskell
-jazzCtx  = hcRoots "D F# A" $ hcKey "2#" $ hContext       -- D major, jazz roots
-bluesCtx = hcRoots "F Bb C" $ hcKey "1b" $ hContext       -- F major, I-IV-V roots
-modalCtx = hcRoots "C Eb F G Bb" $ hContext               -- modal, no key filter
-bassCtx  = hcOvertones "E A D G" $ hContext                -- bass guitar overtones
-```
-
-`[video: four genre contexts in sequence — jazz in D major with specific
-roots, blues in F locked to I-IV-V, modal on C with no key filter, and
-bass-tuned overtones — hearing how context defines musical character as
-much as the notes themselves]`
-
-### 10.3 Entropy Tuning
-
-Entropy is the single most expressive parameter. Small changes produce
-audible differences in the character of the generated harmony:
-
-```haskell
-conservative <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.3 $ gen   -- safe, consonant
-balanced     <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen   -- musical, balanced
-exploratory  <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.8 $ gen   -- surprising, adventurous
-```
-
-`[video: entropy sweep — generating at 0.3, 0.5, and 0.8 from the same
-starting point, hearing the harmony move from cautious and familiar through
-balanced musicality to bold and surprising, the algorithm reaching deeper
-into the probability space with each increase]`
-
-___
-
-## 11. Complete Performance Template
-
-### 11.1 Setup
-
-A performance session starts with a tempo and a harmonic context:
-
-```haskell
-setbpm 100
-let ctx = hcKey "0#" $ hContext
-```
-
-### 11.2 Generate Sections
-
-Generate different sections with different starting chords, composers,
-and entropy levels:
-
-```haskell
-verse  <- seek "*" $ cue (initCadenceState 0 "C" [0,4,7]) $ tonal ctx $ len 8 $ entropy 0.4 $ gen
-chorus <- seek "*" $ cue (initCadenceState 0 "F" [0,4,7]) $ tonal ctx $ len 8 $ entropy 0.6 $ gen
-bridge <- seek "debussy:0.75 bach:0.25" $ cue (initCadenceState 0 "A" [0,3,7]) $ tonal ctx $ len 8 $ entropy 0.5 $ gen
-```
-
-### 11.3 Launcher Blocks
-
-Define launchers for each instrument — chords, bass, arpeggios — using
-the voicing and stacking techniques from Sections 3 and 4, with kinetics
-range gating from Section 7. See
-[Section 11.3 of USER_GUIDE.tidal](live/USER_GUIDE.tidal) for complete
-launcher definitions.
-
-### 11.4 Performance Flow
-
-Move through sections by launching with different progressions:
-
-- **Intro** — verse, sparse, quiet
-- **Verse** — full texture, chords + bass
-- **Chorus** — transposed, add arpeggios, higher energy
-- **Bridge** — contrasting, reversed, slower
-- **Outro** — verse again, fading
-
-`[video: a complete performance — moving through intro, verse, chorus,
-bridge, and outro, each section with different progressions, textures,
-and dynamics, hearing a full piece develop from individual generated
-sections into a coherent musical arc]`
-
-### 11.5 Live Improvisation
-
-Generate one long progression and excerpt different sections on the fly,
-using `warp` for form and transformations for variety:
-
-```haskell
-s32 <- seek "*" $ cue start $ tonal ctx $ len 32 $ entropy 0.5 $ gen
-
--- Live: excerpt different sections
-let sub = excerpt 0 7 s32
-let sub2 = excerpt 8 15 s32
-```
-
-`[video: live improvisation — generating a 32-chord progression, then
-excerpting different 8-bar sections in real time, applying transformations,
-reshaping the music on the fly as it plays — the algorithm providing the
-harmonic material, the performer sculpting the form]`
-
-___
-
-## 12. Quick Reference
-
-### Generation
-
-| Value | Output |
-|-------|--------|
-| `gen` | Musical header |
-| `genSilent` | No output |
-| `gen'` | Per-step diagnostics |
-| `gen''` | Full trace |
-
-| Modifier | Signature | Default |
-|----------|-----------|---------|
-| `seek` | String -> GenConfig -> IO Progression | (terminal, required) |
-| `cue` | CadenceState -> GenConfig -> GenConfig | (required) |
-| `len` | Int -> GenConfig -> GenConfig | 4 |
-| `entropy` | Double -> GenConfig -> GenConfig | 0.2 |
-| `tonal` | HarmonicContext -> GenConfig -> GenConfig | hContext |
-
-### Context Modifiers
+All modifiers live in [`Builder/Types.hs`](src/Harmonic/Framework/Builder/Types.hs#L74):
 
 | Modifier | Example | Effect |
-|----------|---------|--------|
-| `dissonant` | `dissonant $ hcKey "0#" $ hContext` | Each chord >= current dissonance |
-| `consonant` | `consonant $ hcKey "0#" $ hContext` | Each chord <= current dissonance |
-| `"rise"` | `hcRoots "0# rise" $ hcKey "0#" $ hContext` | Bass steps up through root set |
-| `"fall"` | `hcRoots "0# fall" $ hcKey "0#" $ hContext` | Bass steps down through root set |
-| `"rise2"`–`"rise6"` | `hcRoots "0# rise3" $ hcKey "0#" $ hContext` | Bass skips Nth note up (3 = fourths) |
-| `"fall2"`–`"fall6"` | `hcRoots "0# fall2" $ hcKey "0#" $ hContext` | Bass skips Nth note down (2 = thirds) |
+|---|---|---|
+| `hcOvertones` | `hcOvertones "E A D G"` | Pitch set from overtone series (bass tuning here) |
+| `hcKey` | `hcKey "0#"` | Key signature — `0#`=C, `1#`=G, `2b`=Bb |
+| `hcRoots` | `hcRoots "C E G"` | Allowed bass notes |
+| `hcPedal` | `hcPedal "C G?"` | Required tones; `?` = preferred |
+| `consonant` / `dissonant` | `dissonant $ ...` | Drift direction across the progression |
+| `invSkip` | `invSkip 2` | Min non-inversions between inversions |
 
-### Chord Selection
+Filter strings support `"*"` wildcard, `"-Bb'"` subtraction, `"E'"` prime notation (exact pitch, no overtones), `"key"` / `"tones"` mirror keywords, and `"rise"` / `"fall"` for forced stepwise bass motion.
 
-| Function | Example | Effect |
-|----------|---------|--------|
-| `warp` | `warp "[1 2 3 4]/4"` | Mininotation → Pattern Int (1-indexed) |
-| `rep` | `rep s4 1` | Auto-derive sequential (1 bar/chord) |
+**How** — compose modifiers right-to-left with `$`. Comment out individual lines to fall back to defaults. The whole context is passed via `tonal`.
 
-### Voicing
+**Try it** — swap `consonant` for `dissonant`. Remove `hcPedal "C?"`. Change `hcKey "0#"` to `hcKey "2b"`. Watch the `gen'` output — the pool shrinks as constraints tighten.
 
-| Function | Bass | Voice Leading | Best For |
-|----------|------|---------------|----------|
-| `flow` | Any | Smooth (cyclic DP) | Pads, harmonic beds |
-| `grid` | Root | Smooth (cyclic DP) | Grounded chords |
-| `lite` | Any | None | Direct control |
-| `root` | Root PC | Mono | Bass lines |
-| `fund` | Root | Mono | Kicks, sub bass |
-
-### Transformation
-
-| Function | Effect |
-|----------|--------|
-| `rotate n` | Cycle start position |
-| `excerpt a b` | Extract range |
-| `transposeP n` | Shift pitch (semitones) |
-| `reverse` | Reverse order |
-| `fuse [...]` | Concatenate list |
-| `fuse2 a b` | Concatenate two |
-| `interleave a b` | Alternate chords |
-| `expandP n` | Repeat each chord n times |
-| `progOverlapF n` | Forward passing tones |
-| `progOverlapB n` | Backward passing tones |
-| `progOverlap n` | Bidirectional passing tones |
-| `insert cs n prog` | Insert chord at position |
-| `switch a b prog` | Swap positions |
-| `clone a b prog` | Copy position a to b |
-| `extract n prog` | Pull chord (modulo wrap) |
-
-### Explicit Construction
-
-| Function | Example |
-|----------|---------|
-| `fromChords` | `fromChords [[0,4,7], [5,9,0]]` |
-| `fromChords` | `fromChords [notesToPCs [C, E, G]]` |
-| `prog` | `prog [[0,4,7]]` (alias for fromChords) |
-
-### Pattern Interface
-
-| Function | Strategy |
-|----------|----------|
-| `arrange range k register voice modifier pats` | Onset-join with kinetics range gating |
-| `arrange' range k register voice modifier pats` | Squeeze with kinetics range gating |
-| `subKick dyn k voice tuple` | Sub/kick groove with kinetics gating |
-
-### Form & Kinetics
-
-| Function | Purpose |
-|----------|---------|
-| `at time kin dyn prog` | Construct a form node |
-| `formK bpm nodes` | Realize form into Kinetics signals |
-| `iK bpm nodes chordPat` | Realize form into IK (Kinetics + chord pattern) |
-| `ki (lo, hi) k pat` | Range gate: mask by kinetics signal |
-| `slate range k pats` | Gated stack (ki + stack) |
-| `withForm k f` | Apply function with reactive progression |
-| `kSignal k` | Kinetics level pattern (0–1) |
-| `kDynamic k` | Dynamic envelope pattern (0–1) |
-| `kProg k` | Active progression pattern |
-
-### MIDI Helpers (BootTidal.hs)
-
-| Helper | Usage |
-|--------|-------|
-| `ch n` | MIDI channel |
-| `vel n` | Velocity |
-| `oct n` | Octave shift (`\|+ oct 1`, `\|- oct 2`) |
-| `setbpm n` | Set tempo |
+<!-- [video ~45s: layer modifiers one at a time — start with hContext, add hcKey "0#", add hcPedal "C", add dissonant — re-running gen' after each. Show how the candidate pool narrows in the gen' output and how the sound shifts audibly] -->
 
 ___
 
-For more examples, see:
-- [`live/examples/blue_in_green.tidal`](live/examples/blue_in_green.tidal) — jazz progression with scale/melody separation
-- [`live/examples/rosslyn_castle.tidal`](live/examples/rosslyn_castle.tidal) — AABA form with transformation support
+## 5. Going online (composer graph)
 
-For architecture and technical details, see [ARCHITECTURE.md](ARCHITECTURE.md).
-For installation and project overview, see [README.md](README.md).
+**Why** — the Neo4j graph holds harmonic transitions learned from 80+ composers in the Yale Classical Archives Corpus. Swapping `seek "none"` for a composer name channels that style into your generation. Blends produce weighted combinations.
+
+**What** —
+
+```haskell
+-- docker compose up -d neo4j   (then uncomment below)
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen'
+
+s <- seek "debussy" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen'
+
+s <- seek "bach:25 debussy:75" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen'
+
+s <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen'
+```
+
+Composer weight parsing lives in [`Query.hs`](src/Harmonic/Evaluation/Database/Query.hs). Blends produce a portmanteau name in the `gen'` header ("Bachdebussy"). `"*"` aggregates across the full corpus.
+
+**How** — `seek` is the terminal that runs everything. The string is case-insensitive. Everything else in your modifier chain stays the same.
+
+**Try it** — compare Bach's cadential pull with Debussy's modal inflections. Stack a composer you know with one you don't. Use the same context you built in Section 4 — only `seek` changes.
+
+<!-- [video ~45s: run seek "bach" then seek "debussy" then seek "bach:30 debussy:70" on the same starting state and context. Play each one audibly (single-state form) — the harmonic character shifts each time. Show the portmanteau in the gen' header] -->
+
+___
+
+## 6. Voicing strategies
+
+**Why** — the same progression can sit vertically in radically different ways. The voicing function determines how each chord's intervals are distributed across registers without changing the harmony itself.
+
+**What** — [`Arranger.hs:269`](src/Harmonic/Interface/Tidal/Arranger.hs#L269)
+
+| Function | Bass | Voice leading | Best for |
+|---|---|---|---|
+| `flow` | Any inversion | Smoothest (cyclic DP, globally optimal) | Pads, harmonic beds |
+| `grid` | Root locked | Smooth upper voices | Grounded chords |
+| `lite` | Any | None (raw intervals) | Direct control |
+| `root` | Root PC only | N/A | Bass lines, mono |
+| `fund` | Harmonic fundamental | N/A | Sub bass, kick drums |
+
+Swap the voicing in a launcher:
+
+```haskell
+arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~", "[0 1 2 3]/4"] # ch 01
+arrange (0, 1) k (-9, 9) grid (overlapF 0) ["~", "[0 1 2 3]/4"] # ch 01
+arrange (0, 1) k (-9, 9) root (overlapF 0) ["~", "[0]/1"]       # ch 01 |- oct 2
+```
+
+**How** — the voicing function is the 4th argument of `arrange`. Everything else stays identical. Stack multiple `arrange` calls with different voicings in a single launcher to build a full texture.
+
+**Try it** — compare `flow` and `grid` on a long progression. Add a second `arrange` with `root` and an octave offset for a bass line.
+
+<!-- [video ~30s: run the same progression with flow, then grid, then stack flow (mid) + root (bass -2 oct) in one launcher. The textural difference is audible immediately] -->
+
+___
+
+## 7. Chord selection (`rep` and `warp`)
+
+**Why** — you control *which* chord plays and *when* it changes. `rep` does the default one-chord-per-bar; `warp` gives you explicit mininotation control.
+
+**What** — [`Bridge.hs:76`](src/Harmonic/Interface/Tidal/Bridge.hs#L76) for `warp`, [`Bridge.hs:86`](src/Harmonic/Interface/Tidal/Bridge.hs#L86) for `rep`.
+
+```haskell
+-- Default: one chord per bar
+k = iK tempo [at 0 1 1 s] (rep s 1)
+
+-- Explicit: 1-indexed chord selection over 4 bars
+k = iK tempo [at 0 1 1 s] (warp "[1 2 3 4]/4")
+
+-- AABA-like cycle
+k = iK tempo [at 0 1 1 s] (warp "[1 1 2 1]/4")
+
+-- With TidalCycles operators
+k = iK tempo [at 0 1 1 s] (warp "[1 <2 3> 1 4]/4")
+
+-- Euclidean rhythm on chord 1
+k = iK tempo [at 0 1 1 s] (warp "[1(3,8) 2]/4")
+```
+
+The `/N` divisor in `warp` maps directly to physical bars — `"[1 2 3 4]/4"` steps through the four selected chords over exactly four bars. Any TidalCycles operator (choice, probabilities, euclidean rhythms, nesting) applies.
+
+**How** — swap `rep` for `warp` inside `iK`. Nothing else changes in the launcher. You can warp any pattern as long as the indices exist in the progression (they wrap modulo-length otherwise).
+
+**Try it** — `"[1 2 3 4 3 2 1 4]/4"` — 8 events, 4 bars, extended harmonic rhythm. `"[1 . [2 3]]/4"` — nested rhythm. `"[1 2 3 4]/8"` — double-length, slower harmonic change.
+
+<!-- [video ~30s: start with rep s 1, then warp "[1 2 3 4]/4", then warp "[1 1 2 1]/4" (AABA), then warp "[1(3,8) 2]/4" (euclidean) — each time re-run and hear the harmonic rhythm reshape] -->
+
+___
+
+## 8. `arrange` vs `arrange'`
+
+**Why** — two ways that a pattern interacts with progression changes. `arrange` lets the pattern flow across chords at its own speed; `arrange'` compresses the full pattern into each chord slot. Both handle notes crossing harmony boundaries by sustaining naturally — no spurious onsets.
+
+**What** — [`Bridge.hs:105`](src/Harmonic/Interface/Tidal/Bridge.hs#L105) (arrange), [`Bridge.hs:205`](src/Harmonic/Interface/Tidal/Bridge.hs#L205) (arrange').
+
+```haskell
+-- arrange: pattern flows across the progression
+arrange (0, 1) k (-9, 9) flow (overlapF 1) ["~"
+  , "[0 1 2 3 4 5 6 7]/2"
+] # ch 01
+
+-- arrange': the same pattern repeats in every chord slot
+arrange' (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+  , "[0 1 2 3 4 5 6 7]/2"
+] # ch 01
+```
+
+`arrange` feels like a melody running over changing chords — each note's pitch maps to whichever chord is active at its onset. `arrange'` feels like an arpeggiator locked to each chord — every chord gets the whole pattern, compressed to fit its duration.
+
+`overlapF N` expands each chord's pitch set with pitches from N bars ahead, producing natural legato across transitions. Use `overlapB` for backward merging, `progOverlap` for bidirectional.
+
+**How** — swap the function. Everything else identical. `overlapF` / `overlapB` are applied as the 5th argument — the progression modifier.
+
+**Try it** — on the same progression and pattern, run `arrange` then `arrange'`. Listen for the melodic difference. Change `overlapF 0` to `overlapF 2` and hear the sustain extend.
+
+<!-- [video ~45s: run the same progression and same pattern with arrange, then arrange'. Annotate visually: arrange = "pattern flows over harmony", arrange' = "pattern locked into each chord slot". Then increase overlapF and show the sustain] -->
+
+___
+
+## 9. Progression manipulation
+
+**Why** — transform the harmony in real time with pure functions. Rotate, excerpt, transpose, reverse, fuse, interleave — all return new progressions that you can chain.
+
+**What** — [`Arranger.hs:80-230`](src/Harmonic/Interface/Tidal/Arranger.hs#L80).
+
+| Function | Signature | Effect |
+|---|---|---|
+| `rotate` | `Int -> Progression -> Progression` | Rotate by N bars |
+| `excerpt` | `Int -> Int -> Progression -> Progression` | Range (1-indexed, inclusive) |
+| `transposeP` | `Int -> Progression -> Progression` | Transpose by N semitones |
+| `reverse` | `Progression -> Progression` | Reverse the order |
+| `fuse` | `[Progression] -> Progression` | Concatenate a list |
+| `fuse2` | `Progression -> Progression -> Progression` | Binary concatenate |
+| `interleave` | `Progression -> Progression -> Progression` | Alternating chords |
+| `expandP` | `Int -> Progression -> Progression` | Repeat each chord N times |
+| `insert` | `CadenceState -> Int -> Progression -> Progression` | Replace bar N |
+| `switch` | `Int -> Int -> Progression -> Progression` | Swap bars M and N |
+| `clone` | `Int -> Int -> Progression -> Progression` | Copy bar M to N |
+| `extract` | `Int -> Progression -> CadenceState` | Pull out one state |
+| `progOverlapF` | `Int -> Progression -> Progression` | Merge pitches from ahead |
+| `progOverlapB` | `Int -> Progression -> Progression` | Merge pitches from behind |
+| `progOverlap` | `Int -> Progression -> Progression` | Both directions |
+
+```haskell
+-- Rotate by 2 bars
+rotate 2 s
+
+-- Extract bars 1–4
+excerpt 1 4 s
+
+-- Palindrome: original + reverse
+fuse2 s (Harmonic.Interface.Tidal.Arranger.reverse s)
+
+-- Interleave with a fourth-up version
+interleave s (transposeP 5 s)
+
+-- Chain transformations
+transposeP 7 $ rotate 3 $ s
+```
+
+**How** — every function is pure. Assign the result to a new variable and rebuild your `iK` context with it. No launcher changes needed.
+
+**Try it** — `expandP 2 s` to slow the harmonic rhythm. `progOverlapF 1 s` for natural sustain across transitions. Chain three or four transformations and see what comes out.
+
+<!-- [video ~30s: take an 8-chord progression, show it under rotate, then excerpt, then transposeP, then interleave with a transposed copy — each time re-running the launcher briefly to hear the shape] -->
+
+___
+
+## 10. Explicit composition
+
+**Why** — when you have specific chord changes in mind, skip the generator and build progressions by hand. Three levels of explicit control:
+
+**What** — [`Arranger.hs:336`](src/Harmonic/Interface/Tidal/Arranger.hs#L336)
+
+```haskell
+-- Pitch-class list construction
+sExplicit = fromChords
+  [ [0, 4, 7]    -- C maj
+  , [5, 9, 0]    -- F maj
+  , [7, 11, 2]   -- G maj
+  , [9, 0, 4]    -- A min
+  ]
+
+-- Note name syntax — more readable
+sNamed = prog sharp (notesToPCs <$>
+  [ [C, E, G]
+  , [F, A, C']
+  , [G, B, D]
+  , [A, C', E]
+  ])
+
+-- Full CadenceState construction with explicit root movement
+sStates = fromCadenceStates
+  [ initCadenceState 0 "C" [0, 4, 7]
+  , initCadenceState 5 "F" [0, 4, 7]
+  , initCadenceState 2 "G" [0, 4, 7]
+  , initCadenceState 2 "A" [0, 3, 7]
+  ]
+```
+
+**How** — once you have a `Progression`, everything else in the library works exactly the same: voicing, arrangement, form, manipulation. The generator and explicit construction are interchangeable.
+
+**Try it** — build your own 8-bar progression. Apply `transposeP 2` to it. Use `interleave` to weave it with a generated progression.
+
+<!-- [video ~30s: write a 4-chord progression using notesToPCs with note-name syntax, assign to sNamed, play it with the standard p01 launcher. Then apply transposeP 2 and play again] -->
+
+___
+
+## 11. Kinetics form (programmed arc)
+
+**Why** — wall-clock time as a compositional parameter. A form is a list of nodes, each placed at a specific second, with kinetics (0–1 continuous signal) and dynamics (amplitude envelope) values. Between nodes the signals interpolate linearly; the progression switches discretely at each node.
+
+**What** — [`Form.hs`](src/Harmonic/Interface/Tidal/Form.hs)
+
+```haskell
+sA <- seek "none" $ cue start $ tonal (consonant $ hcKey "0#" $ hContext) $ len 4 $ entropy 0.3 $ gen
+sB <- seek "none" $ cue start $ tonal (dissonant $ hcKey "0#" $ hContext) $ len 4 $ entropy 0.85 $ gen
+
+arcForm =
+  [ at   0   0.0  0.0  sA
+  , at   5   0.3  0.4  sA
+  , at  20   0.5  0.6  sA
+  , at  30   0.8  0.8  sB   -- progression switch at the rise
+  , at  40   1.0  1.0  sB
+  , at  50   0.5  0.65 sA
+  , at  60   0.0  0.0  sA
+  , at  70   0.0  0.0  sA   -- silence gap
+  ]
+
+p01arc f k d = d01 $ do
+  let o = ch 01
+  f
+    $ stack [silence
+      , arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~", "[0 1 2 3]/4"] # o |* vel 0.75
+      , arrange (0.7, 1) k (-9, 9) flow (overlapF 0) ["~", "[0 2 4 7 4 2]/4"] # o |+ oct 1 |* vel 0.6
+    ] |* vel d
+
+do
+  let k = iK tempo arcForm (rep sA 1)
+  mapM_ id [hush, setbpm tempo, p01arc id k 0.85]
+```
+
+The upper-voice `arrange` has kinetics range `(0.7, 1)` — it only plays when the kinetics signal is at or above 0.7, i.e. during the climactic middle section. The chord pad `(0, 1)` plays throughout.
+
+Reusable form templates live in [`live/forms.tidal`](live/forms.tidal):
+- **7m24s** spectral narrative (454s loop, 11 nodes)
+- **12m** spectral narrative (730s loop)
+- **19m24s** spectral narrative (1174s loop)
+- **3min pop** @ 112 BPM (190s loop, verse-chorus-bridge)
+
+**How** — kinetics drive range-gating on `arrange` calls; dynamics drive amplitude via `|* vel`; progression switches at each node let you have the generator run one progression in the calm sections and another in the climactic ones.
+
+**Try it** — stretch the timings to 5 minutes or compress to 20s. Change `(0.7, 1)` to `(0, 0.3)` so the upper line plays during the lead-in instead. Add a third arrange gated at `(0.3, 0.7)` for a middle layer.
+
+<!-- [video ~60s: launch the arc — show the kinetics signal visually rising and falling, the progression switching at the peak, the upper line entering at kinetics 0.7 and dropping out on the way down. Let it play for ~45s to demonstrate the full arc audibly] -->
+
+___
+
+## 12. Groove (`subKick`)
+
+**Why** — kick and sub bass that follow the harmonic root. `subKick` combines a kick pattern, a sustained sub, and an MPC-style CC64 sustain mechanism. It locks to the root of whichever chord is active at each onset.
+
+**What** — [`Groove.hs`](src/Harmonic/Interface/Tidal/Groove.hs)
+
+```haskell
+subk f k d = p "subKick"
+  $ f
+    $ subKick d k root ( 1/4
+      , "[1(3,8) . ~]"    -- sub bass on: euclidean 3-of-8 with rest
+      , "[0 1 0 0]"       -- sub bass off: control
+      , "1*4"              -- kick: four on the floor
+    )
+
+do
+  let k = iK tempo [at 0 1 1 s] (rep s 1)
+  mapM_ id [hush, setbpm tempo
+    , p01 id k 0.9
+    , subk id k 0.8
+    ]
+```
+
+Routes to MIDI channel 10. A complementary MPC kit program is provided separately for full-range sub+kick rendering.
+
+___
+
+## 13. Voice lines & the instrument paradigm
+
+**Why** — address stacked voices as independent patterns with their own kinetics ranges, voice functions, and register placements. This is the foundation that the full virtual orchestra is built on.
+
+**What** —
+
+```haskell
+p01satb f k d = d01 $ do
+  let o = ch 01
+  f
+    $ stack [silence
+      , arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~", "[3]/1"] # o |+ oct 1 |* vel 0.7
+      , arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~", "[2]/1"] # o              |* vel 0.6
+      , arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~", "[1]/1"] # o              |* vel 0.6
+      , arrange (0, 1) k (-9, 9) root (overlapF 0) ["~", "[0]/1"] # o |- oct 1 |* vel 0.8
+    ] |* vel d
+```
+
+Four voices: soprano (highest, +1 oct), alto, tenor (middle), bass (-1 oct with `root` voicing). Each is just an `arrange` call with a different pattern index and octave offset.
+
+**How** — stack `arrange` calls inside a launcher's `stack`. The voice functions (`flow`, `grid`, `root`) pick which pitches are selected; the octave offset places the voice in register.
+
+### The full virtual orchestra
+
+This stacked-voice paradigm is the foundation for the **Algorithmic Orchestration** system: 15 pitched instruments (flute, oboe, clarinet, bassoon, horn, trombone, bass trombone, harp, timpani, violin 1/2, viola, cello, contrabass), each with physical MIDI range clipping, addressed by voice (`Soprano`/`Alto`/`Tenor`/`Bass`, plus `8va`/`15va`/`8vb`/`15vb` octave variants). String articulations (`pizz`, `spicc`, `marc`, `legg`, `arco`) switch channel aliases per block. Section blocks (`wind`, `brss`, `strg`, `perc`) and timbral blends (`chalumeau`, `pastorale`, `brillante`, `maestoso`, `tutti`) group instruments into ensemble presets.
+
+For this walkthrough we stay on the single piano channel. For the full orchestra:
+
+- [`live/ORCHESTRAL_CATALOGUE.tidal`](live/ORCHESTRAL_CATALOGUE.tidal) — test each instrument's range and tonal character
+- [`ALGORITHMIC_ORCHESTRATION.md`](ALGORITHMIC_ORCHESTRATION.md) — full documentation of the system
+
+<!-- [video ~90s: full virtual orchestra demo — start with solo flute playing a kinetics-gated line, progressively add horn (brass), then violin 1 + viola (strings), then the full tutti at the form peak. Show the kinetics signal driving instrument entrances. This is the Algorithmic Orchestration showcase — one video tells the whole story without the guide needing to document every function] -->
+
+___
+
+## 14. Going further
+
+**Complete examples** —
+- [`live/examples/blue_in_green.tidal`](live/examples/blue_in_green.tidal) — jazz chorus-improv-chorus on the 12m spectral narrative
+- [`live/examples/rosslyn_castle.tidal`](live/examples/rosslyn_castle.tidal) — folk form on the 7m24s spectral narrative
+
+**Performance starter** —
+- [`live/perform/state.tidal`](live/perform/state.tidal) — minimal blank state file
+
+**Form templates** —
+- [`live/forms.tidal`](live/forms.tidal) — 7m24s / 12m / 19m24s spectral narratives + pop song form
+
+**Documentation** —
+- [`CHANGELOG.md`](CHANGELOG.md) — V3 feature summary
+- [`ALGORITHMIC_ORCHESTRATION.md`](ALGORITHMIC_ORCHESTRATION.md) — virtual orchestra
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — R→E→T pipeline, four-layer architecture, graph schema
+
+### Quick reference
+
+**Generation** —
+
+```haskell
+start <- lead "C maj"                                      -- or initCadenceState
+s <- seek "none" $ cue start $ len 4 $ entropy 0.5 $ gen   -- offline
+s <- seek "bach" $ cue start $ tonal ctx $ len 4 $ entropy 0.5 $ gen   -- online
+```
+
+**Context modifiers** — compose with `$`, right-to-left. `hContext`, `hcOvertones`, `hcKey`, `hcRoots`, `hcPedal`, `consonant`, `dissonant`, `invSkip`.
+
+**Voicing** — `flow`, `grid`, `lite`, `root`, `fund`.
+
+**Chord selection** — `rep s 1`, `warp "[1 2 3 4]/4"`.
+
+**Arrangement** —
+
+```haskell
+arrange  (lo,hi) k (-9,9) voicing modifier [patterns] # ch N
+arrange' (lo,hi) k (-9,9) voicing modifier [patterns] # ch N   -- squeeze variant
+```
+
+**Form** — `at time kinetics dynamics progression`, `iK tempo [nodes] chordSelection`.
+
+**Manipulation** — `rotate`, `excerpt`, `transposeP`, `reverse`, `fuse`, `fuse2`, `interleave`, `expandP`, `insert`, `switch`, `clone`, `extract`, `progOverlap`, `progOverlapF`, `progOverlapB`.
+
+___
+
+Questions and feedback via the [GitHub Issues](https://github.com/OscarSouth/theHarmonicAlgorithm/issues) tracker.

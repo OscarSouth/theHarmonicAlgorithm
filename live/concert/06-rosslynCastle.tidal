@@ -1,26 +1,24 @@
 -- ══════════════════════════════════════════════════════════
--- Rosslyn Castle (piano, ch 1)
+-- Concert 06 — Rosslyn Castle
 -- ══════════════════════════════════════════════════════════
 --
 -- Faithful V3 port of the V2 concert arrangement.
--- The original had three voices — Juno (melody), Jazz piano
--- (chord motion + bass), MPC + 909 (drums) — here collapsed
--- to a single piano on channel 1.
+-- Original instruments: Juno (melody, ch 16), Jazz piano
+-- (chord motion + lmotif bass, ch 3), 909 (kick + hh),
+-- MPC (kick on lmotif, snare, degrade hh).
 --
--- The AABA harmony, B harmonic minor scale, full melody
--- (A and B section patterns), and the lmotif bass trigger
--- are preserved verbatim. The piano stack plays:
---   - chord motion with degraded voice-leading inner voices
---   - lmotif bass pulse (struct-gated root notes)
---   - mono melody line over the B harmonic minor scale
---
--- Offline. No Neo4j required.
+-- Piano ch 1 is the primary voice. To restore original
+-- timbres uncomment the synth launchers and route:
+--   ch 3  = piano/harpsichord (jazz part)
+--   ch 9  = 909kit
+--   ch 10 = mpckit
+--   ch 16 = juno / synth lead
 
 tempo = 92
 bars = 1
 
 -- ──────────────────────────────────────────────────────────
--- Harmony (V2 AABA — 64 bars)
+-- Harmony (AABA — 64 bars)
 -- ──────────────────────────────────────────────────────────
 
 rosslynA = notesToPCs <$>
@@ -31,19 +29,15 @@ rosslynA = notesToPCs <$>
   ]
 
 rosslynB = notesToPCs <$>
-  [ [G,B,D],     [B,D,F'],     [D,F',A],     [G,Bb,Db,E]
-  , [G,B,D,F,A'], [A,C',E,G],  [D,F',A,C],   [F',A,C',E]
-  , [G,B,D],     [G',C',E,Bb], [A,F',C',E],  [Bb,E,G,Db]
-  , [B,D,F'],    [F',B,D],     [G,B,D],      [B,D,F']
+  [ [G,B,D],      [B,D,F'],     [D,F',A],    [G,Bb,Db,E]
+  , [G,B,D,F,A'], [A,C',E,G],   [D,F',A,C],  [F',A,C',E]
+  , [G,B,D],      [G',C',E,Bb], [A,F',C',E], [Bb,E,G,Db]
+  , [B,D,F'],     [F',B,D],     [G,B,D],     [B,D,F']
   ]
 
 rosslynCastle = concat [rosslynA, rosslynA, rosslynB, rosslynA]
 
 state = prog rosslynCastle
-
--- ──────────────────────────────────────────────────────────
--- Melody scale (B harmonic minor)
--- ──────────────────────────────────────────────────────────
 
 melodyState = prog [(+(-1)) <$> [0, 2, 3, 5, 7, 8, 11]]
 
@@ -77,29 +71,78 @@ melody =
        (\s -> if s == 'B' then b else a) "AABA"
 
 -- ──────────────────────────────────────────────────────────
--- Launcher: piano on channel 1
+-- Piano (ch 1) — primary voice
 -- ──────────────────────────────────────────────────────────
---
--- k  = chord motion, keyed to `state`
--- kM = melody, keyed to `melodyState`
 
 p01 f k kM d = d01 $ do
   let o = ch 01
   f
     $ stack [silence
-      -- Jazz piano chord motion (degraded inner voice + velocity swell)
       ,arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
         ,degradeBy 0.04 $ "[-1,0,1]*2" |* "[1 2]/4" |- "[0 1 2 3]/16"
       ]# o |* vel (slow 32 $ lfo saw 0.5 1.5) |= legato 0.125
-      -- Jazz piano: lmotif-gated bass note
       ,struct lmotif $ arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
         ,"0"
       ]# o |* vel 1.4 |- oct "[3 2]*2" |= legato 0.6
-      -- Juno melody line over B harmonic minor scale
       ,mono $ arrange (0, 1) kM (-9, 12) flow id ["~"
         ,melody
       ]# o |* vel 0.7 |+ oct 1
     ] |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- Juno (ch 16) — lead melody (original timbral voice)
+-- ──────────────────────────────────────────────────────────
+
+juno f kM d = p "juno" $ do
+  let o = ch 16
+  f
+    $ stack [silence
+      ,mono $ arrange (0, 1) kM (-9, 12) flow id ["~"
+        ,melody
+      ]# o |* vel 0.7 |+ oct 1
+    ] |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- Jazz piano (ch 3) — chord motion + lmotif bass
+-- ──────────────────────────────────────────────────────────
+
+jazz f k d = p "piano" $ do
+  let o = ch 3
+  f
+    $ stack [silence
+      ,arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+        ,degradeBy 0.04 $ "[-1,0,1]*2" |* "[1 2]/4" |- "[0 1 2 3]/16"
+      ]# o |* vel (slow 32 $ lfo saw 0.5 1.5) |= legato 0.125
+      ,struct lmotif $ arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+        ,"0"
+      ]# o |* vel 1.4 |- oct "[3 2]*2" |= legato 0.6
+    ] |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- 909 kit (ch 9)
+-- ──────────────────────────────────────────────────────────
+
+k909 f d = p "909kit" $ do
+  let o = ch 9
+  f
+    $ stack [silence
+      ,kick "1"
+      ,hh "0 1" |* vel (lfo saw 0.1 0.8)
+    ]# o # legato 0.01 |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- MPC kit (ch 10)
+-- ──────────────────────────────────────────────────────────
+
+kmpc f d = p "mpckit" $ do
+  let o = ch 10
+  f
+    $ stack [silence
+      ,kick lmotif |* vel 0.9
+      ,snare "[0 1]/2" |* vel 0.7
+      ,sometimesBy 0.05 (>>hh "2") $ sometimesBy 0.01 (fast 2) $ degradeBy 0.1
+        $ hh "[1]*4" |* vel (lfo saw 0.1 0.7)
+    ]# o # legato 0.01 |* vel d
 
 -- ──────────────────────────────────────────────────────────
 -- Launch
@@ -110,12 +153,16 @@ do
     f = id
     d = (* 0.9)
     form = [at 0 1 1 state]
-    k  = iK tempo form (rep state  1)
+    k  = iK tempo form (rep state       1)
     kM = iK tempo form (rep melodyState 1)
-  putStrLn "Rosslyn Castle"
+  putStrLn "Concert 06 — Rosslyn Castle"
   print state
   mapM_ id [hush, setbpm tempo
-    , p01 f k kM $ d 0.9
+    , p01  f k kM $ d 0.9
+    , k909 f      $ d 0.8
+    , kmpc f      $ d 0.75
+    -- , jazz f k   $ d 0.9
+    -- , juno f kM  $ d 0.7
     ]
 
 hush

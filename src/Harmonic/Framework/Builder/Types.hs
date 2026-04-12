@@ -22,6 +22,7 @@ module Harmonic.Framework.Builder.Types
   , dissonant
   , consonant
   , invSkip
+  , hcPedal
 
     -- * Configuration
   , GeneratorConfig(..)
@@ -54,7 +55,8 @@ import           Data.Text (Text)
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Progression as Prog
 import           Harmonic.Rules.Constraints.Filter (parseOvertones', parseKey, isWildcard, resolveRoots,
-                                                     BassDirection(..), parseBassDirection, stripDirectionToken)
+                                                     BassDirection(..), parseBassDirection, stripDirectionToken,
+                                                     noteNameToPitchClass)
 
 -------------------------------------------------------------------------------
 -- Harmonic Context (R Constraints)
@@ -77,6 +79,7 @@ data HarmonicContext = HarmonicContext
   , _hcRoots            :: Text   -- ^ Filter by root notes ("*" = all)
   , _hcDrift            :: Drift  -- ^ Dissonance drift direction
   , _hcInversionSpacing :: Int    -- ^ Minimum non-inversions between inversions (default 0)
+  , _hcPedal            :: Text   -- ^ Required/preferred tones ("C G?", "" = no pedal)
   } deriving (Eq)
 
 instance Show HarmonicContext where
@@ -86,6 +89,7 @@ instance Show HarmonicContext where
     , "roots " ++ T.unpack (_hcRoots ctx)
     , driftStr (_hcDrift ctx)
     , invStr (_hcInversionSpacing ctx)
+    , pedalStr (_hcPedal ctx)
     ]
     where
       driftStr Free      = ""
@@ -93,6 +97,7 @@ instance Show HarmonicContext where
       driftStr Consonant = "drift consonant"
       invStr 0 = ""
       invStr n = "inv skip " ++ show n
+      pedalStr t = if T.null (T.strip t) then "" else "pedal " ++ T.unpack t
 
 -- |Constructor for HarmonicContext.
 --
@@ -106,7 +111,7 @@ instance Show HarmonicContext where
 --   harmonicContext "E A D G" "C" "*" -- Bass tuning, C major key
 --   harmonicContext "*" "#" "E G"     -- G major key, E/G roots only
 harmonicContext :: Text -> Text -> Text -> HarmonicContext
-harmonicContext o k r = HarmonicContext o k r Free 0
+harmonicContext o k r = HarmonicContext o k r Free 0 ""
 
 -- |Default harmonic context for Tidal live coding: all wildcards (chromatic).
 -- Named 'hContext' to avoid collision with TidalCycles' EventF.context field.
@@ -122,7 +127,7 @@ harmonicContext o k r = HarmonicContext o k r Free 0
 --     $ hContext
 -- @
 hContext :: HarmonicContext
-hContext = HarmonicContext "*" "*" "*" Free 0
+hContext = HarmonicContext "*" "*" "*" Free 0 ""
 
 -------------------------------------------------------------------------------
 -- Dissonance Drift
@@ -174,6 +179,18 @@ consonant ctx = ctx { _hcDrift = Consonant }
 invSkip :: Int -> HarmonicContext -> HarmonicContext
 invSkip n ctx = ctx { _hcInversionSpacing = n }
 
+-- |Require specific pitch classes to be present in every generated chord.
+--
+-- Tokens are note names (@"C"@, @"G#"@, @"Bb"@). A trailing @?@ marks a tone
+-- as preferred rather than required — it is applied when it does not reduce
+-- the candidate pool below a minimum viable size, and relaxed otherwise.
+--
+-- @hcPedal "C" $ hContext@       — C must appear in every chord
+-- @hcPedal "C G" $ hContext@     — C and G must both appear
+-- @hcPedal "C G?" $ hContext@    — C required, G preferred
+hcPedal :: String -> HarmonicContext -> HarmonicContext
+hcPedal p ctx = ctx { _hcPedal = T.pack p }
+
 -------------------------------------------------------------------------------
 -- Generator Configuration
 -------------------------------------------------------------------------------
@@ -201,7 +218,25 @@ data ParsedContext = ParsedContext
   , pcBassDirection      :: !(Maybe BassDirection)  -- ^ Rise/fall bass direction constraint
   , pcDrift              :: !Drift                  -- ^ Dissonance drift direction
   , pcInversionSpacing   :: !Int                    -- ^ Minimum non-inversions between inversions
+  , pcPedalRequired      :: !IntSet.IntSet  -- ^ Pitch classes that must be present in every chord
+  , pcPedalPreferred     :: !IntSet.IntSet  -- ^ Preferred pitch classes (relaxed if pool too small)
   }
+
+-- |Parse pedal tone string into required and preferred IntSets.
+-- Tokens ending in '?' are preferred; all others are required.
+-- Invalid note names are silently ignored.
+parsePedalTones :: Text -> (IntSet.IntSet, IntSet.IntSet)
+parsePedalTones input
+  | T.null (T.strip input) = (IntSet.empty, IntSet.empty)
+  | otherwise =
+      let tokens = T.words input
+          classify t
+            | T.isSuffixOf "?" t = (False, noteNameToPitchClass (T.init t))
+            | otherwise          = (True,  noteNameToPitchClass t)
+          pairs = map classify tokens
+          required  = IntSet.fromList [pc | (True,  Just pc) <- pairs]
+          preferred = IntSet.fromList [pc | (False, Just pc) <- pairs]
+      in (required, preferred)
 
 -- |Parse a HarmonicContext once into efficient lookup structures.
 parseContextOnce :: HarmonicContext -> ParsedContext
@@ -217,6 +252,7 @@ parseContextOnce ctx =
       rootsStripped = stripDirectionToken rootsRaw
       bassDir = parseBassDirection rootsRaw
       allowedBassNotes = resolveRoots (_hcOvertones ctx) (_hcKey ctx) rootsStripped
+      (pedalReq, pedalPref) = parsePedalTones (_hcPedal ctx)
   in ParsedContext
     { pcEffectiveOvertones = IntSet.fromList effectiveOvertones
     , pcAllowedBassNotes   = IntSet.fromList allowedBassNotes
@@ -227,6 +263,8 @@ parseContextOnce ctx =
     , pcBassDirection      = bassDir
     , pcDrift              = _hcDrift ctx
     , pcInversionSpacing   = _hcInversionSpacing ctx
+    , pcPedalRequired      = pedalReq
+    , pcPedalPreferred     = pedalPref
     }
 
 -------------------------------------------------------------------------------

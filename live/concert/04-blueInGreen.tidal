@@ -1,0 +1,191 @@
+-- ══════════════════════════════════════════════════════════
+-- Concert 04 — Blue in Green
+-- ══════════════════════════════════════════════════════════
+--
+-- Faithful V3 port of the V2 concert arrangement.
+-- Original instruments: MPC (brushes/ride), 909 (kick),
+-- SH-101 (inner voice + sub bass), Moog Mother-32 (melody
+-- + direct swung note line), DFAM (textural improv).
+--
+-- Piano ch 1 is the primary voice here. To add the original
+-- synth timbres, route the channels as in the original:
+--   ch 9  = 909kit, ch 10 = mpckit
+--   ch 11/12 = moogDFAM, ch 14 = moogMother32, ch 15 = sh101
+
+tempo = 92
+bars = 1
+
+-- ──────────────────────────────────────────────────────────
+-- Harmony
+-- ──────────────────────────────────────────────────────────
+
+blueInGreen = prog
+  [ [10, 2, 9, 4], [10, 2, 9, 4]
+  , [9, 1, 7, 10], [9, 1, 7, 0]
+  , [2, 5, 0, 11], [1, 5, 11, 3]
+  , [0, 3, 10, 5], [11, 3, 9, 7]
+  , [10, 2, 9, 5], [10, 2, 9, 5]
+  , [9, 1, 7, 5],  [9, 1, 7, 5]
+  , [2, 5, 0, 11], [2, 5, 0, 11]
+  , [4, 8, 2, 5],  [4, 8, 2, 5]
+  , [9, 0, 7, 11], [9, 0, 7, 11]
+  , [2, 5, 1, 9],  [2, 5, 1, 9]
+  ]
+
+state = blueInGreen
+
+scales = concatMap (replicate 2)
+  [ [2, 4, 7, 9, 11]
+  , [2, 5, 7, 10, 12]
+  , [2, 5, 7, 9, 12]
+  , [2, 5, 7, 10, 12]
+  , [2, 4, 5, 9, 13]
+  , [2, 5, 7, 9, 12]
+  , [2, 5, 7, 9, 12]
+  , [2, 4, 8, 11, 12]
+  , [2, 4, 7, 9, 11]
+  , [2, 5, 9, 12, 13]
+  ]
+
+melodyState = prog scales
+
+melodyAbs = slow 8 $ slowcat
+  [ "[4@3 2]"
+  , "[0@3 -2]"
+  , "[-3@3 -5]"
+  , "[-7 4@3]"
+  , "[-8@3 -10 -11 -10 -5 -3]"
+  , "[0@3 -3]"
+  , "[-5@3 -7]"
+  , "[0@3 -4]"
+  , "[0@3 -3]"
+  , "[5@3 1]"
+  ]
+
+melodyRel = slow 8 $ slowcat
+  [ "[1@3 0]"
+  , "[-1@3 -2]"
+  , "[-2@3 -3]"
+  , "[-4 0]"
+  , "[1@3 0 -1 0 2 3]"
+  , "[-1@3 -2]"
+  , "[-3@3 -4]"
+  , "[-1@3 -3]"
+  , "[-1@3 -2]"
+  , "[1@3 -1]"
+  ]
+
+-- ──────────────────────────────────────────────────────────
+-- Piano (ch 1) — primary voice
+-- ──────────────────────────────────────────────────────────
+
+p01 f k kM d = d01 $ do
+  let o = ch 01
+  f
+    $ stack [silence
+      ,arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+        ,"[-1?, 0?, 1?, 2?, 3?]/8"
+      ]# o |* vel 0.4
+      ,arrange (0, 1) k (-9, 9) root id ["~"]# o |* vel 1 |- oct 2
+      ,swingBy 0.07 4 $ note melodyAbs # o |* vel 1
+      ,sometimes palindrome $ fast (choose [0, 1, 2]) $ slow 4
+        $ arrange (0, 1) kM (-9, 9) flow (overlapF 1) ["~"]
+        # o |* vel 1 |- oct 1
+    ] |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- MPC brushes (ch 10)
+-- ──────────────────────────────────────────────────────────
+
+kmpc f d = p "mpckit" $ do
+  let o = ch 10
+  f
+    $ stack [silence
+      ,ride "[1 . 1 1]" |* vel (lfo tri 0.08 0.5) |+ humanise 0.2
+      ,hh "0 1"
+      ,degradeBy 0.9 $ kick (slow 4 $ binaryrange 128 256) |* vel (lfo saw 0.05 0.4)
+      ,hh "[~ 1]" |* vel 0.4
+    ]# o # legato 0.01 |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- 909 kick (ch 9)
+-- ──────────────────────────────────────────────────────────
+
+k909 f d = p "909kit" $ do
+  let o = ch 9
+  f
+    $ stack [silence
+      ,kick "1"
+    ]# o # legato 0.01 |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- SH-101 (ch 15) — inner voice + sub octave
+-- ──────────────────────────────────────────────────────────
+
+s101 f k d = p "sh101" $ do
+  let o = ch 15
+  f
+    $ stack [silence
+      ,arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+        ,"[-1?, 0?, 1?, 2?, 3?]/8"
+      ]# o |* vel 0.4
+      ,arrange (0, 1) k (-9, 9) root id ["~"]# o |* vel 1 |- oct 2
+      -- melody line (uncomment to activate):
+      -- ,arrange (0,1) kM (-9,9) flow id ["~", melodyAbs] # o |* vel 1
+    ] |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- Moog Mother-32 (ch 14) — melody + note line
+-- ──────────────────────────────────────────────────────────
+
+moog f k kM d = p "moogMother32" $ do
+  let o = ch 14
+  id
+    $ stack [silence
+      ,sometimes palindrome $ fast (choose [0, 1, 2]) $ slow 4
+        $ arrange (0, 1) kM (-9, 9) flow (overlapF 1) ["~"]
+        # o |* vel 1 |- oct 1
+      ,swingBy 0.07 4 $ note melodyAbs # o |* vel 1 |+ oct 0
+      -- ,portamento 0.0
+    ] |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- Moog DFAM (ch 11/12) — textural improv
+-- ──────────────────────────────────────────────────────────
+
+mdf f k kM d = p "moogDFAM" $ 0.036 <~ do
+  let (osc1, osc2) = (ch 11, ch 12)
+  f
+    $ stack [silence
+      ,steptrig "[1 2 3 4 5 6 7 8]/2"
+      ,arrange (0, 1) kM (-9, 9) flow id ["~"
+        ,slow 2 $ trunc 0.7 $ degrade $ "[2 3 4 5 6 7 6 8]" |+ irand 4
+      ]# osc1 |* vel 1 |+ oct 1
+      ,arrange (0, 1) k (-9, 9) flow id ["~"
+        ,"0/4"
+      ]# osc2 |* vel 1 |- oct 1
+    ]# legato 0.25 |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- Launch
+-- ──────────────────────────────────────────────────────────
+
+do
+  let
+    f = swingBy 0.05 2
+    d = (* 0.9)
+    form = [at 0 1 1 state]
+    k  = iK tempo form (rep state       1)
+    kM = iK tempo form (rep melodyState 1)
+  putStrLn "Concert 04 — Blue in Green"
+  print state
+  mapM_ id [hush, setbpm tempo
+    , p01  f k kM $ d 0.9
+    , kmpc f     $ d 0.7
+    , k909 f     $ d 0.8
+    -- , s101 f k   $ d 0.7
+    -- , moog f k kM $ d 0.9
+    -- , mdf  f k kM $ d 0.8
+    ]
+
+hush

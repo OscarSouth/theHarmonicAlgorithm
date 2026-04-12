@@ -161,6 +161,7 @@ module Harmonic.Framework.Builder
   , dissonant
   , consonant
   , invSkip
+  , hcPedal
 
     -- * Configuration
   , GeneratorConfig(..)
@@ -191,7 +192,7 @@ import qualified Harmonic.Rules.Types.Progression as Prog
 import           Harmonic.Rules.Import.Graph (connectNeo4j)
 import qualified Harmonic.Evaluation.Database.Query as Q
 import           Harmonic.Rules.Constraints.Filter (parseTuningNamed, isWildcard)
-import           Harmonic.Rules.Constraints.Overtone (formatOvertoneAnnotation)
+import           Harmonic.Rules.Constraints.Overtone (formatOvertoneAnnotation, formatOvertoneAnnotationPipe)
 import           Data.Foldable (toList)
 
 -- Sub-module imports
@@ -322,7 +323,7 @@ genPrint' start len composerStr entropy ctx = do
             absPitches = map (\i -> (i + rootPC) `mod` 12) intervals
             spelling = H.stateSpelling cs
             pcName pc = show (H.enharmonicFunc spelling (P.mkPitchClass pc))
-        in formatOvertoneAnnotation tuningNames absPitches pcName
+        in formatOvertoneAnnotationPipe tuningNames absPitches pcName
 
   -- Print compact summary
   putStrLn ""
@@ -332,11 +333,12 @@ genPrint' start len composerStr entropy ctx = do
   putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
   -- Show starting state as bar 1
-  putStrLn $ "  1: " ++ gdStartRoot diag ++ " " ++ gdStartCadence diag ++ " [starting state]"
-  when (hasAnnotation && not (null allStates)) $ do
-    let annotation = annotateState (head allStates)
-    when (not (null annotation)) $
-      putStrLn $ "     " ++ annotation
+  let bar1Suffix = if hasAnnotation && not (null allStates)
+                   then let ann = annotateState (head allStates)
+                        in if null ann then "" else "  " ++ ann
+                   else ""
+  putStrLn $ "  1: " ++ gdStartRoot diag ++ " " ++ gdStartCadence diag
+             ++ " [starting state]" ++ bar1Suffix
   putStrLn ""
 
   -- Show each step with bar number = stepNumber + 1
@@ -352,9 +354,20 @@ genPrint' start len composerStr entropy ctx = do
         src = "[" ++ sdSelectedFrom step ++ "]"
         selIdx = "γ=" ++ show (sdGammaIndex step)
 
-    -- Single line: bar number, state, pool, movement, chord, source, gamma
+    -- Overtone annotation suffix (inline on step line)
+    let overtoneSuffix =
+          if hasAnnotation
+          then let stateIdx = barNum - 1
+               in if stateIdx >= 0 && stateIdx < length allStates
+                  then let ann = annotateState (allStates !! stateIdx)
+                       in if null ann then "" else "  " ++ ann
+                  else ""
+          else ""
+
+    -- Single line: bar number, state, pool, movement, chord, source, gamma, overtones
     putStrLn $ "  " ++ show barNum ++ ": " ++ stateInfo ++ "  " ++ poolInfo
                ++ "  " ++ mvmt ++ " → " ++ chord ++ "  " ++ src ++ " " ++ selIdx
+               ++ overtoneSuffix
 
     -- Top 6 candidates rendered as actual chords (with roots)
     let posteriorRootPC = sdPosteriorRootPC step
@@ -372,15 +385,7 @@ genPrint' start len composerStr entropy ctx = do
     when (not (null topCands)) $ do
       let candNames = [renderCandidateName name | (name, _) <- topCands]
           candStr = intercalate " | " candNames
-      putStrLn $ "     Options: " ++ candStr
-
-    -- Overtone annotation (when tuning is specified)
-    when hasAnnotation $ do
-      let stateIdx = barNum - 1  -- 0-indexed into allStates
-      when (stateIdx >= 0 && stateIdx < length allStates) $ do
-        let annotation = annotateState (allStates !! stateIdx)
-        when (not (null annotation)) $
-          putStrLn $ "     " ++ annotation
+      putStrLn $ "     Candidates: " ++ candStr
 
     putStrLn ""
 

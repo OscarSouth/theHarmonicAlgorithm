@@ -38,7 +38,7 @@ k909 f k d = p "909kit" $ do
         ,hh "[~ 1]" -- #vel exP
         ]
       ,slate (0.2,1) k [silence
-        ,kick "[1]" -- #vel exP
+        -- ,kick "[1]" -- #vel exP
         ]
       ,slate (0.4,0.8) k [silence
         ,hh "[~ 1]" -- #vel exP
@@ -74,7 +74,7 @@ kmpc f k d = p "mpckit" $ do
 subk f k d = p "subKick"
   $ f
     $ subKick d k root ( 1/4
-      ,"[1(3,8) . ~]"
+      ,"[1 0 0 1? 0 0 1? 0 . ~]"
       -- ,"[1(3,8)]*2"
       -- ,"[1]/2"
       -- ,"[0 0 0 0]"
@@ -88,11 +88,12 @@ m32 f k d = p "moogMother32" $ do
   f
     $ stack [silence
        -- --
-      ,mono $ arrange (0.2,1) k (-9,9) flow (overlapF 0) ["~"
+      ,mono $ arrange (0.2,1) k (-9,9) grid (overlapF 0) ["~"
         -- ,"[0(5,16)]/4" |+ "[0 1 2 3]/8" |+ "[3 2 1 0]"
         -- ,"[0 1 2 3 4 3 2 1]/2" |+ "[0 1 2 3]/16"
-        ,"[2 0 0@2 . 2 0 0@2 . 1@2 <0 2> <1 0> . ~ <~ [-2 -1 0 1]>]/8"
+        -- ,"[2 0 0@2 . 2 0 0@2 . 1@2 <0 2> <1 0> . ~ <~ [-2 -1 0 1]>]/8"
         -- ,"[0 ~ ~ 0 . ~]/2" |+ "0 3"
+        ,"[-1*32 0*32 -2*32 0*32]/32"
       ]# o |- oct 0 |* vel 1
        -- --
       -- ,portamento 0.0
@@ -117,7 +118,6 @@ mdf f k d = p "moogDFAM" $ 0.036 <~ do
        -- --
     ]# legato 0.25 |* vel d
 
-rise f k d = p "rise" $ do
   f
     $ stack [silence
        -- --
@@ -129,5 +129,3 @@ rise f k d = p "rise" $ do
        -- --
     ]# ch 01
     |* vel d
-
-hush

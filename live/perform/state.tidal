@@ -12,40 +12,42 @@ start <- lead "E min"
 
 ctx = invSkip 1
   -- $ consonant
-  -- $ hcRoots "E A B fall"
-  -- $ hcKey "1#"
+  $ hcRoots "*"
+  $ hcKey "1# 2#"
+  $ hcPedal "B?"
+  -- $ hcOvertones "E G B F#"
   $ hContext
 
-s <- seek "debussy bach"
+s <- seek "Stravinsky"
   $ len 4
-  -- $ cue start
+  $ cue start
   $ tonal ctx
-  $ entropy 0.3
-  $ gen
+  $ entropy 0.1
+  $ gen'
 
  -- '' ¬¬
 do
   let
     -- r = warp "[1 [4 3@2] 2 1]/4"
-    r = warp "[1 2 3 4 5 6 7 8]/32"
+    r = warp "[1 2 3 4]/8"
     f = (swingBy 0.04 2)
     d = (*1)
     k = iK tempo [at 0 0 0.1 s
       ,at 81 1 1 s
-      ,at 100 0 0.1 s
+      ,at 100 0.1 0.1 s
       ] r
   putStrLn $ "LAUNCH ¬¬"
   print s
   mapM_ id [hush, setbpm tempo
     -- ,metronome 4 $d 0.2
-    -- ,count k $d 0.6
+    -- ,count k $d 0.1
     -- ,wind f k $d 0.6
     -- ,strg f k $d 0.8
     -- ,brss f k $d 0.9
     -- ,perc f k $d 1
-    ,p07  f k $d 0.9
-    -- ,subk f k $d 0.1
-    -- ,k909 f k $d 0.8
+    -- ,p07  f k $d 0.9
+    ,subk f k $d 0.1
+    ,k909 f k $d 0.8
     -- ,kmpc f k $d 0.3
     -- ,m32  f k $d 0.9
     -- ,mdf f k $d 0.9

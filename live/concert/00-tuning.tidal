@@ -1,0 +1,106 @@
+-- ══════════════════════════════════════════════════════════
+-- Concert 00 — Tuning
+-- ══════════════════════════════════════════════════════════
+--
+-- Opening drone on the tonic C. A single chord
+-- sustained for two minutes through the shorter end of the
+-- spectral narrative, with slow upper harmonics drifting in
+-- and out of focus. Functions as both a tuning reference for
+-- the hall and the first breath of the set.
+--
+-- Piano on channel 1. Extended synth layers (Moog, DFAM,
+-- SH-101 style drones) are provided at the bottom, commented
+-- out — uncomment to broaden into a full drone bed.
+
+tempo = 87
+
+-- ──────────────────────────────────────────────────────────
+-- Harmony: C tonic pedal
+-- ──────────────────────────────────────────────────────────
+
+s = prog [[0]]   -- single-note C drone
+
+-- ──────────────────────────────────────────────────────────
+-- Form: 2m drone (scaled variable spectral narrative)
+-- ──────────────────────────────────────────────────────────
+
+form =
+  [ at    0.0   0.0   0.0   s
+  , at   15.0   0.3   0.4   s
+  , at   35.0   0.6   0.6   s
+  , at   60.0   0.8   0.75  s
+  , at   85.0   1.0   0.85  s
+  , at  105.0   0.5   0.55  s
+  , at  120.0   0.0   0.0   s
+  , at  130.0   0.0   0.0   s   -- silence gap
+  ]
+
+-- ──────────────────────────────────────────────────────────
+-- Launcher: piano drone on ch 1
+-- ──────────────────────────────────────────────────────────
+
+p01 f k d = d01 $ do
+  let o = ch 01
+  f
+    $ stack [silence
+      -- Low tonic drone — always present
+      ,arrange (0, 1) k (-18, -6) root id ["~"
+        ,"[0]/4"
+      ]# o |* vel 0.75 |= legato 1
+      -- Middle-register pedal — gently swells
+      ,arrange (0.2, 1) k (-6, 6) grid id ["~"
+        ,"[0]/4"
+      ]# o |* vel 0.55 |= legato 0.98
+      -- Upper shimmer — joins at the peak
+      ,arrange (0.55, 1) k (3, 15) flow id ["~"
+        ,degradeBy 0.6 $ "[0 ~ 0 ~]/2"
+      ]# o |+ oct 1 |* vel 0.35 |= legato 0.9
+    ] |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- Extended instrumentation (optional)
+-- ──────────────────────────────────────────────────────────
+
+-- Moog Mother-32 drone — one octave below
+-- m32 f k d = p "moogMother32" $ do
+--   let o = ch 14
+--   f
+--     $ stack [silence
+--       ,mono $ arrange (0, 1) k (-9, 9) flow (progOverlapF 0) ["~"
+--         ,"[0]/4"
+--       ]# o |* vel 1 |- oct 2
+--       ,portamento 0.0
+--     ] |* vel d
+
+-- Moog DFAM — dual oscillator drone, stepped
+-- mdf f k d = p "moogDFAM" $ 0.036 <~ do
+--   let (osc1, osc2) = (ch 11, ch 12)
+--   f
+--     $ stack [silence
+--       ,steptrig "[1 2 3 4 5 6 7 8]/2"
+--       ,arrange (0, 1) k (-9, 9) flow (progOverlapF 0) ["~"
+--         ,"[0]/4"
+--       ]# osc1 |* vel 1 |- oct 1
+--       ,arrange (0, 1) k (-9, 9) flow (progOverlapF 0) ["~"
+--         ,"[0]/4"
+--       ]# osc2 |* vel 1 |- oct 1
+--     ]# legato 0.25 |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- Launch
+-- ──────────────────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 0.9)
+    k = iK tempo form (rep s 1)
+  putStrLn "Concert 00 — Tuning"
+  print s
+  mapM_ id [hush, setbpm tempo
+    , p01 f k $ d 0.8
+    -- , m32 f k $ d 0.9
+    -- , mdf f k $ d 0.7
+    ]
+
+hush

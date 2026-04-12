@@ -95,12 +95,16 @@ across harmony changes.
 ### Progression Tools
 
 **Progression Manipulation** — `rotate`, `excerpt`, `transposeP`, `reverse`,
-`fuse`, `expandP` reshape generated harmony in real time. All composable — chain
+`fuse`, `fuse2`, `interleave`, `expandP` reshape generated harmony in real
+time. Position operations `insert`, `switch`, `clone`, `extract` edit individual
+bars. `progOverlap`, `progOverlapF`, `progOverlapB` expand a chord's pitch set
+with pitches from neighbouring bars for natural sustain. All composable — chain
 them for complex transformations.
 
-**Explicit Construction** — Build progressions by hand with pitch-class lists or
-readable note names (`notesToPCs [C, E, G]`). Define musical sections and
-assemble them into different formal arrangements.
+**Explicit Construction** — Build progressions by hand with `fromChords`
+(pitch-class lists), `prog` + `notesToPCs [C, E, G]` (readable note names), or
+`fromCadenceStates` (full state construction with explicit root movement).
+Define musical sections and assemble them into different formal arrangements.
 
 **Three-Part Filtering** — Overtones, key signatures, and root motion filters
 in a single composable chain. Removal syntax (`-Bb'`) subtracts specific
@@ -154,6 +158,9 @@ drives the orchestration.
 **Modifier-Based Context API** — `hContext` is a zero-argument chromatic
 default. Filters apply as a composable chain: `invSkip 2 $ consonant $ hcKey
 "0#" $ hContext`. Comment out individual lines to fall back to defaults.
+`hcPedal "C G?"` adds a pedal tone constraint: required tones must appear
+in every chord; tones marked `?` are preferred but relaxed when the pool
+would fall below a minimum viable size.
 
 **Modifier-Based Gen API** — `gen` is a bare config value composed with
 modifiers: `s <- seek "*" $ cue start $ tonal ctx $ len 4 $ entropy 0.3 $ gen`.
@@ -162,6 +169,15 @@ The composer string stays visible at the call site.
 **Pattern Launcher Paradigm** — Reusable instrument blocks with transformation,
 progression, chord selection, and dynamics. Launch and relaunch through a
 session with different progressions and contexts.
+
+**Diagnostic Output** — `gen'` and `gen''` print a bar-by-bar summary of the
+generation process alongside the progression. Each step shows the state
+transition, candidate pool composition (graph vs fallback counts), movement
+class, selected chord name, selection source, gamma index, and the top
+alternatives at that posterior root. `gen''` adds verbose transform and
+advance traces — pitch-class arithmetic and the full render pipeline for
+debugging edge cases. Designed to expose the algorithm's decision-making at
+a glance without breaking performance flow.
 
 ### Performance
 

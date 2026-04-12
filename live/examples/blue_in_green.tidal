@@ -1,60 +1,86 @@
--- blue_in_green.tidal
--- Modernized example demonstrating explicit progression construction
--- with separate harmony, scales, and melody definitions
+-- ══════════════════════════════════════════════════════════
+-- Blue in Green (piano, ch 1)
+-- ══════════════════════════════════════════════════════════
+--
+-- Faithful V3 port of the V2 concert arrangement.
+-- The original had three synth voices — Moog (melody),
+-- DFAM (textural improvisation), SH-101 (inner voice) —
+-- here collapsed to a single piano on channel 1.
+--
+-- The 10-bar chord cycle, per-bar scale shapes, and the
+-- two melody patterns (melodyAbs absolute, melodyRel inner
+-- voice) are preserved verbatim. The piano stack plays:
+--   - swung melodyAbs as a direct note line (main theme)
+--   - flowing runs over melodyState (improvisation texture)
+--   - scale-degree inner voice (melodyRel)
+--   - chord pad / bass anchor
+--
+-- Offline. No Neo4j required.
 
--- ============================================================================
--- HARMONY DEFINITION (Explicit Chords)
--- ============================================================================
+tempo = 92
+bars = 1
 
--- Original Bill Evans "Blue in Green" chord progression
--- Each chord is repeated twice for phrasing
-blueInGreenHarmony :: [[Int]]
-blueInGreenHarmony = concat $ replicate 2 <$>
-  [ [10, 2, 9, 4]    -- Bar 1: B♭maj7♯11
-  , [9, 1, 7, 10]    -- Bar 2: A7♯9
-  , [2, 5, 0, 11]    -- Bar 3: Dm13
-  , [1, 5, 11, 3]    -- Bar 4: D♭9
-  , [0, 3, 10, 5]    -- Bar 5: Cm11
-  , [11, 3, 9, 7]    -- Bar 6: B7♯5
-  , [10, 2, 9, 5]    -- Bar 7: B♭maj7♯11
-  , [9, 1, 7, 5]     -- Bar 8: A7♭13
-  , [2, 5, 0, 11]    -- Bar 9: Dm13
-  , [4, 8, 2, 5]     -- Bar 10: E7♭13
-  , [9, 0, 7, 11]    -- Bar 11: Am9
-  , [2, 5, 1, 9]     -- Bar 12: Dm7
+-- ──────────────────────────────────────────────────────────
+-- Harmony (original V2 — 10-bar head, 20 chord events)
+-- ──────────────────────────────────────────────────────────
+
+blueInGreen = prog
+  [ [10, 2, 9, 4], [10, 2, 9, 4]   -- Bar 1:  B♭maj7♯11
+  , [9, 1, 7, 10], [9, 1, 7, 0]    -- Bar 2:  A7♯9
+  , [2, 5, 0, 11], [1, 5, 11, 3]   -- Bar 3:  Dm13 | D♭9
+  , [0, 3, 10, 5], [11, 3, 9, 7]   -- Bar 4:  Cm11 | B7♯5
+  , [10, 2, 9, 5], [10, 2, 9, 5]   -- Bar 5:  B♭maj7♯11
+  , [9, 1, 7, 5],  [9, 1, 7, 5]    -- Bar 6:  A7♭13
+  , [2, 5, 0, 11], [2, 5, 0, 11]   -- Bar 7:  Dm13
+  , [4, 8, 2, 5],  [4, 8, 2, 5]    -- Bar 8:  E7♭13
+  , [9, 0, 7, 11], [9, 0, 7, 11]   -- Bar 9:  Am9
+  , [2, 5, 1, 9],  [2, 5, 1, 9]    -- Bar 10: Dm7
   ]
 
--- ============================================================================
--- SCALE DEFINITIONS (Independent of Harmony)
--- ============================================================================
+state = blueInGreen
 
--- Pentatonic and synthesized scales per bar
--- These can be manually edited for different melodic colors
-blueInGreenScales :: [[Int]]
-blueInGreenScales = concatMap (replicate 2) [
-    [2, 4, 7, 9, 11]       -- Bar 1: G Major pentatonic
-  , [2, 5, 7, 10, 12]      -- Bar 2: G Minor pentatonic
-  , [2, 5, 7, 9, 12]       -- Bar 3: D Minor pentatonic
-  , [2, 5, 7, 10, 12]      -- Bar 4: B♭ Major pentatonic
-  , [2, 4, 5, 9, 13]       -- Bar 5: Synthesized shape
-  , [2, 5, 7, 9, 12]       -- Bar 6: F Major pentatonic
-  , [2, 5, 7, 9, 12]       -- Bar 7: D Minor pentatonic
-  , [2, 4, 8, 11, 12]      -- Bar 8: Synthesized shape
-  , [2, 4, 7, 9, 11]       -- Bar 9: G Major pentatonic
-  , [2, 5, 9, 12, 13]      -- Bar 10: Synthesized shape
-  , [2, 4, 7, 9, 11]       -- Bar 11: G Major pentatonic
-  , [2, 5, 7, 9, 12]       -- Bar 12: D Minor pentatonic
+-- ──────────────────────────────────────────────────────────
+-- Melody scales (per-bar shapes for improvisation)
+-- ──────────────────────────────────────────────────────────
+
+scales = concatMap (replicate 2)
+  [ [2, 4, 7, 9, 11]    -- Bar 1:  G Major Shape
+  , [2, 5, 7, 10, 12]   -- Bar 2:  G Minor Shape
+  , [2, 5, 7, 9, 12]    -- Bar 3:  D Minor Shape
+  , [2, 5, 7, 10, 12]   -- Bar 4:  B♭ Major Shape
+  , [2, 4, 5, 9, 13]    -- Bar 5:  Synthesized Shape
+  , [2, 5, 7, 9, 12]    -- Bar 6:  F Major Shape
+  , [2, 5, 7, 9, 12]    -- Bar 7:  D Minor Shape
+  , [2, 4, 8, 11, 12]   -- Bar 8:  Synthesized Shape
+  , [2, 4, 7, 9, 11]    -- Bar 9:  G Major Shape
+  , [2, 5, 9, 12, 13]   -- Bar 10: Synthesized Shape
   ]
 
--- ============================================================================
--- MELODY DEFINITION (Scale-Relative Degrees)
--- ============================================================================
+melodyState = prog scales
 
--- Melody uses scale degrees (not chromatic intervals)
--- This allows the melody to be transformed while preserving harmonic relationship
-blueInGreenMelody :: Pattern String
-blueInGreenMelody = slow 8 $ slowcat [
-    "[1@3 0]"              -- Scale degrees (relative, transformable)
+-- ──────────────────────────────────────────────────────────
+-- Melody patterns (V2 verbatim)
+-- ──────────────────────────────────────────────────────────
+--
+-- melodyAbs: direct MIDI note offsets (played with `note`).
+-- Values are semitone offsets — not scale degrees.
+-- melodyRel: scale-degree inner voice over melodyState.
+
+melodyAbs = slow 8 $ slowcat
+  [ "[4@3 2]"
+  , "[0@3 -2]"
+  , "[-3@3 -5]"
+  , "[-7 4@3]"
+  , "[-8@3 -10 -11 -10 -5 -3]"
+  , "[0@3 -3]"
+  , "[-5@3 -7]"
+  , "[0@3 -4]"
+  , "[0@3 -3]"
+  , "[5@3 1]"
+  ]
+
+melodyRel = slow 8 $ slowcat
+  [ "[1@3 0]"
   , "[-1@3 -2]"
   , "[-2@3 -3]"
   , "[-4 0]"
@@ -64,55 +90,44 @@ blueInGreenMelody = slow 8 $ slowcat [
   , "[-1@3 -3]"
   , "[-1@3 -2]"
   , "[1@3 -1]"
-  , "[0@3 -1]"
-  , "[1@3 0]"
   ]
 
--- ============================================================================
--- PROGRESSION CONSTRUCTION
--- ============================================================================
+-- ──────────────────────────────────────────────────────────
+-- Launcher: piano on channel 1
+-- ──────────────────────────────────────────────────────────
+--
+-- k  = chord pad / bass, keyed to `state`
+-- kM = melody improvisation, keyed to `melodyState`
 
--- Main harmony state
-state :: Progression
-state = prog flat blueInGreenHarmony
+p01 f k kM d = d01 $ do
+  let o = ch 01
+  f
+    $ stack [silence
+      ,arrange (0, 1) k (-9, 9) grid (overlapF 0) ["~"
+        ,"[0,6,7,8,9]/8" |- 3
+      ]# o |* vel 0.4
+      ,swingBy 0.07 4 $ note melodyAbs # o |* vel 1
+      ,degradeBy 0.8 $ sometimes (fast 4) $ stripe 4 $ sometimes palindrome $ fast (choose [0, 1, 2]) $ slow 4
+        $ arrange (0, 1) kM (-9, 9) flow (overlapF 1) ["~"
+          ,melodyRel
+        ]# o |* vel 0.3 |+ oct 2 |* legato 2
+    ] |* vel d
 
--- OPTION 1: Explicit scales (original pattern)
--- Melody maps to manually defined pentatonic scales
-melodyState1 :: Progression
-melodyState1 = prog flat blueInGreenScales
+-- ──────────────────────────────────────────────────────────
+-- Launch
+-- ──────────────────────────────────────────────────────────
 
--- OPTION 2: Use harmony as scales (switch mechanism)
--- Melody maps directly to chord tones
-melodyState2 :: Progression
-melodyState2 = state  -- Harmony becomes scale source
+do
+  let
+    f = swingBy 0.05 2
+    d = (* 0.9)
+    form = [at 0 1 1 state]
+    k  = iK tempo form (rep state  1)
+    kM = iK tempo form (rep melodyState 1)
+  putStrLn "Blue in Green"
+  print state
+  mapM_ id [hush, setbpm tempo
+    , p01 f k kM $ d 0.9
+    ]
 
--- OPTION 3: Use harmony with overlap (passing tones)
--- Melody has access to passing tones between chords
-melodyState3 :: Progression
-melodyState3 = progOverlapF 1 state
-
--- ============================================================================
--- USAGE IN TIDAL CYCLES
--- ============================================================================
-
--- Play harmony (arranged with flow voicing)
--- d1 $ note (arrange flow state 0 (-9,9) "0 1 2 3 4 5 6 7") # s "superpiano"
-
--- Play melody with explicit scales (Option 1)
--- d2 $ note (arrange flow melodyState1 0 (-9,9) blueInGreenMelody) # s "supersaw"
-
--- Play melody with harmony as scales (Option 2)
--- d2 $ note (arrange flow melodyState2 0 (-9,9) blueInGreenMelody) # s "supersaw"
-
--- Play melody with passing tones (Option 3)
--- d2 $ note (arrange flow melodyState3 0 (-9,9) blueInGreenMelody) # s "supersaw"
-
--- ============================================================================
--- IMPROVEMENTS OVER LEGACY
--- ============================================================================
-
--- ✅ Melody uses scale degrees (relative, transformable)
--- ✅ Scales independent of chords (manual composition element)
--- ✅ Switch mechanism demonstrated (3 melodic options from same source)
--- ✅ Harmony unchanged (preserves original structure)
--- ✅ Form transformation possible (change melody pattern without redefining harmony)
+hush

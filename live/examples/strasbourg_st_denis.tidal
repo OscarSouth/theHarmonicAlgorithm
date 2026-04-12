@@ -1,0 +1,69 @@
+-- ══════════════════════════════════════════════════════════
+-- Strasbourg St Denis (piano, ch 1)
+-- ══════════════════════════════════════════════════════════
+--
+-- Roy Hargrove's minor blues / cool jazz head. Sixteen bars
+-- of rich 7th chords — Cm7, Dm7, EbMaj7, Fm7, Gm7,
+-- BbMaj7, G7♭9 — voiced as close-voiced 4-note stacks.
+--
+-- The state is the V2 concert progression verbatim.
+-- Piano-only on channel 1.
+
+tempo = 120
+bars = 1
+
+-- ──────────────────────────────────────────────────────────
+-- Harmony (V2 — 16-bar head)
+-- ──────────────────────────────────────────────────────────
+
+strasbougStDenis =
+  [ [0, 3, 7, 10]    -- bar  1: Cm7     C  Eb G  Bb
+  , [2, 5, 9, 0]     -- bar  2: Dm7     D  F  A  C
+  , [3, 7, 10, 2]    -- bar  3: EbMaj7  Eb G  Bb D
+  , [3, 7, 10, 2]    --          (repeat)
+  , [0, 3, 7, 10]    -- bar  5: Cm7
+  , [2, 5, 9, 0]     -- bar  6: Dm7
+  , [3, 7, 10, 2]    -- bar  7: EbMaj7
+  , [3, 7, 10, 2]    --          (repeat)
+  , [0, 3, 7, 10]    -- bar  9: Cm7
+  , [2, 5, 9, 0]     -- bar 10: Dm7
+  , [3, 7, 10, 2]    -- bar 11: EbMaj7
+  , [5, 10, 0, 3]    -- bar 12: F7sus4  F  Bb C  Eb
+  , [10, 2, 5, 9]    -- bar 13: BbMaj7  Bb D  F  A
+  , [10, 2, 5, 9]    --          (repeat)
+  , [7, 11, 5, 8]    -- bar 15: G7♭9no5 G  B  F  Ab
+  , [7, 11, 5, 8]    --          (repeat)
+  ]
+
+state = prog strasbougStDenis
+
+-- ──────────────────────────────────────────────────────────
+-- Launcher: piano on channel 1
+-- ──────────────────────────────────────────────────────────
+
+p01 f k d = d01 $ do
+  let o = ch 01
+  f
+    $ stack [silence
+      ,arrange (0, 1) k (-9, 9) grid id ["~"
+        ,"[0,5,6,7,8]/4" |-3
+      ]# o |* vel 0.75 |= legato 0.97
+    ] |* vel d
+
+-- ──────────────────────────────────────────────────────────
+-- Launch
+-- ──────────────────────────────────────────────────────────
+
+do
+  let
+    f = swingBy 0.05 2
+    d = (* 0.9)
+    form = [at 0 1 1 state]
+    k = iK tempo form (rep state 1)
+  putStrLn "Strasbourg St Denis"
+  print state
+  mapM_ id [hush, setbpm tempo
+    , p01 f k $ d 0.9
+    ]
+
+hush

@@ -118,7 +118,7 @@ module Harmonic.Lib (
 
   -- ========== CONTEXT & CONFIGURATION ==========
   HarmonicContext(..), harmonicContext, hContext,
-  Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip,
+  Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, hcPedal,
   GeneratorConfig(..), defaultConfig,
 
   -- ========== PHASE B: CORE MUSIC TYPES ==========
@@ -224,7 +224,7 @@ import Harmonic.Framework.Builder (
     printDiagnostics,
     -- Context & types
     HarmonicContext(..), harmonicContext, hContext,
-    Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip,
+    Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, hcPedal,
     GeneratorConfig(..), defaultConfig,
     StepDiagnostic(..), GenerationDiagnostics(..), TransformTrace(..), AdvanceTrace(..)
   )
