@@ -12,13 +12,13 @@ start <- lead "E min"
 
 ctx = invSkip 1
   -- $ consonant
-  $ hcRoots "*"
+  $ hcRoots "1# 2# fall2"
   $ hcKey "1# 2#"
-  $ hcPedal "B?"
-  -- $ hcOvertones "E G B F#"
+  $ hcPedal "E"
+  $ hcOvertones "D F# A E"
   $ hContext
 
-s <- seek "Stravinsky"
+s <- seek "*"
   $ len 4
   $ cue start
   $ tonal ctx
@@ -40,17 +40,17 @@ do
   print s
   mapM_ id [hush, setbpm tempo
     -- ,metronome 4 $d 0.2
-    -- ,count k $d 0.1
+    ,count k $d 0.1
     -- ,wind f k $d 0.6
     -- ,strg f k $d 0.8
     -- ,brss f k $d 0.9
     -- ,perc f k $d 1
-    -- ,p07  f k $d 0.9
+    ,p07  f k $d 0.9
     ,subk f k $d 0.1
-    ,k909 f k $d 0.8
-    -- ,kmpc f k $d 0.3
-    -- ,m32  f k $d 0.9
-    -- ,mdf f k $d 0.9
+    ,k909 f k $d 0.4
+    ,kmpc f k $d 0.3
+    ,m32  f k $d 0.9
+    ,mdf f k $d 0.9
    ]
 
 hush

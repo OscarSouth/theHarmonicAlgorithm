@@ -154,9 +154,16 @@ subKickCore voiceFunc prog subOnPat subOffPat kickPat ledAllOff chordPat dyn k m
 
     subLedManualOff = struct subOffPat $ ledAllOff
 
-    kickLedOn = struct kickPat $ ledCC 32 1
+    -- Kick LED: 1/64 offset (vs subLedOn's 1/128) — kick beats are denser
+    -- than sub beats (kick note + sub LED all-off burst + sustain pedal
+    -- heartbeat can all coincide), so the smaller ~6ms gap wasn't enough
+    -- to clear the dispatch bundle. Doubled to ~12ms puts the LED CC on
+    -- its own SuperDirt scheduling tick. Pulse extended to 1/8 cycle
+    -- (first even subdivision above 1.5× the previous 3/64) for reliable
+    -- visual response under MIDI burst load.
+    kickLedOn = (1/64) ~> (struct kickPat $ ledCC 32 1)
 
-    kickLedOff = struct ((pure (1/32)) ~> kickPat) $ ledCC 32 0
+    kickLedOff = (1/64) ~> (struct ((pure (1/8)) ~> kickPat) $ ledCC 32 0)
 
     -- Sub group: sub pattern + CC64 sustain + sub LEDs
     subGroup = ki (0.1, 1) k $ stack
@@ -247,9 +254,16 @@ subKickCoreP (normPitches, nChords) subOnPat subOffPat kickPat ledAllOff chordPa
 
     subLedManualOff = struct subOffPat $ ledAllOff
 
-    kickLedOn = struct kickPat $ ledCC 32 1
+    -- Kick LED: 1/64 offset (vs subLedOn's 1/128) — kick beats are denser
+    -- than sub beats (kick note + sub LED all-off burst + sustain pedal
+    -- heartbeat can all coincide), so the smaller ~6ms gap wasn't enough
+    -- to clear the dispatch bundle. Doubled to ~12ms puts the LED CC on
+    -- its own SuperDirt scheduling tick. Pulse extended to 1/8 cycle
+    -- (first even subdivision above 1.5× the previous 3/64) for reliable
+    -- visual response under MIDI burst load.
+    kickLedOn = (1/64) ~> (struct kickPat $ ledCC 32 1)
 
-    kickLedOff = struct ((pure (1/32)) ~> kickPat) $ ledCC 32 0
+    kickLedOff = (1/64) ~> (struct ((pure (1/8)) ~> kickPat) $ ledCC 32 0)
 
     -- Sub group: sub pattern + CC64 sustain + sub LEDs
     subGroup = ki (0.1, 1) k $ stack
