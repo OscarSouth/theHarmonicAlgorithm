@@ -12,7 +12,8 @@ start <- lead "E min"
 
 ctx = invSkip 1
   -- $ consonant
-  $ hcRoots "1# 2# fall2"
+  $ hcRoots "1# 2# fall"
+  -- $ hcRoots "E D C G  fall"
   $ hcKey "1# 2#"
   $ hcPedal "E"
   $ hcOvertones "D F# A E"
@@ -49,8 +50,8 @@ do
     ,subk f k $d 0.1
     ,k909 f k $d 0.4
     ,kmpc f k $d 0.3
-    ,m32  f k $d 0.9
-    ,mdf f k $d 0.9
+    -- ,m32  f k $d 0.9
+    -- ,mdf f k $d 0.9
    ]
 
 hush

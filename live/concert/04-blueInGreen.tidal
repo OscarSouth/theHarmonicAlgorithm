@@ -174,9 +174,10 @@ do
   let
     f = swingBy 0.05 2
     d = (* 0.9)
-    form = [at 0 1 1 state]
-    k  = iK tempo form (rep state       1)
-    kM = iK tempo form (rep melodyState 1)
+    form  = [at 0 1 1 state]
+    formM = [at 0 1 1 melodyState]
+    k  = iK tempo form  (rep state       1)
+    kM = iK tempo formM (rep melodyState 1)
   putStrLn "Concert 04 — Blue in Green"
   print state
   mapM_ id [hush, setbpm tempo

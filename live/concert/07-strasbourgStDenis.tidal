@@ -2,13 +2,13 @@
 -- Concert 07 — Strasbourg St Denis
 -- ══════════════════════════════════════════════════════════
 --
--- Roy Hargrove's 16-bar cool jazz head. Cm7 / Dm7 / EbMaj7
--- through F7sus4 → BbMaj7 → G7♭9 turnaround, three times
--- with a final four-bar stretch.
+-- Roy Hargrove's funky C minor head from "Distractions".
+-- Concert version: piano (ch 1) primary with melody +
+-- improvisation, ride/brush (ch 10) and kick (ch 9)
+-- supporting. Synth drones (Moog, SH-101) below, commented.
 --
--- Concert version: piano (ch 1) primary, ride/brush (ch 10)
--- and kick (ch 9) supporting. Synth drones (Moog, SH-101)
--- below, commented out.
+-- The melody transcription is approximate — verify against
+-- the recording and adjust pitches/rhythms as needed.
 
 tempo = 120
 bars = 1
@@ -39,10 +39,77 @@ strasbougStDenis =
 state = prog strasbougStDenis
 
 -- ──────────────────────────────────────────────────────────
--- Piano (ch 1)
+-- Melody scales (per-bar pentatonic shapes for improvisation)
 -- ──────────────────────────────────────────────────────────
 
-p01 f k d = d01 $ do
+scales =
+  [ [0, 3, 5, 7, 10]    -- bar  1: C minor pent (Cm7)
+  , [0, 2, 5, 7, 9]     -- bar  2: D minor pent (Dm7)
+  , [0, 3, 5, 7, 10]    -- bar  3: Eb major pent (EbMaj7)
+  , [0, 3, 5, 7, 10]    -- bar  4: (repeat)
+  , [0, 3, 5, 7, 10]    -- bar  5: C minor pent (Cm7)
+  , [0, 2, 5, 7, 9]     -- bar  6: D minor pent (Dm7)
+  , [0, 3, 5, 7, 10]    -- bar  7: Eb major pent (EbMaj7)
+  , [0, 3, 5, 7, 10]    -- bar  8: (repeat)
+  , [0, 3, 5, 7, 10]    -- bar  9: C minor pent (Cm7)
+  , [0, 2, 5, 7, 9]     -- bar 10: D minor pent (Dm7)
+  , [0, 3, 5, 7, 10]    -- bar 11: Eb major pent (EbMaj7)
+  , [0, 3, 5, 7, 10]    -- bar 12: F mixo pent (F7sus4)
+  , [0, 2, 5, 7, 10]    -- bar 13: Bb major pent (BbMaj7)
+  , [0, 2, 5, 7, 10]    -- bar 14: (repeat)
+  , [0, 2, 5, 7, 11]    -- bar 15: G altered pent (G7b9)
+  , [0, 2, 5, 7, 11]    -- bar 16: (repeat)
+  ]
+
+melodyState = prog scales
+
+-- ──────────────────────────────────────────────────────────
+-- Melody (absolute MIDI offsets, 0 = C4)
+-- ──────────────────────────────────────────────────────────
+
+melodyAbs = slow 4 $ slowcat
+  [ "[3 5 7@2 . 8 7 5 3]"       -- bar  1: Cm7
+  , "[5 3 2@2 . 3 2 0 -2]"      -- bar  2: Dm7
+  , "[3 5 7@2 . 10 8 7 5]"      -- bar  3: EbMaj7
+  , "[3@3 ~]"                    -- bar  4: sustain
+  , "[3 5 7@2 . 8 7 5 3]"       -- bar  5: Cm7 (repeat A)
+  , "[5 3 2@2 . 3 2 0 -2]"      -- bar  6: Dm7
+  , "[3 5 7@2 . 10 8 7 5]"      -- bar  7: EbMaj7
+  , "[3@3 ~]"                    -- bar  8: sustain
+  , "[0 3 7@2 . 8 7 5 3]"       -- bar  9: Cm7 (varied)
+  , "[5 7 10@2 . 12 10 7 5]"    -- bar 10: Dm7 (upper)
+  , "[7 10 12@2 . 15 12 10 7]"  -- bar 11: EbMaj7 (climax)
+  , "[10 8 7 5 . 3@2 0 -2]"     -- bar 12: F7sus4 (descend)
+  , "[10@2 . 7 5 . 3@2 ~]"      -- bar 13: BbMaj7
+  , "[~@4]"                      -- bar 14: rest
+  , "[-2 0 2@2 . 3 2 0 -2]"     -- bar 15: G7b9 (turnaround)
+  , "[0@3 ~]"                    -- bar 16: land on C
+  ]
+
+melodyRel = slow 4 $ slowcat
+  [ "[0 1 2@2 . 3 2 1 0]"
+  , "[1 0 -1@2 . 0 -1 -2 -3]"
+  , "[0 1 2@2 . 3 2 1 0]"
+  , "[0@3 ~]"
+  , "[0 1 2@2 . 3 2 1 0]"
+  , "[1 0 -1@2 . 0 -1 -2 -3]"
+  , "[0 1 2@2 . 3 2 1 0]"
+  , "[0@3 ~]"
+  , "[-1 0 2@2 . 3 2 1 0]"
+  , "[1 2 3@2 . 4 3 2 1]"
+  , "[2 3 4@2 . 5 4 3 2]"
+  , "[3 2 1 0 . -1@2 -2 -3]"
+  , "[3@2 . 2 1 . 0@2 ~]"
+  , "[~@4]"
+  , "[-2 -1 0@2 . 1 0 -1 -2]"
+  , "[0@3 ~]"
+  ]
+
+-- ──────────────────────────────────────────────────────────
+-- Piano (ch 1) — with melody and improvisation
+-- ──────────────────────────────────────────────────────────
+
+p01 f k kM d = d01 $ do
   let o = ch 01
   f
     $ stack [silence
@@ -58,6 +125,13 @@ p01 f k d = d01 $ do
       ,arrange (0, 1) k (0, 14) flow (overlapF 1) ["~"
         ,degradeBy 0.3 $ "[<2 4 3 5> . ~ <4 2>]/2"
       ]# o |+ oct 1 |* vel 0.5 |= legato 0.85
+      -- Melody head
+      ,swingBy 0.05 4 $ note melodyAbs # o |* vel 1 |+ oct 1
+      -- Improvisation
+      ,degradeBy 0.7 $ sometimes palindrome $ fast (choose [0, 1, 2]) $ slow 4
+        $ arrange (0, 1) kM (-9, 9) flow (overlapF 1) ["~"
+          ,melodyRel
+        ]# o |* vel 0.4 |+ oct 1 |* legato 2
     ] |* vel d
 
 -- ──────────────────────────────────────────────────────────
@@ -107,7 +181,6 @@ k909 f d = p "909kit" $ do
 --       ,mono $ arrange (0, 1) k (-12, 0) flow id ["~"
 --         ,"[0 ~ ~ 0 . ~]/2"
 --       ]# o |- oct 1 |* vel 1
---       -- ,portamento 0.0
 --     ] |* vel d
 
 -- ──────────────────────────────────────────────────────────
@@ -118,14 +191,16 @@ do
   let
     f = swingBy 0.05 2
     d = (* 0.9)
-    form = [at 0 1 1 state]
-    k = iK tempo form (rep state 1)
+    form  = [at 0 1 1 state]
+    formM = [at 0 1 1 melodyState]
+    k  = iK tempo form  (rep state       1)
+    kM = iK tempo formM (rep melodyState 1)
   putStrLn "Concert 07 — Strasbourg St Denis"
   print state
   mapM_ id [hush, setbpm tempo
-    , p01  f k $ d 0.9
-    , kmpc f   $ d 0.5
-    , k909 f   $ d 0.7
+    , p01  f k kM $ d 0.9
+    , kmpc f      $ d 0.5
+    , k909 f      $ d 0.7
     -- , s101 f k $ d 0.6
     -- , m32  f k $ d 0.8
     ]
