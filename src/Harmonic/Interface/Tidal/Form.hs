@@ -15,6 +15,7 @@ module Harmonic.Interface.Tidal.Form
     -- * Construction
   , at
   , iK
+  , lK
 
     -- * Realization
   , formK
@@ -66,6 +67,18 @@ at t k d prog = FormNode t k d prog
 -- @k = iK tempo [at 0 0 0 s, at 30 1 1 s] (warp \"[1 2 3 4]\/8\")@
 iK :: Double -> [FormNode] -> Pattern Int -> IK
 iK bpm nodes chordPat = (formK bpm nodes, chordPat)
+
+-- |Live kinetics: build IK from reactive kinetics/dynamics signals.
+-- Bypasses form interpolation — use when the envelope is driven by live
+-- input (e.g. MIDI CC) rather than a static keyframed form.
+--
+-- @k = lK exP exP s r@  -- pedal drives both kinetics and dynamics
+lK :: Pattern Double       -- ^ Kinetics signal (0-1, live)
+   -> Pattern Double       -- ^ Dynamics signal (0-1, live)
+   -> P.Progression        -- ^ Active progression
+   -> Pattern Int          -- ^ Chord-selection pattern
+   -> IK
+lK sig dyn prog chordPat = (Kinetics sig dyn (pure prog), chordPat)
 
 -------------------------------------------------------------------------------
 -- Realization

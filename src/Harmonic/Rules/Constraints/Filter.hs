@@ -98,7 +98,10 @@ module Harmonic.Rules.Constraints.Filter
 
     -- * Bass Direction
   , BassDirection(..)
-  , parseBassDirection
+  , BassDirectionSpec(..)
+  , BDKind(..)
+  , BDSelector(..)
+  , parseBassDirectionSpec
   , stripDirectionToken
   , closestAbove
   , closestBelow
@@ -531,69 +534,128 @@ partitionTokens input =
 -- Bass Direction
 -------------------------------------------------------------------------------
 
--- |Direction constraint for bass motion during generation.
--- When active, the bass/root at each step is forced to the Nth note
+-- |Concrete direction action resolved for a single generation step.
+-- When active, the bass/root at the next step is forced to the Nth note
 -- above (Rise) or below (Fall) in the allowed set, with mod-12 wrapping.
 -- Step size 1 = closest note, 2 = skip one, etc.
 data BassDirection = Rise !Int | Fall !Int
   deriving (Show, Eq)
 
--- |Extract a bass direction modifier from a roots filter string.
--- Looks for "rise", "fall", or suffixed variants "rise2"–"rise6", "fall2"–"fall6".
--- Bare "rise"/"fall" produce step size 1.
+-- |Whether a parsed direction rises or falls.
+data BDKind = RiseK | FallK
+  deriving (Show, Eq)
+
+-- |How to pick a step size from 'bdsChoices' at each generation step.
+data BDSelector
+  = BDFixed       -- ^ single value (bare @rise@, @rise2@, or @rise\<n\>@)
+  | BDRotate      -- ^ cycle choices by step index (space-delimited @\<…\>@)
+  | BDRandomPick  -- ^ uniform random per step (comma-delimited @\<…\>@)
+  deriving (Show, Eq)
+
+-- |Parsed specification for a rise/fall direction token. Resolved per step
+-- at generation time to a concrete 'BassDirection' (or 'Nothing' when the
+-- optional @?@ flag causes the direction to be skipped for that step).
+data BassDirectionSpec = BassDirectionSpec
+  { bdsKind     :: !BDKind
+  , bdsChoices  :: ![Int]       -- ^ non-empty, each in @1..6@
+  , bdsSelector :: !BDSelector
+  , bdsOptional :: !Bool        -- ^ @True@ when the token ended in @?@
+  } deriving (Show, Eq)
+
+-- |Split input on whitespace, but keep substrings inside matching
+-- angle brackets as a single token. Used by the bass-direction parser
+-- so that @rise\<1 2\>@ survives tokenization.
+splitBracketed :: Text -> [Text]
+splitBracketed = go (0 :: Int) "" [] . T.unpack
+  where
+    flushTok acc cur = if null cur then acc else T.pack (reverse cur) : acc
+    go _ cur acc [] = reverse (flushTok acc cur)
+    go 0 cur acc (c:cs)
+      | Char.isSpace c = go 0 "" (flushTok acc cur) cs
+      | c == '<'       = go 1 (c : cur) acc cs
+      | otherwise      = go 0 (c : cur) acc cs
+    go d cur acc (c:cs)
+      | c == '<' = go (d + 1) (c : cur) acc cs
+      | c == '>' = go (d - 1) (c : cur) acc cs
+      | otherwise = go d (c : cur) acc cs
+
+-- |Try to parse a single token (already bracket-aware) as a direction spec.
+-- Returns 'Nothing' for non-direction tokens and for malformed directions.
+parseDirectionToken :: Text -> Maybe BassDirectionSpec
+parseDirectionToken tok =
+  let low = T.toLower tok
+      (core, optional) =
+        if T.isSuffixOf "?" low
+          then (T.init low, True)
+          else (low, False)
+      validStep n = n >= 1 && n <= 6
+      parseDigit t = case T.unpack t of
+        [c] | Char.isDigit c ->
+          let n = Char.digitToInt c
+          in if validStep n then Just n else Nothing
+        _ -> Nothing
+      stripKind t
+        | Just r <- T.stripPrefix "rise" t = Just (RiseK, r)
+        | Just r <- T.stripPrefix "fall" t = Just (FallK, r)
+        | otherwise                        = Nothing
+  in do
+       (kind, rest) <- stripKind core
+       (choices, selector) <-
+         if T.null rest
+           then Just ([1], BDFixed)
+           else if T.isPrefixOf "<" rest && T.isSuffixOf ">" rest
+             then
+               let inner      = T.drop 1 (T.init rest)
+                   hasComma   = T.any (== ',') inner
+                   pieces     =
+                     if hasComma
+                       then concatMap T.words (T.splitOn "," inner)
+                       else T.words inner
+                   parsed     = mapM parseDigit pieces
+               in case parsed of
+                    Just ns@(_:_) ->
+                      Just (ns, if hasComma then BDRandomPick else BDRotate)
+                    _ -> Nothing
+             else
+               case parseDigit rest of
+                 Just n  -> Just ([n], BDFixed)
+                 Nothing -> Nothing
+       pure (BassDirectionSpec kind choices selector optional)
+
+-- |Extract a bass-direction spec from a roots filter string.
+-- Returns the first token that parses as a direction; 'Nothing' otherwise.
 --
 -- Examples:
---   parseBassDirection "* fall"      == Just (Fall 1)
---   parseBassDirection "0# rise"     == Just (Rise 1)
---   parseBassDirection "* rise3"     == Just (Rise 3)
---   parseBassDirection "0# fall2"    == Just (Fall 2)
---   parseBassDirection "C E G"       == Nothing
---   parseBassDirection "*"           == Nothing
-parseBassDirection :: Text -> Maybe BassDirection
-parseBassDirection input =
-  let tokens = T.words $ T.toLower input
-      parseToken t
-        | t == "rise" = Just (Rise 1)
-        | t == "fall" = Just (Fall 1)
-        | Just rest <- T.stripPrefix "rise" t
-        , T.length rest == 1
-        , let c = T.head rest
-        , Char.isDigit c
-        , let n = Char.digitToInt c
-        , n >= 2 && n <= 6
-        = Just (Rise n)
-        | Just rest <- T.stripPrefix "fall" t
-        , T.length rest == 1
-        , let c = T.head rest
-        , Char.isDigit c
-        , let n = Char.digitToInt c
-        , n >= 2 && n <= 6
-        = Just (Fall n)
-        | otherwise = Nothing
-  in case mapMaybe parseToken tokens of
-       (d:_) -> Just d
-       []    -> Nothing
+--   parseBassDirectionSpec "* fall"            -- Just (fixed Fall 1)
+--   parseBassDirectionSpec "* rise1"           -- Just (fixed Rise 1) -- alias for "rise"
+--   parseBassDirectionSpec "* rise3"           -- Just (fixed Rise 3)
+--   parseBassDirectionSpec "* fall2?"          -- Just (fixed Fall 2, optional)
+--   parseBassDirectionSpec "* fall\<3 2 1\>"     -- Just (rotate Fall [3,2,1])
+--   parseBassDirectionSpec "* rise\<1,2\>"       -- Just (random Rise [1,2])
+--   parseBassDirectionSpec "* rise\<1 2,3\>?"    -- Just (random Rise [1,2,3], optional)
+--   parseBassDirectionSpec "C E G"             -- Nothing
+parseBassDirectionSpec :: Text -> Maybe BassDirectionSpec
+parseBassDirectionSpec input =
+  case mapMaybe parseDirectionToken (splitBracketed input) of
+    (s:_) -> Just s
+    []    -> Nothing
 
 -- |Strip the direction token from a roots filter string,
 -- leaving only the pitch set specification for normal parsing.
 --
 -- Examples:
---   stripDirectionToken "* fall"      == "*"
---   stripDirectionToken "0# rise"     == "0#"
---   stripDirectionToken "C E G fall"  == "C E G"
---   stripDirectionToken "C E G"       == "C E G"
---   stripDirectionToken "* rise3"     == "*"
---   stripDirectionToken "0# fall2"    == "0#"
+--   stripDirectionToken "* fall"               == "*"
+--   stripDirectionToken "0# rise1"              == "0#"
+--   stripDirectionToken "0# rise?"              == "0#"
+--   stripDirectionToken "C E G fall\<2,3\>"      == "C E G"
+--   stripDirectionToken "C E G"                 == "C E G"
 stripDirectionToken :: Text -> Text
 stripDirectionToken input =
-  let tokens = T.words input
-      isDirection t =
-        let low = T.toLower t
-        in low == "rise" || low == "fall"
-           || (T.length low == 5
-               && (T.isPrefixOf "rise" low || T.isPrefixOf "fall" low)
-               && Char.isDigit (T.last low))
-      filtered = filter (not . isDirection) tokens
+  let tokens    = splitBracketed input
+      isDir t   = case parseDirectionToken t of
+                    Just _  -> True
+                    Nothing -> False
+      filtered  = filter (not . isDir) tokens
   in T.unwords filtered
 
 -- |Find the Nth pitch class ABOVE the current one in the allowed set,

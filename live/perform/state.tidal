@@ -1,4 +1,4 @@
-tempo = 77
+tempo = 87
 
  -- TRANSPORT
 mapM_ id [p "transport"
@@ -12,11 +12,11 @@ start <- lead "E min"
 
 ctx = invSkip 1
   -- $ consonant
-  $ hcRoots "1# 2# fall"
-  -- $ hcRoots "E D C G  fall"
-  $ hcKey "1# 2#"
+  $ hcRoots "1# 2# fall<1,2>"
+  -- $ hcRoots "E D C G fall<1 2>?"
+  -- $ hcKey "1# 2#"
   $ hcPedal "E"
-  $ hcOvertones "D F# A E"
+  -- $ hcOvertones "D F# A E"
   $ hContext
 
 s <- seek "*"
@@ -26,32 +26,64 @@ s <- seek "*"
   $ entropy 0.1
   $ gen'
 
- -- '' ¬¬
 do
   let
     -- r = warp "[1 [4 3@2] 2 1]/4"
     r = warp "[1 2 3 4]/8"
     f = (swingBy 0.04 2)
     d = (*1)
-    k = iK tempo [at 0 0 0.1 s
-      ,at 81 1 1 s
-      ,at 100 0.1 0.1 s
-      ] r
+    -- k = iK tempo [at 0 1 1 s] r
+      -- ,at 81 1 1 s
+      -- ,at 100 0.1 0.1 s
+      -- ] r
+    -- k = lK q1 q1 s r
+    k = lK exP exP s r
   putStrLn $ "LAUNCH ¬¬"
   print s
   mapM_ id [hush, setbpm tempo
-    -- ,metronome 4 $d 0.2
-    ,count k $d 0.1
+    ,metronome 4 $d 0.1
+    -- ,count k $d 0.1
     -- ,wind f k $d 0.6
     -- ,strg f k $d 0.8
     -- ,brss f k $d 0.9
     -- ,perc f k $d 1
     ,p07  f k $d 0.9
+    -- ,p08  f k $d 0.9
     ,subk f k $d 0.1
     ,k909 f k $d 0.4
     ,kmpc f k $d 0.3
-    -- ,m32  f k $d 0.9
-    -- ,mdf f k $d 0.9
+    ,m32  f k $d 0.9
+    ,mdf f k $d 0.9
    ]
+
+  --
+  -- do
+  --   let
+  --     -- r = warp "[1 [4 3@2] 2 1]/4"
+  --     r = warp "[1 2 3 4]/8"
+  --     f = (swingBy 0.04 2)
+  --     d = (*0.2)
+  --     k = iK tempo [at 0 0 0.1 s
+  --       ,at 81 1 1 s
+  --       ,at 100 0.1 0.1 s
+  --       ] r
+  --   putStrLn $ "LAUNCH ¬¬"
+  --   print s
+  --   mapM_ id [hush, setbpm tempo
+  --     -- ,metronome 4 $d 0.2
+  --     -- ,count k $d 0.1
+  --     -- ,wind f k $d 0.6
+  --     -- ,strg f k $d 0.8
+  --     -- ,brss f k $d 0.9
+  --     -- ,perc f k $d 1
+  --     ,p07  f k $d 0.9
+  --     -- ,p08  f k $d 0.9
+  --     ,subk f k $d 0.1
+  --     ,k909 f k $d 0.4
+  --     ,kmpc f k $d 0.3
+  --     ,m32  f k $d 0.9
+  --     ,mdf f k $d 0.9
+  --    ]
+  --
 
 hush

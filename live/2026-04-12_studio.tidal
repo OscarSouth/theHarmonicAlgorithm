@@ -7,12 +7,12 @@ p07 f k d = d07 $ do
         ,degradeBy 0.8 $ "[0 . <2 -2> <1 -1>]/4"
         ,degradeBy 0.7 "[0 . <2 -2> <1 -1>]/16" |+ "[-1 0 1 2]/16"
         ,degradeBy 0.9 $ "[2 0 0@2 . 2 0 0@2 . 1@2 <0 2> <1 0> . ~ <~ [-2 -1 0 1]>]/8"
-      ]# o |* vel 0.7 |+ oct 1 |= legato 0.99
+      ]# o |* vel 0.7 |+ oct 2 |= legato 0.99
        -- --
       ,arrange (0.1,1) k (-9,9) flow (overlapF 0) ["~"
         -- ,"[1,2,3]*2"
         ,"[[~ 2 3 ~] ~@4]/16" |- 3
-        -- ~- ,"[1,2,3]*2" -- |- "[0 1 2 2]/16"
+        -- ,"[1,2,3]/2" |+ 3 -- |- "[0 1 2 2]/16"
         -- ,"[[0,1,2] . [0,1,2]*2]/8" |- 3 -- |- "[0 1 2 2]/16"
         -- ,"[0 1 2 3 4 3 2 1]/2" |+ "[0 1 2 3]/16"
         -- ,"[0 1 2 3]/2" |+ 3
@@ -86,6 +86,7 @@ subk f k d = p "subKick"
 m32 f k d = p "moogMother32" $ do
   let o = ch 14
   f
+  -- $ struct "1(7,16,9)/4"
     $ stack [silence
        -- --
       ,mono $ arrange (0.2,1) k (-9,9) flow (overlapF 0) ["~"
@@ -93,8 +94,8 @@ m32 f k d = p "moogMother32" $ do
         -- ,"[0 1 2 3 4 3 2 1]/2" |+ "[0 1 2 3]/16"
         -- ,"[2 0 0@2 . 2 0 0@2 . 1@2 <0 2> <1 0> . ~ <~ [-2 -1 0 1]>]/8"
         -- ,"[0 ~ ~ 0 . ~]/2" |+ "0 3"
-        ,"[0*32 0*32 0*32 0*32]/32" |- 3
-      ]# o |- oct 0 |* vel 1
+        ,slow 1 $ "[0*32 0*32 0*32 0*32]/32" |- "[<0 1 2 3>]*4" |+ 3
+      ]# o |- oct 0 |* vel 1 |* legato 0.25
        -- --
       -- ,portamento 0.0
        -- --
@@ -109,7 +110,7 @@ mdf f k d = p "moogDFAM" $ 0.036 <~ do
       ,steptrig "[1 2 3 4 5 6 7 8]/2"
        -- --
       ,arrange (0,1) k (-9,9) flow (overlapF 0) ["~"
-        -- ,pat
+        ,pat
       ]# osc1 |* vel 1 |- oct 1
        -- --
       ,arrange (0,1) k (-9,9) flow (overlapF 0) ["~"
@@ -117,3 +118,28 @@ mdf f k d = p "moogDFAM" $ 0.036 <~ do
       ]# osc2 |* vel 1 |- oct 1
        -- --
     ]# legato 0.25 |* vel d
+
+p08 f k d = d08 $ do
+  let o = ch 08
+  f $ palindrome $ slow 1 $ mask ("1(5,16)/4")
+    $ stack [silence
+       -- --
+      ,mono $ stripe 2 $ jux (rev) $ arrange (0,1) k (-9,9) grid (overlapF 0) ["~"
+        -- ,"[0]/16"
+        ,sometimes (fast 0.5) $ "[[3 [6 4] 2 ~] [1 . 5 4]]/4" |= "[3 . [2]]/4"
+      ]# o |* vel 0.6 |- oct 2 |= legato 0.99
+       -- --
+    ] |* vel d
+
+
+p01 f k d = d01 $ do
+  let o = ch 01
+  f
+    $ stack [silence
+       -- --
+      ,arrange (0,1) k (-9,9) grid (overlapF 0) ["~"
+        -- ,"[0]/16"
+        -- ,"[[3 [6 4] 2 ~] [1 . 5 4]]/4"
+      ]# o |* vel 0.6 |- oct 1 |= legato 0.99
+       -- --
+    ] |* vel d

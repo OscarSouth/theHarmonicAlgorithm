@@ -37,7 +37,7 @@ import           Control.Monad.IO.Class (liftIO)
 import           Data.List (sortBy)
 import           Data.Function (on)
 import           Data.Ord (Down(..))
-import           System.Random.MWC (GenIO, createSystemRandom)
+import           System.Random.MWC (GenIO, createSystemRandom, uniform, uniformR)
 import qualified System.Random.MWC.Distributions as Dist
 
 import qualified Harmonic.Rules.Types.Harmony as H
@@ -47,7 +47,8 @@ import           Harmonic.Evaluation.Database.Query (ComposerWeights, fetchTrans
 import qualified Harmonic.Evaluation.Database.Query as Q
 import           Harmonic.Traversal.Probabilistic (gammaIndexScaledWith)
 import           Harmonic.Rules.Constraints.Filter (parseOvertones', parseKey, isWildcard, resolveRoots,
-                                                    nthAbove, nthBelow)
+                                                    nthAbove, nthBelow,
+                                                    BassDirectionSpec(..), BDKind(..), BDSelector(..))
 import           Harmonic.Rules.Constraints.Overtone (overtoneSets)
 import           Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
 import qualified Harmonic.Evaluation.Scoring.Dissonance as D
@@ -82,6 +83,35 @@ buildChain config gen ent context pctx composerWeights start totalSteps = do
           [1..totalSteps]
   pure $ reverse revChain
 
+-- |Resolve a 'BassDirectionSpec' into a concrete 'BassDirection' for a
+-- single generation step. Returns 'Nothing' when no spec is active, or
+-- when the spec's optional '?' flag caused the coin flip to come up tails.
+--
+-- Rotation (@BDRotate@) cycles through the choices by @stepNum@ (1-based).
+-- Random pick (@BDRandomPick@) samples uniformly from the choices.
+resolveBassDirection
+  :: GenIO -> Int -> Maybe BassDirectionSpec -> IO (Maybe BassDirection)
+resolveBassDirection _   _       Nothing     = pure Nothing
+resolveBassDirection gen stepNum (Just spec) = do
+  active <- if bdsOptional spec
+              then do
+                r <- uniform gen :: IO Double
+                pure (r < 0.5)
+              else pure True
+  if not active
+    then pure Nothing
+    else do
+      let cs = bdsChoices spec
+      n <- case bdsSelector spec of
+        BDFixed      -> pure (head cs)
+        BDRotate     -> pure (cs !! ((stepNum - 1) `mod` length cs))
+        BDRandomPick -> do
+          i <- uniformR (0, length cs - 1) gen
+          pure (cs !! i)
+      pure $ Just $ case bdsKind spec of
+        RiseK -> Rise n
+        FallK -> Fall n
+
 -- |Core body for a single chain-building step (plain IO, no Bolt dependency).
 --
 -- Takes pre-fetched transitions and executes the full filtering/scoring/selection logic.
@@ -99,9 +129,11 @@ stepChainBody :: GeneratorConfig
               -> [(H.Cadence, ComposerWeights)]   -- ^ Pre-fetched transitions (empty for offline)
               -> IO ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
 stepChainBody _config gen mVerbosity ent _context pctx composerWeights ((current, revChain, nonInvCount), revDiags) stepNum transitions = do
-  -- Compute bass direction target (if rise/fall is active)
+  -- Resolve bass direction for this step (may consume randomness for
+  -- optional '?' tokens and for BDRandomPick comma-list selectors)
+  mDir <- resolveBassDirection gen stepNum (pcBassDirectionSpec pctx)
   let prevBassPC = P.unPitchClass (P.pitchClass (H.stateCadenceRoot current))
-      bassTarget = case pcBassDirection pctx of
+      bassTarget = case mDir of
         Nothing       -> Nothing
         Just (Rise n) -> Just $ nthAbove n prevBassPC (pcAllowedBassNotes pctx)
         Just (Fall n) -> Just $ nthBelow n prevBassPC (pcAllowedBassNotes pctx)

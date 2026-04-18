@@ -34,6 +34,9 @@ module Harmonic.Framework.Builder.Types
 
     -- * Bass Direction (re-exported from Filter)
   , BassDirection(..)
+  , BassDirectionSpec(..)
+  , BDKind(..)
+  , BDSelector(..)
 
     -- * Generation Configuration (Modifier-Based API)
   , Verbosity(..)
@@ -55,7 +58,9 @@ import           Data.Text (Text)
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Progression as Prog
 import           Harmonic.Rules.Constraints.Filter (parseOvertones', parseKey, isWildcard, resolveRoots,
-                                                     BassDirection(..), parseBassDirection, stripDirectionToken,
+                                                     BassDirection(..), BassDirectionSpec(..),
+                                                     BDKind(..), BDSelector(..),
+                                                     parseBassDirectionSpec, stripDirectionToken,
                                                      noteNameToPitchClass)
 
 -------------------------------------------------------------------------------
@@ -215,7 +220,7 @@ data ParsedContext = ParsedContext
   , pcIsKeyWild          :: !Bool           -- ^ Whether key filter is wildcard
   , pcIsOvertonesWild    :: !Bool           -- ^ Whether overtones filter is wildcard
   , pcRawOvertones       :: ![Int]          -- ^ Raw overtone list (for fallback triad generation)
-  , pcBassDirection      :: !(Maybe BassDirection)  -- ^ Rise/fall bass direction constraint
+  , pcBassDirectionSpec  :: !(Maybe BassDirectionSpec)  -- ^ Rise/fall bass direction spec (resolved per step)
   , pcDrift              :: !Drift                  -- ^ Dissonance drift direction
   , pcInversionSpacing   :: !Int                    -- ^ Minimum non-inversions between inversions
   , pcPedalRequired      :: !IntSet.IntSet  -- ^ Pitch classes that must be present in every chord
@@ -250,7 +255,7 @@ parseContextOnce ctx =
       -- Strip direction token before resolving roots
       rootsRaw = _hcRoots ctx
       rootsStripped = stripDirectionToken rootsRaw
-      bassDir = parseBassDirection rootsRaw
+      bassDirSpec = parseBassDirectionSpec rootsRaw
       allowedBassNotes = resolveRoots (_hcOvertones ctx) (_hcKey ctx) rootsStripped
       (pedalReq, pedalPref) = parsePedalTones (_hcPedal ctx)
   in ParsedContext
@@ -260,7 +265,7 @@ parseContextOnce ctx =
     , pcIsKeyWild          = keyWild
     , pcIsOvertonesWild    = isWildcard (_hcOvertones ctx)
     , pcRawOvertones       = rawOvertones
-    , pcBassDirection      = bassDir
+    , pcBassDirectionSpec  = bassDirSpec
     , pcDrift              = _hcDrift ctx
     , pcInversionSpacing   = _hcInversionSpacing ctx
     , pcPedalRequired      = pedalReq

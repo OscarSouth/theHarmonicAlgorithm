@@ -307,7 +307,7 @@ xyX = cF 0 "109"
 xyY = cF 0 "110"
 
 exP = cF 0 "111"
-exp = exp
+exp = exP
 
 :{
 let setI = streamSetI tidal

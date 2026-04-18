@@ -291,42 +291,84 @@ spec = do
 
   describe "Bass direction parsing" $ do
 
-    describe "parseBassDirection" $ do
+    describe "parseBassDirectionSpec" $ do
+      let fixed k n      = Just (BassDirectionSpec k [n] BDFixed False)
+          optFixed k n   = Just (BassDirectionSpec k [n] BDFixed True)
+          rotate k ns    = Just (BassDirectionSpec k ns BDRotate False)
+          randPick k ns  = Just (BassDirectionSpec k ns BDRandomPick False)
+          optRotate k ns = Just (BassDirectionSpec k ns BDRotate True)
+
       it "detects 'fall' token" $
-        parseBassDirection "* fall" `shouldBe` Just (Fall 1)
+        parseBassDirectionSpec "* fall" `shouldBe` fixed FallK 1
 
       it "detects 'rise' token" $
-        parseBassDirection "0# rise" `shouldBe` Just (Rise 1)
+        parseBassDirectionSpec "0# rise" `shouldBe` fixed RiseK 1
+
+      it "treats 'rise1' as alias for 'rise'" $
+        parseBassDirectionSpec "* rise1" `shouldBe` fixed RiseK 1
+
+      it "treats 'fall1' as alias for 'fall'" $
+        parseBassDirectionSpec "0# fall1" `shouldBe` fixed FallK 1
 
       it "returns Nothing when no direction token" $
-        parseBassDirection "C E G" `shouldBe` Nothing
+        parseBassDirectionSpec "C E G" `shouldBe` Nothing
 
       it "returns Nothing for wildcard alone" $
-        parseBassDirection "*" `shouldBe` Nothing
+        parseBassDirectionSpec "*" `shouldBe` Nothing
 
       it "is case-insensitive" $
-        parseBassDirection "* FALL" `shouldBe` Just (Fall 1)
+        parseBassDirectionSpec "* FALL" `shouldBe` fixed FallK 1
 
       it "works with multiple pitch tokens" $
-        parseBassDirection "C E G fall" `shouldBe` Just (Fall 1)
+        parseBassDirectionSpec "C E G fall" `shouldBe` fixed FallK 1
 
       it "parses rise2" $
-        parseBassDirection "* rise2" `shouldBe` Just (Rise 2)
+        parseBassDirectionSpec "* rise2" `shouldBe` fixed RiseK 2
 
       it "parses fall3" $
-        parseBassDirection "0# fall3" `shouldBe` Just (Fall 3)
+        parseBassDirectionSpec "0# fall3" `shouldBe` fixed FallK 3
 
       it "parses rise6" $
-        parseBassDirection "* rise6" `shouldBe` Just (Rise 6)
+        parseBassDirectionSpec "* rise6" `shouldBe` fixed RiseK 6
 
       it "rejects rise7 (out of range)" $
-        parseBassDirection "* rise7" `shouldBe` Nothing
+        parseBassDirectionSpec "* rise7" `shouldBe` Nothing
 
       it "rejects rise0 (out of range)" $
-        parseBassDirection "* rise0" `shouldBe` Nothing
+        parseBassDirectionSpec "* rise0" `shouldBe` Nothing
 
-      it "rejects rise10 (multi-digit)" $
-        parseBassDirection "* rise10" `shouldBe` Nothing
+      it "rejects rise10 (multi-digit suffix)" $
+        parseBassDirectionSpec "* rise10" `shouldBe` Nothing
+
+      it "marks bare 'rise?' as optional" $
+        parseBassDirectionSpec "* rise?" `shouldBe` optFixed RiseK 1
+
+      it "marks 'fall2?' as optional" $
+        parseBassDirectionSpec "* fall2?" `shouldBe` optFixed FallK 2
+
+      it "parses space-delimited rise<1 2> as rotate" $
+        parseBassDirectionSpec "* rise<1 2>" `shouldBe` rotate RiseK [1, 2]
+
+      it "parses space-delimited fall<3 2 1> as rotate" $
+        parseBassDirectionSpec "1# 2# fall<3 2 1>" `shouldBe` rotate FallK [3, 2, 1]
+
+      it "parses comma-delimited fall<2,3> as random pick" $
+        parseBassDirectionSpec "* fall<2,3>" `shouldBe` randPick FallK [2, 3]
+
+      it "treats mixed delimiters as random pick" $
+        parseBassDirectionSpec "* rise<1 2,3>" `shouldBe` randPick RiseK [1, 2, 3]
+
+      it "combines rotate with optional flag" $
+        parseBassDirectionSpec "* rise<1 2>?" `shouldBe` optRotate RiseK [1, 2]
+
+      it "rejects empty brackets" $
+        parseBassDirectionSpec "* rise<>" `shouldBe` Nothing
+
+      it "rejects out-of-range digit inside brackets" $
+        parseBassDirectionSpec "* rise<1 7>" `shouldBe` Nothing
+
+      it "accepts a single-element bracket" $
+        parseBassDirectionSpec "* rise<4>" `shouldBe` rotate RiseK [4]
 
     describe "stripDirectionToken" $ do
       it "strips 'fall'" $
@@ -334,6 +376,9 @@ spec = do
 
       it "strips 'rise'" $
         stripDirectionToken "0# rise" `shouldBe` "0#"
+
+      it "strips 'rise1'" $
+        stripDirectionToken "0# rise1" `shouldBe` "0#"
 
       it "preserves string without direction" $
         stripDirectionToken "C E G" `shouldBe` "C E G"
@@ -349,6 +394,15 @@ spec = do
 
       it "strips 'fall2' from multi-token" $
         stripDirectionToken "C E G fall2" `shouldBe` "C E G"
+
+      it "strips optional '?' tokens" $
+        stripDirectionToken "0# rise?" `shouldBe` "0#"
+
+      it "strips bracketed rotate tokens" $
+        stripDirectionToken "1# 2# fall<1 2>" `shouldBe` "1# 2#"
+
+      it "strips bracketed random-pick tokens" $
+        stripDirectionToken "C E G fall<2,3>" `shouldBe` "C E G"
 
   describe "Bass direction helpers (closestAbove/closestBelow)" $ do
     let cMajor = IntSet.fromList [0, 2, 4, 5, 7, 9, 11]
