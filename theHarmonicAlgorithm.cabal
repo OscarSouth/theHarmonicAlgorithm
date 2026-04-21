@@ -45,8 +45,10 @@ library
       Harmonic.Evaluation.Database.Query
       Harmonic.Evaluation.Analysis.Markov
       Harmonic.Traversal.Probabilistic
+      Harmonic.Traversal.WalkingBass
       Harmonic.Interface.Tidal.Bridge
       Harmonic.Interface.Tidal.Arranger
+      Harmonic.Interface.Tidal.LineHarmony
       Harmonic.Interface.Tidal.Form
       Harmonic.Interface.Tidal.Groove
       Harmonic.Interface.Tidal.Instruments
@@ -124,6 +126,7 @@ test-suite theHarmonicAlgorithm-test
       Harmonic.Interface.Tidal.BridgeSpec
       Harmonic.Interface.Tidal.FormSpec
       Harmonic.Interface.Tidal.GrooveSpec
+      Harmonic.Interface.Tidal.LineHarmonySpec
       Harmonic.Interface.Tidal.OrchestraSpec
       Harmonic.Rules.Constraints.FilterSpec
       Harmonic.Rules.Constraints.OvertoneSpec
@@ -131,6 +134,7 @@ test-suite theHarmonicAlgorithm-test
       Harmonic.Rules.Types.PitchSpec
       Harmonic.Rules.Types.ProgressionSpec
       Harmonic.Traversal.ProbabilisticSpec
+      Harmonic.Traversal.WalkingBassSpec
       Paths_theHarmonicAlgorithm
   hs-source-dirs:
       test

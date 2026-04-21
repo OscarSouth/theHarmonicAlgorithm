@@ -176,6 +176,9 @@ module Harmonic.Lib (
   -- Groove interface (drums/sub bass)
   subKick, fund,
 
+  -- Walking-bass line interface
+  lineHarmony,
+
   -- Scale source (switch mechanism)
   ScaleSource(..), melodyStateFrom,
 
@@ -250,6 +253,7 @@ import Harmonic.Interface.Tidal.Arranger (
     lead, parseLeadTokens, LeadToken(..)
   )
 import Harmonic.Interface.Tidal.Groove (subKick, fund)
+import Harmonic.Interface.Tidal.LineHarmony (lineHarmony)
 import Harmonic.Interface.Tidal.Form (
     FormNode(..), Kinetics(..), IK, at, iK, lK, formK,
     ki, slate, withForm

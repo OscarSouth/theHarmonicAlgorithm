@@ -121,6 +121,7 @@ launch = mapM_ ($ silence) [
   p "juno",
   p "drumbruteImpact",
   p "subKick",
+  p "lineHarmony",
   p "click",
   p "count",
   p "rise",

@@ -33,9 +33,11 @@ import qualified Harmonic.Evaluation.Scoring.DissonanceSpec as DissonanceSpec
 
 -- Phase C: Interactive Behaviour
 import qualified Harmonic.Traversal.ProbabilisticSpec as ProbabilisticSpec
+import qualified Harmonic.Traversal.WalkingBassSpec as WalkingBassSpec
 import qualified Harmonic.Framework.BuilderSpec as BuilderSpec
 import qualified Harmonic.Evaluation.Database.QuerySpec as QuerySpec
 import qualified Harmonic.Interface.Tidal.BridgeSpec as InterfaceSpec
+import qualified Harmonic.Interface.Tidal.LineHarmonySpec as LineHarmonySpec
 import qualified Harmonic.Interface.Tidal.GrooveSpec as GrooveSpec
 import qualified Harmonic.Interface.Tidal.FormSpec as FormSpec
 import qualified Harmonic.Interface.Tidal.OrchestraSpec as OrchestraSpec
@@ -54,9 +56,11 @@ main = hspec $ do
   -- Phase C
   describe "Harmonic.Database.Query" QuerySpec.spec
   describe "Harmonic.Core.Probabilistic" ProbabilisticSpec.spec
+  describe "Harmonic.Traversal.WalkingBass" WalkingBassSpec.spec
   describe "Harmonic.Core.Builder" BuilderSpec.spec
   describe "Harmonic.Tidal.Interface" InterfaceSpec.spec
   describe "Harmonic.Tidal.Groove" GrooveSpec.spec
   describe "Harmonic.Tidal.Form" FormSpec.spec
   describe "Harmonic.Tidal.Orchestra" OrchestraSpec.spec
   describe "Harmonic.Tidal.Arranger" ArrangerSpec.spec
+  describe "Harmonic.Tidal.LineHarmony" LineHarmonySpec.spec

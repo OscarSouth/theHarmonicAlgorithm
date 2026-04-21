@@ -66,9 +66,11 @@ library:
     - Harmonic.Evaluation.Analysis.Markov
     # Traversal (T Component + Layer C)
     - Harmonic.Traversal.Probabilistic
+    - Harmonic.Traversal.WalkingBass
     # Interface (Layer D)
     - Harmonic.Interface.Tidal.Bridge
     - Harmonic.Interface.Tidal.Arranger
+    - Harmonic.Interface.Tidal.LineHarmony
     - Harmonic.Interface.Tidal.Form
     - Harmonic.Interface.Tidal.Groove
     - Harmonic.Interface.Tidal.Instruments
