@@ -83,12 +83,13 @@ spec = do
                         [parseBP_E "[1 2 3 4]"]
       onsetCount result (Arc 0 1) `shouldBe` 0
 
-    it "beat 1 event at bar 0 equals walking-bass first note" $ do
+    it "beat 1 event at bar 0 equals walking-bass first note (Tidal-shifted)" $ do
       let chordSel = parseBP_E "1" :: Pattern Int
           result   = lineHarmony (pure 1.0) (fullKin testProgression, chordSel) fund
                        [parseBP_E "1"]
           notes    = onsetNotes result (Arc 0 1)
-          expected = fromIntegral (closestLowMidi 0) :: Double  -- C root = 36
+          -- MIDI 36 (C2) emitted as note -12 after tidalNoteOffset=48 shift.
+          expected = fromIntegral (closestLowMidi 0 - 48) :: Double
       take 1 notes `shouldBe` [expected]
 
     it "polyphonic stacking adds events from extra layers" $ do

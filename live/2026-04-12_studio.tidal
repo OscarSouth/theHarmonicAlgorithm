@@ -97,7 +97,7 @@ walk f k d = p "lineHarmony"
       -- ,"[1 2 3 4]/4"
       ,"[1 . ~ . 3 . ~ [4?]?]/2"
       -- ,"[1!6 3 4]/4" *| "1*4"
-    ] # ch 08 |- oct "2 <1 1 2 2>" #legato 0.95
+    ] # ch 08 |+ oct "1" #legato 0.95
 
 m32 f k d = p "moogMother32" $ do
   let o = ch 14

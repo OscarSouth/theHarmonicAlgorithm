@@ -27,10 +27,19 @@ import Harmonic.Traversal.WalkingBass
 import Data.List (nub)
 import Sound.Tidal.Context hiding (voice)
 
+-- | Empirical offset between 'walkLine' absolute MIDI and the downstream
+-- synth's note-0 pitch on the default patch. Subtract before emitting so the
+-- E1..C3 range is audibly faithful without manual @|- oct n@ compensation.
+tidalNoteOffset :: Int
+tidalNoteOffset = 48
+
 -- | Walking-bass arrangement with kinetics gating.
 --
--- Fixed to the double-bass register (E1..C3, MIDI 28..48) inside 'walkLine'.
--- Runtime register shifts via '|+ oct n' / '|- oct n' on the launcher side.
+-- Fixed to the double-bass register (E1..C3, MIDI 28..48) inside 'walkLine';
+-- the emitted Tidal @note@ values are pre-shifted by 'tidalNoteOffset' so
+-- this range is audibly true at default synth tuning — no @|- oct n@
+-- compensation needed. Runtime register shifts via @|+ oct n@ / @|- oct n@
+-- on the launcher side still compose normally.
 -- Entropy is derived internally from the progression's harmonic character.
 lineHarmony
   :: Pattern Double       -- ^ Dynamics scalar (amp multiplier)
@@ -53,11 +62,13 @@ lineHarmony dyn (kin, chordPat) voiceFn pats =
          renderWalk (lookupCache prog) chordPat stacked
        ) (kProg kin)
 
--- | Pre-compute walking line for a single progression; convert to 'Note'.
+-- | Pre-compute walking line for a single progression; convert to 'Note',
+-- shifted by 'tidalNoteOffset' so absolute MIDI from 'walkLine' aligns with
+-- Tidal's @note@ convention.
 buildCache :: VoiceFunction -> P.Progression -> ([[Note]], Int)
 buildCache voiceFn prog =
   let line = walkLine voiceFn prog
-  in (map (map fromIntegral) line, length line)
+  in (map (map (\m -> fromIntegral (m - tidalNoteOffset))) line, length line)
 
 -- | Map stacked beat-position events through the cached walking line.
 renderWalk
