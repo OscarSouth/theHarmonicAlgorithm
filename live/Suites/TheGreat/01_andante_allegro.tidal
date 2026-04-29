@@ -6,7 +6,7 @@
 -- Super-structure positions: 1/8 (Establishing) through 1/4 (Inciting event)
 --
 -- The symphony opens with one of music's most extraordinary moments: a
--- solo, unaccompanied horn call. Written for natural horn (not valved),
+-- solo, unaccompanied horn call. Written for natural horn T (not valved),
 -- the melody contains open notes (free-resonating) followed by stopped
 -- notes (hand in bell), creating what one analyst described as "a melody
 -- roughly hewn from marble" — irregular, slightly uneven in tone color,
@@ -112,7 +112,7 @@ hornCall f k d = p "horn" $ do
         }
   f
     $ stack [silence
-        , horn (0, 1) k vl flow Soprano
+        , horn T (0, 1) k vl flow Soprano
     ] |* vel d
 
 -- Oboe: polishing the horn's rough melody (enters Scene 2)
@@ -122,7 +122,7 @@ oboePolish f k d = p "oboe" $ do
         }
   f
     $ stack [silence
-        , oboe (0.1, 1) k vl flow Soprano
+        , oboe T (0.1, 1) k vl flow Soprano
     ] |* vel d
 
 -- String triplets: the perpetual motion cell (enters Scene 3)
@@ -133,8 +133,8 @@ triplets f k d = p "triplets" $ do
         }
   f
     $ stack [silence
-        , violin2 (0.15, 1) k vl flow Alto
-        , viola   (0.15, 1) k vl flow Tenor
+        , violin2 T (0.15, 1) k vl flow Alto
+        , viola   T (0.15, 1) k vl flow Tenor
     ] |* vel d
 
 -- Expanding woodwind choir (enters Scene 4)
@@ -146,9 +146,9 @@ windChoir f k d = p "wind" $ do
         }
   f
     $ stack [silence
-        , clarinet (0.2, 1) k vl flow Alto
-        , flute   (0.25, 1) k vl flow Soprano
-        , bassoon (0.25, 1) k vl flow Bass
+        , clarinet T (0.2, 1) k vl flow Alto
+        , flute   T (0.25, 1) k vl flow Soprano
+        , bassoon T (0.25, 1) k vl flow Bass
     ] |* vel d
 
 -- Bass strings: harmonic foundation (always present, growing)
@@ -158,8 +158,8 @@ foundation f k d = p "bass" $ do
         }
   f
     $ stack [silence
-        , cello      (0, 1) k vl grid Bass
-        , contrabass (0, 1) k vl grid Bass8vb
+        , cello      T (0, 1) k vl grid Bass
+        , contrabass T (0, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- Full string melody: violin1 takes the theme (enters Scene 6)
@@ -169,7 +169,7 @@ symphonic f k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , violin1 (0.3, 1) k vl flow Soprano
+        , violin1 T (0.3, 1) k vl flow Soprano
     ] |* vel d
 
 -- Trombones: Schubert's revolutionary symphonic brass (enters Scene 7)
@@ -181,8 +181,8 @@ brass f k d = p "brss" $ do
         }
   f
     $ stack [silence
-        , trombone (0.4, 1) k vl flow Tenor
-        , basstrom (0.5, 1) k vl grid Bass8vb
+        , trombone T (0.4, 1) k vl flow Tenor
+        , basstrom T (0.5, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- Timpani: rhythmic punctuation
@@ -192,7 +192,7 @@ perc f k d = p "perc" $ do
         }
   f
     $ stack [silence
-        , timpani (0.5, 1) k vl grid Bass8vb
+        , timpani T (0.5, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

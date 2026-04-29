@@ -11,6 +11,7 @@ module Harmonic.Framework.Builder.Diagnostics
   ( -- * Diagnostic Printing
     printDiagnostics
   , printHeader
+  , printStrataDiagnostics
 
     -- * Chord Tracing
   , computeChordTrace
@@ -21,11 +22,14 @@ module Harmonic.Framework.Builder.Diagnostics
   ) where
 
 import           Control.Monad (forM_, when)
+import           Data.List (sort)
 import qualified Data.Text as T
 import           Data.Text (Text)
 
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as P
+import qualified Harmonic.Rules.Types.Progression as Prog
+import qualified Harmonic.Rules.Types.Scale as Sc
 
 import           Harmonic.Framework.Builder.Types
 import           Harmonic.Framework.Builder.Portmanteau (makePortmanteau)
@@ -192,3 +196,152 @@ parseCadenceFromString name posteriorRootPC =
   where
     trim :: String -> String
     trim = dropWhile (== ' ') . reverse . dropWhile (== ' ') . reverse
+
+-------------------------------------------------------------------------------
+-- Strata Diagnostics (genP paradigm)
+-------------------------------------------------------------------------------
+
+-- |Per-bar rendering for 'genP'/'genP\''/'genP\'\''. Shows the triad
+-- (3 notes), the strata chroma (5 notes), the mode chroma (7 notes), the
+-- active tristrata, and — at verbosity 2 — the soft-boost applied.
+--
+-- Noop when 'sdStrataLabel' is 'Nothing' for every step, so it's safe to
+-- call unconditionally on any diagnostics value.
+printStrataDiagnostics :: Int -> GenerationDiagnostics -> IO ()
+printStrataDiagnostics verbosity diag = do
+  let steps = gdSteps diag
+      hasStrata = any (\s -> sdStrataLabel s /= Nothing) steps
+  if not hasStrata
+    then pure ()
+    else do
+      putStrLn ""
+      putStrLn $ "Strata walk: " ++ gdStartRoot diag
+                 ++ " → " ++ show (gdActualLen diag) ++ " bars (entropy "
+                 ++ show (gdEntropy diag) ++ ")"
+      putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      forM_ steps $ \step -> renderStrataStep verbosity step
+      putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      putStrLn ""
+
+-- |Per-bar renderer. Layout is a three-line block (header + strata +
+-- mode) sharing a common indent (4 spaces) and four column widths:
+-- label, identifier, info, chroma.
+--
+-- @
+--     <barNum>:      <motion>         <chord>             [<src>] γ=<idx>
+--     strata         <Roman>          #<idx> (<ts1>-<ts2>-<ts3>)  {<n1> <n2> ...}
+--     mode           <Root Quality>   (<Parent Family>)           {<n1> <n2> ...}
+-- @
+--
+-- For 'ModeInvalid' (only via 'absStrata' overrides that violate
+-- tristrata adjacency), the mode line reads
+-- @mode           invalid overlap                                 {<overlap PCs>}@.
+renderStrataStep :: Int -> StepDiagnostic -> IO ()
+renderStrataStep verbosity step = do
+  let isStarter = sdSelectedFrom step == "starter"
+      chord  = case sdRenderedChord step of
+                 Just c  -> c
+                 Nothing -> sdPosteriorRoot step
+      motion
+        | isStarter = "— → " ++ sdPosteriorRoot step
+        | otherwise = sdPriorRoot step ++ " → " ++ sdPosteriorRoot step
+      pivotPC = case sdHarmonicRootPC step of
+                  Just pc -> pc
+                  Nothing -> sdPosteriorRootPC step
+      -- Per-bar spelling, inferred by 'runStrataGen' via 'H.inferSpelling'
+      -- on the mode chroma. Falls back to 'defaultEnharm' when missing
+      -- (non-genP callers).
+      spelling = case sdBarSpelling step of
+        Just s  -> s
+        Nothing -> H.defaultEnharm (P.mkPitchClass pivotPC)
+      enharm = H.enharmonicFunc spelling
+      src
+        | isStarter = "[starter]"
+        | otherwise = "[" ++ sdSelectedFrom step ++ "] γ=" ++ show (sdGammaIndex step)
+
+  -- Header row: aligned on the same four columns as strata/mode.
+  putStrLn $ indent
+             ++ pad labelWidth (show (sdStepNumber step) ++ ":")
+             ++ pad identWidth motion
+             ++ pad infoWidth chord
+             ++ src
+
+  -- Strata row — Roman label in ident column, tristrata tag in info
+  -- column (merged), chroma in the final column.
+  case (sdStrataLabel step, sdStrataChroma step) of
+    (Just sl, Just chroma) ->
+      let tagStr = case (sdTristrataIdx step, sdTristrata step) of
+            (Just idx, Just t) ->
+              "#" ++ show idx
+                  ++ " (" ++ show (Sc.ts1 t)
+                  ++ "-" ++ show (Sc.ts2 t)
+                  ++ "-" ++ show (Sc.ts3 t) ++ ")"
+            _ -> ""
+      in putStrLn $ indent
+                    ++ pad labelWidth "strata"
+                    ++ pad identWidth (show sl)
+                    ++ pad infoWidth tagStr
+                    ++ showPCNamesCurly enharm pivotPC chroma
+    _ -> pure ()
+
+  -- Mode row — handle ModeOk vs ModeInvalid.
+  case sdModeResult step of
+    Just (Sc.ModeInvalid overlap) ->
+      putStrLn $ indent
+                 ++ pad labelWidth "mode"
+                 ++ pad identWidth "invalid overlap"
+                 ++ pad infoWidth ""
+                 ++ showPCNamesCurly enharm 0 overlap
+    _ ->
+      case (sdMode step, sdModeChroma step) of
+        (Just m, Just chroma) ->
+          let modeRootPC  = P.unPitchClass (Sc.modeRoot m)
+              parentTag   = case sdParentKey step of
+                Just (P.P pr, fam) ->
+                  "(" ++ show (enharm (P.mkPitchClass pr))
+                      ++ " " ++ Sc.showScaleFamily fam ++ ")"
+                Nothing -> ""
+          in putStrLn $ indent
+                        ++ pad labelWidth "mode"
+                        ++ pad identWidth (modeLabelWith enharm m)
+                        ++ pad infoWidth parentTag
+                        ++ showPCNamesCurly enharm modeRootPC chroma
+        _ -> pure ()
+
+  when (verbosity >= 2) $
+    case sdSoftBoost step of
+      Just b  -> putStrLn $ indent ++ pad labelWidth "boost" ++ show b
+      Nothing -> pure ()
+
+  putStrLn ""
+  where
+    indent       = "    "
+    labelWidth   = 11   -- covers "tristrata", "strata", "mode", "N:"
+    identWidth   = 16   -- covers "F# Mixolydian" (13), tolerant to 16
+    infoWidth    = 22   -- covers "#10 (IV-VI-XI)" (14) and "(F# Harmonic Major)" (19)
+
+-- |Render a PC list inside curly brackets, ordered from the given pivot PC
+-- up. The pivot is used to rotate the sorted list so the pivot (if
+-- present) is first; otherwise sorted order is used. Note names are
+-- spelled using the supplied enharmonic function (parent-key driven), so
+-- "F# Phrygian (D Major)" renders chroma as "{F# G A B C# D E}", not
+-- "{Gb Ab Bbb Cb Db Ebb Fb}".
+showPCNamesCurly :: (P.PitchClass -> P.NoteName) -> Int -> [P.PitchClass] -> String
+showPCNamesCurly enharm pivot pcs =
+  let ns           = sort (map P.unPitchClass pcs)
+      (before, after) = break (== pivot) ns
+      ordered      = after ++ before
+      renderPC n   = show (enharm (P.mkPitchClass n))
+  in "{" ++ unwords (map renderPC ordered) ++ "}"
+
+-- |Mode label in musician-readable form using a supplied enharmonic
+-- function for the root + the legacy 'toMode' mode-quality strings:
+-- @"C# Aeolian"@, @"A Mixo_b6"@, @"Db Lyd_Aug_#2"@. Passing
+-- @P.sharp@ / @P.flat@ / @H.enharmonicFunc spelling@ selects the root's
+-- accidental.
+modeLabelWith :: (P.PitchClass -> P.NoteName) -> Sc.Mode -> String
+modeLabelWith f (Sc.Mode q (P.P r)) =
+  show (f (P.mkPitchClass r)) ++ " " ++ Sc.showModeQuality q
+
+pad :: Int -> String -> String
+pad n s = s ++ replicate (max 0 (n - length s)) ' '

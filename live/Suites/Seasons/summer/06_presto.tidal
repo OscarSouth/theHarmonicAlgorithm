@@ -58,7 +58,7 @@ solo f k d = p "solo" $ do
         }
   f
     $ stack [silence
-        , violin1 (0, 1) k vl flow Soprano
+        , violin1 T (0, 1) k vl flow Soprano
     ] |* vel d
 
 -- Full storm: all strings grid voicing, violent
@@ -71,10 +71,10 @@ tempest f k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , violin2    (0, 1) k vl grid Soprano
-        , viola      (0, 1) k vl grid Alto
-        , cello      (0, 1) k vl grid Bass
-        , contrabass (0, 1) k vl grid Bass8vb
+        , violin2    T (0, 1) k vl grid Soprano
+        , viola      T (0, 1) k vl grid Alto
+        , cello      T (0, 1) k vl grid Bass
+        , contrabass T (0, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- Thunder and lightning
@@ -84,7 +84,7 @@ lightning f k d = p "perc" $ do
         }
   f
     $ stack [silence
-        , timpani (0.3, 1) k vl grid Bass8vb
+        , timpani T (0.3, 1) k vl grid Bass8vb
         , slate (0.4, 1) k [silence
             , bassdrum "[1 . 1 1 . 1]/4"
             ]

@@ -179,11 +179,11 @@ p07 f s r d = d07 $ do
   f
     $ stack [silence
        -- --
-      ,arrange flow (overlapF 0 s) r (-9,9) ["~"
+      ,arrange T flow (overlapF 0 s) r (-9,9) ["~"
         ,"[0,1,2]/3"                   -- triadic flow voicing
       ]# o |* vel 0.4 |- oct 1 |= legato 4
        -- --
-      ,arrange root (overlapF 0 s) r (-9,9) ["~"
+      ,arrange T root (overlapF 0 s) r (-9,9) ["~"
         ,"0/3"                         -- bass root
       ]# o |* vel 0.6 |- oct 3 |= legato 0.95
        -- --

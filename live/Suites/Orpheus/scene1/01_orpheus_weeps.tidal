@@ -63,9 +63,9 @@ lyre f k d = p "lyre" $ do
         }
   f
     $ stack [silence
-        , harp       (0, 1)   k vl flow Soprano
-        , cello      (0.2, 1) k vl grid Bass
-        , contrabass (0.3, 1) k vl grid Bass8vb
+        , harp       T (0, 1)   k vl flow Soprano
+        , cello      T (0.2, 1) k vl grid Bass
+        , contrabass T (0.3, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- Paired woodwinds: sighing appoggiaturas over the lament
@@ -76,8 +76,8 @@ sighs f k d = p "sighs" $ do
         }
   f
     $ stack [silence
-        , flute  (0.3, 1) k vl flow Soprano
-        , oboe   (0.3, 1) k vl flow Alto
+        , flute  T (0.3, 1) k vl flow Soprano
+        , oboe   T (0.3, 1) k vl flow Alto
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

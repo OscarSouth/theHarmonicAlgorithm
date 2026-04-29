@@ -83,13 +83,13 @@ p01 f k kM d = d01 $ do
   let o = ch 01
   f
     $ stack [silence
-      ,arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+      ,arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~"
         ,"[-1?, 0?, 1?, 2?, 3?]/8"
       ]# o |* vel 0.4
-      ,arrange (0, 1) k (-9, 9) root id ["~"]# o |* vel 1 |- oct 2
+      ,arrange (0, 1) k (-9, 9) T root id ["~"]# o |* vel 1 |- oct 2
       ,swingBy 0.07 4 $ note melodyAbs # o |* vel 1
       ,sometimes palindrome $ fast (choose [0, 1, 2]) $ slow 4
-        $ arrange (0, 1) kM (-9, 9) flow (overlapF 1) ["~"]
+        $ arrange (0, 1) kM (-9, 9) T flow (overlapF 1) ["~"]
         # o |* vel 1 |- oct 1
     ] |* vel d
 
@@ -126,12 +126,12 @@ s101 f k d = p "sh101" $ do
   let o = ch 15
   f
     $ stack [silence
-      ,arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+      ,arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~"
         ,"[-1?, 0?, 1?, 2?, 3?]/8"
       ]# o |* vel 0.4
-      ,arrange (0, 1) k (-9, 9) root id ["~"]# o |* vel 1 |- oct 2
+      ,arrange (0, 1) k (-9, 9) T root id ["~"]# o |* vel 1 |- oct 2
       -- melody line (uncomment to activate):
-      -- ,arrange (0,1) kM (-9,9) flow id ["~", melodyAbs] # o |* vel 1
+      -- ,arrange (0,1) kM (-9,9) T flow id ["~", melodyAbs] # o |* vel 1
     ] |* vel d
 
 -- ──────────────────────────────────────────────────────────
@@ -143,7 +143,7 @@ moog f k kM d = p "moogMother32" $ do
   id
     $ stack [silence
       ,sometimes palindrome $ fast (choose [0, 1, 2]) $ slow 4
-        $ arrange (0, 1) kM (-9, 9) flow (overlapF 1) ["~"]
+        $ arrange (0, 1) kM (-9, 9) T flow (overlapF 1) ["~"]
         # o |* vel 1 |- oct 1
       ,swingBy 0.07 4 $ note melodyAbs # o |* vel 1 |+ oct 0
       -- ,portamento 0.0
@@ -158,10 +158,10 @@ mdf f k kM d = p "moogDFAM" $ 0.036 <~ do
   f
     $ stack [silence
       ,steptrig "[1 2 3 4 5 6 7 8]/2"
-      ,arrange (0, 1) kM (-9, 9) flow id ["~"
+      ,arrange (0, 1) kM (-9, 9) T flow id ["~"
         ,slow 2 $ trunc 0.7 $ degrade $ "[2 3 4 5 6 7 6 8]" |+ irand 4
       ]# osc1 |* vel 1 |+ oct 1
-      ,arrange (0, 1) k (-9, 9) flow id ["~"
+      ,arrange (0, 1) k (-9, 9) T flow id ["~"
         ,"0/4"
       ]# osc2 |* vel 1 |- oct 1
     ]# legato 0.25 |* vel d

@@ -95,15 +95,15 @@ jollity f k d = p "jollity" $ do
         }
   f
     $ stack [silence
-        , violin1    (0.3, 1) k vl flow Soprano
-        , violin2    (0.3, 1) k vl flow Alto
-        , viola      (0.3, 1) k vl flow Tenor
-        , cello      (0, 1)   k vl grid Bass
-        , contrabass (0, 1)   k vl grid Bass8vb
-        , flute      (0.3, 1) k vl flow Soprano
-        , oboe       (0.3, 1) k vl flow Alto
-        , clarinet   (0.3, 1) k vl flow Tenor
-        , bassoon    (0.4, 1) k vl flow Bass
+        , violin1    T (0.3, 1) k vl flow Soprano
+        , violin2    T (0.3, 1) k vl flow Alto
+        , viola      T (0.3, 1) k vl flow Tenor
+        , cello      T (0, 1)   k vl grid Bass
+        , contrabass T (0, 1)   k vl grid Bass8vb
+        , flute      T (0.3, 1) k vl flow Soprano
+        , oboe       T (0.3, 1) k vl flow Alto
+        , clarinet   T (0.3, 1) k vl flow Tenor
+        , bassoon    T (0.4, 1) k vl flow Bass
     ] |* vel d
 
 -- THE BIG TUNE: massive unison melody — every voice sings as one
@@ -117,16 +117,16 @@ thaxted f k d = p "thaxted" $ do
   f
     $ stack [silence
         -- Strings: unified melody (all Soprano except bass)
-        , violin1    (0, 1)   k vl flow Soprano
-        , violin2    (0, 1)   k vl flow Soprano
-        , viola      (0, 1)   k vl flow Soprano
-        , cello      (0, 1)   k vl grid Bass
-        , contrabass (0, 1)   k vl grid Bass8vb
+        , violin1    T (0, 1)   k vl flow Soprano
+        , violin2    T (0, 1)   k vl flow Soprano
+        , viola      T (0, 1)   k vl flow Soprano
+        , cello      T (0, 1)   k vl grid Bass
+        , contrabass T (0, 1)   k vl grid Bass8vb
         -- Winds: doubling the melody
-        , flute      (0.3, 1) k vl flow Soprano
-        , oboe       (0.3, 1) k vl flow Soprano
-        , clarinet   (0.3, 1) k vl flow Soprano
-        , bassoon    (0.3, 1) k vl flow Soprano
+        , flute      T (0.3, 1) k vl flow Soprano
+        , oboe       T (0.3, 1) k vl flow Soprano
+        , clarinet   T (0.3, 1) k vl flow Soprano
+        , bassoon    T (0.3, 1) k vl flow Soprano
     ] |* vel d
 
 -- Cosmic outro: shimmering aftermath, looking outward to the stars
@@ -138,11 +138,11 @@ cosmic f k d = p "cosmic" $ do
         }
   f
     $ stack [silence
-        , harp    (0, 1)   k vl flow Soprano
-        , violin1 (0, 1)   k vl flow Soprano8va
-        , flute   (0.2, 1) k vl flow Alto
-        , horn    (0.2, 1) k vl flow Soprano
-        , cello   (0, 1)   k vl grid Bass
+        , harp    T (0, 1)   k vl flow Soprano
+        , violin1 T (0, 1)   k vl flow Soprano8va
+        , flute   T (0.2, 1) k vl flow Alto
+        , horn    T (0.2, 1) k vl flow Soprano
+        , cello   T (0, 1)   k vl grid Bass
     ] |* vel d
 
 -- Brass fanfares for jollity sections
@@ -153,8 +153,8 @@ grandBrass f k d = p "brss" $ do
         }
   f
     $ stack [silence
-        , horn     (0.3, 1) k vl flow Soprano
-        , trombone (0.5, 1) k vl flow Tenor
+        , horn     T (0.3, 1) k vl flow Soprano
+        , trombone T (0.5, 1) k vl flow Tenor
     ] |* vel d
 
 -- Brass weight under the big tune: horn doubling the melody
@@ -164,7 +164,7 @@ tuneHorn f k d = p "tunehorn" $ do
         }
   f
     $ stack [silence
-        , horn (0.3, 1) k vl flow Soprano
+        , horn T (0.3, 1) k vl flow Soprano
     ] |* vel d
 
 -- Timpani for rhythmic drive in jollity sections
@@ -174,7 +174,7 @@ jollityPerc f k d = p "perc" $ do
         }
   f
     $ stack [silence
-        , timpani (0.5, 1) k vl grid Bass8vb
+        , timpani T (0.5, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

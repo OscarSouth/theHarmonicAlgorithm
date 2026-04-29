@@ -59,19 +59,19 @@ p01 f k d = d01 $ do
   f
     $ stack [silence
       -- Low drone
-      ,arrange (0, 1) k (-20, -10) root id ["~"
+      ,arrange (0, 1) k (-20, -10) T root id ["~"
         ,"[0]/4"
       ]# o |* vel 0.7 |= legato 1
       -- Bass motif
-      ,mono $ arrange (0, 1) k (-9, 9) flow id ["~"
+      ,mono $ arrange (0, 1) k (-9, 9) T flow id ["~"
         ,bass
       ]# o |* vel 0.8 |- oct 2
       -- Upper melodic motif
-      ,arrange (0, 1) k (-2, 12) flow id ["~"
+      ,arrange (0, 1) k (-2, 12) T flow id ["~"
         ,mel
       ]# o |+ oct 1 |* vel 0.55 |= legato 0.9
       -- Chord pad (sparse, joins later in the mode)
-      ,arrange (0, 1) k (-9, 9) flow id ["~"
+      ,arrange (0, 1) k (-9, 9) T flow id ["~"
         ,"[-3,0,2]/4"
       ]# o |* vel 0.4 |= legato 0.98
     ] |* vel d

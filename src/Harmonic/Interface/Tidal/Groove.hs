@@ -16,6 +16,7 @@ module Harmonic.Interface.Tidal.Groove
 import qualified Harmonic.Rules.Types.Pitch as Pitch
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Progression as P
+import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import Harmonic.Interface.Tidal.Form (Kinetics(..), IK, ki)
 import Data.List (nub)
 import Data.Foldable (toList)
@@ -71,8 +72,9 @@ subKick dyn k voiceFunc (maxDur, subOnStr, subOffStr, kickStr) =
       -- Pre-compute LED all-off stack (constant, shared across invocations)
       ledAllOff = stack [midicmd "control" # ctlNum (fromIntegral cc)
                          # control (fromIntegral (0 :: Int)) | cc <- [20..31 :: Int]]
+      progPat = fmap PC.triadLayer (kProg kin)
       -- Pre-compute voicings at construction time
-      allEvents = queryArc (kProg kin) (Arc 0 1000)
+      allEvents = queryArc progPat (Arc 0 1000)
       uniqueProgs = nub (map value allEvents)
       cache = [(p, let raw = voiceFunc p
                        norm = map normalizeToSubRange raw
@@ -85,7 +87,7 @@ subKick dyn k voiceFunc (maxDur, subOnStr, subOffStr, kickStr) =
                     in (map normalizeToSubRange raw, length raw)
   in innerJoin $ fmap (\prog ->
        subKickCoreP (lookupCache prog) subOnPat subOffPat kickPat ledAllOff chordPat dyn k maxDur
-     ) (kProg kin)
+     ) progPat
 
 -- |Internal: subKick logic with ki gating on sub/kick groups.
 -- Accepts pre-parsed patterns and pre-computed LED all-off from subKick outer level.

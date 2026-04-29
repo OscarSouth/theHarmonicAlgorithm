@@ -62,10 +62,10 @@ slumber f k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , violin1 (0, 1) k vl flow Soprano
-        , violin2 (0, 1) k vl flow Alto
-        , viola   (0, 1) k vl flow Tenor
-        , cello   (0, 1) k vl grid Bass
+        , violin1 T (0, 1) k vl flow Soprano
+        , violin2 T (0, 1) k vl flow Alto
+        , viola   T (0, 1) k vl flow Tenor
+        , cello   T (0, 1) k vl grid Bass
     ] |* vel d
 
 -- Continuo: gentle harp sustain
@@ -75,7 +75,7 @@ continuo f k d = p "continuo" $ do
         }
   f
     $ stack [silence
-        , harp (0, 1) k vl flow Alto
+        , harp T (0, 1) k vl flow Alto
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

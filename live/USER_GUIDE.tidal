@@ -158,7 +158,7 @@ p01 f k d = d01 $ do
   let o = ch 01
   f
     $ stack [silence
-      , arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+      , arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~"
         , "[0 1 2 3]/4"
       ] # o |* vel 0.8 |= legato 0.95
     ] |* vel d
@@ -298,7 +298,7 @@ s <- seek "none" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
 do
   let k = iK tempo [at 0 1 1 s] (rep s 1)
   mapM_ id [hush, setbpm tempo
-    , (d01 $ arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~", "[0 1 2 3]/4"] # ch 01 |* vel 0.8)
+    , (d01 $ arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~", "[0 1 2 3]/4"] # ch 01 |* vel 0.8)
     ]
 
 hush
@@ -307,7 +307,7 @@ hush
 do
   let k = iK tempo [at 0 1 1 s] (rep s 1)
   mapM_ id [hush, setbpm tempo
-    , (d01 $ arrange (0, 1) k (-9, 9) grid (overlapF 0) ["~", "[0 1 2 3]/4"] # ch 01 |* vel 0.8)
+    , (d01 $ arrange (0, 1) k (-9, 9) T grid (overlapF 0) ["~", "[0 1 2 3]/4"] # ch 01 |* vel 0.8)
     ]
 
 hush
@@ -316,7 +316,7 @@ hush
 do
   let k = iK tempo [at 0 1 1 s] (rep s 1)
   mapM_ id [hush, setbpm tempo
-    , (d01 $ arrange (0, 1) k (-9, 9) root (overlapF 0) ["~", "[0]/1"] # ch 01 |- oct 2 |* vel 0.9)
+    , (d01 $ arrange (0, 1) k (-9, 9) T root (overlapF 0) ["~", "[0]/1"] # ch 01 |- oct 2 |* vel 0.9)
     ]
 
 hush
@@ -407,7 +407,7 @@ s <- seek "none" $ cue start $ tonal ctx $ len 4 $ entropy 0.5 $ gen
 do
   let k = iK tempo [at 0 1 1 s] (rep s 1)
   mapM_ id [hush, setbpm tempo
-    , (d01 $ arrange (0, 1) k (-9, 9) flow (overlapF 1) ["~"
+    , (d01 $ arrange (0, 1) k (-9, 9) T flow (overlapF 1) ["~"
         , "[0 1 2 3 4 5 6 7]/2"
       ] # ch 01 |* vel 0.8)
     ]
@@ -418,7 +418,7 @@ hush
 do
   let k = iK tempo [at 0 1 1 s] (rep s 1)
   mapM_ id [hush, setbpm tempo
-    , (d01 $ arrange' (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+    , (d01 $ arrange' (0, 1) k (-9, 9) T flow (overlapF 0) ["~"
         , "[0 1 2 3 4 5 6 7]/2"
       ] # ch 01 |* vel 0.8)
     ]
@@ -602,11 +602,11 @@ p01arc f k d = d01 $ do
   f
     $ stack [silence
       -- Chord pad throughout
-      , arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+      , arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~"
         , "[0 1 2 3]/4"
       ] # o |* vel 0.75
       -- Upper line only in the high-kinetics middle section
-      , arrange (0.7, 1) k (-9, 9) flow (overlapF 0) ["~"
+      , arrange (0.7, 1) k (-9, 9) T flow (overlapF 0) ["~"
         , "[0 2 4 7 4 2]/4"
       ] # o |+ oct 1 |* vel 0.6
     ] |* vel d
@@ -688,19 +688,19 @@ p01satb f k d = d01 $ do
   f
     $ stack [silence
       -- Soprano — top voice
-      , arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+      , arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~"
         , "[3]/1"         -- highest voice (degree 3 of the voicing)
       ] # o |+ oct 1 |* vel 0.7
       -- Alto — upper middle
-      , arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+      , arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~"
         , "[2]/1"
       ] # o |* vel 0.6
       -- Tenor — lower middle
-      , arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+      , arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~"
         , "[1]/1"
       ] # o |* vel 0.6
       -- Bass
-      , arrange (0, 1) k (-9, 9) root (overlapF 0) ["~"
+      , arrange (0, 1) k (-9, 9) T root (overlapF 0) ["~"
         , "[0]/1"
       ] # o |- oct 1 |* vel 0.8
     ] |* vel d

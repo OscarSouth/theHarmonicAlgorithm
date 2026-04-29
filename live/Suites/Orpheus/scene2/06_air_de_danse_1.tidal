@@ -51,7 +51,7 @@ form =
 
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
--- Orpheus's song: oboe duet + harp (the lyre accompanies the voice)
+-- Orpheus's song: oboe duet + harp T (the lyre accompanies the voice)
 plea f k d = p "plea" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[3 2 3 1]/4"
@@ -60,9 +60,9 @@ plea f k d = p "plea" $ do
         }
   f
     $ stack [silence
-        , oboe (0, 1) k vl flow Soprano
-        , oboe (0, 1) k vl flow Alto
-        , harp (0, 1) k vl flow Tenor
+        , oboe T (0, 1) k vl flow Soprano
+        , oboe T (0, 1) k vl flow Alto
+        , harp T (0, 1) k vl flow Tenor
     ] |* vel d
 
 -- Warm string pad entering softly at higher kinetics
@@ -75,9 +75,9 @@ warmth f k d = p "warmth" $ do
         }
   f
     $ stack [silence
-        , violin1 (0.4, 1) k vl flow Soprano
-        , viola   (0.4, 1) k vl flow Alto
-        , cello   (0.3, 1) k vl grid Bass
+        , violin1 T (0.4, 1) k vl flow Soprano
+        , viola   T (0.4, 1) k vl flow Alto
+        , cello   T (0.3, 1) k vl grid Bass
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

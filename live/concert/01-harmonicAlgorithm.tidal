@@ -106,23 +106,23 @@ p01 f k d = d01 $ do
   f
     $ stack [silence
       -- root anchor
-      ,arrange (0, 1) k (-15, -6) root id ["~"
+      ,arrange (0, 1) k (-15, -6) T root id ["~"
         ,"[0]/2"
       ]# o |* vel 0.7 |= legato 0.98 |- oct 1
       -- chord pad
-      ,arrange (0.05, 1) k (-6, 6) flow (progOverlapF 0) ["~"
+      ,arrange (0.05, 1) k (-6, 6) T flow (progOverlapF 0) ["~"
         ,"[0 . ~ 1 ~]/2"
       ]# o |* vel 0.55 |= legato 0.95
       -- running inner voice
-      ,arrange (0.25, 1) k (-3, 10) flow (progOverlapF 1) ["~"
+      ,arrange (0.25, 1) k (-3, 10) T flow (progOverlapF 1) ["~"
         ,degradeBy 0.2 $ "[0 1 2 3 4 3 2 1]/2"
       ]# o |* vel 0.5 |= legato 0.88
       -- upper melodic line (active only mid-form)
-      ,arrange (0.45, 1) k (0, 14) flow (progOverlapF 1) ["~"
+      ,arrange (0.45, 1) k (0, 14) T flow (progOverlapF 1) ["~"
         ,degradeBy 0.3 $ "[<0 2 4 7> <4 2 0 -2>]/2"
       ]# o |+ oct 1 |* vel 0.5 |= legato 0.85
       -- peak descant — only during the cumulation and peak
-      ,arrange (0.75, 1) k (3, 18) flow (progOverlapF 2) ["~"
+      ,arrange (0.75, 1) k (3, 18) T flow (progOverlapF 2) ["~"
         ,degradeBy 0.5 $ "[<2 4 5 7> . <4 2 0> ~ <5 7 9>]/2"
       ]# o |+ oct 1 |* vel 0.45 |= legato 0.8
     ] |* vel d
@@ -162,7 +162,7 @@ p01 f k d = d01 $ do
 --   let o = ch 14
 --   f
 --     $ stack [silence
---       ,mono $ arrange (0.2, 1) k (-12, 0) flow (progOverlapF 0) ["~"
+--       ,mono $ arrange (0.2, 1) k (-12, 0) T flow (progOverlapF 0) ["~"
 --         ,"[0]*2"
 --       ]# o |- oct 2 |* vel 1
 --       ,portamento 0.0
@@ -173,7 +173,7 @@ p01 f k d = d01 $ do
 --   let o = ch 15
 --   f
 --     $ stack [silence
---       ,arrange (0.4, 1) k (-9, 9) flow (progOverlapF 1) ["~"
+--       ,arrange (0.4, 1) k (-9, 9) T flow (progOverlapF 1) ["~"
 --         ,"[-1,0,1,2]/4"
 --       ]# o |* vel 0.6 |= legato 0.99
 --     ] |* vel d

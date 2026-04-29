@@ -68,7 +68,7 @@ solo f k d = p "solo" $ do
         }
   f
     $ stack [silence
-        , violin1 (0, 1) k vl flow Soprano
+        , violin1 T (0, 1) k vl flow Soprano
     ] |* vel d
 
 -- Dancing strings: the peasant ensemble
@@ -81,10 +81,10 @@ peasants f k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , violin2    (0.3, 1) k vl flow Alto
-        , viola      (0.3, 1) k vl flow Tenor
-        , cello      (0, 1)   k vl grid Bass    # pizz
-        , contrabass (0, 1)   k vl grid Bass8vb # pizz
+        , violin2    T (0.3, 1) k vl flow Alto
+        , viola      T (0.3, 1) k vl flow Tenor
+        , cello      T (0, 1)   k vl grid Bass    # pizz
+        , contrabass T (0, 1)   k vl grid Bass8vb # pizz
     ] |* vel d
 
 -- Festive color: harp celebration
@@ -95,8 +95,8 @@ celebration f k d = p "continuo" $ do
         }
   f
     $ stack [silence
-        , harp (0, 1) k vl flow Soprano
-        , oboe (0.4, 1) k vl flow Alto
+        , harp T (0, 1) k vl flow Soprano
+        , oboe T (0.4, 1) k vl flow Alto
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

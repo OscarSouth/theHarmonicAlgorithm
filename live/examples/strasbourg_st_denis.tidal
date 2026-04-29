@@ -122,14 +122,14 @@ p01 f k kM d = d01 $ do
   f
     $ stack [silence
       -- Chord voicing
-      ,arrange (0, 1) k (-9, 9) grid id ["~"
+      ,arrange (0, 1) k (-9, 9) T grid id ["~"
         ,"[0,5,6,7,8]/4" |-3
       ]# o |* vel 0.75 |= legato 0.97
       -- Melody head (absolute notes)
       ,swingBy 0.05 4 $ note melodyAbs # o |* vel 1 |+ oct 1
       -- Improvisation (scale-degree over melodyState)
       ,degradeBy 0.7 $ sometimes palindrome $ fast (choose [0, 1, 2]) $ slow 4
-        $ arrange (0, 1) kM (-9, 9) flow (overlapF 1) ["~"
+        $ arrange (0, 1) kM (-9, 9) T flow (overlapF 1) ["~"
           ,melodyRel
         ]# o |* vel 0.4 |+ oct 1 |* legato 2
     ] |* vel d

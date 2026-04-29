@@ -55,9 +55,9 @@ echo f k d = p "echo" $ do
         }
   f
     $ stack [silence
-        , violin1 (0, 1) k vl flow Soprano
-        , viola   (0, 1) k vl flow Alto
-        , cello   (0, 1) k vl grid Tenor8vb
+        , violin1 T (0, 1) k vl flow Soprano
+        , viola   T (0, 1) k vl flow Alto
+        , cello   T (0, 1) k vl grid Tenor8vb
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

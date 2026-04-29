@@ -23,6 +23,7 @@ module Harmonic.Framework.Builder.Types
   , consonant
   , invSkip
   , hcPedal
+  , hcTristrata
 
     -- * Configuration
   , GeneratorConfig(..)
@@ -56,7 +57,9 @@ import qualified Data.Text as T
 import           Data.Text (Text)
 
 import qualified Harmonic.Rules.Types.Harmony as H
+import qualified Harmonic.Rules.Types.Pitch as P
 import qualified Harmonic.Rules.Types.Progression as Prog
+import qualified Harmonic.Rules.Types.Scale as Sc
 import           Harmonic.Rules.Constraints.Filter (parseOvertones', parseKey, isWildcard, resolveRoots,
                                                      BassDirection(..), BassDirectionSpec(..),
                                                      BDKind(..), BDSelector(..),
@@ -85,6 +88,7 @@ data HarmonicContext = HarmonicContext
   , _hcDrift            :: Drift  -- ^ Dissonance drift direction
   , _hcInversionSpacing :: Int    -- ^ Minimum non-inversions between inversions (default 0)
   , _hcPedal            :: Text   -- ^ Required/preferred tones ("C G?", "" = no pedal)
+  , _hcTristrata        :: Text   -- ^ Tristrata allow-list ("" = all 12; "5" = only #5; "1 2 5" = whitelist)
   } deriving (Eq)
 
 instance Show HarmonicContext where
@@ -116,7 +120,7 @@ instance Show HarmonicContext where
 --   harmonicContext "E A D G" "C" "*" -- Bass tuning, C major key
 --   harmonicContext "*" "#" "E G"     -- G major key, E/G roots only
 harmonicContext :: Text -> Text -> Text -> HarmonicContext
-harmonicContext o k r = HarmonicContext o k r Free 0 ""
+harmonicContext o k r = HarmonicContext o k r Free 0 "" ""
 
 -- |Default harmonic context for Tidal live coding: all wildcards (chromatic).
 -- Named 'hContext' to avoid collision with TidalCycles' EventF.context field.
@@ -132,7 +136,7 @@ harmonicContext o k r = HarmonicContext o k r Free 0 ""
 --     $ hContext
 -- @
 hContext :: HarmonicContext
-hContext = HarmonicContext "*" "*" "*" Free 0 ""
+hContext = HarmonicContext "*" "*" "*" Free 0 "" ""
 
 -------------------------------------------------------------------------------
 -- Dissonance Drift
@@ -196,6 +200,17 @@ invSkip n ctx = ctx { _hcInversionSpacing = n }
 hcPedal :: String -> HarmonicContext -> HarmonicContext
 hcPedal p ctx = ctx { _hcPedal = T.pack p }
 
+-- |Restrict the active tristrata pool for 'genP'.
+--
+-- @""@ (default) — all 12 tristrata allowed.
+-- @"5"@          — lock to a single tristrata (here #5, IV-VI-X).
+-- @"1 2 5"@      — whitelist multiple tristrata.
+-- @"[1,2,5]"@    — bracket form accepted.
+--
+-- Parsed via 'Sc.parseTristrataList'; unknown tokens are silently discarded.
+hcTristrata :: String -> HarmonicContext -> HarmonicContext
+hcTristrata t ctx = ctx { _hcTristrata = T.pack t }
+
 -------------------------------------------------------------------------------
 -- Generator Configuration
 -------------------------------------------------------------------------------
@@ -225,6 +240,9 @@ data ParsedContext = ParsedContext
   , pcInversionSpacing   :: !Int                    -- ^ Minimum non-inversions between inversions
   , pcPedalRequired      :: !IntSet.IntSet  -- ^ Pitch classes that must be present in every chord
   , pcPedalPreferred     :: !IntSet.IntSet  -- ^ Preferred pitch classes (relaxed if pool too small)
+  , pcAllowedTristrata   :: ![Sc.Tristrata] -- ^ Tristrata allow-list ('genP' only; default = all 12)
+  , pcSoftBoost          :: !Double         -- ^ Multiplier applied to 'badness' at candidate-scoring time. Default 1.0 (no effect). 'genP' sets this per bar based on (s', t') continuity against the prior bar.
+  , pcStrictContainment  :: !Bool           -- ^ When 'True', every absolute PC of a candidate cadence (including the bass) must be a member of 'pcEffectiveOvertones'. Default 'False' preserves the legacy bass-exemption behaviour for 'gen'. 'runStrataGen' sets 'True' per bar to enforce single-strata containment.
   }
 
 -- |Parse pedal tone string into required and preferred IntSets.
@@ -258,6 +276,11 @@ parseContextOnce ctx =
       bassDirSpec = parseBassDirectionSpec rootsRaw
       allowedBassNotes = resolveRoots (_hcOvertones ctx) (_hcKey ctx) rootsStripped
       (pedalReq, pedalPref) = parsePedalTones (_hcPedal ctx)
+      allowedTS =
+        let idxs = Sc.parseTristrataList (T.unpack (_hcTristrata ctx))
+        in if null idxs
+             then Sc.validTristrata
+             else map Sc.tristrataIndex idxs
   in ParsedContext
     { pcEffectiveOvertones = IntSet.fromList effectiveOvertones
     , pcAllowedBassNotes   = IntSet.fromList allowedBassNotes
@@ -270,6 +293,9 @@ parseContextOnce ctx =
     , pcInversionSpacing   = _hcInversionSpacing ctx
     , pcPedalRequired      = pedalReq
     , pcPedalPreferred     = pedalPref
+    , pcAllowedTristrata   = allowedTS
+    , pcSoftBoost          = 1.0
+    , pcStrictContainment  = False
     }
 
 -------------------------------------------------------------------------------
@@ -284,6 +310,7 @@ data GenMode
   = Fresh                                      -- ^ Standard gen (new progression)
   | FromProg Prog.Progression !Int !Int        -- ^ Regenerate range in existing
   | GridMode                                    -- ^ Static repetition of cue chord
+  | StrataMode Sc.StrataLabel                  -- ^ 'genP' (strata-first, produces ProgressionContext)
 
 -- |Configuration for the modifier-based generation API.
 --
@@ -293,13 +320,19 @@ data GenMode
 -- s <- seek "*" $ cue start $ tonal ctx $ len 4 $ entropy 0.3 $ gen
 -- @
 data GenConfig = GenConfig
-  { _gcCue       :: IO H.CadenceState  -- ^ Starting state (default: random)
-  , _gcLen       :: Int                 -- ^ Number of chords (default: 4)
-  , _gcSeek      :: String              -- ^ Composer blend string (default: "*")
-  , _gcEntropy   :: Double              -- ^ Gamma shape parameter (default: 0.2)
-  , _gcTonal     :: HarmonicContext     -- ^ R constraints (default: hContext)
-  , _gcVerbosity :: Verbosity           -- ^ Output level (default: Silent)
-  , _gcMode      :: GenMode             -- ^ Generation mode (default: Fresh)
+  { _gcCue         :: IO H.CadenceState  -- ^ Starting state (default: random)
+  , _gcLen         :: Int                 -- ^ Number of chords (default: 4)
+  , _gcSeek        :: String              -- ^ Composer blend string (default: "*")
+  , _gcEntropy     :: Double              -- ^ Gamma shape parameter (default: 0.2)
+  , _gcTonal       :: HarmonicContext     -- ^ R constraints (default: hContext)
+  , _gcVerbosity   :: Verbosity           -- ^ Output level (default: Silent)
+  , _gcMode        :: GenMode             -- ^ Generation mode (default: Fresh)
+  , _gcLenOverride :: Maybe Int           -- ^ Set by relStrata / absStrata; shadows _gcLen unless len called later
+  , _gcRelStrata   :: Maybe [Int]         -- ^ Per-bar position (1..3) in active tristrata
+  , _gcAbsStrata   :: Maybe [Sc.StrataLabel] -- ^ Per-bar absolute strata label
+  , _gcBoostSame   :: Double              -- ^ same-strata continuity multiplier (default 0.90)
+  , _gcBoostFlip   :: Double              -- ^ flip-flop bias multiplier        (default 0.80)
+  , _gcBoostTri    :: Double              -- ^ same-tristrata bias multiplier   (default 0.70)
   }
 
 -------------------------------------------------------------------------------
@@ -364,6 +397,20 @@ data StepDiagnostic = StepDiagnostic
   -- Verbosity 2 fields (Nothing at verbosity 0 or 1)
   , sdTransformTrace  :: Maybe TransformTrace  -- ^ Full transform trace (verbosity 2)
   , sdAdvanceTrace    :: Maybe AdvanceTrace    -- ^ Full advance trace (verbosity 2)
+  -- 'genP' fields — populated post-step by 'runStrataGen' via 'Strata.hs'.
+  -- 'Nothing' for every non-StrataMode run (legacy 'gen' paths and
+  -- diagnostic callers that don't know about strata).
+  , sdTristrataIdx    :: Maybe Int               -- ^ 1-based index into 'Sc.validTristrata'
+  , sdTristrata       :: Maybe Sc.Tristrata      -- ^ Active tristrata for this bar
+  , sdStrataLabel     :: Maybe Sc.StrataLabel    -- ^ Selected strata for this bar
+  , sdMode            :: Maybe Sc.Mode           -- ^ Pair-union mode (strata_prev ∪ strata_curr)
+  , sdStrataChroma    :: Maybe [P.PitchClass]    -- ^ 5-PC strata chroma
+  , sdModeChroma      :: Maybe [P.PitchClass]    -- ^ 7-PC mode chroma
+  , sdSoftBoost       :: Maybe Double            -- ^ Boost product applied this bar
+  , sdHarmonicRootPC  :: Maybe Int               -- ^ Triad's harmonic root PC (post-detectInversion). 'sdPosteriorRootPC' is the cadence's stored root, which for inversions is the bass — for the strata pivot we want this field instead.
+  , sdParentKey       :: Maybe (P.PitchClass, Sc.ScaleFamily) -- ^ Parent key (root, family) of 'sdMode'
+  , sdModeResult      :: Maybe Sc.ModeResult     -- ^ Raw mode classification result; 'ModeInvalid' surfaces overlap PCs to the renderer
+  , sdBarSpelling     :: Maybe H.EnharmonicSpelling -- ^ Single enharmonic spelling for the bar, derived via 'H.inferSpelling' on the mode chroma (triad-root-first). Reused across chord name, strata chroma, mode label, mode chroma, and parent-key tag so the block renders in one coherent accidental system.
   } deriving (Show, Eq)
 
 -- |Complete diagnostics for a generation run

@@ -61,7 +61,7 @@ form =
 
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
--- The Mystic: harp (celestial) + flute (ethereal)
+-- The Mystic: harp T (celestial) + flute T (ethereal)
 mystic f k d = p "mystic" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[3 2 3 0]/4"
@@ -69,8 +69,8 @@ mystic f k d = p "mystic" $ do
         }
   f
     $ stack [silence
-        , harp  (0, 1) k vl flow Soprano
-        , flute (0, 1) k vl flow Alto
+        , harp  T (0, 1) k vl flow Soprano
+        , flute T (0, 1) k vl flow Alto
     ] |* vel d
 
 -- The Cosmos: high strings as distant harmonics
@@ -81,8 +81,8 @@ cosmos f k d = p "cosmos" $ do
         }
   f
     $ stack [silence
-        , violin1 (0.1, 1) k vl flow Soprano8va
-        , viola   (0.1, 1) k vl flow Alto
+        , violin1 T (0.1, 1) k vl flow Soprano8va
+        , viola   T (0.1, 1) k vl flow Alto
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

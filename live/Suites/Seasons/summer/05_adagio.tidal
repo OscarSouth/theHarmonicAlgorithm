@@ -57,7 +57,7 @@ fear f k d = p "solo" $ do
         }
   f
     $ stack [silence
-        , violin1 (0, 1) k vl flow Soprano
+        , violin1 T (0, 1) k vl flow Soprano
     ] |* vel d
 
 -- Buzzing flies: oboe rapid staccato
@@ -67,7 +67,7 @@ flies f k d = p "flies" $ do
         }
   f
     $ stack [silence
-        , oboe (0.2, 1) k vl flow Soprano
+        , oboe T (0.2, 1) k vl flow Soprano
     ] |* vel d
 
 -- Sustaining dread: quiet strings
@@ -79,8 +79,8 @@ dread f k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , viola (0, 1) k vl flow Alto
-        , cello (0, 1) k vl grid Bass
+        , viola T (0, 1) k vl flow Alto
+        , cello T (0, 1) k vl grid Bass
     ] |* vel d
 
 -- Continuo
@@ -90,7 +90,7 @@ continuo f k d = p "continuo" $ do
         }
   f
     $ stack [silence
-        , harp (0, 1) k vl flow Alto
+        , harp T (0, 1) k vl flow Alto
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

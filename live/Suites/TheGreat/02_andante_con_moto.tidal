@@ -111,8 +111,8 @@ walkingBass f k d = p "bass" $ do
         }
   f
     $ stack [silence
-        , cello      (0, 1) k vl grid Bass    # pizz
-        , contrabass (0, 1) k vl grid Bass8vb # pizz
+        , cello      T (0, 1) k vl grid Bass    # pizz
+        , contrabass T (0, 1) k vl grid Bass8vb # pizz
     ] |* vel d
 
 -- The Oboe Theme: the beloved march melody (enters Scene 3)
@@ -122,7 +122,7 @@ oboeTheme f k d = p "oboe" $ do
         }
   f
     $ stack [silence
-        , oboe (0.15, 1) k vl flow Soprano
+        , oboe T (0.15, 1) k vl flow Soprano
     ] |* vel d
 
 -- Clarinet Answer: the dialogue partner (enters Scene 4)
@@ -132,7 +132,7 @@ clarinetAnswer f k d = p "clarinet" $ do
         }
   f
     $ stack [silence
-        , clarinet (0.2, 1) k vl flow Alto
+        , clarinet T (0.2, 1) k vl flow Alto
     ] |* vel d
 
 -- Harmonic fill: viola from early on (enters Scene 2)
@@ -142,7 +142,7 @@ harmonicFill f k d = p "fill" $ do
         }
   f
     $ stack [silence
-        , viola (0.12, 1) k vl flow Tenor
+        , viola T (0.12, 1) k vl flow Tenor
     ] |* vel d
 
 -- Strings taking the melody boldly (enters Scene 6)
@@ -153,8 +153,8 @@ marchStrg f k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , violin1 (0.3, 1) k vl flow Soprano
-        , violin2 (0.3, 1) k vl flow Alto
+        , violin1 T (0.3, 1) k vl flow Soprano
+        , violin2 T (0.3, 1) k vl flow Alto
     ] |* vel d
 
 -- Brass: adding weight at climactic moments
@@ -166,9 +166,9 @@ marchBrass f k d = p "brss" $ do
         }
   f
     $ stack [silence
-        , horn     (0.4, 1) k vl flow Soprano
-        , trombone (0.5, 1) k vl flow Tenor
-        , basstrom (0.6, 1) k vl grid Bass8vb
+        , horn     T (0.4, 1) k vl flow Soprano
+        , trombone T (0.5, 1) k vl flow Tenor
+        , basstrom T (0.6, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- Harp: harmonic warmth (continuo role)
@@ -178,7 +178,7 @@ marchContinuo f k d = p "continuo" $ do
         }
   f
     $ stack [silence
-        , harp (0.2, 1) k vl flow Alto
+        , harp T (0.2, 1) k vl flow Alto
     ] |* vel d
 
 -- Flute: brightness when the winds expand
@@ -188,7 +188,7 @@ brightness f k d = p "flute" $ do
         }
   f
     $ stack [silence
-        , flute (0.3, 1) k vl flow Soprano
+        , flute T (0.3, 1) k vl flow Soprano
     ] |* vel d
 
 -- Timpani: march punctuation
@@ -198,7 +198,7 @@ marchPerc f k d = p "perc" $ do
         }
   f
     $ stack [silence
-        , timpani (0.6, 1) k vl grid Bass8vb
+        , timpani T (0.6, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

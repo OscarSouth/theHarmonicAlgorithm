@@ -59,8 +59,8 @@ quicksilver f k d = p "quicksilver" $ do
         }
   f
     $ stack [silence
-        , violin1 (0, 1) k vl flow Soprano
-        , harp    (0, 1) k vl flow Alto
+        , violin1 T (0, 1) k vl flow Soprano
+        , harp    T (0, 1) k vl flow Alto
     ] |* vel d
 
 -- Shimmer: flute + oboe for sparkle
@@ -71,8 +71,8 @@ shimmer f k d = p "shimmer" $ do
         }
   f
     $ stack [silence
-        , flute (0.3, 1) k vl flow Soprano
-        , oboe  (0.3, 1) k vl flow Alto
+        , flute T (0.3, 1) k vl flow Soprano
+        , oboe  T (0.3, 1) k vl flow Alto
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

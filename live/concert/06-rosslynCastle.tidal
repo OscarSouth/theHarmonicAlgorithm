@@ -78,13 +78,13 @@ p01 f k kM d = d01 $ do
   let o = ch 01
   f
     $ stack [silence
-      ,arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+      ,arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~"
         ,degradeBy 0.04 $ "[-1,0,1]*2" |* "[1 2]/4" |- "[0 1 2 3]/16"
       ]# o |* vel (slow 32 $ lfo saw 0.5 1.5) |= legato 0.125
-      ,struct lmotif $ arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+      ,struct lmotif $ arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~"
         ,"0"
       ]# o |* vel 1.4 |- oct "[3 2]*2" |= legato 0.6
-      ,mono $ arrange (0, 1) kM (-9, 12) flow id ["~"
+      ,mono $ arrange (0, 1) kM (-9, 12) T flow id ["~"
         ,melody
       ]# o |* vel 0.7 |+ oct 1
     ] |* vel d
@@ -97,7 +97,7 @@ juno f kM d = p "juno" $ do
   let o = ch 16
   f
     $ stack [silence
-      ,mono $ arrange (0, 1) kM (-9, 12) flow id ["~"
+      ,mono $ arrange (0, 1) kM (-9, 12) T flow id ["~"
         ,melody
       ]# o |* vel 0.7 |+ oct 1
     ] |* vel d
@@ -110,10 +110,10 @@ jazz f k d = p "piano" $ do
   let o = ch 3
   f
     $ stack [silence
-      ,arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+      ,arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~"
         ,degradeBy 0.04 $ "[-1,0,1]*2" |* "[1 2]/4" |- "[0 1 2 3]/16"
       ]# o |* vel (slow 32 $ lfo saw 0.5 1.5) |= legato 0.125
-      ,struct lmotif $ arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+      ,struct lmotif $ arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~"
         ,"0"
       ]# o |* vel 1.4 |- oct "[3 2]*2" |= legato 0.6
     ] |* vel d

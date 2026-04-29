@@ -57,7 +57,7 @@ solo f k d = p "solo" $ do
         }
   f
     $ stack [silence
-        , violin1 (0, 1) k vl flow Soprano
+        , violin1 T (0, 1) k vl flow Soprano
     ] |* vel d
 
 -- Dance strings: the pastoral ensemble
@@ -70,10 +70,10 @@ dance f k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , violin2    (0.3, 1) k vl flow Alto
-        , viola      (0.3, 1) k vl flow Tenor
-        , cello      (0, 1)   k vl grid Bass    # pizz
-        , contrabass (0, 1)   k vl grid Bass8vb # pizz
+        , violin2    T (0.3, 1) k vl flow Alto
+        , viola      T (0.3, 1) k vl flow Tenor
+        , cello      T (0, 1)   k vl grid Bass    # pizz
+        , contrabass T (0, 1)   k vl grid Bass8vb # pizz
     ] |* vel d
 
 -- Bagpipe / musette: harp drone + oboe melody
@@ -84,8 +84,8 @@ bagpipe f k d = p "bagpipe" $ do
         }
   f
     $ stack [silence
-        , harp (0, 1)   k vl flow Bass
-        , oboe (0.3, 1) k vl flow Soprano
+        , harp T (0, 1)   k vl flow Bass
+        , oboe T (0.3, 1) k vl flow Soprano
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

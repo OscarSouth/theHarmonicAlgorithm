@@ -32,6 +32,7 @@ import Harmonic.Interface.Tidal.Arranger (flow, root, grid)
 import Harmonic.Interface.Tidal.Form (IK)
 import Harmonic.Interface.Tidal.Instruments (ch, vel)
 import Harmonic.Interface.Tidal.Utils (oct)
+import Harmonic.Rules.Types.ProgressionContext (Layer(..))
 
 -------------------------------------------------------------------------------
 -- Voice type (SATB + octave variants)
@@ -101,38 +102,44 @@ clip (lo, hi) = filterValues (\vm ->
 -------------------------------------------------------------------------------
 
 -- Pipeline: arrange → # ch → |+ oct → clip (outermost, filters AFTER octave shift)
-instrument :: (Int, Int) -> Int -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
-instrument range channel ki k vl vf v =
-    clip range $ arrange ki k (-9,9) vf (overlapF 0) [vlGet v vl] # ch channel |+ oct (voiceOct v)
+instrument :: (Int, Int) -> Int -> Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
+instrument range channel lyr ki k vl vf v =
+    clip range $ arrange ki k (-9,9) lyr vf (overlapF 0) [vlGet v vl] # ch channel |+ oct (voiceOct v)
 
 -------------------------------------------------------------------------------
 -- Pitched instruments (partial application of instrument)
+--
+-- Every pitched instrument takes a prepended 'Layer' argument — 'T' to voice
+-- the triad layer (default harmonic behaviour), 'S' for the strata layer,
+-- 'M' for the diatonic-mode layer. Live-coding:
+--
+-- @d1 $ flute T (0,1) k voiceLines flow Soprano [\"0 1 2 3\"]@
 -------------------------------------------------------------------------------
 
 -- Winds (channels 1–4)
 -- Ranges in Tidal note space (MIDI − 60); physical ranges noted in comments
-flute, oboe, clarinet, bassoon :: (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
+flute, oboe, clarinet, bassoon :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
 flute      = instrument (-12, 26) 1   -- C3–D6  (MIDI 48–86)
 oboe       = instrument ( -2, 33) 2   -- Bb3–A6 (MIDI 58–93)
 clarinet   = instrument (-22, 34) 3   -- D2–Bb6 (MIDI 38–92)
 bassoon    = instrument (-28, 15) 4   -- Bb1–Eb5 (MIDI 32–75)
 
 -- Brass (channels 5–6)
-horn, trombone, basstrom :: (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
+horn, trombone, basstrom :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
 horn       = instrument (-29, 17) 5   -- B1–F5  (MIDI 31–77)
 trombone   = instrument (-28, 17) 6   -- Bb1–F5 (MIDI 32–77)
 basstrom   = instrument (-39, -5) 6   -- A0–G3  (MIDI 21–55)
 
 -- Harp (channel 7)
-harp :: (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
+harp :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
 harp       = instrument (-29, 42) 7   -- B1–F#7 (MIDI 31–102)
 
 -- Pitched percussion (channel 8)
-timpani :: (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
+timpani :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
 timpani    = instrument (-22,  0) 8   -- D2–C4  (MIDI 38–60)
 
 -- Strings (default arco = channel 16)
-violin1, violin2, viola, cello, contrabass :: (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
+violin1, violin2, viola, cello, contrabass :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
 violin1    = instrument ( -5, 45) 16  -- G3–A7  (MIDI 55–105)
 violin2    = instrument ( -5, 45) 16  -- G3–A7  (MIDI 55–105)
 viola      = instrument (-12, 28) 16  -- C3–E6  (MIDI 48–88)

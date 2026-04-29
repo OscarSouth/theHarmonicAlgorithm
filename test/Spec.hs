@@ -28,6 +28,7 @@ import qualified Harmonic.Rules.Types.HarmonySpec as HarmonySpec
 import qualified Harmonic.Rules.Constraints.OvertoneSpec as OvertoneSpec
 import qualified Harmonic.Evaluation.Scoring.VoiceLeadingSpec as VoiceLeadingSpec
 import qualified Harmonic.Rules.Types.ProgressionSpec as ProgressionSpec
+import qualified Harmonic.Rules.Types.ScaleSpec as ScaleSpec
 import qualified Harmonic.Rules.Constraints.FilterSpec as FilterSpec
 import qualified Harmonic.Evaluation.Scoring.DissonanceSpec as DissonanceSpec
 
@@ -35,6 +36,7 @@ import qualified Harmonic.Evaluation.Scoring.DissonanceSpec as DissonanceSpec
 import qualified Harmonic.Traversal.ProbabilisticSpec as ProbabilisticSpec
 import qualified Harmonic.Traversal.WalkingBassSpec as WalkingBassSpec
 import qualified Harmonic.Framework.BuilderSpec as BuilderSpec
+import qualified Harmonic.Framework.BuilderPSpec as BuilderPSpec
 import qualified Harmonic.Evaluation.Database.QuerySpec as QuerySpec
 import qualified Harmonic.Interface.Tidal.BridgeSpec as InterfaceSpec
 import qualified Harmonic.Interface.Tidal.LineHarmonySpec as LineHarmonySpec
@@ -51,6 +53,7 @@ main = hspec $ do
   describe "Harmonic.Core.Overtone" OvertoneSpec.spec
   describe "Harmonic.Core.VoiceLeading" VoiceLeadingSpec.spec
   describe "Harmonic.Core.Progression" ProgressionSpec.spec
+  describe "Harmonic.Core.Scale" ScaleSpec.spec
   describe "Harmonic.Core.Filter" FilterSpec.spec
   describe "Harmonic.Core.Dissonance" DissonanceSpec.spec
   -- Phase C
@@ -58,6 +61,7 @@ main = hspec $ do
   describe "Harmonic.Core.Probabilistic" ProbabilisticSpec.spec
   describe "Harmonic.Traversal.WalkingBass" WalkingBassSpec.spec
   describe "Harmonic.Core.Builder" BuilderSpec.spec
+  describe "Harmonic.Core.BuilderP" BuilderPSpec.spec
   describe "Harmonic.Tidal.Interface" InterfaceSpec.spec
   describe "Harmonic.Tidal.Groove" GrooveSpec.spec
   describe "Harmonic.Tidal.Form" FormSpec.spec

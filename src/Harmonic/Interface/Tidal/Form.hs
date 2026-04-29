@@ -27,7 +27,7 @@ module Harmonic.Interface.Tidal.Form
 
   ) where
 
-import qualified Harmonic.Rules.Types.Progression as P
+import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import Sound.Tidal.Context
 
 -------------------------------------------------------------------------------
@@ -37,17 +37,17 @@ import Sound.Tidal.Context
 -- |A node in a form definition: a point in time with kinetics level,
 -- dynamic level, and active progression.
 data FormNode = FormNode
-  { fnTime     :: Double         -- ^ Wall-clock seconds from start
-  , fnKinetics :: Double         -- ^ 0.0-1.0 kinetics level
-  , fnDynamic  :: Double         -- ^ 0.0-1.0 dynamic level
-  , fnProg     :: P.Progression  -- ^ Active progression at this node
+  { fnTime     :: Double                  -- ^ Wall-clock seconds from start
+  , fnKinetics :: Double                  -- ^ 0.0-1.0 kinetics level
+  , fnDynamic  :: Double                  -- ^ 0.0-1.0 dynamic level
+  , fnProg     :: PC.ProgressionContext   -- ^ Active 3-layer progression at this node
   } deriving (Show, Eq)
 
 -- |Realized form: continuous and discrete signals for live performance.
 data Kinetics = Kinetics
-  { kSignal  :: Pattern Double         -- ^ Kinetics level 0-1 (continuous interpolated)
-  , kDynamic :: Pattern Double         -- ^ Dynamic envelope 0-1 (continuous interpolated)
-  , kProg    :: Pattern P.Progression  -- ^ Active progression (step function)
+  { kSignal  :: Pattern Double                -- ^ Kinetics level 0-1 (continuous interpolated)
+  , kDynamic :: Pattern Double                -- ^ Dynamic envelope 0-1 (continuous interpolated)
+  , kProg    :: Pattern PC.ProgressionContext -- ^ Active 3-layer progression (step function)
   }
 
 -- |Performance context: Kinetics bundled with chord selection pattern.
@@ -58,9 +58,9 @@ type IK = (Kinetics, Pattern Int)
 -- Construction
 -------------------------------------------------------------------------------
 
--- |Construct a form node at a given time with kinetics, dynamic, and progression.
-at :: Double -> Double -> Double -> P.Progression -> FormNode
-at t k d prog = FormNode t k d prog
+-- |Construct a form node at a given time with kinetics, dynamic, and progression context.
+at :: Double -> Double -> Double -> PC.ProgressionContext -> FormNode
+at t k d pc = FormNode t k d pc
 
 -- |Construct performance context from BPM, form nodes, and chord selection.
 --
@@ -73,12 +73,12 @@ iK bpm nodes chordPat = (formK bpm nodes, chordPat)
 -- input (e.g. MIDI CC) rather than a static keyframed form.
 --
 -- @k = lK exP exP s r@  -- pedal drives both kinetics and dynamics
-lK :: Pattern Double       -- ^ Kinetics signal (0-1, live)
-   -> Pattern Double       -- ^ Dynamics signal (0-1, live)
-   -> P.Progression        -- ^ Active progression
-   -> Pattern Int          -- ^ Chord-selection pattern
+lK :: Pattern Double          -- ^ Kinetics signal (0-1, live)
+   -> Pattern Double          -- ^ Dynamics signal (0-1, live)
+   -> PC.ProgressionContext   -- ^ Active 3-layer progression
+   -> Pattern Int             -- ^ Chord-selection pattern
    -> IK
-lK sig dyn prog chordPat = (Kinetics sig dyn (pure prog), chordPat)
+lK sig dyn pc chordPat = (Kinetics sig dyn (pure pc), chordPat)
 
 -------------------------------------------------------------------------------
 -- Realization
@@ -140,8 +140,8 @@ ki (lo, hi) (kin, _) = mask (fmap (\x -> x >= lo && x <= hi) (kSignal kin))
 slate :: (Double, Double) -> IK -> [Pattern a] -> Pattern a
 slate range k pats = ki range k $ stack pats
 
--- |Bridge helper: apply a function taking Progression to a Kinetics context.
+-- |Bridge helper: apply a function taking 'ProgressionContext' to a Kinetics context.
 -- Uses innerJoin to reactively switch when the form changes progressions.
-withForm :: IK -> (P.Progression -> Pattern ValueMap) -> Pattern ValueMap
+withForm :: IK -> (PC.ProgressionContext -> Pattern ValueMap) -> Pattern ValueMap
 withForm (kin, _) f = innerJoin $ fmap f (kProg kin)
 

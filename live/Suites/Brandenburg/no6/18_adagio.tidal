@@ -37,15 +37,15 @@ form =
 
 viola1 f k d = p "viola1" $ do
   let vl = voiceLines {_vl = "~", soprano = "[3 2 3 1 2 1 0 1]/4"}
-  f $ stack [silence, viola (0, 1) k vl flow Soprano] |* vel d
+  f $ stack [silence, viola T (0, 1) k vl flow Soprano] |* vel d
 
 viola2 f k d = p "viola2" $ do
   let vl = voiceLines {_vl = "~", alto = "[1 0 1 2 1 2 3 2]/4"}
-  f $ stack [silence, viola (0, 1) k vl flow Alto] |* vel d
+  f $ stack [silence, viola T (0, 1) k vl flow Alto] |* vel d
 
 continuo f k d = p "continuo" $ do
   let vl = voiceLines {_vl = "~", soprano = "[1 0 2 1]/4", bass = "0"}
-  f $ stack [silence, harp (0, 1) k vl flow Alto, cello (0, 1) k vl grid Bass] |* vel d
+  f $ stack [silence, harp T (0, 1) k vl flow Alto, cello T (0, 1) k vl grid Bass] |* vel d
 
 do
   let

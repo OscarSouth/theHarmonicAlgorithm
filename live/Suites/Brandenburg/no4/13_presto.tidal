@@ -34,20 +34,20 @@ form =
 
 soloViolin f k d = p "solo" $ do
   let vl = voiceLines {_vl = "~", soprano = "[3 1 2 0 3 2 1 0]/4"}
-  f $ stack [silence, violin1 (0, 1) k vl flow Soprano] |* vel d
+  f $ stack [silence, violin1 T (0, 1) k vl flow Soprano] |* vel d
 
 recorders f k d = p "recorders" $ do
   let vl = voiceLines {_vl = "~", soprano = "[3 2 3 1]/4", alto = "[1 0 1 2]/4"}
-  f $ stack [silence, flute (0.15, 1) k vl flow Alto, oboe (0.2, 1) k vl flow Tenor] |* vel d
+  f $ stack [silence, flute T (0.15, 1) k vl flow Alto, oboe T (0.2, 1) k vl flow Tenor] |* vel d
 
 ripieno f k d = p "strg" $ do
   let vl = voiceLines {_vl = "~", alto = "[1 2 1 0]/4", tenor = "2", bass = "0"}
-  f $ stack [silence, violin2 (0.3, 1) k vl flow Alto, viola (0.3, 1) k vl flow Tenor
-        , cello (0, 1) k vl grid Bass, contrabass (0, 1) k vl grid Bass8vb] |* vel d
+  f $ stack [silence, violin2 T (0.3, 1) k vl flow Alto, viola T (0.3, 1) k vl flow Tenor
+        , cello T (0, 1) k vl grid Bass, contrabass T (0, 1) k vl grid Bass8vb] |* vel d
 
 continuo f k d = p "continuo" $ do
   let vl = voiceLines {_vl = "~", alto = "[1 0 2 1]/4"}
-  f $ stack [silence, harp (0, 1) k vl flow Alto] |* vel d
+  f $ stack [silence, harp T (0, 1) k vl flow Alto] |* vel d
 
 do
   let

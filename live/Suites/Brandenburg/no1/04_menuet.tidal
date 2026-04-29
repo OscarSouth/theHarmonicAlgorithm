@@ -43,10 +43,10 @@ menuet f k d = p "menuet" $ do
         , soprano = "[3 2 3 0]/4", alto = "[1 0 1 2]/4", bass = "0"
         }
   f $ stack [silence
-        , horn (0.3, 1) k vl flow Soprano, oboe (0.3, 1) k vl flow Alto
-        , violin1 (0, 1) k vl flow Soprano, violin2 (0.2, 1) k vl flow Alto
-        , viola (0.2, 1) k vl flow Tenor
-        , cello (0, 1) k vl grid Bass, contrabass (0, 1) k vl grid Bass8vb
+        , horn T (0.3, 1) k vl flow Soprano, oboe T (0.3, 1) k vl flow Alto
+        , violin1 T (0, 1) k vl flow Soprano, violin2 T (0.2, 1) k vl flow Alto
+        , viola T (0.2, 1) k vl flow Tenor
+        , cello T (0, 1) k vl grid Bass, contrabass T (0, 1) k vl grid Bass8vb
     ] |* vel d
 
 trio f k d = p "trio" $ do
@@ -54,13 +54,13 @@ trio f k d = p "trio" $ do
         , soprano = "[3 2 3 1]/4", alto = "[1 0 1 2]/4", bass = "0"
         }
   f $ stack [silence
-        , oboe (0, 1) k vl flow Soprano, bassoon (0.2, 1) k vl flow Bass
-        , viola (0, 1) k vl flow Alto, cello (0, 1) k vl grid Bass
+        , oboe T (0, 1) k vl flow Soprano, bassoon T (0.2, 1) k vl flow Bass
+        , viola T (0, 1) k vl flow Alto, cello T (0, 1) k vl grid Bass
     ] |* vel d
 
 continuo f k d = p "continuo" $ do
   let vl = voiceLines {_vl = "~", alto = "[1 0 2 1]/4"}
-  f $ stack [silence, harp (0, 1) k vl flow Alto] |* vel d
+  f $ stack [silence, harp T (0, 1) k vl flow Alto] |* vel d
 
 do
   let

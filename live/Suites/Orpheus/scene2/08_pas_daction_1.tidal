@@ -57,10 +57,10 @@ decree f k d = p "decree" $ do
         }
   f
     $ stack [silence
-        , cello      (0, 1)   k vl grid Bass
-        , contrabass (0, 1)   k vl grid Bass8vb
-        , horn       (0.3, 1) k vl flow Soprano
-        , trombone   (0.3, 1) k vl flow Tenor
+        , cello      T (0, 1)   k vl grid Bass
+        , contrabass T (0, 1)   k vl grid Bass8vb
+        , horn       T (0.3, 1) k vl flow Soprano
+        , trombone   T (0.3, 1) k vl flow Tenor
     ] |* vel d
 
 -- Eurydice: fragile woodwind motif
@@ -71,8 +71,8 @@ eurydice f k d = p "eurydice" $ do
         }
   f
     $ stack [silence
-        , flute  (0.2, 0.5) k vl flow Soprano
-        , oboe   (0.2, 0.5) k vl flow Alto
+        , flute  T (0.2, 0.5) k vl flow Soprano
+        , oboe   T (0.2, 0.5) k vl flow Alto
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

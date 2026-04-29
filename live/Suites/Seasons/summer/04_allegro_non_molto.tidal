@@ -71,7 +71,7 @@ solo f k d = p "solo" $ do
         }
   f
     $ stack [silence
-        , violin1 (0, 1) k vl flow Soprano
+        , violin1 T (0, 1) k vl flow Soprano
     ] |* vel d
 
 -- Strings: sparse heat then violent storm
@@ -84,10 +84,10 @@ heat f k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , violin2    (0.3, 1) k vl flow Alto
-        , viola      (0.3, 1) k vl flow Tenor
-        , cello      (0, 1)   k vl grid Bass
-        , contrabass (0, 1)   k vl grid Bass8vb
+        , violin2    T (0.3, 1) k vl flow Alto
+        , viola      T (0.3, 1) k vl flow Tenor
+        , cello      T (0, 1)   k vl grid Bass
+        , contrabass T (0, 1)   k vl grid Bass8vb
     ] |* vel d
 
 -- Bird calls: flute for cuckoo, dove, goldfinch
@@ -97,7 +97,7 @@ birdcalls f k d = p "birds" $ do
         }
   f
     $ stack [silence
-        , flute (0.2, 0.6) k vl flow Soprano
+        , flute T (0.2, 0.6) k vl flow Soprano
     ] |* vel d
 
 -- Continuo
@@ -107,7 +107,7 @@ continuo f k d = p "continuo" $ do
         }
   f
     $ stack [silence
-        , harp (0, 1) k vl flow Alto
+        , harp T (0, 1) k vl flow Alto
     ] |* vel d
 
 -- Thunder approaching
@@ -117,7 +117,7 @@ thunder f k d = p "perc" $ do
         }
   f
     $ stack [silence
-        , timpani (0.5, 1) k vl grid Bass8vb
+        , timpani T (0.5, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

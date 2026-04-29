@@ -11,6 +11,7 @@ import Test.Hspec
 import qualified Harmonic.Rules.Types.Progression as P
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as Pitch
+import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import Harmonic.Interface.Tidal.Form
 import qualified Data.Sequence as Seq
 import qualified Data.Map.Strict as Map
@@ -28,14 +29,14 @@ mkCadenceState rootNote func intervals =
   in H.CadenceState cadence rootNote H.FlatSpelling
 
 -- |Simple test progressions
-testProgA :: P.Progression
-testProgA = P.Progression $ Seq.fromList
+testProgA :: PC.ProgressionContext
+testProgA = PC.fromProgression $ P.Progression $ Seq.fromList
   [ mkCadenceState Pitch.C "maj" [0, 4, 7]
   , mkCadenceState Pitch.G "maj" [0, 4, 7]
   ]
 
-testProgB :: P.Progression
-testProgB = P.Progression $ Seq.fromList
+testProgB :: PC.ProgressionContext
+testProgB = PC.fromProgression $ P.Progression $ Seq.fromList
   [ mkCadenceState Pitch.F "maj" [0, 4, 7]
   , mkCadenceState Pitch.D "min" [0, 3, 7]
   ]

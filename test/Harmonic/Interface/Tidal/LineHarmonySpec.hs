@@ -9,6 +9,7 @@ import Test.Hspec
 
 import qualified Harmonic.Rules.Types.Progression as P
 import qualified Harmonic.Rules.Types.Harmony as H
+import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import Harmonic.Interface.Tidal.Form (Kinetics(..))
 import Harmonic.Interface.Tidal.Groove (fund)
 import Harmonic.Interface.Tidal.LineHarmony
@@ -31,10 +32,10 @@ testProgression = P.Progression $ Seq.fromList
   ]
 
 fullKin :: P.Progression -> Kinetics
-fullKin pr = Kinetics (pure 1.0) (pure 1.0) (pure pr)
+fullKin pr = Kinetics (pure 1.0) (pure 1.0) (pure (PC.fromProgression pr))
 
 mutedKin :: P.Progression -> Kinetics
-mutedKin pr = Kinetics (pure 0.0) (pure 1.0) (pure pr)
+mutedKin pr = Kinetics (pure 0.0) (pure 1.0) (pure (PC.fromProgression pr))
 
 -------------------------------------------------------------------------------
 -- Onset helpers (mirrors BridgeSpec)

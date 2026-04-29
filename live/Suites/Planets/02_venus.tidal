@@ -61,8 +61,8 @@ peace f k d = p "peace" $ do
         }
   f
     $ stack [silence
-        , horn (0, 1) k vl flow Soprano
-        , harp (0, 1) k vl flow Alto
+        , horn T (0, 1) k vl flow Soprano
+        , harp T (0, 1) k vl flow Alto
     ] |* vel d
 
 -- Celestial woodwinds: answering the horn
@@ -73,8 +73,8 @@ celestial f k d = p "celestial" $ do
         }
   f
     $ stack [silence
-        , flute (0.2, 1) k vl flow Soprano
-        , oboe  (0.2, 1) k vl flow Alto
+        , flute T (0.2, 1) k vl flow Soprano
+        , oboe  T (0.2, 1) k vl flow Alto
     ] |* vel d
 
 -- Transparent high strings
@@ -86,9 +86,9 @@ peaceStrg f k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , violin1 (0.2, 1) k vl flow Soprano8va
-        , viola   (0.2, 1) k vl flow Alto
-        , cello   (0.2, 1) k vl grid Tenor
+        , violin1 T (0.2, 1) k vl flow Soprano8va
+        , viola   T (0.2, 1) k vl flow Alto
+        , cello   T (0.2, 1) k vl grid Tenor
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

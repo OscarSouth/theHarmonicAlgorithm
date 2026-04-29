@@ -62,10 +62,10 @@ danceStrg f k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , violin1 (0, 1)   k vl flow Soprano
-        , violin2 (0, 1)   k vl flow Alto
-        , viola   (0, 1)   k vl flow Tenor
-        , cello   (0, 1)   k vl grid Bass    # pizz
+        , violin1 T (0, 1)   k vl flow Soprano
+        , violin2 T (0, 1)   k vl flow Alto
+        , viola   T (0, 1)   k vl flow Tenor
+        , cello   T (0, 1)   k vl grid Bass    # pizz
     ] |* vel d
 
 -- Winds enter to thicken texture in development
@@ -77,9 +77,9 @@ danceWind f k d = p "wind" $ do
         }
   f
     $ stack [silence
-        , flute   (0.3, 1) k vl flow Soprano
-        , clarinet(0.3, 1) k vl flow Alto
-        , bassoon (0.3, 1) k vl flow Bass
+        , flute   T (0.3, 1) k vl flow Soprano
+        , clarinet T (0.3, 1) k vl flow Alto
+        , bassoon T (0.3, 1) k vl flow Bass
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

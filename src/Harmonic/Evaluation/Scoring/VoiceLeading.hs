@@ -115,36 +115,76 @@ minimalMovement (P from) (P to) =
 -------------------------------------------------------------------------------
 
 -- |Calculate the voice leading cost between two chords.
--- Cost is the sum of minimal movements for all voices, with penalties.
 --
 -- Cost components:
---   * Base: sum of minimal movements for each voice pair
---   * Parallel penalty: +3 for each parallel perfect 5th/octave when voices move
---   * Large leap penalty: +2 for any voice moving > 4 semitones
+--   * Base: sum of absolute MIDI movements per voice.
+--   * Parallel penalty: +3 for each parallel perfect 5th / octave between
+--     ANY voice pair (not just adjacent), when at least one voice moves.
+--   * Large leap penalty: +2 per voice moving > 4 semitones.
+--   * Register-exchange penalty: +4 per adjacent voice pair where both
+--     voices move ≥5 semitones in opposite directions (split-leap pattern
+--     producing register inversion). Note: not classical "voice crossing"
+--     — sorted MIDI voicings have no voice identity to cross — but the
+--     same musical effect of register-swapping leaps.
+--   * Contrary motion bonus: −1 per voice pair (any pair) where both
+--     voices move ≤4 semitones in opposite directions (modest divergence).
+--   * Stepwise motion bonus: −1 per stepping voice (movement ∈ {1, 2})
+--     when ≥2 voices step. Single-voice steps contribute 0.
 --
--- This is a principled redesign of the legacy smoothBass approach.
+-- Magnitudes calibrated to compose: contrary motion and register exchange
+-- are deliberately disjoint by magnitude (≤4 vs ≥5 thresholds), aligning
+-- with the leap-penalty trigger so the same motion is never both
+-- rewarded and penalised.
 voiceLeadingCost :: [Int] -> [Int] -> Int
 voiceLeadingCost from to
   | length from /= length to = 999  -- Incompatible voicings
-  | from == to = 0  -- Identical voicings have zero cost
-  | otherwise = baseCost + parallelPenalty + leapPenalty
+  | from == to = 0                  -- Identical voicings have zero cost
+  | otherwise =
+      baseCost + parallelPenalty + leapPenalty
+               + registerExchangePenalty + contraryBonus + stepwiseBonus
   where
-    movements = zipWith voiceMovement from to
+    n           = length from
+    movements   = zipWith voiceMovement from to
+    signedMoves = zipWith (-) to from
+    allPairs    = [(i, j) | i <- [0 .. n - 2], j <- [i + 1 .. n - 1]]
+    adjPairs    = [(i, i + 1) | i <- [0 .. n - 2]]
+
     baseCost = sum movements
-    
-    -- Penalty for parallel perfect intervals (P5, P8) when voices actually move
-    -- Only count parallel motion if both voices involved actually moved
-    parallelPenalty = 
-      let pairs = zip3 (zip from (tail from)) (zip to (tail to)) (zip movements (tail movements))
-          isPerfect n = n == 7 || n == 0  -- P5 or P8
-          isParallelPerfect ((f1, f2), (t1, t2), (m1, m2)) =
-            let fromInt = (f2 - f1) `mod` 12
-                toInt = (t2 - t1) `mod` 12
-            in isPerfect fromInt && fromInt == toInt && (m1 > 0 || m2 > 0)
-      in 3 * length (filter isParallelPerfect pairs)
-    
-    -- Penalty for large leaps (>4 semitones)
+
+    -- Parallel perfect intervals (P5 = 7, P8 = 0) between ANY voice pair.
+    -- The interval is preserved across the transition AND at least one
+    -- voice moves (purely held intervals don't count).
+    isPerfect ivl = ivl == 7 || ivl == 0
+    isParallelPerfect (i, j) =
+      let fromInt = (from !! j - from !! i) `mod` 12
+          toInt   = (to   !! j - to   !! i) `mod` 12
+      in isPerfect fromInt && fromInt == toInt
+         && (movements !! i > 0 || movements !! j > 0)
+    parallelPenalty = 3 * length (filter isParallelPerfect allPairs)
+
+    -- Per-voice penalty for movements > 4 semitones (anything above a P4).
     leapPenalty = 2 * length (filter (> 4) movements)
+
+    -- Adjacent split-leap detection: both voices leap ≥5 in opposite directions.
+    isExchange (i, j) =
+      let mi = signedMoves !! i
+          mj = signedMoves !! j
+      in mi * mj < 0 && abs mi >= 5 && abs mj >= 5
+    registerExchangePenalty = 4 * length (filter isExchange adjPairs)
+
+    -- Contrary motion: any voice pair, both moving ≤4 in opposite directions
+    -- (smooth divergence). Disjoint from register exchange by magnitude.
+    isContrary (i, j) =
+      let mi = signedMoves !! i
+          mj = signedMoves !! j
+      in mi * mj < 0 && abs mi <= 4 && abs mj <= 4
+    contraryBonus = (-1) * length (filter isContrary allPairs)
+
+    -- Stepwise: per voice with movement of 1 or 2 semitones, bonus only
+    -- when ≥2 voices step (preserves >=1 floor for single-voice steps).
+    stepwiseBonus =
+      let stepCount = length (filter (\m -> m == 1 || m == 2) movements)
+      in if stepCount >= 2 then -(stepCount - 1) else 0
 
 -- |Calculate intervals between adjacent voices in a chord
 intervalsBetweenVoices :: [Int] -> [Int]
@@ -329,10 +369,12 @@ solveRoot chords =
 -------------------------------------------------------------------------------
 
 -- |Solve FLOW paradigm using cyclic DP:
--- Smoothest voice leading with any inversion allowed.
--- Voice crossings permitted for optimal smoothness.
--- First chord starts compact with root in bass.
--- Result is normalized so first chord's root is in [7,18].
+-- Smoothest voice leading with any inversion allowed for bars 1..n-1.
+-- Bar 0 is anchored to the compact root-position voicing
+-- ('initialCompact') so the progression's starting register is
+-- predictable and 'normalizeByFirstRoot' has a stable anchor.
+-- Voice crossings permitted in subsequent bars for optimal smoothness.
+-- Result is normalized so first chord's root is in [-12, -1].
 solveFlow :: [[Int]] -> [[Int]]
 solveFlow [] = []
 solveFlow chords =

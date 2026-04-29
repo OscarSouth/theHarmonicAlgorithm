@@ -31,9 +31,12 @@ library
       Harmonic.Framework.Builder.Core
       Harmonic.Framework.Builder.Diagnostics
       Harmonic.Framework.Builder.Portmanteau
+      Harmonic.Framework.Builder.Strata
       Harmonic.Rules.Types.Pitch
       Harmonic.Rules.Types.Harmony
       Harmonic.Rules.Types.Progression
+      Harmonic.Rules.Types.ProgressionContext
+      Harmonic.Rules.Types.Scale
       Harmonic.Rules.Constraints.Filter
       Harmonic.Rules.Constraints.Overtone
       Harmonic.Rules.Import.CSV
@@ -54,12 +57,14 @@ library
       Harmonic.Interface.Tidal.Instruments
       Harmonic.Interface.Tidal.Orchestra
       Harmonic.Interface.Tidal.Utils
+      Harmonic.Interface.Tidal.OctatripentatonicT
   other-modules:
       Paths_theHarmonicAlgorithm
   hs-source-dirs:
       src
   build-depends:
       aeson
+    , array
     , base >=4.14 && <5
     , bytestring
     , cassava
@@ -91,6 +96,7 @@ executable theHarmonicAlgorithm-exe
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       aeson
+    , array
     , base >=4.14 && <5
     , bytestring
     , cassava
@@ -121,6 +127,7 @@ test-suite theHarmonicAlgorithm-test
       Harmonic.Evaluation.Database.QuerySpec
       Harmonic.Evaluation.Scoring.DissonanceSpec
       Harmonic.Evaluation.Scoring.VoiceLeadingSpec
+      Harmonic.Framework.BuilderPSpec
       Harmonic.Framework.BuilderSpec
       Harmonic.Interface.Tidal.ArrangerSpec
       Harmonic.Interface.Tidal.BridgeSpec
@@ -133,6 +140,7 @@ test-suite theHarmonicAlgorithm-test
       Harmonic.Rules.Types.HarmonySpec
       Harmonic.Rules.Types.PitchSpec
       Harmonic.Rules.Types.ProgressionSpec
+      Harmonic.Rules.Types.ScaleSpec
       Harmonic.Traversal.ProbabilisticSpec
       Harmonic.Traversal.WalkingBassSpec
       Paths_theHarmonicAlgorithm
@@ -142,6 +150,7 @@ test-suite theHarmonicAlgorithm-test
   build-depends:
       QuickCheck
     , aeson
+    , array
     , base >=4.14 && <5
     , bytestring
     , cassava

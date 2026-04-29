@@ -15,8 +15,8 @@
 -- luminous because each group occupies a distinct register.
 --
 -- Adaptation: Three string groups mapped to our available voices.
--- Group 1: violin1 (Soprano). Group 2: violin2 (Alto), viola (Tenor).
--- Group 3: cello (Bass), contrabass (Bass8vb). Harp as continuo.
+-- Group 1: violin1 T (Soprano). Group 2: violin2 T (Alto), viola T (Tenor).
+-- Group 3: cello T (Bass), contrabass T (Bass8vb). Harp as continuo.
 -- No winds, no brass, no percussion. Pure string writing.
 -- ============================================================================
 
@@ -46,19 +46,19 @@ form =
 
 choir1 f k d = p "choir1" $ do
   let vl = voiceLines {_vl = "~", soprano = "[3 2 1 0 1 2 3 0]/4"}
-  f $ stack [silence, violin1 (0, 1) k vl flow Soprano] |* vel d
+  f $ stack [silence, violin1 T (0, 1) k vl flow Soprano] |* vel d
 
 choir2 f k d = p "choir2" $ do
   let vl = voiceLines {_vl = "~", alto = "[1 2 3 1 0 1 2 0]/4", tenor = "[2 1 0 2 1 0 2 1]/4"}
-  f $ stack [silence, violin2 (0, 1) k vl flow Alto, viola (0, 1) k vl flow Tenor] |* vel d
+  f $ stack [silence, violin2 T (0, 1) k vl flow Alto, viola T (0, 1) k vl flow Tenor] |* vel d
 
 choir3 f k d = p "choir3" $ do
   let vl = voiceLines {_vl = "~", bass = "[0 1 0 2]/4"}
-  f $ stack [silence, cello (0, 1) k vl grid Bass, contrabass (0, 1) k vl grid Bass8vb] |* vel d
+  f $ stack [silence, cello T (0, 1) k vl grid Bass, contrabass T (0, 1) k vl grid Bass8vb] |* vel d
 
 continuo f k d = p "continuo" $ do
   let vl = voiceLines {_vl = "~", alto = "[1 0 2 1]/4"}
-  f $ stack [silence, harp (0, 1) k vl flow Alto] |* vel d
+  f $ stack [silence, harp T (0, 1) k vl flow Alto] |* vel d
 
 do
   let

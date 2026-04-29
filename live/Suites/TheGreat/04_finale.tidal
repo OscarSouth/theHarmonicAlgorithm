@@ -88,11 +88,11 @@ finaleStrg f k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , violin1    (0, 1)   k vl flow Soprano
-        , violin2    (0, 1)   k vl flow Alto
-        , viola      (0, 1)   k vl flow Tenor
-        , cello      (0, 1)   k vl grid Bass
-        , contrabass (0, 1)   k vl grid Bass8vb
+        , violin1    T (0, 1)   k vl flow Soprano
+        , violin2    T (0, 1)   k vl flow Alto
+        , viola      T (0, 1)   k vl flow Tenor
+        , cello      T (0, 1)   k vl grid Bass
+        , contrabass T (0, 1)   k vl grid Bass8vb
     ] |* vel d
 
 -- Winds: active throughout with repeated-note patterns
@@ -104,10 +104,10 @@ finaleWind f k d = p "wind" $ do
         }
   f
     $ stack [silence
-        , flute   (0.3, 1) k vl flow Soprano
-        , oboe    (0.3, 1) k vl flow Alto
-        , clarinet(0.3, 1) k vl flow Alto
-        , bassoon (0.3, 1) k vl flow Bass
+        , flute   T (0.3, 1) k vl flow Soprano
+        , oboe    T (0.3, 1) k vl flow Alto
+        , clarinet T (0.3, 1) k vl flow Alto
+        , bassoon T (0.3, 1) k vl flow Bass
     ] |* vel d
 
 -- Maximum brass: Schubert's revolutionary trombone writing
@@ -119,9 +119,9 @@ finaleBrss f k d = p "brss" $ do
         }
   f
     $ stack [silence
-        , horn     (0.3, 1) k vl flow Soprano
-        , trombone (0.5, 1) k vl flow Tenor
-        , basstrom (0.5, 1) k vl grid Bass8vb
+        , horn     T (0.3, 1) k vl flow Soprano
+        , trombone T (0.5, 1) k vl flow Tenor
+        , basstrom T (0.5, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- The Horn Return: the opening call comes home (CODA ONLY)
@@ -132,7 +132,7 @@ hornReturn f k d = p "hornreturn" $ do
         }
   f
     $ stack [silence
-        , horn (0.7, 1) k vl flow Soprano
+        , horn T (0.7, 1) k vl flow Soprano
     ] |* vel d
 
 -- Timpani: rhythmic drive throughout
@@ -142,7 +142,7 @@ finalePerc f k d = p "perc" $ do
         }
   f
     $ stack [silence
-        , timpani (0.4, 1) k vl grid Bass8vb
+        , timpani T (0.4, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

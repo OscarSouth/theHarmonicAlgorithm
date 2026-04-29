@@ -80,8 +80,8 @@ clock f k d = p "clock" $ do
         }
   f
     $ stack [silence
-        , harp  (0, 1) k vl flow Soprano
-        , flute (0, 1) k vl flow Alto
+        , harp  T (0, 1) k vl flow Soprano
+        , flute T (0, 1) k vl flow Alto
     ] |* vel d
 
 -- The Bass Theme: slow, expansive, ponderous mortality
@@ -91,8 +91,8 @@ bassTheme f k d = p "bass" $ do
         }
   f
     $ stack [silence
-        , contrabass (0, 1) k vl grid Bass8vb
-        , cello      (0, 1) k vl grid Bass
+        , contrabass T (0, 1) k vl grid Bass8vb
+        , cello      T (0, 1) k vl grid Bass
     ] |* vel d
 
 -- Strings building: gradually joining the ascent
@@ -104,9 +104,9 @@ mortalStrg f k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , violin1 (0.2, 1) k vl flow Soprano
-        , violin2 (0.2, 1) k vl flow Alto
-        , viola   (0.3, 1) k vl flow Tenor
+        , violin1 T (0.2, 1) k vl flow Soprano
+        , violin2 T (0.2, 1) k vl flow Alto
+        , viola   T (0.3, 1) k vl flow Tenor
     ] |* vel d
 
 -- Brass: entering for the climax, maximum weight
@@ -118,9 +118,9 @@ mortalBrss f k d = p "brss" $ do
         }
   f
     $ stack [silence
-        , horn     (0.4, 1) k vl flow Soprano
-        , trombone (0.5, 1) k vl flow Tenor
-        , basstrom (0.6, 1) k vl grid Bass8vb
+        , horn     T (0.4, 1) k vl flow Soprano
+        , trombone T (0.5, 1) k vl flow Tenor
+        , basstrom T (0.6, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- Percussion: only at the climax
@@ -130,7 +130,7 @@ mortalPerc f k d = p "perc" $ do
         }
   f
     $ stack [silence
-        , timpani (0.6, 1) k vl grid Bass8vb
+        , timpani T (0.6, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

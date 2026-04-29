@@ -59,7 +59,7 @@ form =
 
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
--- Apollo's lyre: harp (transfigured) + horns (divine counterpoint)
+-- Apollo's lyre: harp T (transfigured) + horns (divine counterpoint)
 apotheosis f k d = p "apotheosis" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[0 1 2 3]/4"
@@ -69,9 +69,9 @@ apotheosis f k d = p "apotheosis" $ do
         }
   f
     $ stack [silence
-        , harp (0, 1) k vl flow Soprano
-        , horn (0, 1) k vl flow Soprano
-        , horn (0, 1) k vl flow Alto
+        , harp T (0, 1) k vl flow Soprano
+        , horn T (0, 1) k vl flow Soprano
+        , horn T (0, 1) k vl flow Alto
     ] |* vel d
 
 -- High strings: violin harmonics, the music ascending to the stars
@@ -83,9 +83,9 @@ ascension f k d = p "ascension" $ do
         }
   f
     $ stack [silence
-        , violin1 (0.2, 1) k vl flow Soprano8va
-        , viola   (0.3, 1) k vl flow Alto
-        , cello   (0.2, 1) k vl grid Bass
+        , violin1 T (0.2, 1) k vl flow Soprano8va
+        , viola   T (0.3, 1) k vl flow Alto
+        , cello   T (0.2, 1) k vl grid Bass
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

@@ -1,4 +1,4 @@
-tempo = 87
+tempo = 77
 
  -- TRANSPORT
 mapM_ id [p "transport"
@@ -8,36 +8,34 @@ mapM_ id [p "transport"
  ,setcps (tempo/60)
  ]
 
-start <- lead "E min"
+start <- lead "D maj"
 
 ctx = invSkip 1
   -- $ consonant
-  $ hcRoots "1# 2# fall<1,2>"
+  -- $ hcRoots "2# fall4?"
   -- $ hcRoots "E D C G fall<1 2>?"
-  $ hcKey "1#"
+  -- $ hcKey "1# 2#"
   -- $ hcPedal "E"
   -- $ hcOvertones "D F# A E"
+  -- $ hcTristrata "1"
   $ hContext
 
-s <- seek "debussy:5 bach:20 ravel:1"
-  -- $ len 2
+s <- seek "*"
+  $ len 8
   $ cue start
   $ tonal ctx
-  $ entropy 0.6
-  $ gen
+  $ entropy 0.4
+  $ genII'
 
 do
   let
     s' = transposeP 0 s
-    -- r = warp "[1 [4 3] 2 1]/4"
-    -- r = warp "[1 2 3 4 5 6 7 8]/8"
-    -- r = warp "[1 [4 3] 2 [4 3]]/4"
-    r = warp "[1 2 3 4]/4"
+    r = warp "[1 2 3 4 5 6 7 8]/16"
     f = (swingBy 0.07 2)
-    d = (*1)
-    k = iK tempo [at 0 0 0 s'
-      ,at 81 1 1 s'
-      ,at 100 0.1 0.1 s'
+    d = (*0.99)
+    k = iK tempo [at 0.1 0.1 0.1 s'
+      ,at 810 1 1 s'
+      ,at 1000 0.2 0.2 s'
       ] r
     -- k = lK q1 q1 s' r
     -- k = lK exP exP s r
@@ -45,16 +43,16 @@ do
   print s'
   mapM_ id [hush, setbpm tempo
     -- ,metronome 4 $d 0.1
-    -- ,count k $d 0.1
+    -- ,count k $d 0.05
     -- ,wind f k $d 0.6
     -- ,strg f k $d 0.8
     -- ,brss f k $d 0.9
     -- ,perc f k $d 1
-    ,p07  f k $d 0.9
+    ,p07  f k $d 0.99
     ,walk f k $d 0.9
-    ,subk f k $d 0.0
-    ,k909 f k $d 0.7
-    ,kmpc f k $d 0.3
+    -- ,subk f k $d 0.0
+    -- ,k909 f k $d 0.4
+    -- ,kmpc f k $d 0.3
     -- ,m32  f k $d 0.9
     -- ,mdf f k $d 0.9
    ]

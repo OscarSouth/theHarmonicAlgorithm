@@ -58,7 +58,7 @@ goatherd f k d = p "solo" $ do
         }
   f
     $ stack [silence
-        , violin1 (0, 1) k vl flow Soprano
+        , violin1 T (0, 1) k vl flow Soprano
     ] |* vel d
 
 -- Rustling leaves: harp gentle arpeggiation
@@ -69,7 +69,7 @@ leaves f k d = p "leaves" $ do
         }
   f
     $ stack [silence
-        , harp (0.1, 1) k vl flow Alto
+        , harp T (0.1, 1) k vl flow Alto
     ] |* vel d
 
 -- The barking dog: oboe staccato punctuation
@@ -79,7 +79,7 @@ dog f k d = p "dog" $ do
         }
   f
     $ stack [silence
-        , oboe (0.15, 1) k vl flow Soprano
+        , oboe T (0.15, 1) k vl flow Soprano
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

@@ -21,6 +21,7 @@ dependencies:
   - bytestring
   - containers
   - vector
+  - array
   - mtl
   - stm
   - cassava
@@ -49,10 +50,13 @@ library:
     - Harmonic.Framework.Builder.Core
     - Harmonic.Framework.Builder.Diagnostics
     - Harmonic.Framework.Builder.Portmanteau
+    - Harmonic.Framework.Builder.Strata
     # Rules (R Component + Layer A)
     - Harmonic.Rules.Types.Pitch
     - Harmonic.Rules.Types.Harmony
     - Harmonic.Rules.Types.Progression
+    - Harmonic.Rules.Types.ProgressionContext
+    - Harmonic.Rules.Types.Scale
     - Harmonic.Rules.Constraints.Filter
     - Harmonic.Rules.Constraints.Overtone
     - Harmonic.Rules.Import.CSV
@@ -76,6 +80,7 @@ library:
     - Harmonic.Interface.Tidal.Instruments
     - Harmonic.Interface.Tidal.Orchestra
     - Harmonic.Interface.Tidal.Utils
+    - Harmonic.Interface.Tidal.OctatripentatonicT
   source-dirs: src
   # ghc-options:
     # - -Wall

@@ -83,19 +83,19 @@ p01 f k d = d01 $ do
   f
     $ stack [silence
       -- low root
-      ,arrange (0, 1) k (-18, -8) root id ["~"
+      ,arrange (0, 1) k (-18, -8) T root id ["~"
         ,"[0]/4"
       ]# o |* vel 0.7 |= legato 1
       -- chord pad
-      ,arrange (0.1, 1) k (-6, 6) flow (progOverlapF 0) ["~"
+      ,arrange (0.1, 1) k (-6, 6) T flow (progOverlapF 0) ["~"
         ,"[0]/2"
       ]# o |* vel 0.55 |= legato 0.97
       -- shimmering upper voicings
-      ,arrange (0.3, 1) k (-2, 12) flow (progOverlapF 1) ["~"
+      ,arrange (0.3, 1) k (-2, 12) T flow (progOverlapF 1) ["~"
         ,degradeBy 0.4 $ fast 2 $ "[0 1 2 3]/4"
       ]# o |+ oct 1 |* vel 0.5 |= legato 0.92
       -- peak-only descant
-      ,arrange (0.7, 1) k (0, 16) flow (progOverlapF 2) ["~"
+      ,arrange (0.7, 1) k (0, 16) T flow (progOverlapF 2) ["~"
         ,degradeBy 0.5 $ "[<0 2 4> <3 1 -1> <5 3 0>]/2"
       ]# o |+ oct 1 |* vel 0.4 |= legato 0.85
     ] |* vel d
@@ -109,7 +109,7 @@ p01 f k d = d01 $ do
 --   let o = ch 14
 --   f
 --     $ stack [silence
---       ,mono $ palindrome $ arrange (0, 1) k (-9, 9) flow (progOverlapF 0) ["~"
+--       ,mono $ palindrome $ arrange (0, 1) k (-9, 9) T flow (progOverlapF 0) ["~"
 --         ,degradeBy 0.5 $ fast (choose [1, 2, 3, 4]) $ "[0]/4" |+ irand 5
 --       ]# o |* vel 0.3 |= legato 0.9 |- oct 1
 --     ] |* vel d
@@ -121,10 +121,10 @@ p01 f k d = d01 $ do
 --   f
 --     $ stack [silence
 --       ,steptrig "[1 2 3 4 5 6 7 8]/2"
---       ,arrange (0.2, 1) k (-9, 9) flow (progOverlapF 0) ["~"
+--       ,arrange (0.2, 1) k (-9, 9) T flow (progOverlapF 0) ["~"
 --         ,pat
 --       ]# osc1 |* vel 1 |- oct 2
---       ,arrange (0.2, 1) k (-9, 9) flow (progOverlapF 0) ["~"
+--       ,arrange (0.2, 1) k (-9, 9) T flow (progOverlapF 0) ["~"
 --         ,pat
 --       ]# osc2 |* vel 1 |- oct 1
 --     ] |* vel d
@@ -134,7 +134,7 @@ p01 f k d = d01 $ do
 --   let o = ch 15
 --   f
 --     $ stack [silence
---       ,arrange (0.3, 1) k (-9, 9) flow (progOverlapF 1) ["~"
+--       ,arrange (0.3, 1) k (-9, 9) T flow (progOverlapF 1) ["~"
 --         ,"[-1?, 0?, 1?, 2?]/8"
 --       ]# o |* vel 0.8 |= legato 0.99
 --     ] |* vel d

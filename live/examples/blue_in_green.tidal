@@ -103,12 +103,12 @@ p01 f k kM d = d01 $ do
   let o = ch 01
   f
     $ stack [silence
-      ,arrange (0, 1) k (-9, 9) grid (overlapF 0) ["~"
+      ,arrange (0, 1) k (-9, 9) T grid (overlapF 0) ["~"
         ,"[0,6,7,8,9]/8" |- 3
       ]# o |* vel 0.4
       ,swingBy 0.07 4 $ note melodyAbs # o |* vel 1
       ,degradeBy 0.8 $ sometimes (fast 4) $ stripe 4 $ sometimes palindrome $ fast (choose [0, 1, 2]) $ slow 4
-        $ arrange (0, 1) kM (-9, 9) flow (overlapF 1) ["~"
+        $ arrange (0, 1) kM (-9, 9) T flow (overlapF 1) ["~"
           ,melodyRel
         ]# o |* vel 0.3 |+ oct 2 |* legato 2
     ] |* vel d

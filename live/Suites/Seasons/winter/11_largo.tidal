@@ -63,7 +63,7 @@ fireside f k d = p "solo" $ do
         }
   f
     $ stack [silence
-        , violin1 (0, 1) k vl flow Soprano
+        , violin1 T (0, 1) k vl flow Soprano
     ] |* vel d
 
 -- Rain on the window: harp as pizzicato substitute
@@ -73,7 +73,7 @@ rain f k d = p "rain" $ do
         }
   f
     $ stack [silence
-        , harp (0.15, 1) k vl flow Soprano
+        , harp T (0.15, 1) k vl flow Soprano
     ] |* vel d
 
 -- Warm room: sustained viola + bass foundation
@@ -84,8 +84,8 @@ warmth f k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , viola (0, 1) k vl flow Alto
-        , cello (0, 1) k vl grid Bass
+        , viola T (0, 1) k vl flow Alto
+        , cello T (0, 1) k vl grid Bass
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

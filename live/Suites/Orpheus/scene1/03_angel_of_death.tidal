@@ -62,9 +62,9 @@ angel f k d = p "brss" $ do
         }
   f
     $ stack [silence
-        , trombone (0, 1)   k vl flow Soprano
-        , horn     (0.3, 1) k vl flow Alto
-        , basstrom (0, 1)   k vl grid Bass8vb
+        , trombone T (0, 1)   k vl flow Soprano
+        , horn     T (0.3, 1) k vl flow Alto
+        , basstrom T (0, 1)   k vl grid Bass8vb
     ] |* vel d
 
 -- Strings: nervous scurrying against the march
@@ -77,11 +77,11 @@ marchStrg f k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , violin1    (0.2, 1) k vl flow Soprano
-        , violin2    (0.2, 1) k vl flow Alto
-        , viola      (0.3, 1) k vl flow Tenor
-        , cello      (0, 1)   k vl grid Bass
-        , contrabass (0, 1)   k vl grid Bass8vb
+        , violin1    T (0.2, 1) k vl flow Soprano
+        , violin2    T (0.2, 1) k vl flow Alto
+        , viola      T (0.3, 1) k vl flow Tenor
+        , cello      T (0, 1)   k vl grid Bass
+        , contrabass T (0, 1)   k vl grid Bass8vb
     ] |* vel d
 
 -- Percussion: timpani march pulse
@@ -91,7 +91,7 @@ marchPerc f k d = p "perc" $ do
         }
   f
     $ stack [silence
-        , timpani (0, 1) k vl grid Bass
+        , timpani T (0, 1) k vl grid Bass
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

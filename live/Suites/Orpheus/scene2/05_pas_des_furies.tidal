@@ -67,13 +67,13 @@ furies f k d = p "furies" $ do
         }
   f
     $ stack [silence
-        , violin1    (0, 1) k vl grid Soprano
-        , violin2    (0, 1) k vl grid Alto
-        , viola      (0, 1) k vl grid Tenor
-        , cello      (0, 1) k vl grid Bass
-        , contrabass (0, 1) k vl grid Bass8vb
-        , horn       (0, 1) k vl flow Soprano
-        , timpani    (0, 1) k vl grid Bass8vb
+        , violin1    T (0, 1) k vl grid Soprano
+        , violin2    T (0, 1) k vl grid Alto
+        , viola      T (0, 1) k vl grid Tenor
+        , cello      T (0, 1) k vl grid Bass
+        , contrabass T (0, 1) k vl grid Bass8vb
+        , horn       T (0, 1) k vl flow Soprano
+        , timpani    T (0, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- Orpheus's lyre: attempting to break through (enters at higher kinetics)
@@ -83,7 +83,7 @@ lyreResist f k d = p "lyre" $ do
         }
   f
     $ stack [silence
-        , harp (0.5, 0.8) k vl flow Soprano
+        , harp T (0.5, 0.8) k vl flow Soprano
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

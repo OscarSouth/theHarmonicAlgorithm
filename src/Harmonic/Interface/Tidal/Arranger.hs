@@ -42,6 +42,7 @@ module Harmonic.Interface.Tidal.Arranger
   , lite   -- Literal, no transformation
   , literal -- Alias for lite
   , root   -- Root note only (root pitch class per chord)
+  , strataModeFlow  -- Per-voice tracking for non-triad chroma layers (key-signature semantic)
 
     -- * Explicit Progression Construction
   , fromChords      -- Construct Progression from pitch-class lists
@@ -68,106 +69,121 @@ import qualified Data.Map.Strict as Map
 import System.Random.MWC (createSystemRandom, uniformRM, GenIO)
 
 import Harmonic.Rules.Types.Progression
+import qualified Harmonic.Rules.Types.ProgressionContext as PC
+import Harmonic.Rules.Types.ProgressionContext (ProgressionContext, liftPC)
 import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), CadenceState(..), fromCadenceState, ChordState(..), EnharmonicSpelling(..), toFunctionality, toFunctionalityChord, Movement(..), enharmonicFunc, inferSpelling, initCadenceState)
 import Harmonic.Traversal.Probabilistic (gammaIndexScaledWith)
 import Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
 import Harmonic.Rules.Types.Pitch (PitchClass(..), NoteName(..), pitchClass, mkPitchClass, unPitchClass)
-import Harmonic.Evaluation.Scoring.VoiceLeading (solveRoot, solveFlow, liteVoicing, bassVoicing, normalizeByFirstRoot)
+import Harmonic.Evaluation.Scoring.VoiceLeading (solveRoot, solveFlow, liteVoicing, bassVoicing, normalizeByFirstRoot, initialCompact)
+import Data.Function (on)
+import Data.List (minimumBy)
 
 -------------------------------------------------------------------------------
 -- Position/Range Operations
 -------------------------------------------------------------------------------
 
 -- |Rotate a progression by n bars (positive = left, negative = right)
-rotate :: Int -> Progression -> Progression
-rotate = rotateProgression
+rotate :: Int -> ProgressionContext -> ProgressionContext
+rotate n = liftPC (rotateProgression n)
 
 -- |Extract bars start to end (1-indexed, inclusive)
-excerpt :: Int -> Int -> Progression -> Progression
-excerpt = excerptProgression
+excerpt :: Int -> Int -> ProgressionContext -> ProgressionContext
+excerpt s e = liftPC (excerptProgression s e)
 
 -- |Insert a CadenceState at position (1-indexed), replacing the existing one
-insert :: CadenceState -> Int -> Progression -> Progression
-insert cs pos (Progression seq)
-  | Seq.null seq = singleton cs
-  | pos < 1 = Progression (cs Seq.<| seq)
-  | pos > Seq.length seq = Progression (seq Seq.|> cs)
-  | otherwise =
-    let (before, rest) = Seq.splitAt (pos - 1) seq
-    in case Seq.viewl rest of
-         Seq.EmptyL -> Progression (before Seq.|> cs)
-         _ Seq.:< after -> Progression (before >< (cs Seq.<| after))
+insert :: CadenceState -> Int -> ProgressionContext -> ProgressionContext
+insert cs pos = liftPC (insertProg cs pos)
+  where
+    insertProg :: CadenceState -> Int -> Progression -> Progression
+    insertProg c p (Progression s)
+      | Seq.null s = singleton c
+      | p < 1 = Progression (c Seq.<| s)
+      | p > Seq.length s = Progression (s Seq.|> c)
+      | otherwise =
+        let (before, rest) = Seq.splitAt (p - 1) s
+        in case Seq.viewl rest of
+             Seq.EmptyL -> Progression (before Seq.|> c)
+             _ Seq.:< after -> Progression (before >< (c Seq.<| after))
 
 -- |Switch two bars at positions m and n (1-indexed)
-switch :: Int -> Int -> Progression -> Progression
-switch m n prog@(Progression seq)
-  | m == n = prog
-  | Seq.null seq = prog
-  | otherwise =
-    let len = Seq.length seq
-        m' = max 0 (min (len - 1) (m - 1))
-        n' = max 0 (min (len - 1) (n - 1))
-        csM = Seq.index seq m'
-        csN = Seq.index seq n'
-        seq' = Seq.update m' csN $ Seq.update n' csM seq
-    in Progression seq'
+switch :: Int -> Int -> ProgressionContext -> ProgressionContext
+switch m n = liftPC (switchProg m n)
+  where
+    switchProg :: Int -> Int -> Progression -> Progression
+    switchProg a b progIn@(Progression s)
+      | a == b = progIn
+      | Seq.null s = progIn
+      | otherwise =
+        let len = Seq.length s
+            m' = max 0 (min (len - 1) (a - 1))
+            n' = max 0 (min (len - 1) (b - 1))
+            csM = Seq.index s m'
+            csN = Seq.index s n'
+            s'  = Seq.update m' csN $ Seq.update n' csM s
+        in Progression s'
 
 -- |Clone bar m to position n (overwrites n with contents of m)
-clone :: Int -> Int -> Progression -> Progression
-clone m n prog@(Progression seq)
-  | m == n = prog
-  | Seq.null seq = prog
-  | otherwise =
-    let len = Seq.length seq
-        m' = max 0 (min (len - 1) (m - 1))
-        n' = max 0 (min (len - 1) (n - 1))
-        csM = Seq.index seq m'
-        seq' = Seq.update n' csM seq
-    in Progression seq'
+clone :: Int -> Int -> ProgressionContext -> ProgressionContext
+clone m n = liftPC (cloneProg m n)
+  where
+    cloneProg :: Int -> Int -> Progression -> Progression
+    cloneProg a b progIn@(Progression s)
+      | a == b = progIn
+      | Seq.null s = progIn
+      | otherwise =
+        let len = Seq.length s
+            m' = max 0 (min (len - 1) (a - 1))
+            n' = max 0 (min (len - 1) (b - 1))
+            csM = Seq.index s m'
+            s'  = Seq.update n' csM s
+        in Progression s'
 
--- |Extract a single CadenceState at index (1-indexed, modulo wrap)
-extract :: Int -> Progression -> CadenceState
-extract n prog
+-- |Extract a single CadenceState at index (1-indexed, modulo wrap) from the triad layer
+extract :: Int -> ProgressionContext -> CadenceState
+extract n pc
   | len == 0  = error "extract: empty progression"
   | otherwise = case getCadenceState prog idx of
       Just cs -> cs
       Nothing -> error "extract: internal error"
   where
-    len = progLength prog
-    idx = ((n - 1) `mod` len) + 1  -- 1-indexed with modulo wrap
+    prog = PC.triadLayer pc
+    len  = progLength prog
+    idx  = ((n - 1) `mod` len) + 1  -- 1-indexed with modulo wrap
 
 -------------------------------------------------------------------------------
 -- Transformation Operations
 -------------------------------------------------------------------------------
 
 -- |Transpose a progression by n semitones
-transposeP :: Int -> Progression -> Progression
-transposeP = transposeProgression
+transposeP :: Int -> ProgressionContext -> ProgressionContext
+transposeP n = liftPC (transposeProgression n)
 
 -- |Reverse a progression
-reverse :: Progression -> Progression
-reverse (Progression seq) = 
-  Progression $ Seq.reverse seq
+reverse :: ProgressionContext -> ProgressionContext
+reverse = liftPC (\(Progression s) -> Progression (Seq.reverse s))
 
 -- |Fuse multiple progressions into one (concatenation)
--- Matches legacy behavior: simply concatenates all progressions in order.
-fuse :: [Progression] -> Progression
+fuse :: [ProgressionContext] -> ProgressionContext
 fuse = mconcat
 
 -- |Binary fuse for convenience in live coding
--- Example: fuse2 progA progB
-fuse2 :: Progression -> Progression -> Progression
+fuse2 :: ProgressionContext -> ProgressionContext -> ProgressionContext
 fuse2 a b = a <> b
 
 -- |Interleave two progressions (alternating chords)
--- Takes one chord from each progression in turn.
 -- Example: interleave [A,B,C] [X,Y,Z] = [A,X,B,Y,C,Z]
-interleave :: Progression -> Progression -> Progression
-interleave = fuseProgression
+interleave :: ProgressionContext -> ProgressionContext -> ProgressionContext
+interleave a b = PC.ProgressionContext
+  { PC.triadLayer   = fuseProgression (PC.triadLayer a)  (PC.triadLayer b)
+  , PC.strataLayer  = fuseProgression (PC.strataLayer a) (PC.strataLayer b)
+  , PC.modeLayer    = fuseProgression (PC.modeLayer a)   (PC.modeLayer b)
+  , PC.pcProvenance = Nothing
+  }
 
 -- |Expand a progression by repeating each chord n times
-expandP :: Int -> Progression -> Progression
-expandP = expandProgression
+expandP :: Int -> ProgressionContext -> ProgressionContext
+expandP n = liftPC (expandProgression n)
 
 -------------------------------------------------------------------------------
 -- Overlap Operations
@@ -304,10 +320,84 @@ root prog =
 literal :: Progression -> [[Int]]
 literal = lite
 
--- Helper to get literal voicings as Integer lists (internal use)
+-- |STRATA-MODE-FLOW paradigm: each bar is the bar's chroma in
+-- sorted-ascending compressed form rooted on its harmonic root, with the
+-- whole voicing octave-shifted to minimise voice movement against the bar 0
+-- anchor. Functions as a "key signature": pattern index @i@ in any bar plays
+-- the i-th scale degree of that bar's strata / mode, so pattern increments
+-- of 1 always ascend by one set member and decrements descend by one.
+--
+-- Bar 0: 'initialCompact' + 'normalizeByFirstRoot' anchors the harmonic
+-- root in the standard window ([-12, -1] note range). Span ≤ 12 semitones
+-- from root upward.
+--
+-- Bar n+1: 'initialCompact' rooted on bar n+1's harmonic root produces a
+-- "natural" compressed-ascending voicing; the whole voicing is then shifted
+-- by the octave (k·12 for @k ∈ [-3..3]@) that minimises total
+-- @|placed_MIDI - anchor_MIDI|@ across voices, where 'anchor' is bar 0's
+-- voicing. The root is allowed to migrate octaves freely if that makes the
+-- line closer to the anchor. Voicing remains sorted ascending after the
+-- shift (uniform shift preserves order), so "ascend by 1 with idx+1" holds.
+--
+-- Anchoring to bar 0 (rather than the previous bar) guarantees:
+--   * No drift over long walks — every bar stays within ~6 semitones of the
+--     anchor.
+--   * Cyclic return to anchor at the pattern wrap (bar N-1 → bar 0).
+--   * When chroma cycles back to bar 0's chroma (e.g. tristrata II-VI-X
+--     repeating), the bar lands on bar 0's exact MIDI (shift = 0).
+--
+-- O(n × k) per bar where n = chroma cardinality and k = number of octave
+-- candidates (~7). Sub-microsecond per bar; eager forcing in 'Bridge.arrange'
+-- still hoists the work to REPL evaluation time.
+strataModeFlow :: Progression -> [[Int]]
+strataModeFlow prog =
+  case toList (unProgression prog) of
+    []                  -> []
+    (firstCS : restCSs) ->
+      let firstPCs    = cadencePCs firstCS
+          firstRootPC = case firstPCs of (p:_) -> p; [] -> 0
+          v0          = initialCompact firstRootPC firstPCs
+          voicings    = v0 : map (shiftBar v0) restCSs
+      in normalizeByFirstRoot voicings
+
+-- |Build a bar's natural compressed-ascending voicing, then choose the
+-- uniform octave shift that minimises total absolute MIDI distance to the
+-- bar 0 anchor 'v0'. Each bar is independently anchored so drift is bounded.
+shiftBar :: [Int] -> CadenceState -> [Int]
+shiftBar v0 cs =
+  let nextPCs    = cadencePCs cs
+      nextRootPC = case nextPCs of (p:_) -> p; [] -> 0
+      natural    = initialCompact nextRootPC nextPCs
+      candidates = [ map (+ (k * 12)) natural | k <- [-3 .. 3] ]
+      score v    = sum (zipWith (\a b -> abs (a - b)) v v0)
+  in case candidates of
+       [] -> v0
+       _  -> minimumBy (compare `on` score) candidates
+
+-- |Read a CadenceState's absolute PCs in cadence-interval order (NOT sorted).
+-- For genP strata/mode layers (intervals start at 0 from harmonic root), this
+-- yields [root, root+2nd, root+3rd, ...] — i.e. degree-ordered. Pattern idx 0
+-- therefore tracks the root.
+cadencePCs :: CadenceState -> [Int]
+cadencePCs cs =
+  let r    = unPitchClass (pitchClass (stateCadenceRoot cs))
+      ints = map unPitchClass (cadenceIntervals (stateCadence cs))
+  in [ (i + r) `mod` 12 | i <- ints ]
+
+-- Helper to get literal voicings as Integer lists (internal use).
+-- Reads cadence intervals directly so non-triad CadenceStates (5-PC strata,
+-- 7-PC mode in genP-derived ProgressionContexts) survive without toTriad
+-- reduction. For 3-PC triad cadences this produces the same PCs as the
+-- legacy chordIntervals path.
 literalVoicing' :: Progression -> [[Integer]]
 literalVoicing' (Progression seq) =
-  map (chordIntervals . fromCadenceState) (toList seq)
+  map cadenceVoicing (toList seq)
+  where
+    cadenceVoicing cs =
+      let rootPC = unPitchClass (pitchClass (stateCadenceRoot cs))
+          tones = cadenceIntervals (stateCadence cs)
+          pcs   = map (\t -> (unPitchClass t + rootPC) `mod` 12) tones
+      in map fromIntegral pcs
 
 -------------------------------------------------------------------------------
 -- Explicit Progression Construction
@@ -333,9 +423,12 @@ nameChord intervals
 -- fromChords [[0,4,7], [5,9,0], [7,11,2]]
 --   --> C major → F major → G major
 -- @
-fromChords :: [[Int]] -> Progression
-fromChords [] = mempty
-fromChords chordSets = Progression (Seq.fromList cadenceStates)
+fromChords :: [[Int]] -> ProgressionContext
+fromChords = PC.fromProgression . fromChordsRaw
+
+fromChordsRaw :: [[Int]] -> Progression
+fromChordsRaw [] = mempty
+fromChordsRaw chordSets = Progression (Seq.fromList cadenceStates)
   where
     cadenceStates = map toCadenceState chordSets
 
@@ -358,7 +451,7 @@ fromChords chordSets = Progression (Seq.fromList cadenceStates)
        in CadenceState cadence rootNote spelling
 
 -- |Legacy alias for fromChords (matches legacy prog function)
-prog :: [[Int]] -> Progression
+prog :: [[Int]] -> ProgressionContext
 prog = fromChords
 
 -------------------------------------------------------------------------------
@@ -377,7 +470,7 @@ data ScaleSource
 -- |Create melody state from scale source.
 -- Converts a ScaleSource into a Progression suitable for melody arrangement.
 melodyStateFrom :: ScaleSource -> Progression
-melodyStateFrom (ExplicitScale scales) = fromChords scales
+melodyStateFrom (ExplicitScale scales) = fromChordsRaw scales
 melodyStateFrom (HarmonyAsScale prog) = prog  -- Direct passthrough
 melodyStateFrom (HarmonyWithOverlap prog overlapFn) = overlapFn 1 prog
 

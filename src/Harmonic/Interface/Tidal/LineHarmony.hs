@@ -19,12 +19,17 @@ module Harmonic.Interface.Tidal.LineHarmony
   ) where
 
 import qualified Harmonic.Rules.Types.Progression as P
+import qualified Harmonic.Rules.Types.ProgressionContext as PC
+import qualified Harmonic.Rules.Types.Harmony as H
+import qualified Harmonic.Rules.Types.Pitch as Pt
 import Harmonic.Interface.Tidal.Form (Kinetics(..), IK)
-import Harmonic.Interface.Tidal.Bridge (VoiceFunction, lookupChordAt)
+import Harmonic.Interface.Tidal.Bridge (VoiceFunction, lookupChordAt, forceAll)
 import Harmonic.Traversal.WalkingBass
-  ( walkLine, beatsPerBar )
+  ( walkLine, walkLineP, ChromaSources(..), beatsPerBar )
 
 import Data.List (nub)
+import Data.Foldable (toList)
+import qualified Data.Set as Set
 import Sound.Tidal.Context hiding (voice)
 
 -- | Empirical offset between 'walkLine' absolute MIDI and the downstream
@@ -40,6 +45,14 @@ tidalNoteOffset = 48
 -- this range is audibly true at default synth tuning — no @|- oct n@
 -- compensation needed. Runtime register shifts via @|+ oct n@ / @|- oct n@
 -- on the launcher side still compose normally.
+--
+-- For octatripentatonic progressions ('pcProvenance' = 'Just'), the Pass-3
+-- connector pool is reweighted: strata pitches (5 PCs) are most preferred,
+-- overlap (cyclic union of adjacent chord-PCs) is neutral, mode pitches
+-- (7 PCs) are admissible with a mild penalty, and chromatic ±1 approaches
+-- outside any of those sets are removed entirely. For 'gen' (legacy)
+-- progressions the line is byte-identical to the previous behaviour.
+--
 -- Entropy is derived internally from the progression's harmonic character.
 lineHarmony
   :: Pattern Double       -- ^ Dynamics scalar (amp multiplier)
@@ -49,25 +62,73 @@ lineHarmony
   -> Pattern ValueMap
 lineHarmony dyn (kin, chordPat) voiceFn pats =
   let stacked     = stack pats
-      allEvents   = queryArc (kProg kin) (Arc 0 1000)
-      uniqueProgs = nub (map value allEvents)
-      cache       = [ (p, buildCache voiceFn p) | p <- uniqueProgs ]
-      lookupCache prog = case lookup prog cache of
+      ctxPat      = kProg kin
+      keyPat      = fmap walkKey ctxPat
+      progPat     = fmap PC.triadLayer ctxPat
+      allEvents   = queryArc keyPat (Arc 0 1000)
+      uniqueKeys  = nub (map value allEvents)
+      -- Build the cache and deeply force each entry so the 3-pass
+      -- walking-bass synthesis runs at REPL evaluation time, not on the
+      -- audio thread. Mirrors the eager-forcing pattern in 'arrange'.
+      cache       = [ (k, let pair@(bars, _) = buildCacheKey voiceFn k
+                          in forceAll bars `seq` pair)
+                    | k <- uniqueKeys ]
+      cacheForced = foldr (\(_, (b, _)) acc -> forceAll b `seq` acc) () cache
+      lookupCache k = case lookup k cache of
         Just hit -> hit
-        Nothing  -> buildCache voiceFn prog
-  in (|* pF "amp" (kDynamic kin)) $
+        Nothing  -> let pair@(bars, _) = buildCacheKey voiceFn k
+                    in forceAll bars `seq` pair
+  in cacheForced `seq` (|* pF "amp" (kDynamic kin)) $
      (|* pF "amp" dyn) $
      mask (fmap (\x -> x >= 0.1 && x <= 1) (kSignal kin)) $
-       innerJoin $ fmap (\prog ->
-         renderWalk (lookupCache prog) chordPat stacked
-       ) (kProg kin)
+       innerJoin $ fmap (\k ->
+         renderWalk (lookupCache k) chordPat stacked
+       ) keyPat
 
--- | Pre-compute walking line for a single progression; convert to 'Note',
+-- | Cache key carrying the triad layer plus, when the source is an
+-- octatripentatonic ProgressionContext, the per-bar 'ChromaSources' that
+-- drive 'walkLineP'. Two contexts with identical triads but different
+-- strata walks produce different lines; without the 'ChromaSources' in
+-- the key the cache would silently collide.
+type WalkKey = (P.Progression, Maybe [ChromaSources])
+
+-- | Project a 'ProgressionContext' into the cache key. For 'gen'
+-- (no provenance) the second component is 'Nothing' — legacy 'walkLine'
+-- handles those. For 'genP' it carries the per-bar 5-PC strata and 7-PC
+-- mode chroma read directly off the auxiliary layers, which after the
+-- 3-5-7 fix carry the full chroma rooted on each bar's harmonic root.
+walkKey :: PC.ProgressionContext -> WalkKey
+walkKey ctx =
+  ( PC.triadLayer ctx
+  , case PC.pcProvenance ctx of
+      Nothing -> Nothing
+      Just _  -> Just (chromaSourcesFor ctx)
+  )
+
+-- | Read per-bar (strata, mode) absolute-PC sets from the strata / mode
+-- auxiliary layers. After the Builder fix these carry 5 / 7 PCs as
+-- intervals from the bar's harmonic root, so we add the root back to
+-- recover absolute pitch classes.
+chromaSourcesFor :: PC.ProgressionContext -> [ChromaSources]
+chromaSourcesFor ctx =
+  let strataCSs = toList (P.unProgression (PC.strataLayer ctx))
+      modeCSs   = toList (P.unProgression (PC.modeLayer   ctx))
+      pcsAbs cs =
+        let r = Pt.unPitchClass (Pt.pitchClass (H.stateCadenceRoot cs))
+            ints = map Pt.unPitchClass (H.cadenceIntervals (H.stateCadence cs))
+        in Set.fromList [ (i + r) `mod` 12 | i <- ints ]
+  in [ ChromaSources (pcsAbs s) (pcsAbs m)
+     | (s, m) <- zip strataCSs modeCSs ]
+
+-- | Pre-compute walking line for a single cache key; convert to 'Note',
 -- shifted by 'tidalNoteOffset' so absolute MIDI from 'walkLine' aligns with
--- Tidal's @note@ convention.
-buildCache :: VoiceFunction -> P.Progression -> ([[Note]], Int)
-buildCache voiceFn prog =
-  let line = walkLine voiceFn prog
+-- Tidal's @note@ convention. Dispatches on the 'ChromaSources' presence:
+-- 'Just' → 'walkLineP'; 'Nothing' → legacy 'walkLine'.
+buildCacheKey :: VoiceFunction -> WalkKey -> ([[Note]], Int)
+buildCacheKey voiceFn (prog, mChromas) =
+  let line = case mChromas of
+               Nothing      -> walkLine  voiceFn prog
+               Just chromas -> walkLineP voiceFn prog chromas
   in (map (map (\m -> fromIntegral (m - tidalNoteOffset))) line, length line)
 
 -- | Map stacked beat-position events through the cached walking line.

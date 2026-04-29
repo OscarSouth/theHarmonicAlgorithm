@@ -19,6 +19,14 @@ module Harmonic.Framework.Builder.Core
   , buildChainOfflineWithDiag
   , buildChainOfflineWithDiagV
 
+    -- * Strata chain building (per-bar narrowed ParsedContext)
+  , buildStrataChain
+  , buildStrataChainOffline
+
+    -- * Step primitives (exposed for genP-style per-bar context narrowing)
+  , stepChainCore
+  , stepChainOffline
+
     -- * Conversion
   , chainToProgression
   , extractCadence
@@ -144,7 +152,15 @@ stepChainBody _config gen mVerbosity ent _context pctx composerWeights ((current
   -- Score by composer blend
   -- Filter to confidence > 0 and sort highest first
   let scored = scoreByConfidence composerWeights filtered
-      graphCandidates = scored  -- No pool limit: use all candidates
+      -- Apply per-bar soft-boost (inverted sense: graph "higher is better",
+      -- so dividing a score by a sub-unit boost raises it — matching the
+      -- fallback-side effect of lowering 'badness' via the same boost).
+      boost = pcSoftBoost pctx
+      graphCandidates
+        | boost == 1.0 = scored
+        | otherwise    =
+            let boosted = [(c, s / boost) | (c, s) <- scored]
+            in sortBy (compare `on` (Down . snd)) boosted
       graphCount = length graphCandidates
 
   -- Build candidate pool: graph candidates + consonanceFallback
@@ -198,6 +214,17 @@ stepChainBody _config gen mVerbosity ent _context pctx composerWeights ((current
                     , sdRenderedChord = Nothing
                     , sdTransformTrace = Nothing
                     , sdAdvanceTrace = Nothing
+                    , sdTristrataIdx = Nothing
+                    , sdTristrata = Nothing
+                    , sdStrataLabel = Nothing
+                    , sdMode = Nothing
+                    , sdStrataChroma = Nothing
+                    , sdModeChroma = Nothing
+                    , sdSoftBoost = Nothing
+                    , sdHarmonicRootPC = Nothing
+                    , sdParentKey = Nothing
+                    , sdModeResult = Nothing
+                    , sdBarSpelling = Nothing
                     }
               in diag : revDiags
       pure ((current, current : revChain, nonInvCount), diags)
@@ -240,6 +267,17 @@ stepChainBody _config gen mVerbosity ent _context pctx composerWeights ((current
                     , sdRenderedChord = renderedChord
                     , sdTransformTrace = transformTrace
                     , sdAdvanceTrace = if verbosity >= 2 then Just advTrace else Nothing
+                    , sdTristrataIdx = Nothing
+                    , sdTristrata = Nothing
+                    , sdStrataLabel = Nothing
+                    , sdMode = Nothing
+                    , sdStrataChroma = Nothing
+                    , sdModeChroma = Nothing
+                    , sdSoftBoost = Nothing
+                    , sdHarmonicRootPC = Nothing
+                    , sdParentKey = Nothing
+                    , sdModeResult = Nothing
+                    , sdBarSpelling = Nothing
                     }
               in diag : revDiags
 
@@ -383,6 +421,55 @@ buildChainOfflineWithDiagV config gen verbosity ent context pctx start totalStep
   pure (reverse revChain, reverse revDiags)
 
 -------------------------------------------------------------------------------
+-- Strata Chain Building (per-bar narrowed ParsedContext)
+-------------------------------------------------------------------------------
+
+-- |Like 'buildChain' but accepts a per-bar 'ParsedContext' supplier.
+-- Used by 'genP' to narrow '_hcOvertones' to the active strata's 5-PC
+-- chroma at each bar while still running the full R→E→T pipeline
+-- (graph candidates + fallback scoring + gamma selection).
+--
+-- The supplier is called once per bar with the 1-based bar index; it
+-- should return a 'ParsedContext' whose 'pcEffectiveOvertones' is the
+-- strata's chroma, with 'pcSoftBoost' set by the caller to reflect the
+-- (strata, tristrata) continuity against prior bars.
+buildStrataChain :: GeneratorConfig
+                 -> GenIO
+                 -> Maybe Int       -- ^ verbosity
+                 -> Double          -- ^ entropy
+                 -> HarmonicContext -- ^ base context (threaded unchanged for non-overtone R rules)
+                 -> (Int -> ParsedContext)  -- ^ bar index (1-based) → per-bar pctx
+                 -> ComposerWeights
+                 -> H.CadenceState  -- ^ starting state
+                 -> Int             -- ^ number of steps
+                 -> Bolt.BoltActionT IO ([H.CadenceState], [StepDiagnostic])
+buildStrataChain config gen mVerb ent ctx pctxAt weights start n = do
+  let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
+  ((_, revChain, _), revDiags) <-
+    foldM (\acc i -> stepChainCore config gen mVerb ent ctx (pctxAt i) weights acc i)
+          ((start, [start], initCounter), [])
+          [1..n]
+  pure (reverse revChain, reverse revDiags)
+
+-- |Offline counterpart of 'buildStrataChain'.
+buildStrataChainOffline :: GeneratorConfig
+                        -> GenIO
+                        -> Maybe Int
+                        -> Double
+                        -> HarmonicContext
+                        -> (Int -> ParsedContext)
+                        -> H.CadenceState
+                        -> Int
+                        -> IO ([H.CadenceState], [StepDiagnostic])
+buildStrataChainOffline config gen mVerb ent ctx pctxAt start n = do
+  let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
+  ((_, revChain, _), revDiags) <-
+    foldM (\acc i -> stepChainOffline config gen mVerb ent ctx (pctxAt i) acc i)
+          ((start, [start], initCounter), [])
+          [1..n]
+  pure (reverse revChain, reverse revDiags)
+
+-------------------------------------------------------------------------------
 -- Scoring and Selection
 -------------------------------------------------------------------------------
 
@@ -461,16 +548,21 @@ consonanceFallbackWith gen currentState context =
       pure $ sortBy (compare `on` (\(_, s, _, _, _) -> Down s)) results
 
 -- |Like 'consonanceFallbackWith' but uses pre-parsed context for efficiency.
+--
+-- Reads 'pcSoftBoost' from the context and applies it multiplicatively to
+-- 'badness' inside 'computeFallbackScoreWith'. Values < 1.0 favour the
+-- candidates (lower badness, higher score); = 1.0 is the no-op default.
 consonanceFallbackParsed :: GenIO -> H.CadenceState -> ParsedContext -> IO [(H.Cadence, Double, Double, Double, Double)]
 consonanceFallbackParsed gen currentState pctx =
   let currentRoot = P.pitchClass (H.stateCadenceRoot currentState)
       effectiveOvertones = IntSet.toList (pcEffectiveOvertones pctx)
       triads = concatMap (\r -> overtoneSets 3 [r] effectiveOvertones) effectiveOvertones
       uniqueTriads = triads
+      boost = pcSoftBoost pctx
   in do
       results <- mapM (\t -> do
                          let cad = triadToCadenceFrom currentRoot t
-                         (score, cd, md, gd) <- computeFallbackScoreWith gen currentRoot cad t
+                         (score, cd, md, gd) <- computeFallbackScoreWithBoost gen currentRoot cad t boost
                          pure (cad, score, cd, md, gd)
                        ) uniqueTriads
       pure $ sortBy (compare `on` (\(_, s, _, _, _) -> Down s)) results
@@ -518,8 +610,17 @@ computeFallbackScoreWithComponents currentRoot cad triad = do
   computeFallbackScoreWith rng currentRoot cad triad
 
 -- |Like 'computeFallbackScoreWithComponents' but uses a shared random generator.
+-- No soft-boost applied (boost = 1.0).
 computeFallbackScoreWith :: GenIO -> P.PitchClass -> H.Cadence -> [Int] -> IO (Double, Double, Double, Double)
-computeFallbackScoreWith gen _currentRoot cad triad = do
+computeFallbackScoreWith gen currentRoot cad triad =
+  computeFallbackScoreWithBoost gen currentRoot cad triad 1.0
+
+-- |Variant that applies a multiplicative soft-boost to 'badness'. Values
+-- below 1.0 favour the candidate (lower badness → higher score); 1.0 is
+-- the no-op; values above 1.0 disfavour. Used by 'genP' to bias candidates
+-- toward strata/tristrata continuity via 'pcSoftBoost'.
+computeFallbackScoreWithBoost :: GenIO -> P.PitchClass -> H.Cadence -> [Int] -> Double -> IO (Double, Double, Double, Double)
+computeFallbackScoreWithBoost gen _currentRoot cad triad boost = do
   -- Chord vertical dissonance (raw Hindemith score)
   let chordDiss = fromIntegral (dissonanceScore triad) :: Double
 
@@ -530,8 +631,9 @@ computeFallbackScoreWith gen _currentRoot cad triad = do
   -- Draw gamma sample for entropy (minimum entropy: shape=1.01)
   gammaDraw <- Dist.gamma 1.01 1.0 gen
 
-  -- Multiplicative badness: all three factors contribute
-  let badness = chordDiss * motionDiss * (gammaDraw + 1.0)
+  -- Multiplicative badness: all three factors contribute, soft-boost
+  -- applied as an additional multiplicative term.
+  let badness = chordDiss * motionDiss * (gammaDraw + 1.0) * boost
 
       -- Final score: 10000 - badness (higher is better)
       finalScore = 10000.0 - badness
@@ -741,9 +843,13 @@ matchesContextWithTarget bassTarget pctx currentState cadence =
       -- When bass direction targets a specific note, exempt that pitch class
       -- from the overtone check — allows chromatic passing bass notes
       -- (e.g. D# in a G major context) while still constraining upper voices.
-      pitchesToCheck = case bassTarget of
-        Just target -> filter (/= target) absolutePitches
-        Nothing     -> absolutePitches
+      -- 'pcStrictContainment' (set by 'genP') disables the bass exemption so
+      -- the candidate's bass must also lie in the narrowed overtone set.
+      pitchesToCheck
+        | pcStrictContainment pctx = absolutePitches
+        | otherwise = case bassTarget of
+            Just target -> filter (/= target) absolutePitches
+            Nothing     -> absolutePitches
       overtonesMatch = all (`IntSet.member` pcEffectiveOvertones pctx) pitchesToCheck
 
       -- Bass note check: exact target if rise/fall active, otherwise set membership

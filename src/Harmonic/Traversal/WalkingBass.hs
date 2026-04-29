@@ -36,6 +36,8 @@
 module Harmonic.Traversal.WalkingBass
   ( -- * Main entry
     walkLine
+  , walkLineP
+  , ChromaSources(..)
 
     -- * Derived entropy (exported for tests / diagnostics)
   , progressionEntropy
@@ -109,6 +111,17 @@ kappaStaticRecovery   = 10  -- P5 of bar's fundamental when b1==b3 this bar
 -- b3 at tone distance from next b1 (desc-tone middle bars).
 kappaRootApproach :: Int
 kappaRootApproach = 32
+
+-- | Pass 3 octatripentatonic tier weights ('walkLineP' only).
+-- Strata candidates win the tier-fit term (most preferred), overlap is
+-- neutral (matching legacy in-scale fit cost = 0), mode is a mild penalty
+-- above neutral but still admissible (plays the role chromatic plays in
+-- 'walkLine'). Calibrated so smoothness can override a tier-mismatch on
+-- adjacent candidates, but a strata pick wins over an equally-smooth
+-- overlap pick, and overlap wins over an equally-smooth mode pick.
+kappaStrataPref, kappaModePenalty :: Int
+kappaStrataPref  = 4   -- bonus (subtracted)
+kappaModePenalty = 6   -- penalty (added)
 
 -------------------------------------------------------------------------------
 -- Config (internal)
@@ -453,3 +466,173 @@ walkLine voiceFn prog
     b1s       = pass1Beat1s pcs1
     b3s       = pass2Beat3s chordPCsV b1s fundPCs
     (b2s, b4s) = pass3Connectors localsV chordPCsV b1s b3s fundPCs seed e
+
+-------------------------------------------------------------------------------
+-- Octatripentatonic-aware variant
+-------------------------------------------------------------------------------
+
+-- | Per-bar chroma sources for the 'walkLineP' Pass-3 connector pool.
+-- 'csStrata' is the bar's full 5-PC strata chroma; 'csMode' is the full
+-- 7-PC mode chroma. Both are supplied by the caller (typically derived from
+-- 'PC.strataLayer' / 'PC.modeLayer' of a genP-origin ProgressionContext).
+data ChromaSources = ChromaSources
+  { csStrata :: !(Set Int)
+  , csMode   :: !(Set Int)
+  } deriving (Eq, Show)
+
+-- | Octatripentatonic-aware connector pool. Replaces the chromatic ±1
+-- candidates of 'connectorPool' with strata / mode chroma — chromatic
+-- approaches that aren't independently in strata, overlap, mode, or chord
+-- are excluded entirely (no chromatic lines in genP context).
+connectorPoolP :: Set Int -> Set Int -> Set Int -> Set Int -> [Int]
+connectorPoolP strata overlap mode chord =
+  let allPCs = strata `Set.union` overlap `Set.union` mode `Set.union` chord
+  in V.toList (midisIn allPCs)
+
+-- | Tier-aware scoring for the genP path. Mirrors 'scoreConnector' but:
+--   * drops the chromatic ±1 bonus entirely (no chromatic lines).
+--   * replaces the binary 'kappaChromatic' fit penalty with a three-tier
+--     preference: strata (bonus), overlap (neutral), mode (mild penalty).
+--   * keeps every other term unchanged (smoothness, diatonic approach,
+--     chord-tone bonus on beat 4, copy-next penalty, static recovery,
+--     root/P5 approach, evenness, repeat cost).
+scoreConnectorP
+  :: ConnectorPos
+  -> Set Int        -- strata PCs (5)
+  -> Set Int        -- overlap (localScale) PCs
+  -> Set Int        -- mode PCs (7)
+  -> Set Int        -- chord PCs (3)
+  -> Int -> Int     -- L, R
+  -> Bool           -- isStatic
+  -> Int            -- p5Midi
+  -> Bool           -- isSymmetric
+  -> Int            -- rootPC
+  -> Int            -- p5PC
+  -> Int            -- b3 MIDI
+  -> Int -> Double -> Int -> Int -> Int
+scoreConnectorP pos strata overlap mode chord l r isStatic p5m isSymmetric
+                rootPC p5PC b3 posIdx e seed m =
+  let smooth      = (m - l) * (m - l) + (r - m) * (r - m)
+      pcMod       = m `mod` 12
+      inStrata    = pcMod `Set.member` strata
+      inOverlap   = pcMod `Set.member` overlap
+      inMode      = pcMod `Set.member` mode
+      inChord     = pcMod `Set.member` chord
+      inAny       = inStrata || inOverlap || inMode || inChord
+      tierFit
+        | inStrata  = -kappaStrataPref     -- bonus for strata
+        | inOverlap = 0                    -- neutral for overlap (chord PCs subsume here)
+        | inChord   = 0                    -- chord tone outside overlap is also neutral
+        | inMode    = kappaModePenalty     -- mild penalty for mode-only
+        | otherwise = kappaChromatic       -- (pool excludes these; safety net)
+      diatonicAp  = if abs (m - r) == 2 && inAny
+                    then -kappaDiatonicApproach else 0
+      chordToneB  = if pos == Beat4 && inChord && abs (m - r) <= 2
+                    then -kappaChordToneBonus else 0
+      copyPen     = if pos == Beat4 && m == r
+                    then kappaCopyNext else 0
+      staticRec   = if isStatic && m /= l &&
+                       (m == p5m || (isSymmetric && inChord))
+                    then -kappaStaticRecovery else 0
+      approachB targetPC weight =
+        if pos == Beat4 &&
+           ( ((m `mod` 12) == targetPC &&
+              abs (m - r) `elem` [1, 2] &&
+              (b3 `mod` 12) /= targetPC)
+           ||
+             (abs (m - r) == 1 &&
+              (b3 `mod` 12) == targetPC &&
+              abs (l - r) == 2 &&
+              (m - l) * (r - m) > 0) )
+        then -weight else 0
+      rootApproachB = approachB rootPC kappaRootApproach
+      p5ApproachB   = approachB p5PC   (kappaRootApproach `div` 2)
+      evenness    = abs ((m - l) - (r - m))
+      repC        = repeatCostAt posIdx e seed m l
+  in smooth + tierFit + diatonicAp + chordToneB
+           + copyPen + staticRec + rootApproachB + p5ApproachB
+           + evenness + repC
+
+-- | Octatripentatonic Pass 3. Same shape as 'pass3Connectors' but with
+-- per-bar 'ChromaSources' driving the candidate pool and tier scoring.
+pass3ConnectorsP
+  :: V.Vector (Set Int)         -- local scales (overlap)
+  -> V.Vector (Set Int)         -- chord PCs
+  -> V.Vector (ChromaSources)   -- per-bar (strata, mode)
+  -> V.Vector Int               -- b1s
+  -> V.Vector Int               -- b3s
+  -> V.Vector Int               -- fund PCs (for P5 recovery)
+  -> Int -> Double
+  -> (V.Vector Int, V.Vector Int)
+pass3ConnectorsP localsV chordsV chromasV b1s b3s fundPCs seed e =
+  let n = V.length b1s
+      isStaticAt i = b1s V.! i == b3s V.! i
+      p5MidiAt i   = closestLowMidi ((fundPCs V.! i + 7) `mod` 12)
+      isSymAt i    = isSymmetricChord (chordsV V.! i)
+      rootPCAt i   = fundPCs V.! i
+      p5PCAt i     = (fundPCs V.! i + 7) `mod` 12
+      b3At i       = b3s V.! i
+      strataAt i   = csStrata (chromasV V.! i)
+      modeAt i     = csMode   (chromasV V.! i)
+      chooseBeat2 i =
+        let overlap = localsV V.! i
+            chord   = chordsV V.! i
+            strata  = strataAt i
+            mode    = modeAt i
+            l       = b1s V.! i
+            r       = b3s V.! i
+            pool    = connectorPoolP strata overlap mode chord
+            sc      = scoreConnectorP Beat2 strata overlap mode chord l r
+                                      (isStaticAt i) (p5MidiAt i) (isSymAt i)
+                                      (rootPCAt i) (p5PCAt i) (b3At i)
+                                      (2 * i) e seed
+        in case pool of
+             [] -> l
+             _  -> minimumBy (compare `on` sc) pool
+      chooseBeat4 i =
+        let overlap = localsV V.! i
+            chord   = chordsV V.! i
+            strata  = strataAt i
+            mode    = modeAt i
+            l       = b3s V.! i
+            r       = b1s V.! ((i + 1) `mod` n)
+            pool    = connectorPoolP strata overlap mode chord
+            sc      = scoreConnectorP Beat4 strata overlap mode chord l r
+                                      (isStaticAt i) (p5MidiAt i) (isSymAt i)
+                                      (rootPCAt i) (p5PCAt i) (b3At i)
+                                      (2 * i + 1) e seed
+        in case pool of
+             [] -> l
+             _  -> minimumBy (compare `on` sc) pool
+  in (V.generate n chooseBeat2, V.generate n chooseBeat4)
+
+-- | Octatripentatonic-aware walking-bass line. Pass 1 (beat 1s from voiceFn)
+-- and Pass 2 (beat 3s) are unchanged from 'walkLine'; Pass 3 (beats 2 & 4)
+-- swaps the chromatic-±1 candidate path for tier-scored strata / overlap /
+-- mode candidates supplied per bar via 'ChromaSources'. Caller is responsible
+-- for matching @length chromas@ to @progLength prog@ (mismatch falls back to
+-- the legacy 'walkLine' path for safety).
+walkLineP :: VoiceFunction -> Pr.Progression -> [ChromaSources] -> [[Int]]
+walkLineP voiceFn prog chromas
+  | nBars == 0                         = []
+  | length chromas /= nBars            = walkLine voiceFn prog
+  | otherwise =
+      [ [b1s V.! i, b2s V.! i, b3s V.! i, b4s V.! i]
+      | i <- [0 .. nBars - 1] ]
+  where
+    e         = progressionEntropy prog
+    seed      = hashProgEntropy prog e
+
+    barsV     = V.fromList (toList (Pr.unProgression prog))
+    nBars     = V.length barsV
+
+    chordPCsV = V.map chordPCs barsV
+    localsV   = V.generate nBars (localScale chordPCsV)
+    chromasV  = V.fromList chromas
+
+    fundPCs   = V.map rootPCInt barsV
+
+    pcs1      = beat1PCs voiceFn prog
+    b1s       = pass1Beat1s pcs1
+    b3s       = pass2Beat3s chordPCsV b1s fundPCs
+    (b2s, b4s) = pass3ConnectorsP localsV chordPCsV chromasV b1s b3s fundPCs seed e

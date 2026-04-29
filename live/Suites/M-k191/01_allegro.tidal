@@ -80,7 +80,7 @@ soloist f k d = p "soloist" $ do
         }
   f
     $ stack [silence
-        , bassoon (0, 1) k vl flow Soprano
+        , bassoon T (0, 1) k vl flow Soprano
     ] |* vel d
 
 -- String accompaniment: harmonic foundation
@@ -93,11 +93,11 @@ strg f k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , violin1    (0.3, 1) k vl flow Soprano
-        , violin2    (0.3, 1) k vl flow Alto
-        , viola      (0.3, 1) k vl flow Tenor
-        , cello      (0, 1)   k vl grid Bass
-        , contrabass (0, 1)   k vl grid Bass8vb
+        , violin1    T (0.3, 1) k vl flow Soprano
+        , violin2    T (0.3, 1) k vl flow Alto
+        , viola      T (0.3, 1) k vl flow Tenor
+        , cello      T (0, 1)   k vl grid Bass
+        , contrabass T (0, 1)   k vl grid Bass8vb
     ] |* vel d
 
 -- Oboes + flute: color and dialogue
@@ -108,8 +108,8 @@ wind f k d = p "wind" $ do
         }
   f
     $ stack [silence
-        , oboe  (0.3, 1) k vl flow Alto
-        , flute (0.4, 1) k vl flow Soprano
+        , oboe  T (0.3, 1) k vl flow Alto
+        , flute T (0.4, 1) k vl flow Soprano
     ] |* vel d
 
 -- Horns: harmonic pedals in tutti passages
@@ -120,7 +120,7 @@ fanfare f k d = p "fanfare" $ do
         }
   f
     $ stack [silence
-        , horn (0.4, 1) k vl flow Soprano
+        , horn T (0.4, 1) k vl flow Soprano
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

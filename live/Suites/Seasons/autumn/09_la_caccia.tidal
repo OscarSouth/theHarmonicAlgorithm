@@ -24,7 +24,7 @@
 -- gunshots, panicked rapid passages for the fleeing prey, and a final
 -- diminuendo as the animal dies. This is program music at its most vivid.
 --
--- Adaptation: The only movement using horn (for hunting calls). Timpani
+-- Adaptation: The only movement using horn T (for hunting calls). Timpani
 -- for gunshot accents. Solo violin as the fleeing prey (panicked, rapid).
 -- Full strings energetic. Maximum kinetics 0.95 — the highest action
 -- point in the entire Four Seasons.
@@ -63,7 +63,7 @@ prey f k d = p "solo" $ do
         }
   f
     $ stack [silence
-        , violin1 (0, 1) k vl flow Soprano
+        , violin1 T (0, 1) k vl flow Soprano
     ] |* vel d
 
 -- The hunt: full strings, energetic
@@ -76,10 +76,10 @@ hunt f k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , violin2    (0.3, 1) k vl flow Alto
-        , viola      (0.3, 1) k vl flow Tenor
-        , cello      (0, 1)   k vl grid Bass
-        , contrabass (0, 1)   k vl grid Bass8vb
+        , violin2    T (0.3, 1) k vl flow Alto
+        , viola      T (0.3, 1) k vl flow Tenor
+        , cello      T (0, 1)   k vl grid Bass
+        , contrabass T (0, 1)   k vl grid Bass8vb
     ] |* vel d
 
 -- Hunting horns: the only movement using horn
@@ -90,7 +90,7 @@ horns f k d = p "horns" $ do
         }
   f
     $ stack [silence
-        , horn (0.3, 1) k vl flow Soprano
+        , horn T (0.3, 1) k vl flow Soprano
     ] |* vel d
 
 -- Gunshots and dogs: timpani accents
@@ -100,7 +100,7 @@ guns f k d = p "perc" $ do
         }
   f
     $ stack [silence
-        , timpani (0.5, 1) k vl grid Bass8vb
+        , timpani T (0.5, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- Continuo
@@ -110,7 +110,7 @@ continuo f k d = p "continuo" $ do
         }
   f
     $ stack [silence
-        , harp (0, 1) k vl flow Alto
+        , harp T (0, 1) k vl flow Alto
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

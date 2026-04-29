@@ -35,12 +35,12 @@ form =
 chords f k d = p "chords" $ do
   let vl = voiceLines {_vl = "~", soprano = "3", alto = "1", tenor = "2", bass = "0"}
   f $ stack [silence
-        , violin1 (0, 1) k vl flow Soprano, viola (0, 1) k vl flow Tenor
-        , cello (0, 1) k vl grid Bass] |* vel d
+        , violin1 T (0, 1) k vl flow Soprano, viola T (0, 1) k vl flow Tenor
+        , cello T (0, 1) k vl grid Bass] |* vel d
 
 continuo f k d = p "continuo" $ do
   let vl = voiceLines {_vl = "~", soprano = "3", bass = "0"}
-  f $ stack [silence, harp (0, 1) k vl flow Soprano] |* vel d
+  f $ stack [silence, harp T (0, 1) k vl flow Soprano] |* vel d
 
 do
   let

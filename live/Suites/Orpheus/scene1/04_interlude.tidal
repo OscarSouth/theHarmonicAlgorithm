@@ -58,10 +58,10 @@ descent f k d = p "descent" $ do
         }
   f
     $ stack [silence
-        , harp    (0, 1)   k vl flow Soprano
-        , flute   (0.2, 1) k vl flow Alto
-        , bassoon (0.2, 1) k vl flow Tenor8vb
-        , timpani (0.3, 1) k vl grid Bass8vb
+        , harp    T (0, 1)   k vl flow Soprano
+        , flute   T (0.2, 1) k vl flow Alto
+        , bassoon T (0.2, 1) k vl flow Tenor8vb
+        , timpani T (0.3, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- Muted strings: sustaining chords as atmosphere
@@ -73,9 +73,9 @@ veil f k d = p "veil" $ do
         }
   f
     $ stack [silence
-        , viola      (0, 1) k vl flow Alto
-        , cello      (0, 1) k vl grid Bass
-        , contrabass (0, 1) k vl grid Bass8vb
+        , viola      T (0, 1) k vl flow Alto
+        , cello      T (0, 1) k vl grid Bass
+        , contrabass T (0, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────

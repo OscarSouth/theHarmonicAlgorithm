@@ -66,11 +66,11 @@ ostinato f k d = p "strg" $ do
         }
   f
     $ stack [silence
-        , violin1    (0, 1) k vl grid Soprano
-        , violin2    (0, 1) k vl grid Alto
-        , viola      (0, 1) k vl grid Tenor
-        , cello      (0, 1) k vl grid Bass
-        , contrabass (0, 1) k vl grid Bass8vb
+        , violin1    T (0, 1) k vl grid Soprano
+        , violin2    T (0, 1) k vl grid Alto
+        , viola      T (0, 1) k vl grid Tenor
+        , cello      T (0, 1) k vl grid Bass
+        , contrabass T (0, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- War Brass: fanfares and martial fury entering at higher kinetics
@@ -82,9 +82,9 @@ warBrass f k d = p "brss" $ do
         }
   f
     $ stack [silence
-        , horn     (0.4, 1) k vl flow Soprano
-        , trombone (0.4, 1) k vl grid Tenor
-        , basstrom (0.4, 1) k vl grid Bass8vb
+        , horn     T (0.4, 1) k vl flow Soprano
+        , trombone T (0.4, 1) k vl grid Tenor
+        , basstrom T (0.4, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- War Percussion: timpani pulse and bassdrum impact
@@ -94,7 +94,7 @@ warPerc f k d = p "perc" $ do
         }
   f
     $ stack [silence
-        , timpani (0.3, 1) k vl grid Bass8vb
+        , timpani T (0.3, 1) k vl grid Bass8vb
         , slate (0.5, 1) k [silence
             , bassdrum "[1 . 1 . 1]/4"
             ]

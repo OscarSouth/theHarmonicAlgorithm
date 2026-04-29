@@ -37,6 +37,7 @@ import Harmonic.Rules.Constraints.Filter (parseOvertones, parseKey, parseFunds)
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as P
 import qualified Harmonic.Rules.Types.Progression as Prog
+import qualified Harmonic.Rules.Types.ProgressionContext as PC
 
 -------------------------------------------------------------------------------
 -- Tests
@@ -848,7 +849,7 @@ spec = do
   describe "genFrom" $ do
     it "sets FromProg mode with correct range" $ do
       let cs = H.initCadenceState 0 "C" [0,4,7]
-          prog = Prog.fromCadenceStates [cs, cs, cs, cs]
+          prog = PC.fromProgression $ Prog.fromCadenceStates [cs, cs, cs, cs]
           gc = genFrom prog (2, 3)
       case _gcMode gc of
         FromProg _ s e -> do { s `shouldBe` 2; e `shouldBe` 3 }
@@ -856,23 +857,23 @@ spec = do
 
     it "sets len to range size (non-wrapping)" $ do
       let cs = H.initCadenceState 0 "C" [0,4,7]
-          prog = Prog.fromCadenceStates [cs, cs, cs, cs]
+          prog = PC.fromProgression $ Prog.fromCadenceStates [cs, cs, cs, cs]
       _gcLen (genFrom prog (2, 3)) `shouldBe` 2
 
     it "sets len to range size (wrapping)" $ do
       let cs = H.initCadenceState 0 "C" [0,4,7]
-          prog = Prog.fromCadenceStates [cs, cs, cs, cs]
+          prog = PC.fromProgression $ Prog.fromCadenceStates [cs, cs, cs, cs]
       _gcLen (genFrom prog (4, 2)) `shouldBe` 3
 
     it "len modifier overrides range size" $ do
       let cs = H.initCadenceState 0 "C" [0,4,7]
-          prog = Prog.fromCadenceStates [cs, cs, cs, cs]
+          prog = PC.fromProgression $ Prog.fromCadenceStates [cs, cs, cs, cs]
       _gcLen (len 8 $ genFrom prog (2, 3)) `shouldBe` 8
 
     it "infers cue from position before start" $ do
       let csC = H.initCadenceState 0 "C" [0,4,7]
           csE = H.initCadenceState 0 "E" [0,4,7]
-          prog = Prog.fromCadenceStates [csC, csE, csC, csC]
+          prog = PC.fromProgression $ Prog.fromCadenceStates [csC, csE, csC, csC]
           gc = genFrom prog (3, 4)  -- cue should be position 2 (E)
       result <- _gcCue gc
       H.stateCadenceRoot result `shouldBe` P.E
@@ -880,7 +881,7 @@ spec = do
     it "infers cue wrapping to last position when start=1" $ do
       let csC = H.initCadenceState 0 "C" [0,4,7]
           csG = H.initCadenceState 0 "G" [0,4,7]
-          prog = Prog.fromCadenceStates [csC, csC, csC, csG]
+          prog = PC.fromProgression $ Prog.fromCadenceStates [csC, csC, csC, csG]
           gc = genFrom prog (1, 2)  -- cue should be position 4 (G)
       result <- _gcCue gc
       H.stateCadenceRoot result `shouldBe` P.G
@@ -906,4 +907,4 @@ spec = do
     it "seek \"none\" modifier works end-to-end" $ do
       let start = H.initCadenceState 0 "C" [0,4,7]
       prog <- seek "none" $ cue start $ len 4 $ gen
-      Prog.progLength prog `shouldBe` 4
+      PC.pcLength prog `shouldBe` 4

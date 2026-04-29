@@ -105,12 +105,20 @@ module Harmonic.Lib (
   gen, gen', gen'',
   genGrid, genFrom,
 
+  -- ========== genP PARADIGM (strata-first) ==========
+  genP, genP', genP'',
+  genI,   genII,   genIII,   genIV,   genV,   genVI,   genVII,   genVIII,   genIX,   genX,   genXI,
+  genI',  genII',  genIII',  genIV',  genV',  genVI',  genVII',  genVIII',  genIX',  genX',  genXI',
+  genI'', genII'', genIII'', genIV'', genV'', genVI'', genVII'', genVIII'', genIX'', genX'', genXI'',
+
   -- ========== GENERATION MODIFIERS ==========
   cue, len, seek, entropy, tonal,
+  relStrata, absStrata,
+  sameBoost, flipBoost, triBoost,
 
   -- ========== GENERATION TYPES ==========
   GenConfig(..), GenMode(..), Verbosity(..),
-  defaultGenConfig, execGenConfig,
+  defaultGenConfig, execGenConfig, execGenConfigPC,
 
   -- ========== POSITIONAL GENERATION (legacy) ==========
   genSilent, genStandard, genVerbose,
@@ -118,7 +126,7 @@ module Harmonic.Lib (
 
   -- ========== CONTEXT & CONFIGURATION ==========
   HarmonicContext(..), harmonicContext, hContext,
-  Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, hcPedal,
+  Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, hcPedal, hcTristrata,
   GeneratorConfig(..), defaultConfig,
 
   -- ========== PHASE B: CORE MUSIC TYPES ==========
@@ -134,6 +142,8 @@ module Harmonic.Lib (
   solveRoot, solveFlow,
 
   module Harmonic.Rules.Types.Progression,
+  module Harmonic.Rules.Types.Scale,
+  module Harmonic.Rules.Types.ProgressionContext,
 
   -- ========== PHASE C: INTERACTIVE BEHAVIOUR ==========
   module Harmonic.Traversal.Probabilistic,
@@ -188,6 +198,7 @@ module Harmonic.Lib (
   module Harmonic.Interface.Tidal.Instruments,
   module Harmonic.Interface.Tidal.Orchestra,
   module Harmonic.Interface.Tidal.Utils,
+  renderTristrataReport, genPReport,
   module Harmonic.Config,
 
   -- ========== INTERNAL FUNCTIONS (advanced use only) ==========
@@ -208,15 +219,24 @@ import Harmonic.Evaluation.Scoring.Dissonance
 import Harmonic.Rules.Constraints.Overtone
 import Harmonic.Evaluation.Scoring.VoiceLeading (voiceLeadingCost, totalCost, cyclicCost, voiceMovement, minimalMovement, allVoicings, initialCompact, solveRoot, solveFlow)
 import Harmonic.Rules.Types.Progression
+import Harmonic.Rules.Types.Scale
+import Harmonic.Rules.Types.ProgressionContext
 -- Phase C: Interactive Behaviour
 import Harmonic.Traversal.Probabilistic
 import Harmonic.Framework.Builder (
     -- Modifier-based API
     gen, gen', gen'',
     genGrid, genFrom,
+    -- genP paradigm (strata-first)
+    genP, genP', genP'',
+    genI,   genII,   genIII,   genIV,   genV,   genVI,   genVII,   genVIII,   genIX,   genX,   genXI,
+    genI',  genII',  genIII',  genIV',  genV',  genVI',  genVII',  genVIII',  genIX',  genX',  genXI',
+    genI'', genII'', genIII'', genIV'', genV'', genVI'', genVII'', genVIII'', genIX'', genX'', genXI'',
     cue, len, seek, entropy, tonal,
+    relStrata, absStrata,
+    sameBoost, flipBoost, triBoost,
     GenConfig(..), GenMode(..), Verbosity(..),
-    defaultGenConfig, execGenConfig,
+    defaultGenConfig, execGenConfig, execGenConfigPC,
     -- Positional API
     genPrint, genPrint', genPrint'',
     generate, generateWith, genWith,
@@ -227,7 +247,7 @@ import Harmonic.Framework.Builder (
     printDiagnostics,
     -- Context & types
     HarmonicContext(..), harmonicContext, hContext,
-    Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, hcPedal,
+    Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, hcPedal, hcTristrata,
     GeneratorConfig(..), defaultConfig,
     StepDiagnostic(..), GenerationDiagnostics(..), TransformTrace(..), AdvanceTrace(..)
   )
@@ -261,4 +281,5 @@ import Harmonic.Interface.Tidal.Form (
 import Harmonic.Interface.Tidal.Instruments
 import Harmonic.Interface.Tidal.Orchestra
 import Harmonic.Interface.Tidal.Utils
+import Harmonic.Interface.Tidal.OctatripentatonicT (renderTristrataReport, genPReport)
 import Harmonic.Config

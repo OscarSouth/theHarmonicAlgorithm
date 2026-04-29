@@ -54,8 +54,8 @@ desolation f k d = p "desolation" $ do
         }
   f
     $ stack [silence
-        , harp  (0, 1) k vl flow Soprano
-        , flute (0, 1) k vl flow Alto
+        , harp  T (0, 1) k vl flow Soprano
+        , flute T (0, 1) k vl flow Alto
     ] |* vel d
 
 -- Icy strings: the void
@@ -66,8 +66,8 @@ void f k d = p "void" $ do
         }
   f
     $ stack [silence
-        , cello      (0, 1) k vl grid Bass
-        , contrabass (0, 1) k vl grid Bass8vb
+        , cello      T (0, 1) k vl grid Bass
+        , contrabass T (0, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────
