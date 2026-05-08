@@ -50,3 +50,6 @@ cabal.sandbox.config
 .claude
 .serena
 notes
+
+# Talk preparation analysis (data-science Friday 2026-05-01)
+analysis/

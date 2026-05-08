@@ -23,6 +23,7 @@ module Harmonic.Interface.Tidal.Form
     -- * Primitives
   , ki
   , slate
+  , kinPick
   , withForm
 
   ) where
@@ -139,6 +140,32 @@ ki (lo, hi) (kin, _) = mask (fmap (\x -> x >= lo && x <= hi) (kSignal kin))
 -- |Gated stack: stack patterns and gate by kinetics range.
 slate :: (Double, Double) -> IK -> [Pattern a] -> Pattern a
 slate range k pats = ki range k $ stack pats
+
+-- |Kinetics-windowed dispatch: partition [0,1] into N equal windows of
+-- width 1/N, where N = length pats, and play only the pattern whose
+-- window contains the current kSignal. Windows are derived at call time;
+-- any N >= 1 works (N=1 collapses to "always play this pattern").
+--
+-- Boundaries belong to the lower window: window i covers
+-- @(i/N, (i+1)/N]@, with window 0 also including 0. So at the boundary
+-- between window i and window i+1, the lower window plays.
+--
+--   N=2 → [0, 1/2], (1/2, 1]
+--   N=3 → [0, 1/3], (1/3, 2/3], (2/3, 1]
+--
+-- Empty list → silence. Outside [0,1] → silence (no window matches).
+kinPick :: IK -> [Pattern a] -> Pattern a
+kinPick _ [] = silence
+kinPick (kin, _) pats =
+  let n      = length pats
+      step   = 1 / fromIntegral n
+      window i p =
+        let lo = fromIntegral i       * step
+            hi = fromIntegral (i + 1) * step
+            inWin x | i == 0    = x >= lo && x <= hi
+                    | otherwise = x >  lo && x <= hi
+        in mask (fmap inWin (kSignal kin)) p
+  in stack (zipWith window [0..] pats)
 
 -- |Bridge helper: apply a function taking 'ProgressionContext' to a Kinetics context.
 -- Uses innerJoin to reactively switch when the form changes progressions.

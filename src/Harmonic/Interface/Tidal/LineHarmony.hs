@@ -8,8 +8,10 @@
 --   * Progressions seen on 'kProg' are pre-materialised once into walking-
 --     bass lines keyed by (progression, entropy).
 --   * 'innerJoin' switches lines reactively when the form changes progression.
---   * Events are masked by the kinetics signal in (0.1, 1) and scaled by
---     'kDynamic' and the user-supplied dynamics scalar.
+--   * The input pattern list is dispatched by 'kinPick': [0,1] is partitioned
+--     into N equal windows (N = length of the list) and only the pattern
+--     whose window contains the current kinetics signal plays. Output is
+--     scaled by 'kDynamic' and the user-supplied dynamics scalar.
 --
 -- Each integer in a pattern selects a 1-indexed beat position (1..4).
 -- Values outside [1..4] shift by full octaves, matching the div/mod convention
@@ -22,7 +24,7 @@ import qualified Harmonic.Rules.Types.Progression as P
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as Pt
-import Harmonic.Interface.Tidal.Form (Kinetics(..), IK)
+import Harmonic.Interface.Tidal.Form (Kinetics(..), IK, kinPick)
 import Harmonic.Interface.Tidal.Bridge (VoiceFunction, lookupChordAt, forceAll)
 import Harmonic.Traversal.WalkingBass
   ( walkLine, walkLineP, ChromaSources(..), beatsPerBar )
@@ -61,7 +63,7 @@ lineHarmony
   -> [Pattern Int]         -- ^ Polyphonic layers (1-indexed beat positions)
   -> Pattern ValueMap
 lineHarmony dyn (kin, chordPat) voiceFn pats =
-  let stacked     = stack pats
+  let stacked     = kinPick (kin, chordPat) pats
       ctxPat      = kProg kin
       keyPat      = fmap walkKey ctxPat
       progPat     = fmap PC.triadLayer ctxPat
@@ -80,7 +82,6 @@ lineHarmony dyn (kin, chordPat) voiceFn pats =
                     in forceAll bars `seq` pair
   in cacheForced `seq` (|* pF "amp" (kDynamic kin)) $
      (|* pF "amp" dyn) $
-     mask (fmap (\x -> x >= 0.1 && x <= 1) (kSignal kin)) $
        innerJoin $ fmap (\k ->
          renderWalk (lookupCache k) chordPat stacked
        ) keyPat

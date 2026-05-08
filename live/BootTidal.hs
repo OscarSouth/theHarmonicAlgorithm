@@ -137,6 +137,15 @@ launch = mapM_ ($ silence) [
   ]
 :}
 
+allNotesOff = setCC "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]" "[123,64]" 0
+subPedalOff = setCC "10" "64" 0
+launch' = launch >> subPedalOff
+hush = launch >> subPedalOff >> allNotesOff
+launch'' = hush
+hush' = streamHush tidal >> subPedalOff
+panic = allNotesOff >> hush'
+hush'' = panic
+
 -------------------------------------------------------------------------------
 -- MIDI Helpers
 -------------------------------------------------------------------------------
@@ -149,13 +158,6 @@ cc' c n val = control (ccScale val) #io n c where io n c = (midi #midicmd "contr
 setCC c n val = once $ control (val) #io n c where io n c = (midi #midicmd "control" #midichan (c-1) #ctlNum (n))
 ped = cc 64
 vel = pF "amp"
-
-allNotesOff = setCC "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]" "[123,64]" 0
-subPedalOff = setCC "10" "64" 0
-hush = launch >> subPedalOff
-hush' = streamHush tidal >> subPedalOff
-panic = allNotesOff >> hush'
-hush'' = panic
 
 -------------------------------------------------------------------------------
 -- Pattern Helpers

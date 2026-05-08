@@ -32,7 +32,8 @@ osc(20,0,2)
 .out()
 
 
-s0.initCam(1)
+s0.initCam(6)
+
 src(s0).out()
 
 systemPreferences.askForMediaAccess('camera')
@@ -69,12 +70,13 @@ hush = (o) => {
   solid().out(o)
   }
 
-
+src(s0).out(1)
 
 // osc(20,0,2)
 src(s0)
 .contrast(2)
-// .modulate(voronoi(10,0.2).modulate(osc(3,2)))
-// .kaleid(4)
-// .saturate(()=>Math.sin(time))
+.modulate(voronoi(10,0.2).modulate(osc(3,2)))
+.kaleid(4)
+.saturate(()=>Math.sin(time))
+// .brightness(0.2)
 .out()

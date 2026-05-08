@@ -37,6 +37,9 @@ fullKin pr = Kinetics (pure 1.0) (pure 1.0) (pure (PC.fromProgression pr))
 mutedKin :: P.Progression -> Kinetics
 mutedKin pr = Kinetics (pure 0.0) (pure 1.0) (pure (PC.fromProgression pr))
 
+kinAt :: Double -> P.Progression -> Kinetics
+kinAt v pr = Kinetics (pure v) (pure 1.0) (pure (PC.fromProgression pr))
+
 -------------------------------------------------------------------------------
 -- Onset helpers (mirrors BridgeSpec)
 -------------------------------------------------------------------------------
@@ -93,19 +96,34 @@ spec = do
           expected = fromIntegral (closestLowMidi 0 - 48) :: Double
       take 1 notes `shouldBe` [expected]
 
-    it "polyphonic stacking adds events from extra layers" $ do
+    it "kinetics windowing: upper window plays at high kinetics" $ do
+      -- N=2 list ["~", "[1 2 3 4]"]: window 1 = (0.5, 1] → playing pattern.
       let chordSel = parseBP_E "1" :: Pattern Int
-          single   = lineHarmony (pure 1.0) (fullKin testProgression, chordSel) fund
-                       [parseBP_E "1"]
-          doubled  = lineHarmony (pure 1.0) (fullKin testProgression, chordSel) fund
-                       [parseBP_E "1", parseBP_E "3"]
-      onsetCount doubled (Arc 0 1) `shouldSatisfy` (> onsetCount single (Arc 0 1))
+          result   = lineHarmony (pure 1.0) (fullKin testProgression, chordSel) fund
+                       [parseBP_E "~", parseBP_E "[1 2 3 4]"]
+      onsetCount result (Arc 0 1) `shouldSatisfy` (> 0)
 
-    it "kinetics gate (kSignal < 0.1) mutes events" $ do
+    it "kinetics windowing: lower window plays at low kinetics" $ do
+      -- N=2 list ["~", "[1 2 3 4]"]: window 0 = [0, 0.5] → silence pattern.
       let chordSel = parseBP_E "1" :: Pattern Int
           result   = lineHarmony (pure 1.0) (mutedKin testProgression, chordSel) fund
-                       [parseBP_E "[1 2 3 4]"]
+                       [parseBP_E "~", parseBP_E "[1 2 3 4]"]
       onsetCount result (Arc 0 1) `shouldBe` 0
+
+    it "kinetics windowing: boundary belongs to the lower window" $ do
+      -- N=2 boundary at 0.5 belongs to window 0; "~" plays, no events.
+      let chordSel = parseBP_E "1" :: Pattern Int
+          result   = lineHarmony (pure 1.0) (kinAt 0.5 testProgression, chordSel) fund
+                       [parseBP_E "~", parseBP_E "[1 2 3 4]"]
+      onsetCount result (Arc 0 1) `shouldBe` 0
+
+    it "kinetics windowing: N=3 mid-kinetics activates middle window" $ do
+      -- N=3 windows: [0, 1/3], (1/3, 2/3], (2/3, 1].
+      -- kSignal=0.5 ∈ (1/3, 2/3] → middle pattern "[1 2 3 4]" plays.
+      let chordSel = parseBP_E "1" :: Pattern Int
+          result   = lineHarmony (pure 1.0) (kinAt 0.5 testProgression, chordSel) fund
+                       [parseBP_E "~", parseBP_E "[1 2 3 4]", parseBP_E "~"]
+      onsetCount result (Arc 0 1) `shouldSatisfy` (> 0)
 
     it "events stay within the cycle bounds" $ do
       let chordSel = parseBP_E "1" :: Pattern Int
