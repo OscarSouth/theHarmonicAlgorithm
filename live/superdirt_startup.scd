@@ -68,7 +68,10 @@ s.reboot {
           if(isAvailable) {
             ~midiTHRU = MIDIOut.newByName(devName, portName);
             ~midiTHRU.latency = 0.0;
-            ~dirt.soundLibrary.addMIDI(\thru, SafeMIDIOut(~midiTHRU));
+            // Keep a handle on the SafeMIDIOut wrapper so the LED coordinator
+            // can register noteOn/noteOff/control hooks on it later.
+            ~midiSafe = SafeMIDIOut(~midiTHRU);
+            ~dirt.soundLibrary.addMIDI(\thru, ~midiSafe);
 
             ~midiFound = true; // Stop looking
 
@@ -97,6 +100,23 @@ s.reboot {
       },
       '/run-code', nil, 57121
     );
+
+    // ----------------------------------------------------------------------
+    // LED coordinator: passive pitch-class LED state machine.
+    // Loads led-coordinator.scd, hooks into the SafeMIDIOut wrapper
+    // (~midiSafe), and watches the bass-instrument channels. See
+    // led-coordinator.scd header for design rationale.
+    // ----------------------------------------------------------------------
+    if(~midiFound and: { ~midiSafe.notNil }) {
+      this.executeFile("/Users/oscarsouth/.stack/global-project/live/led-coordinator.scd");
+      ~ledCoordinator.init(~midiSafe);
+      ~midiSafe.onNoteOn  = { |c, n, v| ~ledCoordinator.onNoteOn(c, n, v) };
+      ~midiSafe.onNoteOff = { |c, n, v| ~ledCoordinator.onNoteOff(c, n, v) };
+      ~midiSafe.onControl = { |c, ct, v| ~ledCoordinator.onControl(c, ct, v) };
+      ~ledCoordinator.watch(7, nil);          // ch 8  = lineHarmony, all notes
+      ~ledCoordinator.watch(9, (36..47));     // ch 10 = subKick range only
+      "====> LED coordinator wired to SafeMIDIOut on ch 8 + ch 10 (subKick range).".postln;
+    };
 
     "SuperDirt is ready.".postln;
     File(Platform.userAppSupportDir ++ "/sc_ready", "w").write(Date.getDate.stamp).close;

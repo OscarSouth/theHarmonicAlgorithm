@@ -93,14 +93,15 @@ subk f k d = p "subKick"
 walk f k d = p "lineHarmony"
   $ f
     $ lineHarmony d k root [ "~"
-      ,"[1 2 3 4]/8"
+      -- ,"[1 2 3 4]/4"
+      ,"[1 3]/4"
       -- ,"[1 [<~ 2?>?]? 3 [<~ 4?>?]?]/4"
       -- ,degradeBy 0.8 $ "[~ 2 ~ 4]/8"
       -- ,"[1 3?]/8" |- "[0 0]/8"
       -- ,"[1 3]/4" |+ "[0 <0 3>]/4"
       -- ,"[1 . ~ . 3 . ~ [4?]?]/2"
       -- ,"[1!6 3 4]/4" *| "1*4"
-    ] # ch 07 |+ oct 0 #legato 0.95
+    ] # ch 08 |+ oct 0 #legato 0.95
 
 m32 f k d = p "moogMother32" $ do
   let o = ch 14

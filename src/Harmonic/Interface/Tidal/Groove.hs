@@ -69,9 +69,6 @@ subKick dyn k voiceFunc (maxDur, subOnStr, subOffStr, kickStr) =
       subOnPat  = slow 4 $ parseBP_E subOnStr
       subOffPat = slow 4 $ parseBP_E subOffStr
       kickPat   = slow 4 $ parseBP_E kickStr
-      -- Pre-compute LED all-off stack (constant, shared across invocations)
-      ledAllOff = stack [midicmd "control" # ctlNum (fromIntegral cc)
-                         # control (fromIntegral (0 :: Int)) | cc <- [20..31 :: Int]]
       progPat = fmap PC.triadLayer (kProg kin)
       -- Pre-compute voicings at construction time
       allEvents = queryArc progPat (Arc 0 1000)
@@ -86,30 +83,31 @@ subKick dyn k voiceFunc (maxDur, subOnStr, subOffStr, kickStr) =
         Nothing  -> let raw = voiceFunc prog
                     in (map normalizeToSubRange raw, length raw)
   in innerJoin $ fmap (\prog ->
-       subKickCoreP (lookupCache prog) subOnPat subOffPat kickPat ledAllOff chordPat dyn k maxDur
+       subKickCoreP (lookupCache prog) subOnPat subOffPat kickPat chordPat dyn k maxDur
      ) progPat
 
 -- |Internal: subKick logic with ki gating on sub/kick groups.
--- Accepts pre-parsed patterns and pre-computed LED all-off from subKick outer level.
+-- LEDs are no longer emitted from here; they are derived passively by the
+-- SC-side coordinator from this channel's outgoing MIDI traffic.
 subKickCore :: (P.Progression -> [[Int]])
             -> P.Progression
             -> Pattern Bool             -- ^ Pre-parsed sub on pattern
             -> Pattern Bool             -- ^ Pre-parsed sub off pattern
             -> Pattern Bool             -- ^ Pre-parsed kick pattern
-            -> ControlPattern           -- ^ ledAllOff (pre-computed)
             -> Pattern Int              -- ^ Chord selection pattern
             -> Pattern Double           -- ^ Dynamics
             -> IK
             -> Time                     -- ^ Max sub duration
             -> Pattern ValueMap
-subKickCore voiceFunc prog subOnPat subOffPat kickPat ledAllOff chordPat dyn k maxDur
+subKickCore voiceFunc prog subOnPat subOffPat kickPat chordPat dyn k maxDur
   | null normPitches = silence
   | otherwise =
   let
     -- CC helper
     midiCC num val = midicmd "control" # ctlNum num # control val
 
-    -- LED feedback helper
+    -- LED feedback helper (only used for the kick high-C indicator on CC 32;
+    -- the 12 pitch-class LEDs CC 20-31 are driven by the SC-side coordinator)
     ledCC num val = midicmd "control"
                   # ctlNum (fromIntegral num)
                   # control (fromIntegral val)
@@ -145,36 +143,19 @@ subKickCore voiceFunc prog subOnPat subOffPat kickPat ledAllOff chordPat dyn k m
     -- Manual note-off: CC 64 = 0 at user-specified boundaries
     manualOff = struct subOffPat $ midiCC 64 0
 
-    subLedOn = (1/128) ~> (mask dynGate $ struct subOnPat $
-      innerJoin (fmap (\ci ->
-        ledCC (normPitches !! (ci `mod` nChords) - 16) 1
-      ) chordIdx))
-
-    subLedAutoOff
-      | maxDur >= 1 = silence
-      | otherwise   = struct ((pure (maxDur * 4)) ~> subOnPat) $ ledAllOff
-
-    subLedManualOff = struct subOffPat $ ledAllOff
-
-    -- Kick LED: 1/64 offset (vs subLedOn's 1/128) — kick beats are denser
-    -- than sub beats (kick note + sub LED all-off burst + sustain pedal
-    -- heartbeat can all coincide), so the smaller ~6ms gap wasn't enough
-    -- to clear the dispatch bundle. Doubled to ~12ms puts the LED CC on
-    -- its own SuperDirt scheduling tick. Pulse extended to 1/8 cycle
-    -- (first even subdivision above 1.5× the previous 3/64) for reliable
-    -- visual response under MIDI burst load.
-    kickLedOn = (1/64) ~> (struct kickPat $ ledCC 32 1)
-
+    -- Kick LED: 1/64 offset puts the CC on its own SuperDirt dispatch tick
+    -- so it doesn't collide with the kick note under MIDI burst load.
+    -- Pulse extended to 1/8 cycle for reliable visual response.
+    kickLedOn  = (1/64) ~> (struct kickPat $ ledCC 32 1)
     kickLedOff = (1/64) ~> (struct ((pure (1/8)) ~> kickPat) $ ledCC 32 0)
 
-    -- Sub group: sub pattern + CC64 sustain + sub LEDs
+    -- Sub group: sub pattern + CC64 sustain
     subGroup = ki (0.1, 1) k $ stack
       [ subPattern # thru
       , sustainOn # thru, autoOff # thru, manualOff # thru
-      , subLedOn # thru, subLedAutoOff # thru, subLedManualOff # thru
       ]
 
-    -- Kick group: kick pattern + kick LEDs
+    -- Kick group: kick pattern + kick LED (CC 32, high-C indicator)
     kickGroup = ki (0.2, 1) k $ stack
       [ kickPattern # thru
       , kickLedOn # thru, kickLedOff # thru
@@ -191,25 +172,26 @@ subKickCore voiceFunc prog subOnPat subOffPat kickPat ledAllOff chordPat dyn k m
     nChords     = length normPitches
 
 -- |Cached subKick: takes pre-computed (normPitches, nChords) and pre-parsed patterns.
--- All CC64/sustain/timing logic identical to subKickCore.
+-- All CC64/sustain/timing logic identical to subKickCore. LEDs are not emitted
+-- here — the SC-side coordinator derives them from outgoing MIDI on ch 10.
 subKickCoreP :: ([Int], Int)
              -> Pattern Bool             -- ^ Pre-parsed sub on pattern
              -> Pattern Bool             -- ^ Pre-parsed sub off pattern
              -> Pattern Bool             -- ^ Pre-parsed kick pattern
-             -> ControlPattern           -- ^ ledAllOff (pre-computed)
              -> Pattern Int              -- ^ Chord selection pattern
              -> Pattern Double           -- ^ Dynamics
              -> IK
              -> Time                     -- ^ Max sub duration
              -> Pattern ValueMap
-subKickCoreP (normPitches, nChords) subOnPat subOffPat kickPat ledAllOff chordPat dyn k maxDur
+subKickCoreP (normPitches, nChords) subOnPat subOffPat kickPat chordPat dyn k maxDur
   | nChords == 0 = silence
   | otherwise =
   let
     -- CC helper
     midiCC num val = midicmd "control" # ctlNum num # control val
 
-    -- LED feedback helper
+    -- LED feedback helper (only used for the kick high-C indicator on CC 32;
+    -- the 12 pitch-class LEDs CC 20-31 are driven by the SC-side coordinator)
     ledCC num val = midicmd "control"
                   # ctlNum (fromIntegral num)
                   # control (fromIntegral val)
@@ -245,36 +227,19 @@ subKickCoreP (normPitches, nChords) subOnPat subOffPat kickPat ledAllOff chordPa
     -- Manual note-off: CC 64 = 0 at user-specified boundaries
     manualOff = struct subOffPat $ midiCC 64 0
 
-    subLedOn = (1/128) ~> (mask dynGate $ struct subOnPat $
-      innerJoin (fmap (\ci ->
-        ledCC (normPitches !! (ci `mod` nChords) - 16) 1
-      ) chordIdx))
-
-    subLedAutoOff
-      | maxDur >= 1 = silence
-      | otherwise   = struct ((pure (maxDur * 4)) ~> subOnPat) $ ledAllOff
-
-    subLedManualOff = struct subOffPat $ ledAllOff
-
-    -- Kick LED: 1/64 offset (vs subLedOn's 1/128) — kick beats are denser
-    -- than sub beats (kick note + sub LED all-off burst + sustain pedal
-    -- heartbeat can all coincide), so the smaller ~6ms gap wasn't enough
-    -- to clear the dispatch bundle. Doubled to ~12ms puts the LED CC on
-    -- its own SuperDirt scheduling tick. Pulse extended to 1/8 cycle
-    -- (first even subdivision above 1.5× the previous 3/64) for reliable
-    -- visual response under MIDI burst load.
-    kickLedOn = (1/64) ~> (struct kickPat $ ledCC 32 1)
-
+    -- Kick LED: 1/64 offset puts the CC on its own SuperDirt dispatch tick
+    -- so it doesn't collide with the kick note under MIDI burst load.
+    -- Pulse extended to 1/8 cycle for reliable visual response.
+    kickLedOn  = (1/64) ~> (struct kickPat $ ledCC 32 1)
     kickLedOff = (1/64) ~> (struct ((pure (1/8)) ~> kickPat) $ ledCC 32 0)
 
-    -- Sub group: sub pattern + CC64 sustain + sub LEDs
+    -- Sub group: sub pattern + CC64 sustain
     subGroup = ki (0.1, 1) k $ stack
       [ subPattern # thru
       , sustainOn # thru, autoOff # thru, manualOff # thru
-      , subLedOn # thru, subLedAutoOff # thru, subLedManualOff # thru
       ]
 
-    -- Kick group: kick pattern + kick LEDs
+    -- Kick group: kick pattern + kick LED (CC 32, high-C indicator)
     kickGroup = ki (0.2, 1) k $ stack
       [ kickPattern # thru
       , kickLedOn # thru, kickLedOff # thru
