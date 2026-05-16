@@ -75,21 +75,21 @@ spec = do
 
   describe "ki (range gating)" $ do
     it "passes events when signal in range" $ do
-      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA)
+      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA) 0 0
           ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
           result = ki (0.3, 0.7) ik (note "0")
           evs = queryArc result (Arc 0 1)
       length evs `shouldSatisfy` (> 0)
 
     it "blocks events when signal outside range" $ do
-      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA)
+      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA) 0 0
           ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
           result = ki (0.6, 0.9) ik (note "0")
           evs = queryArc result (Arc 0 1)
       length evs `shouldBe` 0
 
     it "inclusive at boundaries" $ do
-      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA)
+      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA) 0 0
           ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
           result = ki (0.5, 0.5) ik (note "0")
           evs = queryArc result (Arc 0 1)
@@ -97,14 +97,14 @@ spec = do
 
   describe "slate" $ do
     it "activates patterns when in range" $ do
-      let kin = Kinetics (pure 0.8) (pure 1.0) (pure testProgA)
+      let kin = Kinetics (pure 0.8) (pure 1.0) (pure testProgA) 0 0
           ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
           result = slate (0.5, 1.0) ik [note "0", note "1"]
           evs = queryArc result (Arc 0 1)
       length evs `shouldSatisfy` (> 0)
 
     it "blocks patterns when outside range" $ do
-      let kin = Kinetics (pure 0.2) (pure 1.0) (pure testProgA)
+      let kin = Kinetics (pure 0.2) (pure 1.0) (pure testProgA) 0 0
           ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
           result = slate (0.5, 1.0) ik [note "0", note "1"]
           evs = queryArc result (Arc 0 1)
@@ -112,7 +112,7 @@ spec = do
 
   describe "withForm" $ do
     it "applies function using progression from kinetics" $ do
-      let kin = Kinetics (pure 1.0) (pure 1.0) (pure testProgA)
+      let kin = Kinetics (pure 1.0) (pure 1.0) (pure testProgA) 0 0
           ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
           result = withForm ik (\_ -> note "42")
           evs = queryArc result (Arc 0 1)

@@ -72,7 +72,7 @@ longerProgression =
 
 -- |Create a pass-through Kinetics for testing: kSignal=1, kDynamic=1, constant progression
 testKinetics :: P.Progression -> Kinetics
-testKinetics prog = Kinetics (pure 1.0) (pure 1.0) (pure (PC.fromProgression prog))
+testKinetics prog = Kinetics (pure 1.0) (pure 1.0) (pure (PC.fromProgression prog)) 0 0
 
 -------------------------------------------------------------------------------
 -- Helpers: extract onset events from ControlPattern
@@ -357,6 +357,7 @@ spec = do
           kin = Kinetics (pure 1.0) (pure 1.0)
                   (pure (PC.ProgressionContext strataFixture strataFixture strataFixture
                           (Just Seq.empty)))
+                  0 0
           aFlow = arrange (0,1) (kin, chordSel) (-24,24) S A.flow id [parseBP_E "[0 1 2 3 4]"]
           aLite = arrange (0,1) (kin, chordSel) (-24,24) S A.lite id [parseBP_E "[0 1 2 3 4]"]
       onsetNotes aFlow (Arc 0 1) `shouldBe` onsetNotes aLite (Arc 0 1)
@@ -367,6 +368,7 @@ spec = do
           kin = Kinetics (pure 1.0) (pure 1.0)
                   (pure (PC.ProgressionContext tProg strataFixture modeFixture
                           (Just Seq.empty)))
+                  0 0
           aT  = arrange (0,1) (kin, chordSel) (-24,24) T A.flow id [parseBP_E "[0 1 2]"]
           aT' = arrange (0,1) (testKinetics tProg, chordSel) (-24,24) T A.flow id [parseBP_E "[0 1 2]"]
       onsetNotes aT (Arc 0 1) `shouldBe` onsetNotes aT' (Arc 0 1)

@@ -122,6 +122,7 @@ launch = mapM_ ($ silence) [
   p "drumbruteImpact",
   p "subKick",
   p "lineHarmony",
+  p "displayClock",
   p "click",
   p "count",
   p "rise",
@@ -225,6 +226,68 @@ minim = 1/2
 import Harmonic.Lib
 
 putStrLn "theHarmonicAlgorithm V3 boot complete."
+
+-- 4-character LED display feed for the 12 Step.
+-- Broadcasts the truth from Tidal-side; SC just paints what it receives.
+--   * CC 113 = bar number (1..8) at each chord onset; 0 on bar-off (1/8 cycle later).
+--   * CC 114 / CC 115 = 14-bit form loop length in seconds (high << 7 | low).
+--     0 = atemporal (lK or single-node iK) -> counter cells stay blank.
+--   * CC 117 / CC 118 = 14-bit *current form-local seconds*, sampled 16x per
+--     cycle. Derived from the same cycle time that drives the form interpolation
+--     (formContinuous's `slow totalCycles`), so the displayed value is always
+--     in lockstep with the form's kinetics — no anchor signal needed.
+-- SC owns CC 50-53 (the actual display cells); these CCs are just signals.
+-- Add a single line to your launcher's mapM_ list:  ,display k
+:{
+display k =
+  let loopSecs  = kLoopSecs (fst k)
+      cps       = kCps (fst k)
+      loopInt   = floor loopSecs :: Int
+      hiByte    = fromIntegral (loopInt `div` 128) :: Double
+      loByte    = fromIntegral (loopInt `mod` 128) :: Double
+      thruCh10     = s "thru" # midichan 9             -- 1 event / cycle (constant CCs, struct-driven onsets)
+      thruCh10Fast = fast 30 (s "thru") # midichan 9   -- 30 events / cycle (~56 Hz; for the seconds counter only)
+
+      -- 1-indexed second counter, phase-locked to cycle 0. The displayed
+      -- value is a continuous function of cycle time. Emission rate (~56 Hz
+      -- at cps 1.867) comes from the *structural* side via thruCh10Fast on
+      -- the CC 117/118 lines below — Tidal's `#` is `|>`, which reads
+      -- structure from the left and only samples values from the right.
+      -- Putting `segment 30` on this sig has no effect on emission rate;
+      -- the leftmost pattern in the chain determines onsets.
+      -- Values are 1..n inclusive (first second of the loop displays "1").
+      -- Atemporal forms broadcast 0 continuously (SC treats this as blank).
+      n = floor loopSecs :: Int
+      currentSecsPat = if n >= 1 && cps > 0
+        then sig $ \t ->
+               let cyclesNow     = realToFrac t :: Double
+                   secondsNow    = cyclesNow / cps
+                   formLocalSecs = secondsNow - fromIntegral (floor (secondsNow / loopSecs) :: Int) * loopSecs
+                   displayed     = (floor formLocalSecs :: Int) + 1
+               in fromIntegral displayed :: Double
+        else pure 0
+
+      secsHiPat = fmap (\x -> fromIntegral (floor x `div` 128) :: Double) currentSecsPat
+      secsLoPat = fmap (\x -> fromIntegral (floor x `mod` 128) :: Double) currentSecsPat
+
+  in p "displayClock" $ stack
+       [ -- Bar onset: CC 113 = current bar (clamped to 1..8)
+         (1/64) ~> (struct (fmap (const True) (snd k)) $
+           thruCh10 # midicmd "control" # ctlNum 113
+             # control (fmap (fromIntegral . min 8) (snd k)))
+         -- Bar off: CC 113 = 0 at +1/8 cycle (P1 blank between flashes)
+       , (1/64) ~> (struct ((pure (1/8)) ~> fmap (const True) (snd k)) $
+           thruCh10 # midicmd "control" # ctlNum 113 # control 0)
+         -- Loop length, high byte
+       , thruCh10 # midicmd "control" # ctlNum 114 # control (pure hiByte)
+         -- Loop length, low byte
+       , thruCh10 # midicmd "control" # ctlNum 115 # control (pure loByte)
+         -- Current form-local seconds, high byte (30 events/cycle from thruCh10Fast; ≤18 ms jitter)
+       , thruCh10Fast # midicmd "control" # ctlNum 117 # control secsHiPat
+         -- Current form-local seconds, low byte (30 events/cycle from thruCh10Fast; ≤18 ms jitter)
+       , thruCh10Fast # midicmd "control" # ctlNum 118 # control secsLoPat
+       ]
+:}
 
 -- additions
 

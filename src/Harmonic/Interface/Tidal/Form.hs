@@ -46,9 +46,19 @@ data FormNode = FormNode
 
 -- |Realized form: continuous and discrete signals for live performance.
 data Kinetics = Kinetics
-  { kSignal  :: Pattern Double                -- ^ Kinetics level 0-1 (continuous interpolated)
-  , kDynamic :: Pattern Double                -- ^ Dynamic envelope 0-1 (continuous interpolated)
-  , kProg    :: Pattern PC.ProgressionContext -- ^ Active 3-layer progression (step function)
+  { kSignal   :: Pattern Double                -- ^ Kinetics level 0-1 (continuous interpolated)
+  , kDynamic  :: Pattern Double                -- ^ Dynamic envelope 0-1 (continuous interpolated)
+  , kProg     :: Pattern PC.ProgressionContext -- ^ Active 3-layer progression (step function)
+  , kLoopSecs :: Double                        -- ^ Form total duration in seconds; 0 = atemporal
+                                               --   (single-node iK or lK). Consumers like the
+                                               --   4-char-display helper read this to drive a
+                                               --   wall-clock counter that wraps every kLoopSecs.
+  , kCps      :: Double                        -- ^ Cycles per second at form construction
+                                               --   (= bpm/60). Used by the display broadcaster to
+                                               --   convert cycle time → seconds. Stays coherent
+                                               --   with Tidal's actual cps because both are
+                                               --   derived from the same @bpm@ on every launcher
+                                               --   re-evaluation.
   }
 
 -- |Performance context: Kinetics bundled with chord selection pattern.
@@ -79,7 +89,7 @@ lK :: Pattern Double          -- ^ Kinetics signal (0-1, live)
    -> PC.ProgressionContext   -- ^ Active 3-layer progression
    -> Pattern Int             -- ^ Chord-selection pattern
    -> IK
-lK sig dyn pc chordPat = (Kinetics sig dyn (pure pc), chordPat)
+lK sig dyn pc chordPat = (Kinetics sig dyn (pure pc) 0 0, chordPat)
 
 -------------------------------------------------------------------------------
 -- Realization
@@ -91,9 +101,13 @@ lK sig dyn pc chordPat = (Kinetics sig dyn (pure pc), chordPat)
 -- discrete signals that loop at the form's total duration.
 formK :: Double -> [FormNode] -> Kinetics
 formK bpm nodes = Kinetics
-  { kSignal  = formContinuous cps nodes fnKinetics
-  , kDynamic = formContinuous cps nodes fnDynamic
-  , kProg    = formDiscrete cps nodes fnProg
+  { kSignal   = formContinuous cps nodes fnKinetics
+  , kDynamic  = formContinuous cps nodes fnDynamic
+  , kProg     = formDiscrete   cps nodes fnProg
+  , kLoopSecs = case nodes of
+                  (_:_:_) -> fnTime (last nodes)   -- multi-node: form duration
+                  _       -> 0                     -- single-node or empty: atemporal
+  , kCps      = cps
   }
   where cps = bpm / 60
 
