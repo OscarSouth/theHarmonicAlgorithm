@@ -103,7 +103,7 @@ module Harmonic.Lib (
   --   gen'  - compact summary
   --   gen'' - verbose traces
   gen, gen', gen'',
-  genGrid, genFrom,
+  genGrid, genFrom, genFrom', genFrom'',
 
   -- ========== genP PARADIGM (strata-first) ==========
   genP, genP', genP'',
@@ -115,6 +115,7 @@ module Harmonic.Lib (
   cue, len, seek, entropy, tonal,
   relStrata, absStrata,
   sameBoost, flipBoost, triBoost,
+  attempt, viability,
 
   -- ========== GENERATION TYPES ==========
   GenConfig(..), GenMode(..), Verbosity(..),
@@ -226,7 +227,7 @@ import Harmonic.Traversal.Probabilistic
 import Harmonic.Framework.Builder (
     -- Modifier-based API
     gen, gen', gen'',
-    genGrid, genFrom,
+    genGrid, genFrom, genFrom', genFrom'',
     -- genP paradigm (strata-first)
     genP, genP', genP'',
     genI,   genII,   genIII,   genIV,   genV,   genVI,   genVII,   genVIII,   genIX,   genX,   genXI,
@@ -235,6 +236,7 @@ import Harmonic.Framework.Builder (
     cue, len, seek, entropy, tonal,
     relStrata, absStrata,
     sameBoost, flipBoost, triBoost,
+  attempt, viability,
     GenConfig(..), GenMode(..), Verbosity(..),
     defaultGenConfig, execGenConfig, execGenConfigPC,
     -- Positional API

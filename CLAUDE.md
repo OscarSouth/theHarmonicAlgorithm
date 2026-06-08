@@ -45,6 +45,7 @@ Composer specification is fully implemented end-to-end:
 - `"*"` aggregates all composers (sum of edge weights)
 - `"bach"` or `"debussy"` filters by single composer
 - `"bach:30 debussy:70"` blends multiple composers with weighted scoring
+- **Composer names are case-insensitive** — `"Bach"`, `"BACH"`, `"bAcH"`, `"bach"` all match the corpus identically (case-folded at parse and lookup).
 - `parseComposerWeights` parses blend strings; `resolveWeights` multiplies blend × edge weights
 
 ## Pre-Work Checklist
@@ -399,6 +400,52 @@ When adding new functionality:
 2. Run `stack test` to verify the test initially fails (TDD) or passes
 3. Implement the feature
 4. Run `stack test` to verify all tests pass
+
+## Regenerate In Place
+
+V3.0.0 includes a strata-aware partial-regeneration flow: rebind a `ProgressionContext` from `genFrom s start end` to regenerate a contiguous range of bars in place while keeping every other bar exactly as it was. Worked live example: `live/perform/regen.tidal`.
+
+### Semantics
+
+- **Range** `s e` is 1-indexed and wrap-aware. `genFrom s 4 2` on a 5-bar progression regenerates bars 4, 5, 1, 2 (in walk order) and keeps bar 3.
+- **Cue is auto-inferred** from the bar before `s` (wrap-aware: when `s = 1`, the cue is bar `N`). Override with `cue start $ genFrom s 3 4`.
+- **Dispatch** keys on `pcProvenance`:
+  - `Just _` → strata-aware path (`FromProgPC`): all three layers (triad / strata / mode) regenerate coherently; the `e → e+1` seam preserves walk-graph validity under `Strata.allowedNext` via a one-step lookahead on the final regenerated bar.
+  - `Nothing` → legacy triad-only path (`FromProg`): regenerates the triad layer via the standard R→E→T pipeline; splices via `spliceProgression` with seam movement-fix.
+- Composes with the usual modifier chain (`cue`, `len`, `seek`, `entropy`, `tonal`, `attempt`).
+
+### Multi-attempt rank-and-select (`attempt N K`)
+
+`attempt N K` wraps any generation modifier chain in a rank-and-select pass: produces up to `K` attempts, stops early once `N` *viable* progressions have been collected, returns the single highest-scoring one. Applies uniformly to `gen`, `genI`/`genP`, `genFrom`, etc.
+
+A generation is **viable** iff `psModeValidity >= 1.0` (structural — always true for walk-generated progressions) AND `totalScore >= _gcViabilityFloor` (default `0.6`, exposed via the `viability T` modifier). Calibrated from a 30-sample online probe; T=0.6 catches the bottom ~20% of attempts while keeping `attempt 3 12` reliable.
+
+When `_gcSeek != "none"`, `generateBest` opens one shared `Bolt.Pipe`, scores each attempt via `scoreProgressionOnline` under the user's composer blend, and ranks with `defaultWeights` (cadence-favourability dominant: 0.4 cf, 0.2 each on rm/vl/mv). When `_gcSeek == "none"`, scoring stays pure and uses `defaultWeightsOffline` (cf zeroed, the other three renormalised). Neo4j-unreachable while online surfaces the error directly — matching the existing generation pipeline.
+
+Per-edge cadence-favourability is a hybrid of corpus presence (0.5 base) plus within-source share (up to 0.5 bonus), so a transition that's in the corpus AT ALL contributes meaningfully even when it's one of many valid choices from its source. Calibration based on observed per-source-prior distribution from a live data probe (rationale documented in `Scoring/Progression.hs` `edgeScore`).
+
+When `attempt N K` is paired with Verbose verbosity (`gen''` and any `''`-suffixed alias: `genP''`, `genI''`, `genVI''` …), Builder prints a full multi-attempt scoreboard after generation — one row per attempt with rm/vl/cf/mv/total scores, viable marker, truncated chord sequence, and a `← PICK` marker on the winner. Silent (`gen`) and Standard (`gen'`) output is unchanged regardless of `attempt`; the scoreboard is suppressed for the no-op `attempt 1 1` even at Verbose.
+
+Multi-attempt mode prints **exactly one progression block** — the winner's — regardless of `K`, at the caller's verbosity (Silent → grid only; Standard → per-step musical context + grid; Verbose → verbose trace + grid + scoreboard). The K-attempt loop suppresses every per-attempt emission via `singlePassExecPCWithDiag`, and `emitFinalised` is called once on the chosen winner. For `genFrom` (both legacy `FromProg` and strata `FromProgPC`), the printed grid is the **full spliced progression**, not the regen segment — the caller sees the source with the new bars in place.
+
+Multi-attempt invocations open with a single `composing ..` line printed immediately (before the K-attempt loop blocks), so users get instant feedback while online generation runs. The loop collects per-step diagnostics at the caller's verbosity for every attempt and renders the winner's via `emitFinalised`, so the winner's `gen'` / `gen''` trace shows every bar — not just the starter.
+
+```haskell
+s  <- seek "*" $ attempt 3 12 $ entropy 0.4 $ genI
+s' <- seek "*" $ attempt 3 12 $ entropy 0.4 $ genFrom s 3 4
+s' <- seek "*" $ attempt 3 12 $ entropy 0.4 $ genFrom'  s 3 4  -- Standard trace
+s' <- seek "*" $ attempt 3 12 $ entropy 0.4 $ genFrom'' s 3 4  -- Verbose trace + scoreboard
+
+-- Tune the viability floor explicitly:
+s  <- seek "*" $ viability 0.7 $ attempt 5 24 $ gen   -- stricter, more searching
+
+-- Recover original "structural-only" viability:
+s  <- seek "*" $ viability 0.0 $ attempt 3 12 $ gen
+```
+
+### Mode-invariant note (Phase 1 background)
+
+Walk-driven generation is proven (via induction over `Strata.allowedNext` + `pickPartner`) to never produce `ModeInvalid`. The earlier arbitrary Aeolian fallback (substituting Aeolian-on-triad-root for non-classifying overlaps) has been removed. If a future code path produces a 6-PC overlap (only reachable via overrides that violate tristrata adjacency), it is stored faithfully in `modeLayer` as a 6-PC chroma — no masquerade. Downstream code (walking bass, voicings) consumes the chroma directly, so the failure mode is "one bar plays from a 6-PC mode set" rather than a runtime crash or a silent musical fabrication.
 
 ## Common Verification Scenarios
 

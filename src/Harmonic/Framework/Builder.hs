@@ -102,6 +102,8 @@ module Harmonic.Framework.Builder
   , gen''
   , genGrid
   , genFrom
+  , genFrom'
+  , genFrom''
 
     -- * genP Paradigm (strata-first)
   , genP
@@ -122,6 +124,8 @@ module Harmonic.Framework.Builder
   , sameBoost
   , flipBoost
   , triBoost
+  , attempt
+  , viability
 
     -- * Generation Configuration
   , GenConfig(..)
@@ -208,6 +212,8 @@ import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import qualified Harmonic.Rules.Types.Scale as Sc
 import           Harmonic.Rules.Import.Graph (connectNeo4j)
 import qualified Harmonic.Evaluation.Database.Query as Q
+import qualified Harmonic.Evaluation.Scoring.Progression as PS
+import           Control.Monad.IO.Class (liftIO)
 import           Harmonic.Rules.Constraints.Filter (parseTuningNamed, isWildcard)
 import           Harmonic.Rules.Constraints.Overtone (formatOvertoneAnnotation, formatOvertoneAnnotationPipe, possibleTriads)
 import           Data.Foldable (toList)
@@ -332,12 +338,21 @@ genPrint' :: H.CadenceState -> Int -> String -> Double -> HarmonicContext
           -> IO Prog.Progression
 genPrint' start len composerStr entropy ctx = do
   (prog, diag) <- generate' start len composerStr entropy ctx
+  renderStandardSteps composerStr ctx diag
+  putStrLn ""
+  printHeader (T.pack composerStr) entropy ctx
+  print prog
+  putStrLn ""
+  pure prog
 
-  -- Parse tuning for overtone annotation (only when non-wildcard)
+-- |Per-step Standard renderer extracted from 'genPrint''. Emits the
+-- compact summary + per-step lines, terminated by the trailing ━ rule.
+-- Does NOT print the final header + grid; callers do that.
+renderStandardSteps :: String -> HarmonicContext -> GenerationDiagnostics -> IO ()
+renderStandardSteps composerStr ctx diag = do
   let tuningNames = parseTuningNamed (_hcOvertones ctx)
       hasAnnotation = not (null tuningNames)
       allStates = toList (Prog.unProgression (gdProgression diag))
-      -- Compute absolute pitch classes and format annotation for a CadenceState
       annotateState cs =
         let rootPC = P.unPitchClass (P.pitchClass (H.stateCadenceRoot cs))
             intervals = map P.unPitchClass (H.cadenceIntervals (H.stateCadence cs))
@@ -346,14 +361,12 @@ genPrint' start len composerStr entropy ctx = do
             pcName pc = show (H.enharmonicFunc spelling (P.mkPitchClass pc))
         in formatOvertoneAnnotationPipe tuningNames absPitches pcName
 
-  -- Print compact summary
   putStrLn ""
   putStrLn $ "Generation: " ++ gdStartRoot diag ++ " " ++ gdStartCadence diag
              ++ " → " ++ show (gdActualLen diag) ++ " chords (entropy " ++ show (gdEntropy diag) ++ ")"
   putStrLn $ composerModeStr composerStr
   putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-  -- Show starting state as bar 1
   let bar1Suffix = if hasAnnotation && not (null allStates)
                    then let ann = annotateState (head allStates)
                         in if null ann then "" else "  " ++ ann
@@ -362,7 +375,6 @@ genPrint' start len composerStr entropy ctx = do
              ++ " [starting state]" ++ bar1Suffix
   putStrLn ""
 
-  -- Show each step with bar number = stepNumber + 1
   forM_ (gdSteps diag) $ \step -> do
     let barNum = sdStepNumber step + 1
         stateInfo = sdPriorRoot step ++ " → " ++ sdPosteriorRoot step
@@ -375,7 +387,6 @@ genPrint' start len composerStr entropy ctx = do
         src = "[" ++ sdSelectedFrom step ++ "]"
         selIdx = "γ=" ++ show (sdGammaIndex step)
 
-    -- Overtone annotation suffix (inline on step line)
     let overtoneSuffix =
           if hasAnnotation
           then let stateIdx = barNum - 1
@@ -385,19 +396,15 @@ genPrint' start len composerStr entropy ctx = do
                   else ""
           else ""
 
-    -- Single line: bar number, state, pool, movement, chord, source, gamma, overtones
     putStrLn $ "  " ++ show barNum ++ ": " ++ stateInfo ++ "  " ++ poolInfo
                ++ "  " ++ mvmt ++ " → " ++ chord ++ "  " ++ src ++ " " ++ selIdx
                ++ overtoneSuffix
 
-    -- Top 6 candidates rendered as actual chords (with roots)
     let posteriorRootPC = sdPosteriorRootPC step
-
-    -- Render candidate cadences as actual chords
-    let renderCandidateName name =
+        renderCandidateName name =
           case parseCadenceFromString name posteriorRootPC of
             Just renderedName -> renderedName
-            Nothing -> name  -- fallback to original if parse fails
+            Nothing -> name
 
     let topCands = if sdSelectedFrom step == "graph"
                    then take 6 (sdGraphTop6 step)
@@ -411,12 +418,6 @@ genPrint' start len composerStr entropy ctx = do
     putStrLn ""
 
   putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  putStrLn ""
-  printHeader (T.pack composerStr) entropy ctx
-  print prog
-  putStrLn ""
-
-  pure prog
 
 -- |Generate with custom configuration, returning diagnostics tuple (internal).
 genWith' :: GeneratorConfig -> H.CadenceState -> Int -> String -> Double -> HarmonicContext
@@ -468,15 +469,24 @@ genPrint'' :: H.CadenceState -> Int -> String -> Double -> HarmonicContext
            -> IO Prog.Progression
 genPrint'' start len composerStr entropy ctx = do
   (prog, diag) <- generate'' start len composerStr entropy ctx
+  renderVerboseSteps composerStr diag
+  putStrLn ""
+  printHeader (T.pack composerStr) entropy ctx
+  print prog
+  putStrLn ""
+  pure prog
 
-  -- Print verbose summary
+-- |Per-step Verbose renderer extracted from 'genPrint''''. Emits the
+-- verbose summary + per-step trace, terminated by the trailing ━ rule.
+-- Does NOT print the final header + grid; callers do that.
+renderVerboseSteps :: String -> GenerationDiagnostics -> IO ()
+renderVerboseSteps composerStr diag = do
   putStrLn ""
   putStrLn $ "Verbose Generation: " ++ gdStartRoot diag ++ " " ++ gdStartCadence diag
              ++ " → " ++ show (gdActualLen diag) ++ " chords (entropy " ++ show (gdEntropy diag) ++ ")"
   putStrLn $ composerModeStr composerStr
   putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-  -- Show starting state as bar 1
   putStrLn $ "STEP 1: " ++ gdStartRoot diag ++ " " ++ gdStartCadence diag ++ " [starting state]"
   putStrLn ""
 
@@ -492,11 +502,9 @@ genPrint'' start len composerStr entropy ctx = do
     putStrLn $ "STEP " ++ show barNum ++ ": " ++ sdPriorRoot step ++ " → "
                ++ sdPosteriorRoot step ++ "  " ++ mvmt ++ " → " ++ chord ++ " " ++ src ++ " " ++ selIdx
 
-    -- Pool composition
     putStrLn $ "  Pool: " ++ show (sdGraphCount step) ++ " graph, "
                ++ show (sdFallbackCount step) ++ " fallback"
 
-    -- Top 6 candidates from selected pool (not rounded, show actual scores)
     when (sdSelectedFrom step == "graph" && not (null (sdGraphTop6 step))) $ do
       putStrLn "  Top graph:"
       forM_ (take 6 (sdGraphTop6 step)) $ \(name, conf) -> do
@@ -509,7 +517,6 @@ genPrint'' start len composerStr entropy ctx = do
                    ++ ", c=" ++ show chordD
                    ++ ", m=" ++ show motionD
                    ++ ", γ=" ++ show gammaD ++ ")"
-    -- Advance trace (if available)
     case sdAdvanceTrace step of
       Just at -> do
         putStrLn $ "  Advance: " ++ atCurrentRoot at ++ " (" ++ show (atCurrentRootPC at) ++ ")"
@@ -520,12 +527,6 @@ genPrint'' start len composerStr entropy ctx = do
     putStrLn ""
 
   putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-  putStrLn ""
-  printHeader (T.pack composerStr) entropy ctx
-  print prog
-  putStrLn ""
-
-  pure prog
 
 -- |Generate with custom configuration and maximum diagnostics (internal).
 genWith'' :: GeneratorConfig -> H.CadenceState -> Int -> String -> Double -> HarmonicContext
@@ -602,34 +603,55 @@ genVerbose' config start len composerStr entropy ctx = do
 -------------------------------------------------------------------------------
 
 -- |Execute a 'GenConfig', producing a progression.
+--
+-- Thin wrapper that calls 'execGenConfigWithDiag' (pure compute) and then
+-- emits the appropriate diagnostics + header + grid via 'emitFinalised'.
+-- Single-pass callers see byte-identical output to today.
 execGenConfig :: GenConfig -> IO Prog.Progression
 execGenConfig gc = do
+  (prog, diag) <- execGenConfigWithDiag gc
+  emitFinalised gc (PC.fromProgression prog, diag)
+  pure prog
+
+-- |Compute-only variant of 'execGenConfig'. Returns the progression and
+-- its diagnostics without printing anything. Used by 'singlePassExecPCWithDiag'
+-- and by 'generateBest' inside the K-attempt loop so per-attempt output
+-- can be suppressed and only the winner's emitted.
+execGenConfigWithDiag :: GenConfig -> IO (Prog.Progression, GenerationDiagnostics)
+execGenConfigWithDiag gc = do
   start <- _gcCue gc
   case _gcMode gc of
     Fresh -> case _gcVerbosity gc of
-      Silent   -> genPrint   start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
-      Standard -> genPrint'  start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
-      Verbose  -> genPrint'' start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
+      Silent   -> generate'  start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
+      Standard -> generate'  start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
+      Verbose  -> generate'' start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
 
     GridMode -> do
       let grid = Prog.fromCadenceStates (replicate (_gcLen gc) start)
-      putStrLn ""
-      print grid
-      putStrLn ""
-      pure grid
+          diag = GenerationDiagnostics
+            { gdStartCadence = show (H.stateCadence start)
+            , gdStartRoot    = show (H.stateCadenceRoot start)
+            , gdRequestedLen = _gcLen gc
+            , gdActualLen    = Prog.progLength grid
+            , gdEntropy      = _gcEntropy gc
+            , gdSteps        = []
+            , gdProgression  = grid
+            }
+      pure (grid, diag)
 
     FromProg srcProg s e -> do
-      -- Generate _gcLen+1 chords (cue + new), then drop cue
-      fullProg <- generateWith defaultConfig start
-                    (_gcLen gc + 1) (T.pack $ _gcSeek gc)
-                    (_gcEntropy gc) (_gcTonal gc)
+      -- Generate _gcLen+1 chords (cue + new), then drop cue, splice into source.
+      (fullProg, regenDiag) <- generate' start (_gcLen gc + 1)
+                                 (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
       let newChords = tail $ toList $ Prog.unProgression fullProg
-          result = Prog.spliceProgression srcProg s e newChords
-      putStrLn ""
-      printHeader (T.pack $ _gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
-      print result
-      putStrLn ""
-      pure result
+          result    = Prog.spliceProgression srcProg s e newChords
+      pure (result, regenDiag)
+
+    -- Strata modes are handled by the PC-returning path; they should not
+    -- reach this function. Defensive fallback retains the old Fresh
+    -- behaviour rather than crashing.
+    StrataMode _    -> generate' start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
+    FromProgPC {}   -> generate' start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
 
 -- |Default generation configuration.
 --
@@ -659,6 +681,14 @@ defaultGenConfig = GenConfig
   , _gcBoostSame   = 0.90
   , _gcBoostFlip   = 0.80
   , _gcBoostTri    = 0.70
+  , _gcMaxAttempts  = 1
+  , _gcViableTarget = 1
+  -- Calibrated from a 30-sample online probe (gen, 8 bars, entropy 0.4,
+  -- seek "*"): totalScore distribution observed at min 0.50, median 0.67,
+  -- max 0.78 with the online default weights. T=0.6 catches the bottom
+  -- ~20% of attempts (fallback-driven or tritone-leap runs), keeping
+  -- 'attempt 3 12' reliable. Tune with the 'viability' modifier.
+  , _gcViabilityFloor = 0.6
   }
   where
     defaultCue = do
@@ -693,23 +723,43 @@ genGrid = defaultGenConfig { _gcMode = GridMode }
 -- |Regenerate a range of bars within an existing progression.
 -- The cue is inferred from the bar before the start position (wrapping).
 --
--- @s' <- seek "*" $ entropy 0.3 $ genFrom s (2,3)@
--- @s' <- seek "*" $ cue start $ genFrom s (2,3)   -- override inferred cue@
--- @s' <- seek "*" $ len 6 $ genFrom s (2,3)        -- expand range@
-genFrom :: PC.ProgressionContext -> (Int, Int) -> GenConfig
-genFrom pc (s, e) = defaultGenConfig
+-- Dispatches on @pcProvenance@:
+--
+-- * @Just _@ — strata-aware path: regenerates all three layers + provenance
+--   in lockstep, with one-step lookahead at the @e → e+1@ seam to keep the
+--   spliced bar sequence walk-graph valid under 'allowedNext'.
+-- * @Nothing@ — legacy triad-only path: regenerates the triad layer via the
+--   standard R→E→T pipeline, then splices.
+--
+-- @s' <- seek "*" $ entropy 0.3 $ genFrom s 2 3@
+-- @s' <- seek "*" $ cue start $ genFrom s 2 3    -- override inferred cue@
+-- @s' <- seek "*" $ len 6 $ genFrom s 2 3        -- expand range@
+-- @s' <- seek "*" $ genFrom'  s 2 3              -- Standard per-step trace@
+-- @s' <- seek "*" $ genFrom'' s 2 3              -- Verbose trace (+ scoreboard with 'attempt')@
+genFrom :: PC.ProgressionContext -> Int -> Int -> GenConfig
+genFrom pc s e = defaultGenConfig
   { _gcCue  = inferCue
   , _gcLen  = rSize
-  , _gcMode = FromProg prog s e
+  , _gcMode = case PC.pcProvenance pc of
+      Just _  -> FromProgPC pc s e
+      Nothing -> FromProg (PC.triadLayer pc) s e
   }
   where
-    prog = PC.triadLayer pc
-    n = Prog.progLength prog
+    triad = PC.triadLayer pc
+    n = Prog.progLength triad
     rSize = if s <= e then e - s + 1 else n - s + 1 + e
     cuePos = ((s - 2) `mod` n) + 1  -- 1-indexed, wraps to N when s=1
-    inferCue = case Prog.getCadenceState prog cuePos of
+    inferCue = case Prog.getCadenceState triad cuePos of
       Just cs -> pure cs
       Nothing -> _gcCue defaultGenConfig
+
+-- |Standard-verbosity alias of 'genFrom'. Mirrors 'gen''/'genP''/'genI''.
+genFrom' :: PC.ProgressionContext -> Int -> Int -> GenConfig
+genFrom' pc s e = (genFrom pc s e) { _gcVerbosity = Standard }
+
+-- |Verbose-verbosity alias of 'genFrom'. Mirrors 'gen'''/'genP'''/'genI'''.
+genFrom'' :: PC.ProgressionContext -> Int -> Int -> GenConfig
+genFrom'' pc s e = (genFrom pc s e) { _gcVerbosity = Verbose }
 
 -------------------------------------------------------------------------------
 -- Generation Modifiers
@@ -739,20 +789,280 @@ len n gc = gc { _gcLen = n, _gcLenOverride = Nothing }
 seek :: String -> GenConfig -> IO PC.ProgressionContext
 seek s gc = execGenConfigPC gc { _gcSeek = s }
 
--- |Terminal executor producing a 'PC.ProgressionContext'. Dispatches on
--- '_gcMode': 'StrataMode' runs the strata-first traversal producing distinct
--- layers; all other modes fall through to 'execGenConfig' and wrap the
--- resulting triad 'Prog.Progression' via 'PC.fromProgression'.
+-- |Terminal executor producing a 'PC.ProgressionContext'.
+--
+-- When @_gcMaxAttempts > 1@, dispatches through 'generateBest' for
+-- rank-and-select multi-attempt generation; otherwise runs a single pass.
+--
+-- The single-pass dispatch reads '_gcMode': 'StrataMode' runs the strata-
+-- first traversal producing distinct layers; all other modes fall through
+-- to 'execGenConfig' and wrap the resulting triad 'Prog.Progression' via
+-- 'PC.fromProgression'.
 execGenConfigPC :: GenConfig -> IO PC.ProgressionContext
-execGenConfigPC gc = case _gcMode gc of
-  StrataMode sStart -> runStrataGen sStart gc
-  _                 -> PC.fromProgression <$> execGenConfig gc
+execGenConfigPC gc
+  | _gcMaxAttempts gc > 1 = generateBest gc
+  | otherwise             = singlePassExecPC gc
+
+-- |Emit the final progression block — per-step diagnostics (if any) +
+-- header + chord grid — under the caller's 'Verbosity' and 'GenMode'.
+-- This is the single source of user-visible output for both the single-
+-- pass path and the multi-attempt winner.
+--
+-- For strata modes ('StrataMode', 'FromProgPC') Standard/Verbose use the
+-- 'printStrataDiagnostics' renderer (legacy 'printDiagnostics' would mis-
+-- render the strata trace). For legacy modes ('Fresh', 'GridMode',
+-- 'FromProg') Standard uses 'renderStandardSteps' and Verbose uses
+-- 'renderVerboseSteps' — matching the byte-for-byte output of the old
+-- 'genPrint''/'genPrint''''' wrappers.
+--
+-- The header + grid always reflect the full 'PC.triadLayer pc'. For
+-- 'FromProgPC' / 'FromProg' that's the spliced result (full source
+-- progression with regen bars inserted), not the regen segment alone.
+emitFinalised :: GenConfig -> (PC.ProgressionContext, GenerationDiagnostics) -> IO ()
+emitFinalised gc (pc, diag) = do
+  let isStrata = case _gcMode gc of
+        StrataMode _    -> True
+        FromProgPC {}   -> True
+        _               -> False
+  case _gcVerbosity gc of
+    Silent   -> pure ()
+    Standard -> if isStrata
+                  then printStrataDiagnostics 1 diag
+                  else renderStandardSteps (_gcSeek gc) (_gcTonal gc) diag
+    Verbose  -> if isStrata
+                  then printStrataDiagnostics 2 diag
+                  else renderVerboseSteps (_gcSeek gc) diag
+  putStrLn ""
+  printHeader (T.pack (_gcSeek gc)) (_gcEntropy gc) (_gcTonal gc)
+  print (PC.triadLayer pc)
+  putStrLn ""
+
+-- |Single-pass body of 'execGenConfigPC' — used directly when no multi-
+-- attempt selection is requested. Thin wrapper that performs pure
+-- generation via 'singlePassExecPCWithDiag' then emits the appropriate
+-- diagnostics + header + grid via 'emitFinalised'.
+singlePassExecPC :: GenConfig -> IO PC.ProgressionContext
+singlePassExecPC gc = do
+  (pc, diag) <- singlePassExecPCWithDiag gc
+  emitFinalised gc (pc, diag)
+  pure pc
+
+-- |Pure-compute variant of 'singlePassExecPC'. Returns the
+-- 'ProgressionContext' and its 'GenerationDiagnostics' without printing
+-- anything. Used by the K-attempt loop inside 'generateBest' so per-
+-- attempt output is suppressed and only the winner's emitted.
+singlePassExecPCWithDiag :: GenConfig -> IO (PC.ProgressionContext, GenerationDiagnostics)
+singlePassExecPCWithDiag gc = case _gcMode gc of
+  StrataMode sStart    -> runStrataGen sStart gc
+  FromProgPC srcPC s e -> runStrataGenFrom srcPC s e gc
+  _                    -> do
+    (prog, diag) <- execGenConfigWithDiag gc
+    pure (PC.fromProgression prog, diag)
+
+-- |Generate up to @_gcMaxAttempts@ progressions and return the single
+-- highest-scoring one. An attempt is /viable/ iff
+-- @psModeValidity >= 1.0@ (structural invariant — walk-generated
+-- progressions always pass) AND @totalScore >= _gcViabilityFloor@. The
+-- loop stops early once @_gcViableTarget@ viable attempts have been
+-- collected, then returns the highest-scoring attempt across the full
+-- accumulator (so when zero clear the floor, the best non-viable is
+-- still returned).
+--
+-- When @_gcSeek != "none"@, scoring runs against Neo4j: one shared
+-- 'Bolt.Pipe' is opened for the entire K-attempt loop and 'psCadenceFav'
+-- is populated via 'PS.scoreProgressionOnline' under the user's composer
+-- blend. The online-weighted total ('PS.defaultWeights') is then used —
+-- cadence-favourability is the dominant axis (0.4).
+--
+-- When @_gcSeek == "none"@, scoring is fully pure and uses
+-- 'PS.defaultWeightsOffline' (cadence-fav weight zeroed, the other three
+-- renormalised).
+generateBest :: GenConfig -> IO PC.ProgressionContext
+generateBest gc = do
+  -- Immediate user feedback before the K-attempt loop blocks. Tidal's
+  -- GHCi stdout is line-buffered, so the newline flushes right away.
+  putStrLn "composing .."
+  let online = map toLower (_gcSeek gc) /= "none"
+  (winnerPC, winnerDiag, diags) <-
+    if online then runOnline gc else runOffline gc
+  -- All per-attempt printing was suppressed inside the loop (Phase 11
+  -- moved every emission into 'emitFinalised'). Emit the winner exactly
+  -- once, at the caller's verbosity.
+  emitFinalised gc (winnerPC, winnerDiag)
+  -- Verbose + multi-attempt: surface the full scoreboard.
+  when (_gcVerbosity gc == Verbose && _gcMaxAttempts gc > 1) $
+    printAttemptScoreboard (_gcViabilityFloor gc) diags
+  pure winnerPC
+
+-- |Offline arm of 'generateBest'. Pure scoring with
+-- 'PS.defaultWeightsOffline'.
+--
+-- The loop receives the caller's 'GenConfig' as-is — per-attempt
+-- diagnostics are collected at the caller's verbosity, which the
+-- winner's 'emitFinalised' then renders. No printing happens inside the
+-- loop (Phase 11 lifted every emission out of 'singlePassExecPCWithDiag').
+runOffline :: GenConfig
+           -> IO (PC.ProgressionContext, GenerationDiagnostics, [AttemptDiagnostic])
+runOffline gc = do
+  let maxN   = max 1 (_gcMaxAttempts gc)
+      target = max 1 (_gcViableTarget gc)
+      floorT = _gcViabilityFloor gc
+  scored <- offlineLoop gc maxN target floorT
+  finaliseScored gc scored
+
+-- |Online arm of 'generateBest'. Opens one 'Bolt.Pipe' for the entire
+-- K-attempt loop; scores each attempt via 'PS.scoreProgressionOnline'
+-- using @_gcSeek@ as the composer blend; ranks via 'PS.defaultWeights'.
+--
+-- If Neo4j is unreachable, 'connectNeo4j' will surface the error directly
+-- — matching the existing generation pipeline's behaviour for the same
+-- condition. Users who want to bypass Neo4j entirely opt in via
+-- @seek "none"@.
+runOnline :: GenConfig
+          -> IO (PC.ProgressionContext, GenerationDiagnostics, [AttemptDiagnostic])
+runOnline gc = do
+  let maxN    = max 1 (_gcMaxAttempts gc)
+      target  = max 1 (_gcViableTarget gc)
+      floorT  = _gcViabilityFloor gc
+      seekTxt = T.pack (_gcSeek gc)
+  pipe <- connectNeo4j
+  scored <- Bolt.run pipe (onlineLoop seekTxt gc maxN target floorT)
+  Bolt.close pipe
+  finaliseScored gc scored
+
+-- |Inner-loop record: per-attempt (progression, score, totalScore,
+-- viability flag, diagnostics). The diagnostics are carried so the
+-- winner's per-step trace can be re-emitted at the caller's verbosity
+-- without re-running generation. The accumulator is kept in generation
+-- order; index is assigned in 'finaliseScored' so the scoreboard
+-- reflects the actual trial sequence.
+type ScoredAttempt = (PC.ProgressionContext, PS.ProgressionScore, Double, Bool, GenerationDiagnostics)
+
+-- |Inner loop for the offline arm. Calls 'singlePassExecPCWithDiag'
+-- (no printing) so per-attempt output is fully suppressed; diagnostics
+-- are collected at the caller's verbosity for the winner's later render.
+offlineLoop
+  :: GenConfig            -- ^ caller's config (printing already lifted out)
+  -> Int                  -- ^ maxAttempts
+  -> Int                  -- ^ viableTarget
+  -> Double               -- ^ viabilityFloor
+  -> IO [ScoredAttempt]
+offlineLoop gc maxN target floorT = go 0 [] maxN
+  where
+    go _ acc 0 = pure (reverse acc)
+    go viableSoFar acc remaining
+      | viableSoFar >= target = pure (reverse acc)
+      | otherwise = do
+          (pc, diag) <- singlePassExecPCWithDiag gc
+          let ps    = PS.scoreProgression pc
+              tot   = PS.totalScore PS.defaultWeightsOffline ps
+              isOk  = PS.psModeValidity ps >= 1.0 && tot >= floorT
+              acc'  = (pc, ps, tot, isOk, diag) : acc
+              viable' = if isOk then viableSoFar + 1 else viableSoFar
+          go viable' acc' (remaining - 1)
+
+-- |Inner loop for the online arm, run under 'Bolt.run pipe'.
+onlineLoop
+  :: T.Text               -- ^ seek string (composer blend)
+  -> GenConfig            -- ^ caller's config (printing already lifted out)
+  -> Int                  -- ^ maxAttempts
+  -> Int                  -- ^ viableTarget
+  -> Double               -- ^ viabilityFloor
+  -> Bolt.BoltActionT IO [ScoredAttempt]
+onlineLoop seekTxt gc maxN target floorT = go 0 [] maxN
+  where
+    go _ acc 0 = pure (reverse acc)
+    go viableSoFar acc remaining
+      | viableSoFar >= target = pure (reverse acc)
+      | otherwise = do
+          (pc, diag) <- liftIO (singlePassExecPCWithDiag gc)
+          ps <- PS.scoreProgressionOnline seekTxt pc
+          let tot   = PS.totalScore PS.defaultWeights ps
+              isOk  = PS.psModeValidity ps >= 1.0 && tot >= floorT
+              acc'  = (pc, ps, tot, isOk, diag) : acc
+              viable' = if isOk then viableSoFar + 1 else viableSoFar
+          go viable' acc' (remaining - 1)
+
+-- |Shared post-loop: builds 'AttemptDiagnostic' values with index +
+-- picked flag set on the maximum-totalScore attempt, and returns the
+-- picked 'ProgressionContext', its 'GenerationDiagnostics' (for the
+-- caller to emit via 'emitFinalised'), and the per-attempt diagnostic
+-- list (for the scoreboard).
+--
+-- The empty-scored defensive branch falls back to a non-silenced
+-- 'singlePassExecPCWithDiag', mirroring the prior behaviour where the
+-- fallback would print under the caller's verbosity.
+finaliseScored
+  :: GenConfig
+  -> [ScoredAttempt]
+  -> IO (PC.ProgressionContext, GenerationDiagnostics, [AttemptDiagnostic])
+finaliseScored gc scored = case scored of
+  [] -> do
+    (pc, diag) <- singlePassExecPCWithDiag gc
+    pure (pc, diag, [])
+  xs -> do
+    let indexed = zip [1..] xs
+        (winnerIdx, (winnerPC, _, _, _, winnerDiag)) =
+          maximumByKey (\(_, (_, _, tot, _, _)) -> tot) indexed
+        diags = [ AttemptDiagnostic
+                    { adIndex  = i
+                    , adScore  = ps
+                    , adTotal  = tot
+                    , adViable = ok
+                    , adPicked = i == winnerIdx
+                    , adChords = chordNamesOf (PC.triadLayer pc)
+                    }
+                | (i, (pc, ps, tot, ok, _)) <- indexed
+                ]
+    pure (winnerPC, winnerDiag, diags)
+  where
+    maximumByKey :: Ord b => (a -> b) -> [a] -> a
+    maximumByKey f = foldr1 (\x y -> if f x >= f y then x else y)
+
+-- |Extract a chord-name sequence from a triad-layer 'Progression' for
+-- the scoreboard's diff column. Mirrors what 'Show Progression'
+-- produces per cell, but as a plain list rather than a grid string.
+chordNamesOf :: Prog.Progression -> [String]
+chordNamesOf prog =
+  let cads = toList (Prog.unProgression prog)
+      enharms = map (H.enharmonicFunc . H.stateSpelling) cads
+      chords = map H.fromCadenceState cads
+  in zipWith Prog.showTriad enharms chords
 
 -- |Set entropy (gamma shape parameter). Higher values = more unusual choices.
 --
 -- @s <- seek "*" $ entropy 0.5 $ gen@
 entropy :: Double -> GenConfig -> GenConfig
 entropy e gc = gc { _gcEntropy = e }
+
+-- |Run multi-attempt rank-and-select generation: produce up to @maxAttempts@
+-- candidate progressions, stop early once @viableTarget@ viable attempts
+-- (all bars 'ModeOk') have been collected, then return the highest-scoring
+-- one. Scoring blends root motion, voice leading, and mode validity via
+-- 'PS.defaultWeightsOffline'.
+--
+-- @s <- seek "*" $ attempt 3 24 $ entropy 0.4 $ gen@   -- best of up to 24
+--
+-- Defaults are @attempt 1 1@ — i.e. the modifier is a no-op when omitted,
+-- preserving legacy single-pass behaviour.
+attempt :: Int -> Int -> GenConfig -> GenConfig
+attempt viableTarget maxAttempts gc = gc
+  { _gcViableTarget = max 1 viableTarget
+  , _gcMaxAttempts  = max 1 maxAttempts
+  }
+
+-- |Set the viability quality floor used by 'attempt'. An attempt is
+-- /viable/ iff @psModeValidity >= 1.0@ (structural invariant) and
+-- @totalScore >= floor@. Default is @0.5@; passing @0.0@ recovers the
+-- original structural-only viability.
+--
+-- @s <- seek "*" $ viability 0.65 $ attempt 3 24 $ gen@
+--
+-- Tune downward if @attempt N K@ frequently fails to collect N viable
+-- within K (raise K or lower the floor); tune upward if K is being hit
+-- consistently with mediocre-quality picks (lower K or raise the floor).
+viability :: Double -> GenConfig -> GenConfig
+viability t gc = gc { _gcViabilityFloor = max 0 t }
 
 -- |Set harmonic context (R constraints).
 --
@@ -886,7 +1196,7 @@ genXI''   = genP'' Sc.XI
 -- Strata and mode layer bars are representative 3-PC slices of
 -- 'strataChroma s_i' and 'modeChroma m_i' respectively, rooted on the
 -- generated triad's root so they transpose with the progression.
-runStrataGen :: Sc.StrataLabel -> GenConfig -> IO PC.ProgressionContext
+runStrataGen :: Sc.StrataLabel -> GenConfig -> IO (PC.ProgressionContext, GenerationDiagnostics)
 runStrataGen sStart gc = do
   start <- _gcCue gc
   rng   <- createSystemRandom
@@ -994,12 +1304,22 @@ runStrataGen sStart gc = do
   if not cueValid
     then do
       printInvalidCueError start s0
-      pure PC.ProgressionContext
-        { PC.triadLayer   = mempty
-        , PC.strataLayer  = mempty
-        , PC.modeLayer    = mempty
-        , PC.pcProvenance = Just Seq.empty
-        }
+      let emptyPC = PC.ProgressionContext
+            { PC.triadLayer   = mempty
+            , PC.strataLayer  = mempty
+            , PC.modeLayer    = mempty
+            , PC.pcProvenance = Just Seq.empty
+            }
+          emptyDiag = GenerationDiagnostics
+            { gdStartCadence = show (H.stateCadence start)
+            , gdStartRoot    = show (H.stateCadenceRoot start)
+            , gdRequestedLen = n
+            , gdActualLen    = 0
+            , gdEntropy      = _gcEntropy gc
+            , gdSteps        = []
+            , gdProgression  = mempty
+            }
+      pure (emptyPC, emptyDiag)
     else runStrataGenBody sStart gc start rng s0 t0 barSeq pctxAt boostFor n
 
 -- |Body of 'runStrataGen' after cue validation has passed. Separated so
@@ -1016,7 +1336,7 @@ runStrataGenBody
   -> (Int -> ParsedContext)
   -> (Int -> Double)
   -> Int
-  -> IO PC.ProgressionContext
+  -> IO (PC.ProgressionContext, GenerationDiagnostics)
 runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
   -- Keep the cue as bar 1 (matching 'gen' semantics). Generate n-1 more
   -- bars. Chain has n elements: [cue, gen_1, ..., gen_{n-1}]. Step i of
@@ -1071,15 +1391,20 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
         | (i, cs) <- zip [0..] chain
         ]
 
-      -- Mode value used for the mode-layer Cadence + diagnostic 'sdMode'.
-      -- 'ModeInvalid' falls back to Aeolian rooted on the triad root so
-      -- the mode layer still has a sensible 7-PC chroma to draw from.
-      modeOf :: H.CadenceState -> Sc.ModeResult -> Sc.Mode
-      modeOf cs (Sc.ModeOk m)        = m
-      modeOf cs (Sc.ModeInvalid _)   = Sc.Mode Sc.Aeolian (P.mkPitchClass (harmonicRootOf cs))
-
-      modeList :: [Sc.Mode]
-      modeList = zipWith modeOf chain modeResults
+      -- Per-bar chroma stored in the mode layer. 'ModeOk' contributes the
+      -- 7-PC mode chroma; 'ModeInvalid' contributes its 6-PC overlap PCs
+      -- as-is. No Aeolian masquerade — the layer faithfully reflects what
+      -- 'modeForTriad' produced. Natural walks always yield 'ModeOk' (proven
+      -- from 'allowedNext' adjacency); 'ModeInvalid' is reachable only via
+      -- explicit 'absStrata' / 'relStrata' overrides that violate tristrata
+      -- adjacency.
+      modeChromaList :: [[P.PitchClass]]
+      modeChromaList =
+        [ case mr of
+            Sc.ModeOk m         -> Sc.modeChroma m
+            Sc.ModeInvalid pcs  -> pcs
+        | mr <- modeResults
+        ]
 
       -- Build a CadenceState from a root and root-relative intervals,
       -- preserving full cardinality. Bypasses 'H.initCadenceState' because
@@ -1098,23 +1423,23 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
 
       -- Build per-bar strata-layer + mode-layer CadenceStates rooted on
       -- each generated triad's harmonic root, carrying the full 5 / 7 PC
-      -- chroma respectively.
+      -- chroma respectively (6 PCs for override-driven 'ModeInvalid' bars).
       mkAuxLayers :: H.CadenceState
                   -> Sc.StrataLabel
-                  -> Sc.Mode
+                  -> [P.PitchClass]              -- mode/overlap chroma
                   -> (H.CadenceState, H.CadenceState)
-      mkAuxLayers triadCS sCurr mode =
+      mkAuxLayers triadCS sCurr modeChromaPCs =
         let rootPC     = harmonicRootOf triadCS
             rootNote   = harmonicRootNote triadCS
             strataInts = chromaIntervals rootPC (Sc.strataChroma sCurr)
-            modeInts   = chromaIntervals rootPC (Sc.modeChroma mode)
+            modeInts   = chromaIntervals rootPC modeChromaPCs
             strataCS   = mkChromaCS rootNote strataInts
             modeCS     = mkChromaCS rootNote modeInts
         in (strataCS, modeCS)
 
       stratas = [s | (s, _) <- pairs]
       modes   = [m | (_, m) <- pairs]
-      pairs   = zipWith3 mkAuxLayers chain (map fst barSeq) modeList
+      pairs   = zipWith3 mkAuxLayers chain (map fst barSeq) modeChromaList
 
       provSeq          = Seq.fromList [(t, s) | (s, t) <- take (length chain) barSeq]
       resultPC = PC.ProgressionContext
@@ -1155,26 +1480,26 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
         in Prog.showTriad (H.enharmonicFunc spelling) chord
 
       attachedDiags =
-        [ let rootPC    = harmonicRootOf cs
-              chroma    = case mr of
-                Sc.ModeOk mode     -> Sc.modeChroma mode
-                Sc.ModeInvalid pcs -> pcs
-              spelling  = barSpellingOf chroma rootPC
+        [ let rootPC                = harmonicRootOf cs
+              spelling              = barSpellingOf chroma rootPC
+              (mMode, mParentKey)   = case mr of
+                Sc.ModeOk mode     -> (Just mode, Just (Sc.parentKey mode))
+                Sc.ModeInvalid _   -> (Nothing, Nothing)
           in d { sdStepNumber     = i + 1
                , sdRenderedChord  = Just (slashChordWith spelling cs)
                , sdStrataLabel    = Just s
                , sdTristrata      = Just t
                , sdTristrataIdx   = tristrataIdxOf t
-               , sdMode           = Just m
+               , sdMode           = mMode
                , sdStrataChroma   = Just (Sc.strataChroma s)
-               , sdModeChroma     = Just (Sc.modeChroma m)
+               , sdModeChroma     = Just chroma
                , sdSoftBoost      = Just (boostFor i)
                , sdHarmonicRootPC = Just rootPC
-               , sdParentKey      = Just (Sc.parentKey m)
+               , sdParentKey      = mParentKey
                , sdModeResult     = Just mr
                , sdBarSpelling    = Just spelling
                }
-        | (i, d, (s, t), m, cs, mr) <- zip6 [0..] allBaseDiags barSeq modeList chain modeResults
+        | (i, d, (s, t), chroma, cs, mr) <- zip6 [0..] allBaseDiags barSeq modeChromaList chain modeResults
         ]
       attachedGen = GenerationDiagnostics
         { gdStartCadence = show (H.stateCadence start)
@@ -1186,20 +1511,12 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
         , gdProgression  = PC.triadLayer resultPC
         }
 
-  case verbArg of
-    Nothing -> pure ()
-    Just v  -> printStrataDiagnostics v attachedGen
+  -- No inline printing; diagnostics and footer are emitted by the
+  -- top-level caller via 'emitFinalised', so that multi-attempt mode
+  -- can suppress losing attempts and surface only the winner.
+  let _ = verbArg
 
-  -- Always emit the gen-style footer: composer/entropy/context header
-  -- followed by the triad progression in chord-grid form. This matches
-  -- the behaviour of 'genPrint'/'genPrint''/'genPrint''''' from the
-  -- legacy 'gen' family.
-  putStrLn ""
-  printHeader (T.pack (_gcSeek gc)) (_gcEntropy gc) (_gcTonal gc)
-  print (PC.triadLayer resultPC)
-  putStrLn ""
-
-  pure resultPC
+  pure (resultPC, attachedGen)
   where
     zip4 as bs cs ds = [ (a, b, c, d) | ((a, b), (c, d)) <- zip (zip as bs) (zip cs ds) ]
     zip6 as bs cs ds es fs =
@@ -1246,6 +1563,145 @@ mkStarterDiag cs =
        , sdModeResult              = Nothing
        , sdBarSpelling             = Nothing
        }
+
+-------------------------------------------------------------------------------
+-- Strata-aware partial regeneration
+-------------------------------------------------------------------------------
+
+-- |Regenerate a contiguous range of bars within an existing strata-aware
+-- 'PC.ProgressionContext'. Mirrors 'runStrataGen' but seeded from the
+-- source context's provenance instead of via 'initialPlacement', with a
+-- one-step lookahead on the final regenerated bar so the @e → e+1@ seam
+-- preserves walk-graph validity under 'Strata.allowedNext'.
+--
+-- By the Phase 1 invariant, any spliced sequence whose every edge satisfies
+-- 'allowedNext' automatically produces only 'ModeOk' bars. Maintaining
+-- adjacency at both seams (the @s-1 → s@ seam is automatic via seeding;
+-- the @e → e+1@ seam is the lookahead's job) is sufficient.
+runStrataGenFrom :: PC.ProgressionContext
+                 -> Int   -- ^ 1-indexed start of regen range (inclusive)
+                 -> Int   -- ^ 1-indexed end of regen range (inclusive); wraps when @start > end@
+                 -> GenConfig
+                 -> IO (PC.ProgressionContext, GenerationDiagnostics)
+runStrataGenFrom srcPC s e gc = do
+  let srcProvSeq = case PC.pcProvenance srcPC of
+        Just sq -> sq
+        Nothing -> error "runStrataGenFrom: source ProgressionContext lacks pcProvenance — call genFrom on a 'genI'/'genP'-derived context"
+      srcProvList = toList srcProvSeq                -- [(Tristrata, StrataLabel)]
+      srcN        = Seq.length srcProvSeq
+      -- 1-indexed positions (wrap-aware).
+      seedPos     = ((s - 2) `mod` srcN) + 1
+      targetPos   = (e `mod` srcN) + 1
+      (t_seed,   s_seed)   = srcProvList !! (seedPos   - 1)
+      (t_target, s_target) = srcProvList !! (targetPos - 1)
+      rSize       = if s <= e then e - s + 1 else srcN - s + 1 + e
+
+      -- Cue: the source's triad-layer chord at seedPos. This was originally
+      -- generated under the seed strata's narrowed context, so its absolute
+      -- PCs lie within 's_seed's chroma — cue-validity is automatic.
+      triadStates = toList (Prog.unProgression (PC.triadLayer srcPC))
+      cueCS       = triadStates !! (seedPos - 1)
+
+  rng <- createSystemRandom
+  let basePctx = parseContextOnce (_gcTonal gc)
+      allowed  = pcAllowedTristrata basePctx
+      allowed' = if null allowed then Sc.validTristrata else allowed
+
+      narrow :: Int -> [(Sc.StrataLabel, Sc.Tristrata)] -> [(Sc.StrataLabel, Sc.Tristrata)]
+      narrow i pool =
+        let pool1 = case _gcRelStrata gc of
+              Just ps | not (null ps) ->
+                let p = ps !! (i `mod` length ps)
+                in [(s',t') | (s',t') <- pool, Sc.tristrataStrataAt t' p == s']
+              _ -> pool
+            pool2 = case _gcAbsStrata gc of
+              Just ss | not (null ss) ->
+                let lbl = ss !! (i `mod` length ss)
+                in [(s',t') | (s',t') <- pool1, s' == lbl]
+              _ -> pool1
+        in pool2
+
+  walkSeeds <- mapM (const (uniformRM (minBound :: Int, maxBound :: Int) rng))
+                    [1 .. max 0 rSize]
+
+  let -- Walk rSize bars seeded at (s_seed, t_seed). The final bar's pool is
+      -- filtered to predecessors of the target (s_target, t_target) so the
+      -- spliced sequence retains allowedNext-adjacency at the e→e+1 seam.
+      -- If the filter empties the pool, fall back to the unfiltered pool.
+      walkRange :: Int -> [Int] -> (Sc.StrataLabel, Sc.Tristrata) -> [(Sc.StrataLabel, Sc.Tristrata)]
+      walkRange i seeds prev
+        | i >= rSize = []
+        | otherwise =
+            let rawCands = narrow i (Strata.allowedNext allowed' prev)
+                isFinal  = i == rSize - 1
+                filtered =
+                  if isFinal
+                    then filter (\p -> (s_target, t_target)
+                                       `elem` Strata.allowedNext allowed' p)
+                                rawCands
+                    else rawCands
+                cands     = if isFinal && null filtered then rawCands else filtered
+                (seed, seedsRest) = case seeds of
+                  (sd : rest) -> (sd, rest)
+                  []          -> (0, [])
+                chosen    = fromMaybe prev (Strata.selectNextSeeded seed prev cands)
+            in chosen : walkRange (i + 1) seedsRest chosen
+
+      -- Local barSeq passed to runStrataGenBody. Index 0 = seed (the cue),
+      -- indices 1..rSize = the regenerated bars.
+      regenBarSeq :: [(Sc.StrataLabel, Sc.Tristrata)]
+      regenBarSeq = (s_seed, t_seed) : walkRange 0 walkSeeds (s_seed, t_seed)
+      regenN      = length regenBarSeq   -- = rSize + 1
+
+      strataOvertonesString :: Sc.StrataLabel -> String
+      strataOvertonesString sl =
+        unwords [ show (P.sharp (P.mkPitchClass (P.unPitchClass pc))) ++ "'"
+                | pc <- Sc.strataChroma sl ]
+
+      boostFor :: Int -> Double
+      boostFor 0 = 1.0
+      boostFor i =
+        let (sCurr, tCurr) = regenBarSeq !! i
+            (sPrev, tPrev) = regenBarSeq !! (i - 1)
+            sGrand         = if i >= 2 then Just (fst (regenBarSeq !! (i - 2))) else Nothing
+            mSame = if sCurr == sPrev then _gcBoostSame gc else 1.0
+            mFlip = case sGrand of
+                      Just sg | sCurr == sg && sCurr /= sPrev -> _gcBoostFlip gc
+                      _                                        -> 1.0
+            mTri  = if tCurr == tPrev then _gcBoostTri gc else 1.0
+            _     = tPrev
+        in mSame * mFlip * mTri
+
+      pctxAt :: Int -> ParsedContext
+      pctxAt barIdx1 =
+        let i      = barIdx1
+            (sl, _) = regenBarSeq !! i
+            ctx'   = hcOvertones (strataOvertonesString sl) (_gcTonal gc)
+            pctx   = parseContextOnce ctx'
+            boost  = boostFor i
+        in pctx { pcSoftBoost = boost, pcStrictContainment = True }
+
+  -- Reuse runStrataGenBody for chain construction. Result has regenN bars
+  -- across all layers: index 0 = the seed (cue) bar, indices 1..rSize =
+  -- the regenerated bars.
+  (regenPC, regenDiag) <- runStrataGenBody s_seed gc cueCS rng s_seed t_seed
+                                           regenBarSeq pctxAt boostFor regenN
+
+  let -- Drop the cue bar (index 0) from each layer and from provenance.
+      dropCue :: Prog.Progression -> Prog.Progression
+      dropCue (Prog.Progression sq) = Prog.Progression (Seq.drop 1 sq)
+
+      insertPC = PC.ProgressionContext
+        { PC.triadLayer   = dropCue (PC.triadLayer regenPC)
+        , PC.strataLayer  = dropCue (PC.strataLayer regenPC)
+        , PC.modeLayer    = dropCue (PC.modeLayer regenPC)
+        , PC.pcProvenance = case PC.pcProvenance regenPC of
+            Just sq -> Just (Seq.drop 1 sq)
+            Nothing -> Nothing
+        }
+      splicedPC = PC.pcSplice srcPC s e insertPC
+
+  pure (splicedPC, regenDiag)
 
 -- |Report an invalid starting cue for 'genP'. Prints a warning naming
 -- the cue's escape pitches alongside a grid of viable triads in the

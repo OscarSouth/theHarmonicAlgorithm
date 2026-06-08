@@ -54,16 +54,22 @@ type ComposerWeights = Map Text Double
 -------------------------------------------------------------------------------
 
 -- |Parse a composer selection string into normalized weights.
--- 
+--
+-- Composer names are matched case-insensitively against the corpus —
+-- @"Bach"@, @"bach"@, @"BACH"@, @"bAcH"@ all collapse to the same key.
+-- Names are lower-cased here at parse time; 'resolveWeights' lowercases
+-- corpus edge keys at lookup time so the match is robust regardless of
+-- the case convention used during corpus ingestion.
+--
 -- Supported formats:
 --   "bach debussy"           -> equal weights, normalized to sum 1.0
---   "bach:30 debussy:70"     -> weighted, normalized (30/100 = 0.3, 70/100 = 0.7)
+--   "Bach:30 Debussy:70"     -> weighted, normalized; case-insensitive
 --   "bach:0.3, debussy:0.7"  -> already normalized (or re-normalized if needed)
 --
 -- Examples:
---   parseComposerWeights "bach debussy" 
+--   parseComposerWeights "bach debussy"
 --     == Map.fromList [("bach", 0.5), ("debussy", 0.5)]
---   parseComposerWeights "bach:30 debussy:70" 
+--   parseComposerWeights "Bach:30 DEBUSSY:70"
 --     == Map.fromList [("bach", 0.3), ("debussy", 0.7)]
 parseComposerWeights :: Text -> ComposerWeights
 parseComposerWeights input
@@ -71,19 +77,19 @@ parseComposerWeights input
   | otherwise =
       let tokens = filter (not . T.null) $ T.split isSeparator input
           parsed = mapMaybe parseToken tokens
-       in normalizeWeights $ Map.fromList parsed
+       in normalizeWeights $ Map.fromListWith (+) parsed
   where
     isSeparator c = c == ' ' || c == ','
-    
+
     parseToken :: Text -> Maybe (Text, Double)
     parseToken tok =
       case T.splitOn ":" tok of
-        [name]        -> Just (T.strip name, 1.0)  -- Equal weight
-        [name, wStr]  -> 
+        [name]        -> Just (T.toLower (T.strip name), 1.0)  -- Equal weight
+        [name, wStr]  ->
           let weight = parseWeight (T.strip wStr)
-           in Just (T.strip name, weight)
+           in Just (T.toLower (T.strip name), weight)
         _             -> Nothing
-    
+
     parseWeight :: Text -> Double
     parseWeight wStr =
       let str = T.unpack wStr
@@ -162,8 +168,16 @@ resolveWeights blend candidates =
           -- Wildcard "*": use aggregate (sum of all composer weights = r.confidence equivalent)
           (cadence, sum (Map.elems edgeWeights))
       | otherwise =
-          let score = sum
-                [ userWeight * fromMaybe 0 (Map.lookup composer edgeWeights)
+          -- Case-fold both sides so the match is robust regardless of corpus
+          -- case convention (current corpus is lowercase; doc example showed
+          -- capitalised) and regardless of how the user constructed the blend
+          -- (parseComposerWeights lower-cases at parse time, but a directly-
+          -- constructed Map bypassing the parser may have arbitrary case).
+          -- Sum on collision so two case-variant keys merge rather than drop.
+          let edgeLower = Map.fromListWith (+)
+                            [ (T.toLower k, v) | (k, v) <- Map.toList edgeWeights ]
+              score = sum
+                [ userWeight * fromMaybe 0 (Map.lookup (T.toLower composer) edgeLower)
                 | (composer, userWeight) <- Map.toList userBlend
                 ]
            in (cadence, score)

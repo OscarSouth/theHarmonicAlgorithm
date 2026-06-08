@@ -850,7 +850,7 @@ spec = do
     it "sets FromProg mode with correct range" $ do
       let cs = H.initCadenceState 0 "C" [0,4,7]
           prog = PC.fromProgression $ Prog.fromCadenceStates [cs, cs, cs, cs]
-          gc = genFrom prog (2, 3)
+          gc = genFrom prog 2 3
       case _gcMode gc of
         FromProg _ s e -> do { s `shouldBe` 2; e `shouldBe` 3 }
         _ -> expectationFailure "expected FromProg"
@@ -858,23 +858,23 @@ spec = do
     it "sets len to range size (non-wrapping)" $ do
       let cs = H.initCadenceState 0 "C" [0,4,7]
           prog = PC.fromProgression $ Prog.fromCadenceStates [cs, cs, cs, cs]
-      _gcLen (genFrom prog (2, 3)) `shouldBe` 2
+      _gcLen (genFrom prog 2 3) `shouldBe` 2
 
     it "sets len to range size (wrapping)" $ do
       let cs = H.initCadenceState 0 "C" [0,4,7]
           prog = PC.fromProgression $ Prog.fromCadenceStates [cs, cs, cs, cs]
-      _gcLen (genFrom prog (4, 2)) `shouldBe` 3
+      _gcLen (genFrom prog 4 2) `shouldBe` 3
 
     it "len modifier overrides range size" $ do
       let cs = H.initCadenceState 0 "C" [0,4,7]
           prog = PC.fromProgression $ Prog.fromCadenceStates [cs, cs, cs, cs]
-      _gcLen (len 8 $ genFrom prog (2, 3)) `shouldBe` 8
+      _gcLen (len 8 $ genFrom prog 2 3) `shouldBe` 8
 
     it "infers cue from position before start" $ do
       let csC = H.initCadenceState 0 "C" [0,4,7]
           csE = H.initCadenceState 0 "E" [0,4,7]
           prog = PC.fromProgression $ Prog.fromCadenceStates [csC, csE, csC, csC]
-          gc = genFrom prog (3, 4)  -- cue should be position 2 (E)
+          gc = genFrom prog 3 4  -- cue should be position 2 (E)
       result <- _gcCue gc
       H.stateCadenceRoot result `shouldBe` P.E
 
@@ -882,7 +882,7 @@ spec = do
       let csC = H.initCadenceState 0 "C" [0,4,7]
           csG = H.initCadenceState 0 "G" [0,4,7]
           prog = PC.fromProgression $ Prog.fromCadenceStates [csC, csC, csC, csG]
-          gc = genFrom prog (1, 2)  -- cue should be position 4 (G)
+          gc = genFrom prog 1 2  -- cue should be position 4 (G)
       result <- _gcCue gc
       H.stateCadenceRoot result `shouldBe` P.G
 

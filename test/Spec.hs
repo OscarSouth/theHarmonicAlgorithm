@@ -27,7 +27,9 @@ import qualified Harmonic.Rules.Types.PitchSpec as PitchSpec
 import qualified Harmonic.Rules.Types.HarmonySpec as HarmonySpec
 import qualified Harmonic.Rules.Constraints.OvertoneSpec as OvertoneSpec
 import qualified Harmonic.Evaluation.Scoring.VoiceLeadingSpec as VoiceLeadingSpec
+import qualified Harmonic.Evaluation.Scoring.ProgressionSpec as ScoringProgressionSpec
 import qualified Harmonic.Rules.Types.ProgressionSpec as ProgressionSpec
+import qualified Harmonic.Rules.Types.ProgressionContextSpec as ProgressionContextSpec
 import qualified Harmonic.Rules.Types.ScaleSpec as ScaleSpec
 import qualified Harmonic.Rules.Constraints.FilterSpec as FilterSpec
 import qualified Harmonic.Evaluation.Scoring.DissonanceSpec as DissonanceSpec
@@ -52,7 +54,9 @@ main = hspec $ do
   describe "Harmonic.Core.Harmony" HarmonySpec.spec
   describe "Harmonic.Core.Overtone" OvertoneSpec.spec
   describe "Harmonic.Core.VoiceLeading" VoiceLeadingSpec.spec
+  describe "Harmonic.Scoring.Progression" ScoringProgressionSpec.spec
   describe "Harmonic.Core.Progression" ProgressionSpec.spec
+  describe "Harmonic.Core.ProgressionContext" ProgressionContextSpec.spec
   describe "Harmonic.Core.Scale" ScaleSpec.spec
   describe "Harmonic.Core.Filter" FilterSpec.spec
   describe "Harmonic.Core.Dissonance" DissonanceSpec.spec

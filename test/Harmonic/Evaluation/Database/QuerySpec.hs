@@ -127,6 +127,32 @@ spec = do
         Map.size result `shouldBe` 2
         sumsToOne result `shouldBe` True
 
+    describe "Case-insensitivity (Phase 8)" $ do
+      it "\"Bach\" lower-cases the key" $ do
+        let result = parseComposerWeights "Bach"
+        Map.lookup "bach" result `shouldBe` Just 1.0
+        Map.lookup "Bach" result `shouldBe` Nothing
+
+      it "\"BACH\", \"bAcH\", \"bach\" all produce identical maps" $ do
+        let a = parseComposerWeights "BACH"
+            b = parseComposerWeights "bAcH"
+            c = parseComposerWeights "bach"
+        a `shouldBe` b
+        b `shouldBe` c
+
+      it "\"Bach:70 DEBUSSY:30\" -> {bach: 0.7, debussy: 0.3}" $ do
+        let result = parseComposerWeights "Bach:70 DEBUSSY:30"
+        Map.lookup "bach"    result `shouldBe` Just 0.7
+        Map.lookup "debussy" result `shouldBe` Just 0.3
+        sumsToOne result `shouldBe` True
+
+      it "duplicate composer keys differing only by case are merged" $ do
+        -- "Bach:1 BACH:2 bach:3" → all collapse to "bach"; weights summed
+        -- pre-normalisation (1+2+3 = 6), then normalised to {bach: 1.0}.
+        let result = parseComposerWeights "Bach:1 BACH:2 bach:3"
+        Map.lookup "bach" result `shouldBe` Just 1.0
+        Map.size result `shouldBe` 1
+
   describe "normalizeWeights" $ do
     
     it "normalizes weights to sum 1.0" $ do
@@ -183,6 +209,34 @@ spec = do
                        ]
           result = resolveWeights userBlend candidates
       map snd result `shouldBe` [15.0, 10.0, 5.0]
+
+    describe "Case-insensitive lookup (Phase 8)" $ do
+      it "user blend {\"Bach\"} matches lowercase corpus edge weights" $ do
+        -- Direct map (bypasses parseComposerWeights) to prove the lookup
+        -- itself is case-insensitive even if the user blend was constructed
+        -- manually with capitalised keys.
+        let userBlend  = Map.fromList [("Bach", 1.0)]
+            candidates = [(testCadence 1, Map.fromList [("bach", 5.0)])]
+            result     = resolveWeights userBlend candidates
+        snd (head result) `shouldBe` 5.0    -- previously: 0.0
+
+      it "identical scores regardless of user blend key case" $ do
+        let candidates = [(testCadence 1, Map.fromList [("bach", 7.0), ("debussy", 3.0)])]
+            blendLow   = Map.fromList [("bach", 1.0)]
+            blendMix   = Map.fromList [("Bach", 1.0)]
+            blendUp    = Map.fromList [("BACH", 1.0)]
+        snd (head (resolveWeights blendLow  candidates)) `shouldBe`
+          snd (head (resolveWeights blendMix candidates))
+        snd (head (resolveWeights blendMix  candidates)) `shouldBe`
+          snd (head (resolveWeights blendUp  candidates))
+
+      it "corpus edge weights with capitalised keys are matched by lowercase user blend" $ do
+        -- Defensive: if the corpus ever stored capitalised keys (the original
+        -- doc example showed this), lookup still works.
+        let userBlend  = Map.fromList [("bach", 1.0)]
+            candidates = [(testCadence 1, Map.fromList [("Bach", 8.0)])]
+            result     = resolveWeights userBlend candidates
+        snd (head result) `shouldBe` 8.0
 
   describe "applyComposerBlend" $ do
     

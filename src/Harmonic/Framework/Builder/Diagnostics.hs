@@ -19,17 +19,23 @@ module Harmonic.Framework.Builder.Diagnostics
 
     -- * Candidate Rendering
   , parseCadenceFromString
+
+    -- * Multi-attempt scoreboard (Verbose only)
+  , printAttemptScoreboard
   ) where
 
 import           Control.Monad (forM_, when)
-import           Data.List (sort)
+import           Data.List (sort, sortBy)
+import           Data.Ord (comparing, Down(..))
 import qualified Data.Text as T
 import           Data.Text (Text)
+import           Text.Printf (printf)
 
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as P
 import qualified Harmonic.Rules.Types.Progression as Prog
 import qualified Harmonic.Rules.Types.Scale as Sc
+import qualified Harmonic.Evaluation.Scoring.Progression as PS
 
 import           Harmonic.Framework.Builder.Types
 import           Harmonic.Framework.Builder.Portmanteau (makePortmanteau)
@@ -345,3 +351,65 @@ modeLabelWith f (Sc.Mode q (P.P r)) =
 
 pad :: Int -> String -> String
 pad n s = s ++ replicate (max 0 (n - length s)) ' '
+
+-------------------------------------------------------------------------------
+-- Multi-attempt scoreboard (Verbose only)
+-------------------------------------------------------------------------------
+
+-- |Render the multi-attempt rank-and-select scoreboard. Called from
+-- 'Harmonic.Framework.Builder.generateBest' when @_gcVerbosity == Verbose@
+-- and @_gcMaxAttempts > 1@. Silent and Standard verbosity print nothing
+-- (the caller suppresses the call).
+--
+-- Rows sorted by 'adTotal' descending; the picked attempt is marked
+-- with @← PICK@. The chord-name sequence is truncated to the first 8
+-- chords with an ellipsis if longer.
+printAttemptScoreboard :: Double -> [AttemptDiagnostic] -> IO ()
+printAttemptScoreboard floorT diags = do
+  let viableCount  = length (filter adViable diags)
+      totalCount   = length diags
+      sorted       = sortBy (comparing (Down . adTotal)) diags
+      barLine      = replicate 91 '═'
+      sepLine      = replicate 91 '─'
+  putStrLn ""
+  putStrLn barLine
+  printf "Multi-attempt rank-and-select  (%d viable in %d attempts, floor T=%.2f)\n"
+         viableCount totalCount floorT
+  putStrLn barLine
+  printf "   %-3s %-6s %-6s %-6s %-6s %-7s %-6s %s\n"
+         ("#" :: String) ("rm" :: String) ("vl" :: String)
+         ("cf" :: String) ("mv" :: String)
+         ("total" :: String) ("viable" :: String) ("chords" :: String)
+  putStrLn ("   " ++ sepLine)
+  forM_ sorted (renderRow)
+  putStrLn ("   " ++ sepLine)
+  case filter adPicked diags of
+    (a:_) -> printf "   picked: #%d (total %.3f)\n" (adIndex a) (adTotal a)
+    []    -> pure ()
+  putStrLn barLine
+  putStrLn ""
+  where
+    renderRow :: AttemptDiagnostic -> IO ()
+    renderRow a = do
+      let ps        = adScore a
+          viableMk  = if adViable a then "✓" else "·"
+          pickedMk  = if adPicked a then "  ← PICK" else ""
+          chordPrev = truncateChords 8 (adChords a)
+      printf "  %2d   %.3f  %.3f  %.3f  %.3f  %.3f  %-6s  %s%s\n"
+             (adIndex a)
+             (PS.psRootMotion ps)
+             (PS.psVoiceLeading ps)
+             (PS.psCadenceFav ps)
+             (PS.psModeValidity ps)
+             (adTotal a)
+             (viableMk :: String)
+             chordPrev
+             (pickedMk :: String)
+
+    truncateChords :: Int -> [String] -> String
+    truncateChords _ []     = "(empty)"
+    truncateChords k cs
+      | length cs <= k = commaSep cs
+      | otherwise      = commaSep (take k cs) ++ ", …"
+      where
+        commaSep = foldr1 (\x y -> x ++ ", " ++ y)

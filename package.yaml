@@ -66,6 +66,7 @@ library:
     # Evaluation (E Component + Layer C)
     - Harmonic.Evaluation.Scoring.Dissonance
     - Harmonic.Evaluation.Scoring.VoiceLeading
+    - Harmonic.Evaluation.Scoring.Progression
     - Harmonic.Evaluation.Database.Query
     - Harmonic.Evaluation.Analysis.Markov
     # Traversal (T Component + Layer C)

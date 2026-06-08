@@ -26,20 +26,11 @@ s <- seek "*"
   $ entropy 0.3
   $ genI'
 
-s' <- seek "*"
-  $ len 4
-  $ cue start
-  $ tonal ctx
-  $ entropy 0.3
-  $ genFrom s 4 4
-
-s = s'
-
 do
   let
     s' = transposeP 5 s
     s'' = transposeP 7 s
-    r = warp "[1 2 3 4]/4"
+    r = warp "[[1 4@7] 2 3 3]/4"
     f = (swingBy 0.04 2)
     d = (*0.99)
     -- k = iK tempo [at 0 1 1 s'] r
@@ -54,17 +45,17 @@ do
   print s
   mapM_ id [launch
     ,setbpm tempo
-    -- ,display k
+    ,display k
     -- ,metronome 4 $d 0.6
-    -- ,count k $d 0.05
+    ,count k $d 0.05
     -- ,wind f k $d 0.6
     -- ,strg f k $d 0.8
     -- ,brss f k $d 0.9
     -- ,perc f k $d 1
     ,p07  f k $d 0.99
-    -- ,walk f k $d 0.9
-    -- ,subk f k $d 0.0
-    -- ,k909 f k $d 0.3
+    ,walk f k $d 0.9
+    ,subk f k $d 0.0
+    ,k909 f k $d 0.3
     -- ,kmpc f k $d 0.3
     -- ,m32 f k $d 0.9
     -- ,mdf f k $d 0.9

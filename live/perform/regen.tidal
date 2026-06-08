@@ -1,0 +1,120 @@
+tempo = 90
+
+ -- TRANSPORT
+mapM_ id [p "transport"
+ $ seqP
+   $ sync 999999 ++ [runSeq]
+ ,resetCycles,hush,allNotesOff
+ ,setcps (tempo/60)
+ ]
+
+-- ============================================================================
+-- Regenerate-in-place demo
+-- ============================================================================
+-- This script demonstrates the strata-aware partial-regeneration flow added
+-- in V3.0.0.
+--
+-- Workflow:
+--   1. Generate a fresh strata-mode progression with `genI'` (or any genP-
+--      flavoured variant) and bind it to `s`.
+--   2. Re-bind `s` from `genFrom s start end` to regenerate only that
+--      contiguous range of bars; everything outside the range stays exactly
+--      as it was.
+--   3. Re-launch the kinetics block using the new `s`.
+--
+-- Key semantics:
+--   * Range `s e` is 1-indexed and wrap-aware. `genFrom s 4 2` on a
+--     5-bar progression regenerates bars 4, 5, 1, 2 (in that walk order)
+--     and keeps bar 3.
+--   * The cue is auto-inferred from the bar before the range start (wrap-
+--     aware); override with `cue start $ genFrom s 3 4`.
+--   * For a context produced by `genI`/`genP` (i.e. with strata provenance),
+--     all three layers (triad, strata, mode) regenerate coherently and the
+--     `e -> e+1` seam is preserved as a valid `allowedNext` walk-graph edge.
+--   * `attempt N K` (added by Phase 2) wraps any generation modifier chain
+--     in a rank-and-select pass — produces up to K attempts, keeps the
+--     first N viable, returns the highest-scoring one. Works with `gen`,
+--     `genI`, `genFrom`, etc.
+
+start <- lead "E min"
+
+ctx = invSkip 1
+  $ hcRoots "0# 1# 2# fall<2,4,5>"
+  $ hContext
+
+-- ----------------------------------------------------------------------------
+-- 1. Fresh strata progression
+-- ----------------------------------------------------------------------------
+s <- seek "*"
+  $ len 4
+  $ cue start
+  $ tonal ctx
+  $ entropy 0.6
+  $ attempt 2 6
+  $ gen
+
+-- 2. Re-launch under the fresh progression
+do
+  let
+    -- r = warp "[[1 4@7] 2 3 3]/4"
+    r = warp "[1 2 3 4]/4"
+    f = (swingBy 0.04 2)
+    d = (*0.99)
+    k = iK tempo [at 0 1 1 s] r
+  putStrLn $ "LAUNCH ¬¬"
+  print s
+  mapM_ id [launch
+    ,setbpm tempo
+    ,display k
+    ,count k $d 0.05
+    ,p07  f k $d 0.99
+    ,walk f k $d 0.9
+    ,subk f k $d 0.0
+    ,k909 f k $d 0.3
+   ]
+
+-- ----------------------------------------------------------------------------
+-- 3. Regenerate bars 3..4 in place, keeping 1, 2, 5, 6 intact
+-- ----------------------------------------------------------------------------
+-- Eval this block after the fresh progression has been launched and is
+-- audible. The kept bars (1, 2, 5, 6) will remain stable across the rebind;
+-- only bars 3 and 4 will change. The strata walk's `e -> e+1` seam is kept
+-- valid by `runStrataGenFrom`'s one-step lookahead at the final regenerated
+-- bar.
+s <- seek "*"
+  $ attempt 3 12
+  $ entropy 0.4
+  $ tonal ctx
+  $ genFrom s 3 4
+
+-- Re-launch (using the same kinetics binding `k` constructed from the new s)
+do
+  let
+    -- r = warp "[[1 4@7] 2 3 3]/4"
+    r = warp "[1 2 3 4]/4"
+    f = (swingBy 0.04 2)
+    d = (*0.99)
+    k = iK tempo [at 0 1 1 s] r
+  putStrLn $ "RELAUNCH (bars 3-4 regenerated)"
+  print s
+  mapM_ id [launch
+    ,setbpm tempo
+    ,display k
+    ,count k $d 0.05
+    ,p07  f k $d 0.99
+    ,walk f k $d 0.9
+    ,subk f k $d 0.0
+    ,k909 f k $d 0.3
+   ]
+
+-- ----------------------------------------------------------------------------
+-- Optional: wrapping regen (last bar + first bar)
+-- ----------------------------------------------------------------------------
+-- `genFrom s 6 1` on a 6-bar progression regenerates bars 6 and 1 (the
+-- loop-back point), keeping 2..5. Useful for re-shaping the bar that
+-- triggers the cycle wrap-around without disturbing the cadence in the
+-- middle.
+--
+-- s <- seek "*" $ attempt 3 12 $ entropy 0.4 $ genFrom s 6 1
+
+hush

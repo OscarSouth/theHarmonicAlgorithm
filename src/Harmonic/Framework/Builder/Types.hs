@@ -49,6 +49,7 @@ module Harmonic.Framework.Builder.Types
   , AdvanceTrace(..)
   , StepDiagnostic(..)
   , GenerationDiagnostics(..)
+  , AttemptDiagnostic(..)
   ) where
 
 import           Data.List (intercalate)
@@ -59,7 +60,9 @@ import           Data.Text (Text)
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as P
 import qualified Harmonic.Rules.Types.Progression as Prog
+import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import qualified Harmonic.Rules.Types.Scale as Sc
+import qualified Harmonic.Evaluation.Scoring.Progression as PS
 import           Harmonic.Rules.Constraints.Filter (parseOvertones', parseKey, isWildcard, resolveRoots,
                                                      BassDirection(..), BassDirectionSpec(..),
                                                      BDKind(..), BDSelector(..),
@@ -308,7 +311,8 @@ data Verbosity = Silent | Standard | Verbose deriving (Show, Eq)
 -- |Generation mode.
 data GenMode
   = Fresh                                      -- ^ Standard gen (new progression)
-  | FromProg Prog.Progression !Int !Int        -- ^ Regenerate range in existing
+  | FromProg Prog.Progression !Int !Int        -- ^ Regenerate range in existing triad layer
+  | FromProgPC PC.ProgressionContext !Int !Int -- ^ Regenerate range in a strata-aware context (preserves all three layers + provenance)
   | GridMode                                    -- ^ Static repetition of cue chord
   | StrataMode Sc.StrataLabel                  -- ^ 'genP' (strata-first, produces ProgressionContext)
 
@@ -333,6 +337,9 @@ data GenConfig = GenConfig
   , _gcBoostSame   :: Double              -- ^ same-strata continuity multiplier (default 0.90)
   , _gcBoostFlip   :: Double              -- ^ flip-flop bias multiplier        (default 0.80)
   , _gcBoostTri    :: Double              -- ^ same-tristrata bias multiplier   (default 0.70)
+  , _gcMaxAttempts   :: Int               -- ^ Maximum generation attempts in rank-and-select (default 1: single-pass behaviour)
+  , _gcViableTarget  :: Int               -- ^ Stop early once this many viable attempts have been collected (default 1)
+  , _gcViabilityFloor :: Double           -- ^ Minimum 'totalScore' for an attempt to count as viable (default 0.5). Setting 0 recovers structural-only viability.
   }
 
 -------------------------------------------------------------------------------
@@ -403,9 +410,9 @@ data StepDiagnostic = StepDiagnostic
   , sdTristrataIdx    :: Maybe Int               -- ^ 1-based index into 'Sc.validTristrata'
   , sdTristrata       :: Maybe Sc.Tristrata      -- ^ Active tristrata for this bar
   , sdStrataLabel     :: Maybe Sc.StrataLabel    -- ^ Selected strata for this bar
-  , sdMode            :: Maybe Sc.Mode           -- ^ Pair-union mode (strata_prev ∪ strata_curr)
+  , sdMode            :: Maybe Sc.Mode           -- ^ Pair-union mode (strata_prev ∪ strata_curr). 'Nothing' when the bar's 'sdModeResult' is 'ModeInvalid' (override-driven 6-PC overlap that doesn't classify as a 7-PC mode).
   , sdStrataChroma    :: Maybe [P.PitchClass]    -- ^ 5-PC strata chroma
-  , sdModeChroma      :: Maybe [P.PitchClass]    -- ^ 7-PC mode chroma
+  , sdModeChroma      :: Maybe [P.PitchClass]    -- ^ Mode/overlap chroma — 7 PCs for 'ModeOk', 6 PCs for override-driven 'ModeInvalid' bars.
   , sdSoftBoost       :: Maybe Double            -- ^ Boost product applied this bar
   , sdHarmonicRootPC  :: Maybe Int               -- ^ Triad's harmonic root PC (post-detectInversion). 'sdPosteriorRootPC' is the cadence's stored root, which for inversions is the bass — for the strata pivot we want this field instead.
   , sdParentKey       :: Maybe (P.PitchClass, Sc.ScaleFamily) -- ^ Parent key (root, family) of 'sdMode'
@@ -423,3 +430,16 @@ data GenerationDiagnostics = GenerationDiagnostics
   , gdSteps           :: [StepDiagnostic] -- ^ Per-step diagnostics
   , gdProgression     :: Prog.Progression -- ^ The generated progression
   } deriving (Show)
+
+-- |Per-attempt diagnostic record for the multi-attempt rank-and-select
+-- ('generateBest') loop. Captured once per attempt and surfaced at
+-- 'Verbose' via 'printAttemptScoreboard'. At 'Silent' / 'Standard' the
+-- list is discarded after the winner is picked.
+data AttemptDiagnostic = AttemptDiagnostic
+  { adIndex  :: !Int                   -- ^ 1-based generation order
+  , adScore  :: !PS.ProgressionScore   -- ^ Per-axis breakdown (rm/vl/cf/mv)
+  , adTotal  :: !Double                -- ^ Weighted total ('PS.totalScore')
+  , adViable :: !Bool                  -- ^ Passed viability check ('psModeValidity >= 1 && tot >= floor')
+  , adPicked :: !Bool                  -- ^ True iff the winner ('maximumByKey adTotal')
+  , adChords :: ![String]              -- ^ Chord-name sequence for the diff column in the scoreboard
+  } deriving (Show, Eq)

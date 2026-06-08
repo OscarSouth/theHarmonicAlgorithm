@@ -45,6 +45,7 @@ library
       Harmonic.Rules.Import.Graph
       Harmonic.Evaluation.Scoring.Dissonance
       Harmonic.Evaluation.Scoring.VoiceLeading
+      Harmonic.Evaluation.Scoring.Progression
       Harmonic.Evaluation.Database.Query
       Harmonic.Evaluation.Analysis.Markov
       Harmonic.Traversal.Probabilistic
@@ -126,6 +127,7 @@ test-suite theHarmonicAlgorithm-test
   other-modules:
       Harmonic.Evaluation.Database.QuerySpec
       Harmonic.Evaluation.Scoring.DissonanceSpec
+      Harmonic.Evaluation.Scoring.ProgressionSpec
       Harmonic.Evaluation.Scoring.VoiceLeadingSpec
       Harmonic.Framework.BuilderPSpec
       Harmonic.Framework.BuilderSpec
@@ -139,6 +141,7 @@ test-suite theHarmonicAlgorithm-test
       Harmonic.Rules.Constraints.OvertoneSpec
       Harmonic.Rules.Types.HarmonySpec
       Harmonic.Rules.Types.PitchSpec
+      Harmonic.Rules.Types.ProgressionContextSpec
       Harmonic.Rules.Types.ProgressionSpec
       Harmonic.Rules.Types.ScaleSpec
       Harmonic.Traversal.ProbabilisticSpec
