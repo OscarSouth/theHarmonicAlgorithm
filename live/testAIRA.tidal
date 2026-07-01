@@ -1,0 +1,90 @@
+-- testAIRA.tidal
+-- Debug / verification for Roland AIRA S-1 + P-6 MIDI mappings.
+-- Evaluate each line individually (Ctrl-E). hush between sections.
+--
+-- Channel map:  S-1 = ch 6 | P-6 keyboard = ch 3 | P-6 sample = ch 4 | P-6 granular = ch 5
+-- Device setup (ALL three P-6 channels are non-default — reconfigure on device):
+--   P-6 Auto CH 15 -> 3 ; S.CH 11 -> 4 ; G.CH 4 -> 5 ; Program = ch 16 (fixed)
+--
+-- P-6 CC numbers verified against the official Roland P-6 MIDI chart.
+
+mapM_ id [hush, setcps (90/60)]
+
+-------------------------------------------------------------------------------
+-- S-1  (ch 6)
+-------------------------------------------------------------------------------
+
+-- alive: one sustained note
+p "rolandS1" $ midinote "60" #ch 6 #sustain 1 |* vel 0.9
+
+-- chromatic run
+p "rolandS1" $ note "[0 4 7 12]/2" #ch 6 #sustain 0.2 |* vel 0.8
+-- filter sweep (watch CUTOFF)
+
+p "rolandS1" $ stack [ note "0 7" #ch 6 #sustain 0.4 |* vel 0.9
+  , s1cutoff (slow 4 $ lfo tri 0.1 0.9), s1res 0.4 ]
+-- envelope shape (pluck)
+
+p "rolandS1" $ stack [ note "0*4" #ch 6 #sustain 0.2 |* vel 0.9
+  , s1attack 0.0, s1decay 0.3, s1release 0.2 ]
+-- preset select: bank 1, pattern 3
+
+once $ s1seq 3 1
+
+hush
+
+-------------------------------------------------------------------------------
+-- P-6 sample trigger / S.CH  (ch 4)   note 48 = bank A pad 1 … 95 = bank H pad 6
+-------------------------------------------------------------------------------
+
+-- alive: bank A pad 1 on every beat
+p "p6Sample" $ p6trig 6 5 "1*2" |* vel 0.7
+
+-- absolute pad index (0-47)
+p "p6Sample" $ p6pad 34 "1*2" |* vel 0.7
+
+-- three pads
+p "p6Sample" $ stack [ p6trig 6 4 "1 ~ ~ ~", p6trig 6 6 "~ ~ 1 ~", p6trig 6 5 "~ 1 ~ 1" ] |* vel 0.9
+
+hush
+
+-------------------------------------------------------------------------------
+-- P-6 keyboard / Auto CH  (ch 3)   plays the FOCUSED pad chromatically
+-------------------------------------------------------------------------------
+
+-- alive: hold a note (select a pad on the device first)
+p "p6Kybd" $ midinote "0" #ch 3 #sustain 1.5 |* vel 0.7
+
+-- arpeggio
+p "p6Kybd" $ midinote "[0 4 7 12]/4" #ch 3 #sustain 0.3 |* vel 0.7
+
+-- chord
+p "p6Kybd" $ midinote "[0,4,7]/2" #ch 3 #sustain 0.8 |* vel 0.6
+
+hush
+
+-------------------------------------------------------------------------------
+-- P-6 granular / G.CH  (ch 5)   CC engine; v1.02+ also plays notes chromatically
+-------------------------------------------------------------------------------
+
+-- select granular sample (raw CC 88)
+once $ setCC "5" "88" 0
+
+-- alive: CC-only sweep — watch GRAIN SIZE / HEAD POS on device
+p "p6Gran" $ stack [ p6grainSize (slow 8 $ lfo tri 0 1), p6headPos (slow 16 $ lfo sine 0 1)
+  , p6grains 0.7, p6spread 0.5 ]
+
+-- notes + grain motion (needs firmware v1.02+ for chromatic notes)
+p "p6Gran" $ stack [ midinote "[0 7 . 12]/2" #ch 5 #sustain 1.5 |* vel 0.8
+  , p6grainSize (slow 8 $ lfo tri 0.1 0.9), p6headPos (slow 16 $ lfo sine 0 1)
+  , p6headSpeed 0.5, p6spread 0.6, p6grains 0.7, p6grainRev 0.1 ]
+
+-- filter + amp env on the granular voice
+p "p6Gran" $ stack [ midinote "0*2" #ch 5 #sustain 1 |* vel 0.8
+  , p6cutoff (slow 4 $ lfo tri 0.3 0.9), p6res 0.3, p6attack 0.05, p6release 1.0 ]
+
+-- grain shape / jitter
+p "p6Gran" $ stack [ midinote "0*4" #ch 5 #sustain 0.5 |* vel 0.7
+  , p6grainShape 0.5, p6grainJitter (slow 4 $ lfo tri 0 0.8), p6grainTimeKF 0.5 ]
+
+hush

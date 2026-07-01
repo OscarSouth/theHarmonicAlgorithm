@@ -1,0 +1,57 @@
+-- Load live/aira.tidal FIRST — it defines s1 / p6s / p6g / p6k.
+-- Device: S-1 ch 6 ; P-6 Auto CH 3, S.CH 4, G.CH 5 (all reassigned from defaults).
+
+tempo = 80
+
+ -- TRANSPORT
+mapM_ id [p "transport"
+ $ seqP
+   $ sync 999999 ++ [runSeq]
+ ,resetCycles,hush,allNotesOff
+ ,setcps (tempo/60)
+ ]
+
+start <- lead "E min"
+
+ctx = invSkip 1
+  $ consonant
+  -- $ hcOvertones "E A E G B"
+  $ hcKey "1#"
+  $ hcRoots "1#"
+  $ hContext
+
+s <- seek "*"
+  $ len 2
+  $ cue start
+  $ tonal ctx
+  $ entropy 0.3
+  $ gen'
+
+s' <- seek "*"
+  $ len 4
+  $ cue start
+  $ tonal ctx
+  $ entropy 0.3
+  $ genFrom s 2 3
+
+s = s'
+
+do
+  let
+    r = warp "[1 2 3 4]/4"
+    f = (swingBy 0.04 2)
+    d = (*0.99)
+    k = iK tempo [at 0 0.9 0.99 s] r
+  putStrLn $ "AIRA LAUNCH ¬¬"
+  print s
+  mapM_ id [launch
+    ,setbpm tempo
+    -- ,display k
+    -- ,s1  f k $d 0.85
+    ,p6s f k $d 0.99
+    -- ,p6g f k $d 0.99
+    -- ,p6k f k $d 0.8
+    -- ,subk f k $d 0.1
+   ]
+
+hush

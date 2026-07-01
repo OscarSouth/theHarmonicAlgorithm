@@ -4,9 +4,11 @@ s.reboot {
   // 1. Explicitly set your desired sample rate.
   s.options.sampleRate = 44100;
 
-  // 2. Use the correct device name for your Mac's built-in speakers.
-  //    The error log showed it as "MacBook Pro Speakers", not "PCH".
+  // 2. Audio output device — uncomment ONE (comment the others).
+  //    AIRA devices appear over USB when connected; both run at 44.1 kHz.
   s.options.device = "MacBook Pro Speakers";
+  // s.options.device = "P-6";
+  // s.options.device = "S-1";
 
   // 3. Set input channels to 0. This is the simplest way to fix the
   //    sample rate mismatch error if you don't need audio input.
@@ -50,6 +52,8 @@ s.reboot {
     ~midiPriorities = [
       ["U2MIDI Pro", "U2MIDI Pro"],
       ["iConnectAUDIO4+", "DIN"],
+      ["P-6", "MIDI IN"],
+      ["S-1", "MIDI IN"],
       ["IAC Driver", "Bus 1"]
     ];
 

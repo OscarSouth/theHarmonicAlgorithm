@@ -134,7 +134,11 @@ launch = mapM_ ($ silence) [
   p "pastorale",
   p "brillante",
   p "maestoso",
-  p "tutti"
+  p "tutti",
+  p "rolandS1",
+  p "p6Sample",
+  p "p6Kybd",
+  p "p6Gran"
   ]
 :}
 
@@ -327,6 +331,152 @@ hh' pat = stack [
   struct (fmap (`elem` ["o","2"]) pat) $ midinote 63 #ch 10 #sustain 0.05 #vel 0.5
   ]
 :}
+
+-------------------------------------------------------------------------------
+-- Roland AIRA S-1 Tweak Synthesizer (ch 6)
+-- Configure S-1 MIDI channel to 6 on device.
+-------------------------------------------------------------------------------
+
+-- Pattern selection
+s1pat p        = midicmd "program" #progNum p #ch 6
+s1seq pat bk   = s1pat ((pat-1)+((bk-1)*8))
+
+-- Global & Performance
+s1modwheel v   = cc 1   v #ch 6
+s1portatime v  = cc 5   v #ch 6
+s1pan v        = cc 10  v #ch 6
+s1expression v = cc 11  v #ch 6
+s1portamode v  = cc 31  v #ch 6
+s1damper v     = cc 64  v #ch 6
+s1portasw v    = cc 65  v #ch 6
+s1finetune v   = cc 76  v #ch 6
+s1transpose v  = cc 77  v #ch 6
+
+-- Oscillator
+s1osclfo v     = cc 13  v #ch 6
+s1oscrange v   = cc 14  v #ch 6
+s1oscpwm v     = cc 15  v #ch 6
+s1oscpwmsrc v  = cc 16  v #ch 6
+s1oscbend v    = cc 18  v #ch 6
+s1square v     = cc 19  v #ch 6
+s1saw v        = cc 20  v #ch 6
+s1sub v        = cc 21  v #ch 6
+s1suboct v     = cc 22  v #ch 6
+s1noise v      = cc 23  v #ch 6
+s1noisemode v  = cc 78  v #ch 6
+
+-- Filter & Amp
+s1cutoff v     = cc 74  v #ch 6
+s1res v        = cc 71  v #ch 6
+s1filterenv v  = cc 24  v #ch 6
+s1filterlfo v  = cc 25  v #ch 6
+s1keytrack v   = cc 26  v #ch 6
+s1filterbend v = cc 27  v #ch 6
+s1ampmode v    = cc 28  v #ch 6
+
+-- LFO & Envelope
+s1lforate v    = cc 3   v #ch 6
+s1lfowave v    = cc 12  v #ch 6
+s1lfomod v     = cc 17  v #ch 6
+s1lfomode v    = cc 79  v #ch 6
+s1lfokeytrg v  = cc 105 v #ch 6
+s1lfosync v    = cc 106 v #ch 6
+s1attack v     = cc 73  v #ch 6
+s1decay v      = cc 75  v #ch 6
+s1sustain v    = cc 30  v #ch 6
+s1release v    = cc 72  v #ch 6
+s1envtrig v    = cc 29  v #ch 6
+
+-- Chord Mode
+s1polymode v    = cc 80 v #ch 6
+s1voice2sw v    = cc 81 v #ch 6
+s1voice3sw v    = cc 82 v #ch 6
+s1voice4sw v    = cc 83 v #ch 6
+s1voice2shift v = cc 85 v #ch 6
+s1voice3shift v = cc 86 v #ch 6
+s1voice4shift v = cc 87 v #ch 6
+
+-- Effects
+s1revlvl v     = cc 91  v #ch 6
+s1revtime v    = cc 89  v #ch 6
+s1dellvl v     = cc 92  v #ch 6
+s1deltime v    = cc 90  v #ch 6
+s1chorus v     = cc 93  v #ch 6
+
+-- Advanced Oscillator
+s1drawsw v     = cc 107 v #ch 6
+s1drawmul v    = cc 102 v #ch 6
+s1overtone v   = cc 103 v #ch 6
+s1chopcomb v   = cc 104 v #ch 6
+
+-------------------------------------------------------------------------------
+-- Roland AIRA P-6 Creative Sampler
+-- All three play channels are reassigned from the device defaults (reconfigure on device):
+--   Auto CH = 3  (keyboard / chromatic sample playback — device default 15)
+--   S.CH    = 4  (global sample trigger — 48 pads at default pitch — device default 11)
+--   G.CH    = 5  (granular engine — notes + CC — device default 4)
+--   Program = 16 (preset select — fixed on device, not configurable)
+-- CC numbers below verified against the official Roland P-6 MIDI chart.
+-------------------------------------------------------------------------------
+
+-- Preset selection (ch 16, range 0-63)
+p6prog p = midicmd "program" #progNum p #ch 16
+
+-- S.CH sample trigger helpers (ch 4)
+-- Notes 48-95 map to bank A pad 1 through bank H pad 6 (8 banks × 6 pads)
+p6note b s     = 48 + (b-1)*6 + (s-1)
+p6trig b s pat = struct pat $ midinote (fromIntegral (p6note b s)) #ch 4 #sustain 0.1
+p6pad  n   pat = struct pat $ midinote (fromIntegral (48+n))       #ch 4 #sustain 0.1
+
+-- Granular engine CC functions (G.CH = ch 5)
+-- Core grain parameters
+p6grainSize v   = cc 23  v #ch 5
+p6headPos v     = cc 19  v #ch 5
+p6headSpeed v   = cc 20  v #ch 5
+p6grains v      = cc 21  v #ch 5
+p6grainShape v  = cc 15  v #ch 5
+p6spread v      = cc 25  v #ch 5
+p6grainJitter v = cc 68  v #ch 5
+p6grainRev v    = cc 3   v #ch 5
+p6grainTimeKF v = cc 16  v #ch 5
+-- Pitch & tuning
+p6coarseTune v  = cc 76  v #ch 5
+p6fineTune v    = cc 18  v #ch 5
+p6detune v      = cc 13  v #ch 5
+-- Filter
+p6filterType v  = cc 12  v #ch 5
+p6cutoff v      = cc 74  v #ch 5
+p6res v         = cc 71  v #ch 5
+p6filterEnv v   = cc 24  v #ch 5
+p6filterKF v    = cc 26  v #ch 5
+p6filterVel v   = cc 78  v #ch 5
+-- Amplitude envelope (T.Env)
+p6attack v      = cc 73  v #ch 5
+p6decay v       = cc 75  v #ch 5
+p6sustain v     = cc 30  v #ch 5
+p6release v     = cc 72  v #ch 5
+p6envMode v     = cc 29  v #ch 5
+p6envTimeKF v   = cc 77  v #ch 5
+p6ampSwitch v   = cc 28  v #ch 5
+p6startMode v   = cc 79  v #ch 5
+-- Level & dynamics
+p6level v       = cc 7   v #ch 5
+p6pan v         = cc 10  v #ch 5
+p6autoPan v     = cc 9   v #ch 5
+p6levelJitter v = cc 14  v #ch 5
+-- Lo-Fi
+p6lofi v        = cc 17  v #ch 5
+p6lofiSw v      = cc 87  v #ch 5
+-- Sample selection & routing
+p6sample v      = cc 88  v #ch 5
+p6outputBus v   = cc 84  v #ch 5
+p6sendDelay v   = cc 85  v #ch 5
+p6sendReverb v  = cc 86  v #ch 5
+-- Effects
+p6revTime v     = cc 89  v #ch 5
+p6delTime v     = cc 90  v #ch 5
+p6revLevel v    = cc 91  v #ch 5
+p6delLevel v    = cc 92  v #ch 5
 
 -------------------------------------------------------------------------------
 -- Rhythm Library (ported from legacy BootTidal.hs)

@@ -1,0 +1,96 @@
+-- aira.tidal
+-- Performance instrument definitions for Roland AIRA S-1 + P-6.
+-- Load THIS file before perform/stateAIRA.tidal, which launches these defs.
+--
+-- Device configuration (all three P-6 channels are non-default — reconfigure on device):
+--   S-1  : MIDI channel = 6
+--   P-6  : Auto CH 15 -> 3 ; S.CH 11 -> 4 ; G.CH 4 -> 5 ; Program = ch 16 (fixed)
+-- P-6 CC numbers verified against the official Roland P-6 MIDI chart.
+--
+--   s1   — S-1 synth lead + subKick bass + lineHarmony inner voices (all ch 6)
+--   p6s  — P-6 global sample trigger, percussion/texture (ch 4, drum-style slate)
+--   p6g  — P-6 granular engine, harmonic/melodic texture (ch 5, arrange-style)
+--   p6k  — P-6 keyboard mode, chromatic interactive (ch 3, hands-on)
+
+s1 f k d = do
+  let o = ch 6
+  p "rolandS1" $ f
+    $ stack [silence
+       -- --
+      ,arrange (0.5,1) k (-9,9) S flow (overlapF 0) ["~"
+        -- ,"[0 . <2 -2> <1 -1>]/4"
+        -- ,"[0 1 2 3]" |+ 6
+        -- ,"[0 1 2 3]/2"
+        -- ,"[0,1,2]/4" |+ 3
+        -- ,"[0 1 2 3]/8"
+        -- ,"[0]*2"
+        -- ,"[0]/4"
+      ]# o |* vel 0.9 |= legato 1
+       -- --
+      -- ,s1cutoff  (slow 4 $ lfo tri 0.2 0.7) # o
+      -- ,s1res     0.25                        # o
+      -- ,s1attack  0.02                        # o
+      -- ,s1release 0.4                         # o
+       -- --
+    ] |* vel d
+  -- p "lineHarmony" $ f
+  --   $ lineHarmony d k root [ "~"
+  --     ,"[1 3]/4"
+  --   ]# o |+ oct 0 # legato 0.95
+
+p6s f k d = p "p6Sample" $ do
+  f
+    $ stack [silence
+       -- --
+      ,slate (0.8,1) k [silence
+        ,p6trig 6 4 "[1]"                   |* vel 0.99
+        ,p6trig 6 6 "[~ 1]/2"                   |* vel 0.99
+        ,p6trig 6 5 "[1*4]"                   |* vel (lfo tri 0.3 0.99)
+        ]
+      ,slate (0.5,0.8) k [silence
+        ,p6trig 6 5 "[~ 1]"                         |* vel 0.6
+        ,p6trig 6 4 "[1]"    |* vel 0.8
+        ]
+      ,slate (0.2,0.5) k [silence
+        ,degradeBy 0.7 $ p6trig 6 5 "[~ 1 ~ ~]/2" |* vel 0.3
+        ]
+       -- --
+    ]# legato 0.05 |* vel d
+
+p6g f k d = p "p6Gran" $ do
+  let o = ch 5
+  f
+    $ stack [silence
+       -- --
+      ,arrange (0.3,1) k (-3,3) S flow (overlapF 0) ["~"
+        ,"[0 . <2 -2>]/4" |- 3
+        ,"[0 1 2]/8" |- "[0 1]/16" |- 3
+      ]# o |* vel 0.7 |= legato 2.0
+       -- --
+      -- ,arrange (0.1,1) k (-9,9) T flow (overlapF 1) ["~"
+      --   ,"[0,2,4]/8"
+      -- ]# o |* vel 0.4 |+ oct 1 |= legato 3.0
+       -- --
+      ,p6grainSize    (slow 8  $ lfo tri  0.1 0.8) # o
+      ,p6headPos      (slow 16 $ lfo sine 0   1)   # o
+      ,p6headSpeed    0.4                          # o
+      ,p6spread       0.6                          # o
+      ,p6grains       0.7                          # o
+      ,p6grainRev     0.1                          # o
+      ,p6cutoff       (slow 4  $ lfo tri  0.3 0.9) # o
+      ,p6res          0.3                          # o
+      ,p6attack       0.1                          # o
+      ,p6release      0.8                          # o
+       -- --
+    ] |* vel d
+
+p6k f k d = p "p6Kybd" $ do
+  let o = ch 3
+  f
+    $ stack [silence
+       -- --
+      ,arrange (0.4,1) k (-9,9) T flow (overlapF 0) ["~"
+        ,"[0 . <2 -2> <1 -1>]/4"
+      ]# o |* vel 0.7 |= legato 0.9
+       -- --
+    ] |* vel d
