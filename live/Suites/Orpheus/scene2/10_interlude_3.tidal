@@ -46,20 +46,8 @@ form =
 
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
--- Desolation: broken lyre + lifeless flute
-desolation f k d = p "desolation" $ do
-  let vl = voiceLines {_vl = "~"
-        , soprano = "[3 . . 2 . . 1 . .]/4"
-        , alto    = "[1 . . . 0 . . .]/4"
-        }
-  f
-    $ stack [silence
-        , harp  T (0, 1) k vl flow Soprano
-        , flute T (0, 1) k vl flow Alto
-    ] |* vel d
-
 -- Icy strings: the void
-void f k d = p "void" $ do
+strg f k d = p "strg" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "3"
         , bass    = "0"
@@ -68,6 +56,28 @@ void f k d = p "void" $ do
     $ stack [silence
         , cello      T (0, 1) k vl grid Bass
         , contrabass T (0, 1) k vl grid Bass8vb
+    ] |* vel d
+
+-- Lifeless flute: the descending scale, drained of vitality
+wind f k d = p "wind" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 . . 2 . . 1 . .]/4"
+        , alto    = "[1 . . . 0 . . .]/4"
+        }
+  f
+    $ stack [silence
+        , flute T (0, 1) k vl flow Alto
+    ] |* vel d
+
+-- Broken lyre: harp fragments with silence between notes
+perc f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 . . 2 . . 1 . .]/4"
+        , alto    = "[1 . . . 0 . . .]/4"
+        }
+  f
+    $ stack [silence
+        , harp T (0, 1) k vl flow Soprano
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────
@@ -79,8 +89,9 @@ do
     k = iK tempo form (warp "[1 2 3 4]/8")
   putStrLn "ORPHEUS — XI. Interlude 3"
   mapM_ id [hush, setbpm tempo
-    ,desolation f k  $ d 0.7
-    ,void       f k  $ d 0.5
+    ,strg f k  $ d 0.5
+    ,wind f k  $ d 0.7
+    ,perc f k  $ d 0.7
     ]
 
 hush''

@@ -51,6 +51,12 @@ extractNote vm = case Map.lookup "note" vm of
   Just (VF v) -> Just v
   _           -> Nothing
 
+extractAmp :: ValueMap -> Maybe Double
+extractAmp vm = case Map.lookup "amp" vm of
+  Just (VF v) -> Just v
+  Just (VN n) -> Just (unNote n)
+  _           -> Nothing
+
 queryNotes :: ControlPattern -> Arc -> [Double]
 queryNotes pat arc =
   [ noteVal
@@ -134,6 +140,22 @@ spec = do
       map value pEvs `shouldNotBe` map value sEvs
       map value pEvs `shouldNotBe` map value mEvs
       map value sEvs `shouldNotBe` map value lEvs
+
+  describe "divisi" $ do
+    it "stacks all sub-parts" $ do
+      let pat = divisi [note 60, note 64] :: ControlPattern
+          evs = queryArc pat (Arc 0 1)
+      length evs `shouldBe` 2
+
+    it "scales amp by 1/sqrt n (n = length parts, equal-power)" $ do
+      let pat = divisi [note 60 # amp 1, note 64 # amp 1] :: ControlPattern
+          amps = [ a | ev <- queryArc pat (Arc 0 1), Just a <- [extractAmp (value ev)] ]
+      amps `shouldSatisfy` all (\a -> abs (a - 1 / sqrt 2) < 1e-9)
+
+    it "single part leaves amp unchanged" $ do
+      let pat = divisi [note 60 # amp 0.8] :: ControlPattern
+          amps = [ a | ev <- queryArc pat (Arc 0 1), Just a <- [extractAmp (value ev)] ]
+      amps `shouldSatisfy` all (\a -> abs (a - 0.8) < 1e-9)
 
   describe "Unpitched percussion" $ do
     it "bassdrum produces events on struct true" $ do

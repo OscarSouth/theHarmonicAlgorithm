@@ -1,0 +1,71 @@
+-- Air de danse (Orpheus, scene 1, ii) — orchestral improvisation sketch pad
+-- Load this first, then load perform/orchestrate.tidal
+-- strg + wind are the movement's active blocks; brss + perc are generic idle
+-- palette (defined but not launched) — uncomment in orchestrate.tidal to use.
+
+ -- ── ACTIVE SECTIONS (air_de_danse) ────────────────────────
+
+ -- String chamber ensemble: the dance
+strg f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0]/4"
+        , alto    = "[1 2 3 1]/4"
+        , tenor   = "[2 1 0 2]/4"
+        , bass    = "[0 2]/4"
+        }
+  f
+    $ stack [silence
+        , violin1 T (0, 1)   k vl flow Soprano
+        , violin2 T (0, 1)   k vl flow Alto
+        , viola   T (0, 1)   k vl flow Tenor
+        , cello   T (0, 1)   k vl grid Bass    # pizz
+    ] |* vel d
+
+ -- Winds enter to thicken texture in development
+wind f k d = p "wind" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1]/4"
+        , alto    = "[1 0 2 1]/4"
+        , bass    = "[0]/4"
+        }
+  f
+    $ stack [silence
+        , flute    T (0.3, 1) k vl flow Soprano
+        , clarinet T (0.3, 1) k vl flow Alto
+        , bassoon  T (0.3, 1) k vl grid Bass
+    ] |* vel d
+
+ -- ── IDLE PALETTE (generic sections, not launched) ─────────
+
+brss f k d = p "brss" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "3/4"
+        , alto    = "1/4"
+        , tenor   = "2/4"
+        , bass    = "0/4"
+        }
+  f
+    $ stack [silence
+        -- , horn     T (0,1) k vl flow Soprano
+        -- , horn     T (0,1) k vl flow Alto
+        -- , horn     T (0,1) k vl flow Tenor
+        -- , horn     T (0,1) k vl flow Bass
+        -- , trombone T (0,1) k vl flow Tenor
+        -- , basstrom T (0,1) k vl grid Bass
+    ] |* vel d
+
+perc f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0]"
+        , alto = "[0,1,2,0]/8"
+        , bass    = "[3 -1]/4"
+        }
+  f
+    $ stack [silence
+        -- , timpani T (0,1) k vl grid Bass
+        -- , harp    T (0,1) k vl flow Alto8va
+        -- , slate (0,1) k [silence
+            -- , bassdrum "[1]/4"
+            -- , tamtam   "[1*4]"
+            -- ]
+    ] |* vel d

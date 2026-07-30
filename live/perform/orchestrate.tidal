@@ -1,0 +1,57 @@
+tempo = 72
+
+ -- TRANSPORT
+mapM_ id [p "transport"
+ $ seqP
+   $ sync 999999 ++ [runSeq]
+ ,resetCycles,hush,allNotesOff
+ ,setcps (tempo/60)
+ ]
+
+start <- lead "D min"
+
+ctx = hcKey "1b"
+  $ hcRoots "1b 0b 2b fall <1,2>"
+  $ hContext
+
+s <- seek "mozart:50 bach:50"
+  $ cue start
+  $ tonal ctx
+  $ len 4
+  $ entropy 0.7
+  $ attempt 2 6
+  $ gen
+
+form =
+  [ at    0    0.0   0.0   s
+  , at    5    0.4   0.4   s
+  , at   32    0.45  0.5   s
+  , at   62    0.5   0.5   s
+  , at   92    0.4   0.4   s
+  , at  122    0.3   0.3   s
+  , at  152    0.2   0.2   s
+  , at  199    0.0   0.0   s
+  , at  209    0.0   0.0   s
+  ]
+
+ --               k     d
+form = [ at 0   0.5   0.5   s ]
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (rep s 2)
+  putStrLn $ "LAUNCH ¬¬"
+  print s
+  mapM_ id [launch
+    ,setbpm tempo
+    -- ,display k
+    -- ,count k $d 0.05
+    ,strg f k  $ d 0.8
+    ,wind f k  $ d 0.7
+    -- ,brss f k  $ d 0.9   -- idle palette
+    -- ,perc f k  $ d 0.7   -- idle palette
+   ]
+
+hush

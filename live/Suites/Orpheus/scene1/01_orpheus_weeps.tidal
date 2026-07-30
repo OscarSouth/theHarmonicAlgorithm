@@ -53,8 +53,8 @@ form =
 
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
--- Harp + muted low strings: Orpheus's lyre and chorale backdrop
-lyre f k d = p "lyre" $ do
+-- Low strings: muted chorale backdrop (from Orpheus's lyre texture)
+strg f k d = p "strg" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[3 2 1 0]/4"
         , alto    = "[1 0 2 1]/4"
@@ -63,13 +63,12 @@ lyre f k d = p "lyre" $ do
         }
   f
     $ stack [silence
-        , harp       T (0, 1)   k vl flow Soprano
         , cello      T (0.2, 1) k vl grid Bass
         , contrabass T (0.3, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- Paired woodwinds: sighing appoggiaturas over the lament
-sighs f k d = p "sighs" $ do
+wind f k d = p "wind" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[3 2 3 1]/4"
         , alto    = "[1 0 1 2]/4"
@@ -78,6 +77,19 @@ sighs f k d = p "sighs" $ do
     $ stack [silence
         , flute  T (0.3, 1) k vl flow Soprano
         , oboe   T (0.3, 1) k vl flow Alto
+    ] |* vel d
+
+-- Harp: Orpheus's lyre, the descending Phrygian line
+perc f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0]/4"
+        , alto    = "[1 0 2 1]/4"
+        , tenor   = "2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , harp T (0, 1) k vl flow Soprano
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────
@@ -89,8 +101,9 @@ do
     k = iK tempo form (warp "[1 2 3 4]/8")
   putStrLn "ORPHEUS — I. Orpheus Weeps for Eurydice"
   mapM_ id [hush, setbpm tempo
-    ,lyre  f k  $ d 0.9
-    ,sighs f k  $ d 0.7
+    ,strg f k  $ d 0.9
+    ,wind f k  $ d 0.7
+    ,perc f k  $ d 0.9
     ]
 
 hush''

@@ -31,6 +31,9 @@ module Harmonic.Interface.Tidal.Bridge
   , arrange       -- onset-join with kinetics
   , arrange'      -- squeeze with kinetics
 
+    -- * Parallelism Harmoniser
+  , parallel      -- stack fixed-interval parallel voices over arrange output
+
     -- * Chord Lookup
   , lookupChordAt
   , lookupChord
@@ -322,6 +325,27 @@ arrangeLookup' (scales, nChords) chordPat ranged
       let chordIdx  = fmap (\i -> (i - 1) `mod` nChords) chordPat
           chordPats = map (\sc -> note (toScale sc ranged)) scales
       in squeeze chordIdx chordPats
+
+-------------------------------------------------------------------------------
+-- Parallelism Harmoniser
+-------------------------------------------------------------------------------
+
+-- |Stack fixed-interval parallel voices over an arranged ControlPattern.
+-- The offset pattern is the FULL voice spec in absolute semitones: each note
+-- of @pat@ is replaced by one copy per simultaneous offset, shifted by that
+-- offset. Include @0@ to retain the original note; omit it to drop the root.
+--
+-- Comma = simultaneous voices, space = time-sequenced offsets (standard
+-- mininotation, natively evaluated). Applied post-voicing/post-range-filter,
+-- so offsets are not gated by the @arrange@ MIDI range.
+--
+-- @
+-- parallel "0 7"      $ arrange ... -- root + perfect fifth above
+-- parallel "7"        $ arrange ... -- fifth only (root dropped)
+-- parallel "[0,-5,4]" $ arrange ... -- root, fourth below, major third above
+-- @
+parallel :: Pattern Note -> ControlPattern -> ControlPattern
+parallel offs pat = pat |+ note offs
 
 -------------------------------------------------------------------------------
 -- Chord Lookup

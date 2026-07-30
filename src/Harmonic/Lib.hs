@@ -168,7 +168,7 @@ module Harmonic.Lib (
   -- ========== TIDAL INTERFACE ==========
   -- Pattern-level operations
   VoiceFunction, voiceRange,
-  arrange, arrange', warp, rep, lookupChordAt,
+  arrange, arrange', parallel, warp, rep, lookupChordAt,
   lookupChord, lookupProgression,
   overlapF,
 
@@ -261,7 +261,7 @@ import Harmonic.Rules.Import.CSV
 import Harmonic.Rules.Import.Transform
 import Harmonic.Interface.Tidal.Bridge (
     VoiceFunction, voiceRange,
-    arrange, arrange', warp, rep, lookupChordAt,
+    arrange, arrange', parallel, warp, rep, lookupChordAt,
     lookupChord, lookupProgression,
     overlapF
   )

@@ -35,7 +35,7 @@ let ctx = dissonant
         $ hcKey "*"
         $ hContext
 
-s <- seek "debussy" $ cue start $ tonal ctx $ len 8 $ entropy 0.4 $ gen
+s <- seek "debussy" $ cue start $ tonal ctx $ len 4 $ entropy 0.4 $ gen
 
 -- Form: ~151s loop (141s music + 10s silence)
 -- Arc: sudden entry -> march intensifies -> clash -> grinding halt -> murk
@@ -53,12 +53,12 @@ form =
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
 -- The Angel: brass march, trombone as supernatural voice
-angel f k d = p "brss" $ do
+brss f k d = p "brss" $ do
   let vl = voiceLines {_vl = "~"
-        , soprano = "[0 1 0 3]*2"
-        , alto    = "[1 0 1 0]*2"
+        , soprano = "[0 1 0 3]"
+        , alto    = "[1 0 1 0]"
         , tenor   = "2"
-        , bass    = "[0 0 -1 0]*2"
+        , bass    = "[0 0 -1 0]"
         }
   f
     $ stack [silence
@@ -68,11 +68,11 @@ angel f k d = p "brss" $ do
     ] |* vel d
 
 -- Strings: nervous scurrying against the march
-marchStrg f k d = p "strg" $ do
+strg f k d = p "strg" $ do
   let vl = voiceLines {_vl = "~"
-        , soprano = "[3 1 2 0]*2"
-        , alto    = "[0 2 1 3]*2"
-        , tenor   = "[2 0 3 1]*2"
+        , soprano = "[3 1 2 0]"
+        , alto    = "[0 2 1 3]"
+        , tenor   = "[2 0 3 1]"
         , bass    = "0"
         }
   f
@@ -85,7 +85,7 @@ marchStrg f k d = p "strg" $ do
     ] |* vel d
 
 -- Percussion: timpani march pulse
-marchPerc f k d = p "perc" $ do
+perc f k d = p "perc" $ do
   let vl = voiceLines {_vl = "~"
         , bass = "0"
         }
@@ -103,9 +103,9 @@ do
     k = iK tempo form (warp "[1 2 3 4]/4")
   putStrLn "ORPHEUS — III. Dance of the Angel of Death"
   mapM_ id [hush, setbpm tempo
-    ,angel     f k  $ d 0.9
-    ,marchStrg f k  $ d 0.8
-    ,marchPerc f k  $ d 0.7
+    ,strg f k  $ d 0.4
+    ,brss f k  $ d 0.3
+    ,perc f k  $ d 0.9
     ]
 
 hush''

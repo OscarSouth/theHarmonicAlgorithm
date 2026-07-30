@@ -59,23 +59,8 @@ form =
 
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
--- Apollo's lyre: harp T (transfigured) + horns (divine counterpoint)
-apotheosis f k d = p "apotheosis" $ do
-  let vl = voiceLines {_vl = "~"
-        , soprano = "[0 1 2 3]/4"
-        , alto    = "[1 2 3 0]/4"
-        , tenor   = "2"
-        , bass    = "0"
-        }
-  f
-    $ stack [silence
-        , harp T (0, 1) k vl flow Soprano
-        , horn T (0, 1) k vl flow Soprano
-        , horn T (0, 1) k vl flow Alto
-    ] |* vel d
-
 -- High strings: violin harmonics, the music ascending to the stars
-ascension f k d = p "ascension" $ do
+strg f k d = p "strg" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[3 2 3 0]/4"
         , alto    = "1"
@@ -88,6 +73,33 @@ ascension f k d = p "ascension" $ do
         , cello   T (0.2, 1) k vl grid Bass
     ] |* vel d
 
+-- Apollo's divine counterpoint: two horns in a two-part fugue
+brss f k d = p "brss" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[0 1 2 3]/4"
+        , alto    = "[1 2 3 0]/4"
+        , tenor   = "2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , horn T (0, 1) k vl flow Soprano
+        , horn T (0, 1) k vl flow Alto
+    ] |* vel d
+
+-- Apollo's lyre: harp transfigured (the descending Phrygian, now divine)
+perc f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[0 1 2 3]/4"
+        , alto    = "[1 2 3 0]/4"
+        , tenor   = "2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , harp T (0, 1) k vl flow Soprano
+    ] |* vel d
+
 -- ── LAUNCHER ────────────────────────────────────────────
 
 do
@@ -97,8 +109,9 @@ do
     k = iK tempo form (warp "[1 2 3 4]/8")
   putStrLn "ORPHEUS — XIII. Apotheosis of Orpheus"
   mapM_ id [hush, setbpm tempo
-    ,apotheosis f k  $ d 0.9
-    ,ascension  f k  $ d 0.6
+    ,strg f k  $ d 0.6
+    ,brss f k  $ d 0.9
+    ,perc f k  $ d 0.9
     ]
 
 hush''

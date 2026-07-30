@@ -53,7 +53,7 @@ form =
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
 -- String chamber ensemble: the dance
-danceStrg f k d = p "strg" $ do
+strg f k d = p "strg" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[3 2 1 0]/4"
         , alto    = "[1 2 3 1]/4"
@@ -69,7 +69,7 @@ danceStrg f k d = p "strg" $ do
     ] |* vel d
 
 -- Winds enter to thicken texture in development
-danceWind f k d = p "wind" $ do
+wind f k d = p "wind" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[3 2 3 1]/4"
         , alto    = "[1 0 2 1]/4"
@@ -91,8 +91,8 @@ do
     k = iK tempo form (rep s 1)
   putStrLn "ORPHEUS — II. Air de danse"
   mapM_ id [hush, setbpm tempo
-    ,danceStrg f k  $ d 0.8
-    ,danceWind f k  $ d 0.7
+    ,strg f k  $ d 0.8
+    ,wind f k  $ d 0.7
     ]
 
 hush''

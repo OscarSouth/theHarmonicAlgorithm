@@ -32,7 +32,7 @@ let ctx = consonant
         $ hcKey "*"
         $ hContext
 
-s <- seek "debussy" $ cue start $ tonal ctx $ len 8 $ entropy 0.15 $ gen
+s <- seek "debussy" $ cue start $ tonal ctx $ len 4 $ entropy 0.15 $ gen
 
 -- Form: ~115s loop (105s music + 10s silence)
 -- Arc: floating -> darker -> anticipation -> ominous swell -> threshold
@@ -48,24 +48,8 @@ form =
 
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
--- Ethereal texture: harp harmonics, low winds, distant percussion
-descent f k d = p "descent" $ do
-  let vl = voiceLines {_vl = "~"
-        , soprano = "3"
-        , alto    = "1"
-        , tenor   = "2"
-        , bass    = "0"
-        }
-  f
-    $ stack [silence
-        , harp    T (0, 1)   k vl flow Soprano
-        , flute   T (0.2, 1) k vl flow Alto
-        , bassoon T (0.2, 1) k vl flow Tenor8vb
-        , timpani T (0.3, 1) k vl grid Bass8vb
-    ] |* vel d
-
 -- Muted strings: sustaining chords as atmosphere
-veil f k d = p "veil" $ do
+strg f k d = p "strg" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "3"
         , alto    = "1"
@@ -78,6 +62,34 @@ veil f k d = p "veil" $ do
         , contrabass T (0, 1) k vl grid Bass8vb
     ] |* vel d
 
+-- Low winds: creeping chromaticism (from the ethereal texture)
+wind f k d = p "wind" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "3"
+        , alto    = "1"
+        , tenor   = "2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , flute   T (0.2, 1) k vl flow Alto
+        , bassoon T (0.2, 1) k vl flow Tenor8vb
+    ] |* vel d
+
+-- Harp harmonics + distant timpani: threshold percussion
+perc f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "3"
+        , alto    = "1"
+        , tenor   = "2"
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+        , harp    T (0, 1)   k vl flow Soprano
+        , timpani T (0.3, 1) k vl grid Bass8vb
+    ] |* vel d
+
 -- ── LAUNCHER ────────────────────────────────────────────
 
 do
@@ -87,8 +99,9 @@ do
     k = iK tempo form (warp "[1 2 3 4]/8")
   putStrLn "ORPHEUS — IV. Interlude (Descent to Hades)"
   mapM_ id [hush, setbpm tempo
-    ,descent f k  $ d 0.8
-    ,veil    f k  $ d 0.6
+    ,strg f k  $ d 0.6
+    ,wind f k  $ d 0.8
+    ,perc f k  $ d 0.8
     ]
 
 hush''

@@ -57,8 +57,8 @@ form =
 
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
--- The Furies: strings + brass in aggressive grid voicing
-furies f k d = p "furies" $ do
+-- The Furies (strings): aggressive grid voicing
+strg f k d = p "strg" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[0 1 2 3]*4"
         , alto    = "[3 2 0 1]*4"
@@ -72,18 +72,30 @@ furies f k d = p "furies" $ do
         , viola      T (0, 1) k vl grid Tenor
         , cello      T (0, 1) k vl grid Bass
         , contrabass T (0, 1) k vl grid Bass8vb
-        , horn       T (0, 1) k vl flow Soprano
-        , timpani    T (0, 1) k vl grid Bass8vb
     ] |* vel d
 
--- Orpheus's lyre: attempting to break through (enters at higher kinetics)
-lyreResist f k d = p "lyre" $ do
+-- The Furies (brass): horn snarl
+brss f k d = p "brss" $ do
   let vl = voiceLines {_vl = "~"
-        , soprano = "[3 . 2 . 1 . 0 .]/4"
+        , soprano = "[0 1 2 3]*4"
         }
   f
     $ stack [silence
-        , harp T (0.5, 0.8) k vl flow Soprano
+        , horn T (0, 1) k vl flow Soprano
+    ] |* vel d
+
+-- Timpani pulse + Orpheus's lyre (harp) resisting through it.
+-- Merged section: timpani reads bass, harp reads soprano (distinct slots);
+-- harp kept at its original 0.6 relative to the block's 0.9 via inline vel.
+perc f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 . 2 . 1 . 0 .]/4"
+        , bass    = "[0 3 0 -1]*2"
+        }
+  f
+    $ stack [silence
+        , timpani T (0, 1)     k vl grid Bass8vb
+        , harp    T (0.5, 0.8) k vl flow Soprano  |* vel (0.6/0.9)
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────
@@ -95,8 +107,9 @@ do
     k = iK tempo form (warp "[1 2 3 4 3 2 1 4]/4")
   putStrLn "ORPHEUS — V. Pas des furies"
   mapM_ id [hush, setbpm tempo
-    ,furies    f k  $ d 0.9
-    ,lyreResist f k $ d 0.6
+    ,strg f k  $ d 0.9
+    ,brss f k  $ d 0.9
+    ,perc f k  $ d 0.9
     ]
 
 hush''

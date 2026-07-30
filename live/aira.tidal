@@ -17,17 +17,24 @@ s1 f k d = do
   p "rolandS1" $ f
     $ stack [silence
        -- --
-      ,arrange (0.5,1) k (-9,9) S flow (overlapF 0) ["~"
-        -- ,"[0 . <2 -2> <1 -1>]/4"
-        -- ,"[0 1 2 3]" |+ 6
-        -- ,"[0 1 2 3]/2"
-        -- ,"[0,1,2]/4" |+ 3
+      ,parallel "[[0,7] 0@3]/4" $ arrange (0.5,1) k (-9,9) S flow (overlapF 0) ["~"
+        -- ,"[~ . <2 -2> <1 -1>]/4" |+ 3
+        -- ,"[~ 1 2 1]" |+ 6
+        -- ,"[0,1,2,3]/4"
+        -- ,"[0(3,8)]/2" |+ "[0 1 2 3]/4"
+        -- ,"[0 1 2 3]" |+ 3
+        -- ,"[[~ [0,1,2]]*2]/4" |+ 3
         -- ,"[0 1 2 3]/8"
         -- ,"[0]*2"
-        -- ,"[0]/4"
+        -- ,"[0]/4" |- 3
       ]# o |* vel 0.9 |= legato 1
        -- --
-      -- ,s1cutoff  (slow 4 $ lfo tri 0.2 0.7) # o
+      ,arrange (0.5,1) k (-9,9) S grid (overlapF 0) ["~"
+        -- ,"[3 2 1 0]/4" |+ 3
+        ,"[0]/4" |- 0
+      ]# o |* vel 0.9 |= legato 1
+       --
+      ,s1cutoff  (lfo saw 0.2 0.8) # o
       -- ,s1res     0.25                        # o
       -- ,s1attack  0.02                        # o
       -- ,s1release 0.4                         # o
@@ -44,15 +51,16 @@ p6s f k d = p "p6Sample" $ do
        -- --
       ,slate (0.8,1) k [silence
         ,p6trig 6 4 "[1]"                   |* vel 0.99
-        ,p6trig 6 6 "[~ 1]/2"                   |* vel 0.99
-        ,p6trig 6 5 "[1*4]"                   |* vel (lfo tri 0.3 0.99)
+        -- ,0.03 ~> p6trig 7 5 "[~ 1]"                         |* vel 0.6
+        -- ,p6trig 6 6 "[~ 1]/2"                   |* vel 0.2
+        -- ,p6trig 6 5 "[1*4]"                   |* vel (lfo tri 0.3 0.99)
         ]
       ,slate (0.5,0.8) k [silence
-        ,p6trig 6 5 "[~ 1]"                         |* vel 0.6
-        ,p6trig 6 4 "[1]"    |* vel 0.8
+        ,p6trig 7 5 "[~ 1]"                         |* vel 0.6
+        ,p6trig 7 4 "[1]"    |* vel 0.8
         ]
       ,slate (0.2,0.5) k [silence
-        ,degradeBy 0.7 $ p6trig 6 5 "[~ 1 ~ ~]/2" |* vel 0.3
+        ,degradeBy 0.7 $ p6trig 7 5 "[~ 1 ~ ~]/2" |* vel 0.3
         ]
        -- --
     ]# legato 0.05 |* vel d

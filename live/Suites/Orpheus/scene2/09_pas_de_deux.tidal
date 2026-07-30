@@ -69,40 +69,17 @@ form =
 
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
--- The Journey: seamless legato strings with walking bass
-journey f k d = p "strg" $ do
-  let vl = voiceLines {_vl = "~"
+-- Strings: the legato journey (pizz walking bass) AND the catastrophe cluster.
+-- Each instrument divides in two (journey line vs fatal-look cluster), gated to
+-- different kinetics; `divisi` balances the split so the peak overlap isn't hot.
+strg f k d = p "strg" $ do
+  let vlJ = voiceLines {_vl = "~"
         , soprano = "[3 2 1 0]/4"
         , alto    = "[1 2 3 1]/4"
         , tenor   = "[2 0 1 2]/4"
         , bass    = "0"
         }
-  f
-    $ stack [silence
-        , violin1    T (0, 1)   k vl flow Soprano
-        , violin2    T (0, 1)   k vl flow Alto
-        , viola      T (0.3, 1) k vl flow Tenor
-        , cello      T (0, 1)   k vl grid Bass       # pizz
-        , contrabass T (0, 0.7) k vl grid Bass8vb    # pizz
-    ] |* vel d
-
--- Winds: breathless interjections, entering as doubt grows
-doubt f k d = p "wind" $ do
-  let vl = voiceLines {_vl = "~"
-        , soprano = "[3 . 2 .]/4"
-        , alto    = "[1 . 0 .]/4"
-        , tenor   = "[2 . 1 .]/4"
-        }
-  f
-    $ stack [silence
-        , flute   T (0.3, 1) k vl flow Soprano
-        , oboe    T (0.4, 1) k vl flow Alto
-        , horn    T (0.5, 1) k vl flow Tenor
-    ] |* vel d
-
--- The Catastrophe: maximum density tutti for the fatal look
-catastrophe f k d = p "tutti" $ do
-  let vl = voiceLines {_vl = "~"
+      vlC = voiceLines {_vl = "~"
         , soprano = "[0,1,2,3]"
         , alto    = "[0,1,2,3]"
         , tenor   = "[0,1,2,3]"
@@ -110,15 +87,55 @@ catastrophe f k d = p "tutti" $ do
         }
   f
     $ stack [silence
-        , violin1    T (0.9, 1) k vl grid Soprano
-        , violin2    T (0.9, 1) k vl grid Alto
-        , viola      T (0.9, 1) k vl grid Tenor
-        , cello      T (0.9, 1) k vl grid Bass
-        , contrabass T (0.9, 1) k vl grid Bass8vb
-        , horn       T (0.9, 1) k vl grid Soprano
-        , trombone   T (0.9, 1) k vl grid Bass
-        , basstrom   T (0.9, 1) k vl grid Bass8vb
-        , timpani    T (0.9, 1) k vl grid Bass8vb
+        , divisi [ violin1    T (0, 1)   k vlJ flow Soprano
+                   , violin1    T (0.9, 1) k vlC grid Soprano ]
+        , divisi [ violin2    T (0, 1)   k vlJ flow Alto
+                   , violin2    T (0.9, 1) k vlC grid Alto ]
+        , divisi [ viola      T (0.3, 1) k vlJ flow Tenor
+                   , viola      T (0.9, 1) k vlC grid Tenor ]
+        , divisi [ cello      T (0, 1)   k vlJ grid Bass    # pizz
+                   , cello      T (0.9, 1) k vlC grid Bass ]
+        , divisi [ contrabass T (0, 0.7) k vlJ grid Bass8vb # pizz
+                   , contrabass T (0.9, 1) k vlC grid Bass8vb ]
+    ] |* vel d
+
+-- Winds: breathless interjections, entering as doubt grows
+wind f k d = p "wind" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 . 2 .]/4"
+        , alto    = "[1 . 0 .]/4"
+        }
+  f
+    $ stack [silence
+        , flute   T (0.3, 1) k vl flow Soprano
+        , oboe    T (0.4, 1) k vl flow Alto
+    ] |* vel d
+
+-- Brass: the doubt horn (from the winds) AND the catastrophe brass chorale.
+-- Horn divides (tenor interjection vs cluster soprano) across distinct voices;
+-- the doubt horn kept at its original 0.7 relative to the block's 0.95.
+brss f k d = p "brss" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[0,1,2,3]"
+        , tenor   = "[2 . 1 .]/4"
+        , bass    = "[0,1,2,3]"
+        }
+  f
+    $ stack [silence
+        , horn     T (0.5, 1) k vl flow Tenor     |* vel (0.7/0.95)
+        , horn     T (0.9, 1) k vl grid Soprano
+        , trombone T (0.9, 1) k vl grid Bass
+        , basstrom T (0.9, 1) k vl grid Bass8vb
+    ] |* vel d
+
+-- Timpani: the catastrophe impact
+perc f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass = "[0,1,2,3]"
+        }
+  f
+    $ stack [silence
+        , timpani T (0.9, 1) k vl grid Bass8vb
     ] |* vel d
 
 -- ── LAUNCHER ────────────────────────────────────────────
@@ -130,9 +147,10 @@ do
     k = iK tempo form (warp "[1 2 3 4]/4")
   putStrLn "ORPHEUS — X. Pas de deux (The Return & The Fatal Look)"
   mapM_ id [hush, setbpm tempo
-    ,journey     f k  $ d 0.8
-    ,doubt       f k  $ d 0.7
-    ,catastrophe f k  $ d 0.95
+    ,strg f k  $ d 0.85
+    ,wind f k  $ d 0.7
+    ,brss f k  $ d 0.95
+    ,perc f k  $ d 0.95
     ]
 
 hush''

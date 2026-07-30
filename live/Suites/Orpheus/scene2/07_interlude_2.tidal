@@ -46,7 +46,7 @@ form =
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
 -- Muted strings: the song's echo through the underworld
-echo f k d = p "echo" $ do
+strg f k d = p "strg" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "3"
         , alto    = "1"
@@ -69,7 +69,7 @@ do
     k = iK tempo form (warp "[1 2 3 4]/8")
   putStrLn "ORPHEUS — VII/VIII. Interlude 2 & Air de danse 2"
   mapM_ id [hush, setbpm tempo
-    ,echo f k  $ d 0.7
+    ,strg f k  $ d 0.7
     ]
 
 hush''

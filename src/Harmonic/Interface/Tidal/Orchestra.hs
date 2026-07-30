@@ -21,6 +21,8 @@ module Harmonic.Interface.Tidal.Orchestra (
     bassdrum, tamtam,
     -- Articulations
     pizz, spicc, marc, legg, arco,
+    -- Divisi
+    divisi,
     -- Internal (for testing only)
     clip,
 ) where
@@ -166,3 +168,14 @@ spicc = ch 13    -- spiccato
 marc  = ch 14    -- marcato
 legg  = ch 15    -- legato
 arco  = ch 16    -- arco (same as default)
+
+-------------------------------------------------------------------------------
+-- Divisi
+-------------------------------------------------------------------------------
+
+-- | Stack divisi sub-parts and scale loudness so the split stays balanced.
+-- When one section (or instrument+voice) divides into several independent parts,
+-- each part is quieter; scaling @vel@ by @1\/sqrt n@ (equal-power, @n@ = number
+-- of parts) keeps the combined loudness perceptually close to the undivided line.
+divisi :: [ControlPattern] -> ControlPattern
+divisi parts = stack parts |* vel (1 / sqrt (fromIntegral (length parts)))

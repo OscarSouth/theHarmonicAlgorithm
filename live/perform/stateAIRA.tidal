@@ -1,7 +1,7 @@
 -- Load live/aira.tidal FIRST — it defines s1 / p6s / p6g / p6k.
 -- Device: S-1 ch 6 ; P-6 Auto CH 3, S.CH 4, G.CH 5 (all reassigned from defaults).
 
-tempo = 80
+tempo = 90
 
  -- TRANSPORT
 mapM_ id [p "transport"
@@ -11,21 +11,25 @@ mapM_ id [p "transport"
  ,setcps (tempo/60)
  ]
 
-start <- lead "E min"
+start <- lead "C min"
 
-ctx = invSkip 1
+ctx = invSkip 4
   $ consonant
-  -- $ hcOvertones "E A E G B"
-  $ hcKey "1#"
-  $ hcRoots "1#"
+  -- $ dissonant
+  -- $ hcOvertones "C Eb G"
+  $ hcKey "1b"
+  -- $ hcRoots "2b fall<1,2>"
   $ hContext
 
-s <- seek "*"
-  $ len 2
+s <- lead "D min"
+  >>= \start ->
+  seek "*"
+  $ len 4
   $ cue start
   $ tonal ctx
-  $ entropy 0.3
-  $ gen'
+  $ entropy 0.7
+  $ attempt 2 6
+  $ gen
 
 s' <- seek "*"
   $ len 4
@@ -41,14 +45,14 @@ do
     r = warp "[1 2 3 4]/4"
     f = (swingBy 0.04 2)
     d = (*0.99)
-    k = iK tempo [at 0 0.9 0.99 s] r
-  putStrLn $ "AIRA LAUNCH ¬¬"
+    k = iK tempo [at 0 0.99 0.99 s] r
+  putStrLn $ "LAUNCH ¬¬"
   print s
   mapM_ id [launch
     ,setbpm tempo
     -- ,display k
-    -- ,s1  f k $d 0.85
-    ,p6s f k $d 0.99
+    ,s1  f k $d 0.5
+    -- ,p6s f k $d 0.5
     -- ,p6g f k $d 0.99
     -- ,p6k f k $d 0.8
     -- ,subk f k $d 0.1
