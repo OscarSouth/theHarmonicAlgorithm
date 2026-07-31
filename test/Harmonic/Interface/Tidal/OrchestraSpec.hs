@@ -13,6 +13,7 @@ import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as Pitch
 import Harmonic.Interface.Tidal.Orchestra
 import Harmonic.Interface.Tidal.Form (Kinetics(..))
+import Harmonic.Rules.Types.ProgressionContext (Layer(..))
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
 import Sound.Tidal.Context hiding (clip)
@@ -141,21 +142,53 @@ spec = do
       map value pEvs `shouldNotBe` map value mEvs
       map value sEvs `shouldNotBe` map value lEvs
 
-  describe "divisi" $ do
-    it "stacks all sub-parts" $ do
-      let pat = divisi [note 60, note 64] :: ControlPattern
-          evs = queryArc pat (Arc 0 1)
-      length evs `shouldBe` 2
+  describe "divisi tiers (primed voices)" $ do
+    it "primed voice reads the primed field, not the base" $ do
+      patsEqual (vlGet Soprano'  voiceLines) (soprano'  voiceLines) `shouldBe` True
+      patsEqual (vlGet Soprano'' voiceLines) (soprano'' voiceLines) `shouldBe` True
+      patsEqual (vlGet Bass'     voiceLines) (bass'     voiceLines) `shouldBe` True
 
-    it "scales amp by 1/sqrt n (n = length parts, equal-power)" $ do
-      let pat = divisi [note 60 # amp 1, note 64 # amp 1] :: ControlPattern
+    it "primed voice keeps the base octave (Bass8vb' = bass' at -1)" $ do
+      voiceOct Bass8vb' `shouldBe` (-1)
+      voiceTier Bass8vb' `shouldBe` 1
+      patsEqual (vlGet Bass8vb' voiceLines) (bass' voiceLines) `shouldBe` True
+
+    it "voiceBase / voiceTier decompose a primed voice" $ do
+      voiceBase Soprano8va'' `shouldBe` Soprano8va
+      voiceTier Soprano8va'' `shouldBe` 2
+
+    it "default primes stack degrees above the base" $ do
+      queryIntPat (vlGet Soprano   voiceLines) `shouldBe` [3]
+      queryIntPat (vlGet Soprano'  voiceLines) `shouldBe` [4]
+      queryIntPat (vlGet Soprano'' voiceLines) `shouldBe` [5]
+
+  describe "divisi N (auto-stack wrapper)" $ do
+    -- fake instrument: emits its voice's enum index as a note, ignoring the rest
+    let fakeInstr :: Instrument
+        fakeInstr _ _ _ _ _ v = note (fromIntegral (fromEnum v)) # amp 1
+        run p = queryArc p (Arc 0 1)
+
+    it "stacks N desks reading successive tiers" $ do
+      let pat = divisi 3 fakeInstr T (0,1) undefined voiceLines undefined Soprano
+          notes = [ n | ev <- run pat, Just n <- [extractNote (value ev)] ]
+      -- Soprano=0, Soprano'=20, Soprano''=40
+      notes `shouldMatchList` [0, 20, 40]
+
+    it "scales amp by 1/sqrt N" $ do
+      let pat = divisi 3 fakeInstr T (0,1) undefined voiceLines undefined Soprano
+          amps = [ a | ev <- run pat, Just a <- [extractAmp (value ev)] ]
+      amps `shouldSatisfy` all (\a -> abs (a - 1 / sqrt 3) < 1e-9)
+
+  describe "divisi volume tags" $ do
+    it "divisi2 sets amp to 1/sqrt 2" $ do
+      let pat = note 60 # divisi2 :: ControlPattern
           amps = [ a | ev <- queryArc pat (Arc 0 1), Just a <- [extractAmp (value ev)] ]
       amps `shouldSatisfy` all (\a -> abs (a - 1 / sqrt 2) < 1e-9)
 
-    it "single part leaves amp unchanged" $ do
-      let pat = divisi [note 60 # amp 0.8] :: ControlPattern
+    it "divisi3 sets amp to 1/sqrt 3" $ do
+      let pat = note 60 # divisi3 :: ControlPattern
           amps = [ a | ev <- queryArc pat (Arc 0 1), Just a <- [extractAmp (value ev)] ]
-      amps `shouldSatisfy` all (\a -> abs (a - 0.8) < 1e-9)
+      amps `shouldSatisfy` all (\a -> abs (a - 1 / sqrt 3) < 1e-9)
 
   describe "Unpitched percussion" $ do
     it "bassdrum produces events on struct true" $ do

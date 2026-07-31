@@ -69,34 +69,30 @@ form =
 
 -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
 
--- Strings: the legato journey (pizz walking bass) AND the catastrophe cluster.
--- Each instrument divides in two (journey line vs fatal-look cluster), gated to
--- different kinetics; `divisi` balances the split so the peak overlap isn't hot.
+-- Strings: the legato journey (pizz walking bass, base tier) AND the catastrophe
+-- cluster (primed tier). The two desks differ in articulation and entry, so each
+-- is written explicitly and tagged `# divisi2`; kinetics gating keeps them apart.
 strg f k d = p "strg" $ do
-  let vlJ = voiceLines {_vl = "~"
-        , soprano = "[3 2 1 0]/4"
-        , alto    = "[1 2 3 1]/4"
-        , tenor   = "[2 0 1 2]/4"
-        , bass    = "0"
-        }
-      vlC = voiceLines {_vl = "~"
-        , soprano = "[0,1,2,3]"
-        , alto    = "[0,1,2,3]"
-        , tenor   = "[0,1,2,3]"
-        , bass    = "[0,1,2,3]"
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0]/4", soprano' = "[0,1,2,3]"
+        , alto    = "[1 2 3 1]/4", alto'    = "[0,1,2,3]"
+        , tenor   = "[2 0 1 2]/4", tenor'   = "[0,1,2,3]"
+        , bass    = "0",           bass'    = "[0,1,2,3]"
         }
   f
     $ stack [silence
-        , divisi [ violin1    T (0, 1)   k vlJ flow Soprano
-                   , violin1    T (0.9, 1) k vlC grid Soprano ]
-        , divisi [ violin2    T (0, 1)   k vlJ flow Alto
-                   , violin2    T (0.9, 1) k vlC grid Alto ]
-        , divisi [ viola      T (0.3, 1) k vlJ flow Tenor
-                   , viola      T (0.9, 1) k vlC grid Tenor ]
-        , divisi [ cello      T (0, 1)   k vlJ grid Bass    # pizz
-                   , cello      T (0.9, 1) k vlC grid Bass ]
-        , divisi [ contrabass T (0, 0.7) k vlJ grid Bass8vb # pizz
-                   , contrabass T (0.9, 1) k vlC grid Bass8vb ]
+        -- desk 1: the journey
+        , violin1    T (0, 1)   k vl flow Soprano  # divisi2
+        , violin2    T (0, 1)   k vl flow Alto     # divisi2
+        , viola      T (0.3, 1) k vl flow Tenor    # divisi2
+        , cello      T (0, 1)   k vl grid Bass     # pizz # divisi2
+        , contrabass T (0, 0.7) k vl grid Bass8vb  # pizz # divisi2
+        -- desk 2: the catastrophe cluster (primed tier)
+        , violin1    T (0.9, 1) k vl grid Soprano' # divisi2
+        , violin2    T (0.9, 1) k vl grid Alto'    # divisi2
+        , viola      T (0.9, 1) k vl grid Tenor'   # divisi2
+        , cello      T (0.9, 1) k vl grid Bass'    # divisi2
+        , contrabass T (0.9, 1) k vl grid Bass8vb' # divisi2
     ] |* vel d
 
 -- Winds: breathless interjections, entering as doubt grows
@@ -111,9 +107,9 @@ wind f k d = p "wind" $ do
         , oboe    T (0.4, 1) k vl flow Alto
     ] |* vel d
 
--- Brass: the doubt horn (from the winds) AND the catastrophe brass chorale.
--- Horn divides (tenor interjection vs cluster soprano) across distinct voices;
--- the doubt horn kept at its original 0.7 relative to the block's 0.95.
+-- Brass: the doubt horn (tenor interjection) AND the catastrophe brass chorale.
+-- The doubt horn shares the horn with the cluster soprano — a genuine 2-desk
+-- split, so both horn lines carry `# divisi2`.
 brss f k d = p "brss" $ do
   let vl = voiceLines {_vl = "~"
         , soprano = "[0,1,2,3]"
@@ -122,8 +118,8 @@ brss f k d = p "brss" $ do
         }
   f
     $ stack [silence
-        , horn     T (0.5, 1) k vl flow Tenor     |* vel (0.7/0.95)
-        , horn     T (0.9, 1) k vl grid Soprano
+        , horn     T (0.5, 1) k vl flow Tenor    # divisi2
+        , horn     T (0.9, 1) k vl grid Soprano  # divisi2
         , trombone T (0.9, 1) k vl grid Bass
         , basstrom T (0.9, 1) k vl grid Bass8vb
     ] |* vel d
@@ -149,7 +145,7 @@ do
   mapM_ id [hush, setbpm tempo
     ,strg f k  $ d 0.85
     ,wind f k  $ d 0.7
-    ,brss f k  $ d 0.95
+    -- ,brss f k  $ d 0.95
     ,perc f k  $ d 0.95
     ]
 

@@ -22,9 +22,9 @@ module Harmonic.Interface.Tidal.Orchestra (
     -- Articulations
     pizz, spicc, marc, legg, arco,
     -- Divisi
-    divisi,
+    Instrument, divisi, divisi2, divisi3,
     -- Internal (for testing only)
-    clip,
+    clip, voiceBase, voiceTier,
 ) where
 
 import Sound.Tidal.Context hiding (voice, clip)
@@ -40,53 +40,111 @@ import Harmonic.Rules.Types.ProgressionContext (Layer(..))
 -- Voice type (SATB + octave variants)
 -------------------------------------------------------------------------------
 
+-- Divisi tiers: the base 20 voices (tier 0), then the same 20 primed (tier 1,
+-- read the ' fields), then double-primed (tier 2, the '' fields). Declared in
+-- three identical-order blocks of 20 so 'voiceBase'/'voiceTier' derive by
+-- enum arithmetic (mod/div 20). Octave rides the constructor, so e.g. Bass8vb'
+-- reads the bass' field at octave −1.
 data Voice
+  -- tier 0 (base)
   = Soprano | Alto | Tenor | Bass                                      -- loco (normal register)
   | Soprano8va  | Alto8va  | Tenor8va  | Bass8va                      -- octave up
   | Soprano15va | Alto15va | Tenor15va | Bass15va                     -- two octaves up
   | Soprano8vb  | Alto8vb  | Tenor8vb  | Bass8vb                     -- octave down
   | Soprano15vb | Alto15vb | Tenor15vb | Bass15vb                    -- two octaves down
-  deriving (Show, Eq, Ord)
+  -- tier 1 (')
+  | Soprano' | Alto' | Tenor' | Bass'
+  | Soprano8va'  | Alto8va'  | Tenor8va'  | Bass8va'
+  | Soprano15va' | Alto15va' | Tenor15va' | Bass15va'
+  | Soprano8vb'  | Alto8vb'  | Tenor8vb'  | Bass8vb'
+  | Soprano15vb' | Alto15vb' | Tenor15vb' | Bass15vb'
+  -- tier 2 ('')
+  | Soprano'' | Alto'' | Tenor'' | Bass''
+  | Soprano8va''  | Alto8va''  | Tenor8va''  | Bass8va''
+  | Soprano15va'' | Alto15va'' | Tenor15va'' | Bass15va''
+  | Soprano8vb''  | Alto8vb''  | Tenor8vb''  | Bass8vb''
+  | Soprano15vb'' | Alto15vb'' | Tenor15vb'' | Bass15vb''
+  deriving (Show, Eq, Ord, Enum, Bounded)
 
 -------------------------------------------------------------------------------
 -- VoiceLines
 -------------------------------------------------------------------------------
 
+-- Each SATB voice has three divisi tiers: base, ' , '' . All are ordinary
+-- scale-degree patterns (same syntax/semantics); the primed fields only exist
+-- to hold extra divisi desks. Defaults stack one/two degrees above the base so
+-- an undeclared @divisi 3@ voices a chord; declared primes are whatever the
+-- composer writes.
 data VoiceLines = VoiceLines
-  { _vl     :: Pattern Int     -- structural placeholder (always silence)
-  , soprano :: Pattern Int     -- Soprano
-  , alto    :: Pattern Int     -- Alto
-  , tenor   :: Pattern Int     -- Tenor
-  , bass    :: Pattern Int     -- Bass
+  { _vl      :: Pattern Int     -- structural placeholder (always silence)
+  , soprano  :: Pattern Int     -- Soprano
+  , alto     :: Pattern Int     -- Alto
+  , tenor    :: Pattern Int     -- Tenor
+  , bass     :: Pattern Int     -- Bass
+  , soprano' :: Pattern Int     -- Soprano  divisi desk 2
+  , alto'    :: Pattern Int     -- Alto     divisi desk 2
+  , tenor'   :: Pattern Int     -- Tenor    divisi desk 2
+  , bass'    :: Pattern Int     -- Bass     divisi desk 2
+  , soprano'':: Pattern Int     -- Soprano  divisi desk 3
+  , alto''   :: Pattern Int     -- Alto     divisi desk 3
+  , tenor''  :: Pattern Int     -- Tenor    divisi desk 3
+  , bass''   :: Pattern Int     -- Bass     divisi desk 3
   }
 
 voiceLines :: VoiceLines
 voiceLines = VoiceLines
-  { _vl     = "~"
-  , soprano = "3"       -- root 8va
-  , alto    = "1"       -- 2nd degree
-  , tenor   = "2"       -- 3rd degree
-  , bass    = "0"       -- root
+  { _vl      = "~"
+  , soprano  = "3"      -- root 8va
+  , alto     = "1"      -- 2nd degree
+  , tenor    = "2"      -- 3rd degree
+  , bass     = "0"      -- root
+  , soprano' = "4"      -- one degree above base defaults …
+  , alto'    = "2"
+  , tenor'   = "3"
+  , bass'    = "1"
+  , soprano''= "5"      -- … two degrees above
+  , alto''   = "3"
+  , tenor''  = "4"
+  , bass''   = "2"
   }
 
 -------------------------------------------------------------------------------
 -- vlGet / voiceOct
 -------------------------------------------------------------------------------
 
+-- Strip the divisi prime → the tier-0 (base) voice. Relies on the three
+-- identical-order Voice blocks of 20.
+voiceBase :: Voice -> Voice
+voiceBase = toEnum . (`mod` 20) . fromEnum
+
+-- Divisi tier of a voice: 0 (base), 1 ('), 2 ('').
+voiceTier :: Voice -> Int
+voiceTier = (`div` 20) . fromEnum
+
+-- SATB letter of a voice, ignoring octave and divisi tier.
+data VLetter = LtrS | LtrA | LtrT | LtrB
+
+voiceLetter :: Voice -> VLetter
+voiceLetter v = case voiceBase v of
+  Soprano -> LtrS; Soprano8va -> LtrS; Soprano15va -> LtrS; Soprano8vb -> LtrS; Soprano15vb -> LtrS
+  Alto -> LtrA; Alto8va -> LtrA; Alto15va -> LtrA; Alto8vb -> LtrA; Alto15vb -> LtrA
+  Tenor -> LtrT; Tenor8va -> LtrT; Tenor15va -> LtrT; Tenor8vb -> LtrT; Tenor15vb -> LtrT
+  _ -> LtrB   -- Bass* (voiceBase always yields a tier-0 constructor)
+
 vlGet :: Voice -> VoiceLines -> Pattern Int
-vlGet v = case v of
-  Soprano -> soprano; Soprano8va -> soprano; Soprano15va -> soprano; Soprano8vb -> soprano; Soprano15vb -> soprano
-  Alto -> alto; Alto8va -> alto; Alto15va -> alto; Alto8vb -> alto; Alto15vb -> alto
-  Tenor -> tenor; Tenor8va -> tenor; Tenor15va -> tenor; Tenor8vb -> tenor; Tenor15vb -> tenor
-  Bass -> bass; Bass8va -> bass; Bass15va -> bass; Bass8vb -> bass; Bass15vb -> bass
+vlGet v = case (voiceLetter v, voiceTier v) of
+  (LtrS, 0) -> soprano;  (LtrS, 1) -> soprano';  (LtrS, _) -> soprano''
+  (LtrA, 0) -> alto;     (LtrA, 1) -> alto';     (LtrA, _) -> alto''
+  (LtrT, 0) -> tenor;    (LtrT, 1) -> tenor';    (LtrT, _) -> tenor''
+  (LtrB, 0) -> bass;     (LtrB, 1) -> bass';     (LtrB, _) -> bass''
 
 voiceOct :: Voice -> Int
-voiceOct v = case v of
+voiceOct v = case voiceBase v of
   Soprano -> 0; Alto -> 0; Tenor -> 0; Bass -> 0
   Soprano8va  -> 1;  Alto8va  -> 1;  Tenor8va  -> 1;  Bass8va  -> 1
   Soprano15va -> 2;  Alto15va -> 2;  Tenor15va -> 2;  Bass15va -> 2
   Soprano8vb  -> (-1); Alto8vb  -> (-1); Tenor8vb  -> (-1); Bass8vb  -> (-1)
-  Soprano15vb -> (-2); Alto15vb -> (-2); Tenor15vb -> (-2); Bass15vb -> (-2)
+  _ -> (-2)   -- *15vb (voiceBase always yields a tier-0 constructor)
 
 -------------------------------------------------------------------------------
 -- clip (MIDI range enforcement — internal)
@@ -173,9 +231,33 @@ arco  = ch 16    -- arco (same as default)
 -- Divisi
 -------------------------------------------------------------------------------
 
--- | Stack divisi sub-parts and scale loudness so the split stays balanced.
--- When one section (or instrument+voice) divides into several independent parts,
--- each part is quieter; scaling @vel@ by @1\/sqrt n@ (equal-power, @n@ = number
--- of parts) keeps the combined loudness perceptually close to the undivided line.
-divisi :: [ControlPattern] -> ControlPattern
-divisi parts = stack parts |* vel (1 / sqrt (fromIntegral (length parts)))
+-- | The shared shape of every orchestral instrument function.
+type Instrument =
+  Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
+
+-- | Optional prefix wrapper: divide an instrument into @n@ desks, each reading
+-- the next divisi tier of its voice (base, ' , ''), scaled by equal-power
+-- @1\/sqrt n@ so the combined loudness matches the undivided line.
+--
+-- Used in the space form; drop @divisi n@ and the line is a normal single voice:
+--
+-- @, divisi 3 violin1 T (0,1) k vl grid Soprano@   — 3 desks: Soprano/Soprano'/Soprano''
+-- @, violin1 T (0,1) k vl grid Soprano@            — plain
+--
+-- Octave rides the 'Voice' argument, so @divisi 2 contrabass T (0.9,1) k vl grid Bass8vb@
+-- voices Bass8vb and Bass8vb' (tier + octave together).
+divisi :: Int -> Instrument -> Instrument
+divisi n instr lyr rng k vl vf v =
+  stack [ instr lyr rng k vl vf (primeN i v) | i <- [0 .. n-1] ]
+    |* vel (1 / sqrt (fromIntegral n))
+  where primeN i = toEnum . (+ i * 20) . fromEnum   -- shift a base voice into tier i
+
+-- | Equal-power volume scalers for hand-built desks that differ in articulation
+-- or entry (not uniform 'divisi'). Postfix like the articulation tags — set
+-- @amp@; the block's outer @|* vel d@ then multiplies, giving @d\/sqrt n@.
+--
+-- @, violin1 T (0,1)   k vl flow Soprano  # divisi2@
+-- @, violin1 T (0.9,1) k vl grid Soprano' # divisi2@
+divisi2, divisi3 :: ControlPattern
+divisi2 = vel (1 / sqrt 2)
+divisi3 = vel (1 / sqrt 3)

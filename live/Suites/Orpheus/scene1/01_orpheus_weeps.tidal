@@ -70,7 +70,7 @@ strg f k d = p "strg" $ do
 -- Paired woodwinds: sighing appoggiaturas over the lament
 wind f k d = p "wind" $ do
   let vl = voiceLines {_vl = "~"
-        , soprano = "[3 2 3 1]/4"
+        , soprano = "[3 2 3 1]/8"
         , alto    = "[1 0 1 2]/4"
         }
   f
@@ -101,9 +101,10 @@ do
     k = iK tempo form (warp "[1 2 3 4]/8")
   putStrLn "ORPHEUS — I. Orpheus Weeps for Eurydice"
   mapM_ id [hush, setbpm tempo
-    ,strg f k  $ d 0.9
-    ,wind f k  $ d 0.7
-    ,perc f k  $ d 0.9
+    ,display k
+    -- ,strg f k  $ d 0.6
+    -- ,wind f k  $ d 0.4
+    -- ,perc f k  $ d 0.9
     ]
 
 hush''
