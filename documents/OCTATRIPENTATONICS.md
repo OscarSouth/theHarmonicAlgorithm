@@ -241,7 +241,6 @@ genPReport            :: IO ProgressionContext -> IO ()
 
 ## Cross-references
 
-* `CLAUDE.md` — project conventions and verification workflow.
 * `ARCHITECTURE.md` — four-layer R→E→T layering.
 * `data/octatripentatonic/tristrata/*.txt` — per-tristrata fixture table.
 * `test/Harmonic/Framework/BuilderPSpec.hs` — invariant tests.

@@ -1,0 +1,13 @@
+# Tristrata #9: V-VII-IX
+# E-minor-base chroma.
+
+strata1  V  chroma [1,2,4,7,9]  dissonance 68
+strata2  VII  chroma [2,4,6,7,10]  dissonance 71
+strata3  IX  chroma [1,2,6,7,11]  dissonance 75
+
+tristrata-dissonance  214
+
+pair-union modes:
+  ts1 U ts2  LocBb7 (root PC 1)
+  ts1 U ts3  Locrian (root PC 1)
+  ts2 U ts3  LocNat6 (root PC 1)

@@ -15,7 +15,7 @@ suppressPackageStartupMessages(library(tidyverse))
 args <- commandArgs(trailingOnly = TRUE)
 source_dir <- if (length(args) >= 1) args[[1]] else file.path("..", "musicdata", "YCACL")
 metadata_path <- if (length(args) >= 2) args[[2]] else file.path("..", "musicdata", "YCAC-metadata.csv", "YCAC-metadata.csv")
-output_path <- if (length(args) >= 3) args[[3]] else file.path(".", "data", "ycacl_sequences.csv")
+output_path <- if (length(args) >= 3) args[[3]] else file.path(".", "data", "artefacts", "ycacl_sequences.csv")
 max_voices <- if (length(args) >= 4) as.integer(args[[4]]) else 7
 
 allowed_composers <- c()

@@ -37,7 +37,7 @@ See [`live/BootTidal.hs`](live/BootTidal.hs) for all available helpers (`ch`, `v
 
 Two areas are deliberately out of scope:
 
-- **The Algorithmic Orchestration system** (15-instrument virtual orchestra) depends on a specific hardware/MIDI rig — see [`ALGORITHMIC_ORCHESTRATION.md`](ALGORITHMIC_ORCHESTRATION.md) and [`live/ORCHESTRAL_CATALOGUE.tidal`](live/ORCHESTRAL_CATALOGUE.tidal).
+- **The Algorithmic Orchestration system** (15-instrument virtual orchestra) depends on a specific hardware/MIDI rig — see [`ALGORITHMIC_ORCHESTRATION.md`](documents/ALGORITHMIC_ORCHESTRATION.md) and [`live/ORCHESTRAL_CATALOGUE.tidal`](live/ORCHESTRAL_CATALOGUE.tidal).
 - **Hardware-bound helpers** in `BootTidal.hs` — Roland S-1 / P-6 CC maps, the Q-Link controller bridge, the LED display rig, and the MPC kit program behind `subKick` — are documented in the BootTidal source comments. This guide stays on the single piano channel plus generic drums.
 
 ___
@@ -703,7 +703,7 @@ vl = voiceLines {_vl = "~"
 , arrange (0,1) k (-9,9) T flow (overlapF 0) ["~", vlGet Soprano' vl] # o # divisi2 |+ oct 1
 ```
 
-With the orchestral instrument functions the same split is one line — `divisi 2 violin1 T (0, 1) k vl grid Soprano` — and primed voices (`Soprano'`, `Bass8vb'`) pick desks manually. The full system (15 instruments, articulations, section blocks, timbral blends) lives in [`ALGORITHMIC_ORCHESTRATION.md`](ALGORITHMIC_ORCHESTRATION.md); it depends on a specific MIDI rig, so this guide stops at the paradigm.
+With the orchestral instrument functions the same split is one line — `divisi 2 violin1 T (0, 1) k vl grid Soprano` — and primed voices (`Soprano'`, `Bass8vb'`) pick desks manually. The full system (15 instruments, articulations, section blocks, timbral blends) lives in [`ALGORITHMIC_ORCHESTRATION.md`](documents/ALGORITHMIC_ORCHESTRATION.md); it depends on a specific MIDI rig, so this guide stops at the paradigm.
 
 > **▶ VIDEO — Stacked voices**
 > _~45s: the SATB stack assembling voice by voice; a divisi split with the equal-power drop audible._
@@ -762,7 +762,7 @@ ___
 | `S` | 5 PCs | a pentatonic per bar | pattern/pentatonic playing |
 | `M` | 7 PCs | a diatonic mode per bar | scale/modal playing |
 
-Plain `gen` fills all three with the triad. The strata-first generator **`genP`** populates them for real, by walking eleven canonical pentatonic **strata** (I–XI) grouped into twelve curated **tristrata** whose pairwise unions are diatonic modes. Full theory: [`OCTATRIPENTATONICS.md`](OCTATRIPENTATONICS.md).
+Plain `gen` fills all three with the triad. The strata-first generator **`genP`** populates them for real, by walking eleven canonical pentatonic **strata** (I–XI) grouped into twelve curated **tristrata** whose pairwise unions are diatonic modes. Full theory: [`OCTATRIPENTATONICS.md`](documents/OCTATRIPENTATONICS.md).
 
 **What** — [`Builder.hs`](src/Harmonic/Framework/Builder.hs), [`Strata.hs`](src/Harmonic/Framework/Builder/Strata.hs)
 
@@ -847,9 +847,9 @@ ___
 
 **Documentation** —
 - [`CHANGELOG.md`](CHANGELOG.md) — V3 feature summary
-- [`OCTATRIPENTATONICS.md`](OCTATRIPENTATONICS.md) — strata/tristrata reference
-- [`ALGORITHMIC_ORCHESTRATION.md`](ALGORITHMIC_ORCHESTRATION.md) — virtual orchestra
-- [`ARCHITECTURE.md`](ARCHITECTURE.md) — R→E→T pipeline, four-layer architecture, graph schema
+- [`OCTATRIPENTATONICS.md`](documents/OCTATRIPENTATONICS.md) — strata/tristrata reference
+- [`ALGORITHMIC_ORCHESTRATION.md`](documents/ALGORITHMIC_ORCHESTRATION.md) — virtual orchestra
+- [`ARCHITECTURE.md`](documents/ARCHITECTURE.md) — R→E→T pipeline, four-layer architecture, graph schema
 
 **Drum patterns** —
 - [`live/drumpats/`](live/drumpats/) — genre pattern library (kick/snare/hh helpers in BootTidal)

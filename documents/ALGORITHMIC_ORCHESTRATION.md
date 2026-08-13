@@ -174,7 +174,7 @@ Strings default to arco (ch 16). Override with `#`:
 
 2 flutes (doubling piccolo), 2 oboes (doubling cor anglais), 2 clarinets, 2 bassoons, 2 horns, 2 trombones (doubling bass trombone), 1 timpanist, 1 percussionist, 1 harp, 8 vn1, 6 vn2, 4 va, 3 vc, 2 cb
 
-For interactive range tests, see [`live/ORCHESTRAL_CATALOGUE.tidal`](live/ORCHESTRAL_CATALOGUE.tidal).
+For interactive range tests, see [`live/ORCHESTRAL_CATALOGUE.tidal`](../live/ORCHESTRAL_CATALOGUE.tidal).
 
 ## Voice Line System
 

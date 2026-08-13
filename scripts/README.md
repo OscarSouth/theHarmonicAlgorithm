@@ -17,6 +17,10 @@ Key knobs:
 
 Usage:
 ```bash
-Rscript scripts/export_ycacl.R ../musicdata/YCACL ../musicdata/YCAC-metadata.csv/YCAC-metadata.csv data/ycacl_sequences.csv
+Rscript scripts/export_ycacl.R ../musicdata/YCACL ../musicdata/YCAC-metadata.csv/YCAC-metadata.csv data/artefacts/ycacl_sequences.csv
 ```
-The ingestion modules expect the output file at `data/ycacl_sequences.csv`.
+The ingestion modules expect the output file at
+`data/artefacts/ycacl_sequences.csv` (the path is defined once, as
+`ycaclArtifactPath` in `src/Harmonic/Config.hs`). `data/artefacts/` is
+gitignored — the export is a large derived file, regenerated rather than
+distributed. The script creates the directory if it does not exist.

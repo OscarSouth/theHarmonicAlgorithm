@@ -35,7 +35,7 @@
 -- Two areas are deliberately out of scope here:
 --   * The Algorithmic Orchestration system (15-instrument virtual
 --     orchestra) — depends on a specific hardware/MIDI rig. See
---     ALGORITHMIC_ORCHESTRATION.md and ORCHESTRAL_CATALOGUE.tidal.
+--     documents/ALGORITHMIC_ORCHESTRATION.md and ORCHESTRAL_CATALOGUE.tidal.
 --   * Hardware-bound helpers in BootTidal.hs — Roland S-1 / P-6
 --     CC maps, the Q-Link controller bridge, the LED display rig,
 --     and the MPC kit program behind subKick. They're documented
@@ -995,7 +995,7 @@ hush
 -- ══════════════════════════════════════════════════════════
 -- src/Harmonic/Interface/Tidal/Orchestra.hs
 -- live/ORCHESTRAL_CATALOGUE.tidal     (instrument catalogue)
--- ALGORITHMIC_ORCHESTRATION.md        (full orchestration system)
+-- documents/ALGORITHMIC_ORCHESTRATION.md        (full orchestration system)
 --
 -- GOAL: Address stacked voices as independent patterns — each
 -- with its own kinetics range, voicing function and register.
@@ -1065,7 +1065,7 @@ hush
 -- line — `divisi 2 violin1 T (0, 1) k vl grid Soprano` — and
 -- primed voices (Soprano', Bass8vb') pick desks manually. The
 -- full system (15 instruments, articulations, section blocks,
--- timbral blends) lives in ALGORITHMIC_ORCHESTRATION.md; it
+-- timbral blends) lives in documents/ALGORITHMIC_ORCHESTRATION.md; it
 -- depends on a specific MIDI rig, so this guide stops at the
 -- paradigm.
 
@@ -1128,7 +1128,7 @@ hush
 -- ══════════════════════════════════════════════════════════
 -- SECTION 19 — The three layers (T/S/M) & genP
 -- ══════════════════════════════════════════════════════════
--- OCTATRIPENTATONICS.md                       (the framework reference)
+-- documents/OCTATRIPENTATONICS.md                       (the framework reference)
 -- src/Harmonic/Rules/Types/Scale.hs           (strata vocabulary)
 -- src/Harmonic/Framework/Builder/Strata.hs    (the walk)
 -- src/Harmonic/Interface/Tidal/OctatripentatonicT.hs (genPReport)
@@ -1144,7 +1144,7 @@ hush
 -- generator `genP` populates them for real, by walking eleven
 -- canonical pentatonic STRATA (I–XI) grouped into twelve curated
 -- TRISTRATA whose pairwise unions are diatonic modes. Full
--- theory: OCTATRIPENTATONICS.md.
+-- theory: documents/OCTATRIPENTATONICS.md.
 --
 --   genP <label>  — seed the walk at a strata; 33 aliases:
 --   genI..genXI (+ ' standard / '' verbose diagnostics)
@@ -1269,9 +1269,9 @@ hush
 -- DOCUMENTATION
 --   USER_GUIDE.md                — readable version of this guide
 --   CHANGELOG.md                 — V3 feature summary
---   OCTATRIPENTATONICS.md        — strata/tristrata reference
---   ALGORITHMIC_ORCHESTRATION.md — virtual orchestra
---   ARCHITECTURE.md              — R→E→T, layers, graph schema
+--   documents/OCTATRIPENTATONICS.md        — strata/tristrata reference
+--   documents/ALGORITHMIC_ORCHESTRATION.md — virtual orchestra
+--   documents/ARCHITECTURE.md              — R→E→T, layers, graph schema
 --
 -- DRUM PATTERNS
 --   live/drumpats/               — genre pattern library

@@ -28,8 +28,8 @@ neo4jUser = "neo4j"
 neo4jPassword :: Text
 neo4jPassword = "password"
 
-bachDataPath :: FilePath
-bachDataPath = "../data/jsbach_chorals_harmony.data"
-
+-- | Path to the derived YCACL corpus artefact consumed by @stack run@.
+-- Produced by @scripts/export_ycacl.R@; not distributed with the
+-- repository (@data/artefacts/@ is gitignored — the file is ~345 MB).
 ycaclArtifactPath :: FilePath
-ycaclArtifactPath = "data/ycacl_sequences.csv"
+ycaclArtifactPath = "data/artefacts/ycacl_sequences.csv"

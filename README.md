@@ -59,7 +59,7 @@ The project is built around four principles:
   chords, pentatonics and modes — walked through a curated space of
   interlocking five-note scales. It's my own ongoing thread of music
   theory, grown out of the system and now feeding back into it
-  ([OCTATRIPENTATONICS.md](OCTATRIPENTATONICS.md)).
+  ([OCTATRIPENTATONICS.md](documents/OCTATRIPENTATONICS.md)).
 
 The system has grown into a genuinely performable instrument along the
 way. Mid-piece, I can regenerate just the two bars that aren't working and
@@ -190,37 +190,64 @@ ___
 
 ## Installation
 
+There are two ways in. The first needs nothing but the repository and
+makes sound straight away; the second adds the composer corpus.
+
 ### Dependencies
 
 1. [Haskell Stack](https://docs.haskellstack.org/en/latest/install_and_upgrade/)
-2. [Docker](https://www.docker.com/) (for the Neo4j graph database)
-3. [TidalCycles](https://tidalcycles.org/) (optional — for live coding integration)
+2. [TidalCycles](https://tidalcycles.org/) with SuperCollider + SuperDirt
+3. [Docker](https://www.docker.com/) — only for the composer graph (second path)
 
-Once dependencies have been installed, the following steps can be used to
-build and run:
-
-### Setup
+### 1. Start here — no database required
 
 ```bash
-# Clone the repository
 git clone https://github.com/OscarSouth/theHarmonicAlgorithm
 cd theHarmonicAlgorithm
 
-# Build the library
-stack build
-
-# Start the Neo4j database
-docker compose up -d neo4j
-
-# Populate the database with the YCACL corpus
-stack run
-
-# Verify everything works
-stack test
+stack build      # compile the library
+stack test       # verify everything works
 ```
 
-You can now start exploring with `stack ghci` or integrate with TidalCycles
-using the boot file in `live/BootTidal.hs`.
+Boot TidalCycles with `live/BootTidal.hs` and you're playing. Generation
+runs on the built-in consonance fallback — pass `"none"` as the composer
+string and everything in the guides works, shaped by your own filters and
+entropy:
+
+```haskell
+start <- lead "C maj"
+s <- seek "none" $ cue start $ len 4 $ entropy 0.5 $ gen
+```
+
+You can also explore in the REPL with `stack ghci`.
+
+### 2. Add the composer graph
+
+The graph holds harmonic transitions learned from 80+ composers. Start
+Neo4j, then load the pre-built database published with the
+[latest release](https://github.com/OscarSouth/theHarmonicAlgorithm/releases):
+
+```bash
+docker compose up -d neo4j
+# load the release dump — see the release notes for the current command
+```
+
+Every `seek` string then works: `"bach"`, `"debussy"`,
+`"bach:30 debussy:70"`, `"*"`.
+
+<details>
+<summary>Rebuilding the graph from source (advanced)</summary>
+
+`stack run` populates Neo4j from `data/artefacts/ycacl_sequences.csv`, which is not
+distributed with the repository. To produce it, obtain the Yale Classical
+Archives Corpus yourself (see [NOTICES](NOTICES) for provenance) and run
+the export helper documented in `scripts/README.md`:
+
+```bash
+Rscript scripts/export_ycacl.R <YCACL dir> <metadata csv> data/artefacts/ycacl_sequences.csv
+stack run
+```
+</details>
 
 ___
 
@@ -234,18 +261,22 @@ video slots and all, no running TidalCycles environment required.
 **[Interactive User Guide](live/USER_GUIDE.tidal)** — the same guide as a
 hands-on tutorial with examples you can run directly in TidalCycles.
 
-**[Octatripentatonics](OCTATRIPENTATONICS.md)** — the theory frontier:
+**[Octatripentatonics](documents/OCTATRIPENTATONICS.md)** — the theory frontier:
 strata, tristrata, and the three-layer harmony system, in full.
 
-**[Algorithmic Orchestration](ALGORITHMIC_ORCHESTRATION.md)** — scoring for
+**[Algorithmic Orchestration](documents/ALGORITHMIC_ORCHESTRATION.md)** — scoring for
 a virtual orchestra: instrument catalogue, voice lines, divisi, sections,
 blends, and the subKick groove interface.
 
-**[Architecture Guide](ARCHITECTURE.md)** — the technical deep dive into
+**[Architecture Guide](documents/ARCHITECTURE.md)** — the technical deep dive into
 how the system works: the four-layer architecture, the R→E→T pipeline,
 zero-form cadence storage, and the graph database model.
 
 **[Changelog](CHANGELOG.md)** — V3 features and migration notes.
+
+**[The original demo (V1, 2018–19)](documents/LEGACY_V1_DEMO.md)** — a piece of
+history: the interactive terminal app this grew out of, walkthrough and
+animations preserved.
 
 ___
 
@@ -267,11 +298,12 @@ Let me know if you have any feature suggestions or comments in general and
 feel free to get in touch through this repository's
 [Issues](https://github.com/OscarSouth/theHarmonicAlgorithm/issues) section.
 
-Alternatively, use the contact form for my main performance project UDAGAN:
-https://UDAGANuniverse.com/contact
+Alternatively, come hang out or contact me through the forum 
+for my main performance project UDAGAN:
+https://forum.UDAGAN.uk/
 
 Oscar
 
 ___
 
-MIT License — see [LICENSE](LICENSE) for details.
+BSD 3-Clause License — see [LICENSE](LICENSE) for details.
