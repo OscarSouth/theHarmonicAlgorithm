@@ -1,0 +1,42 @@
+ -- FUNKY DRUMMER  (dnb)                           -- James Brown (1970, Clyde Stubblefield)
+ -- the holy-grail break. 16th hats with open hats on the 'e' of 2 & 4 (steps 7,13).
+ -- accent: pulse (funk pocket).  [source: Pocket Operations transcription]   ·   ~96-110 BPM · swing 56% → swing16 0.56
+ -- ── TRIGGERS ──  raw grids (highlight-visible, reusable gates)
+(kickseq, snareseq, clapseq, chseq, ohseq, hhseq, rideseq, percseq) =
+  ( "[[1 0 1 0] [0 0 1 0] [0 0 1 0] [0 1 0 0]]/4" -- kick (0,2,6,10,13)
+  , "[[0 0 0 0] [1 0 0 1] [0 1 0 1] [1 0 0 1]]/4" -- snare (4,7,9,11,12,15)
+  , silence                                       -- clap
+  , "[[1 1 1 1] [1 1 1 0] [1 1 1 1] [1 0 1 1]]/4" -- closed hat (16ths, gap 7,13)
+  , "[[0 0 0 0] [0 0 0 1] [0 0 0 0] [0 1 0 0]]/4" -- open hat ('e' of 2 & 4: 7,13)
+  , "[[1 1 1 1] [1 1 1 2] [1 1 1 1] [1 2 1 1]]/4" -- combined hat
+  , silence                                       -- ride
+  , silence                                       -- perc
+  )
+ -- ── AMPS ──  dynamics (Pattern Double; leading-zero decimals)
+(kickamp, snareamp, clapamp, hhamp, rideamp, percamp) =
+  ( "1 0.9"               -- kick: accent
+  , "1 0.4 0.7 0.4"       -- snare
+  , 1                     -- clap
+  , "1 0.6 0.85 0.6"      -- hats: pump/roll
+  , 1                     -- ride
+  , "1 0.5"               -- perc: groove
+  )
+ -- ── PATTERNS ──  enriched (trigger × role-vel × amp) — the core version
+(kickpat, snarepat, clappat, chpat, ohpat, hhpat, ridepat, percpat, rhythm) =
+  ( kick  kickseq  |* vel 1.0  |* vel kickamp
+  , snare snareseq |* vel 0.9  |* vel snareamp |+ humanise 0.08
+  , snap  clapseq  |* vel 0.8  |* vel clapamp
+  , hhcl  chseq    |* vel 0.25 |* vel hhamp
+  , hhop  ohseq    |* vel 0.25 |* vel hhamp
+  , hh    hhseq    |* vel 0.5  |* vel hhamp
+  , ride  rideseq  |* vel 0.4  |* vel rideamp
+  , click percseq  |* vel 0.35 |* vel percamp
+  , snareseq )
+
+ -- ── PRELOADED INTERFACE ──
+kgrv f k d = p "grooveKit"
+  $ f
+  $ stack [silence
+    ,kickpat ,snarepat ,clappat ,hhpat ,ridepat ,percpat
+ -- ,chpat ,ohpat   -- (separate closed/open; alt to combined hhpat)
+    ]# ch 9 |* vel d

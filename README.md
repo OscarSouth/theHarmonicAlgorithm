@@ -45,13 +45,14 @@ The project is built around three principles:
 
 - **Algorithmic Orchestration** — the performance paradigm. Musical elements
   are abstracted into harmony (contexts and generation), form (the spectral
-  narrative), and interfaces (instrument timbres and voice lines), enabling
-  live-coded orchestral scoring via TidalCycles.
+  narrative), and interfaces (instrument timbres, voice lines, and divisi),
+  enabling live-coded orchestral scoring via TidalCycles.
 
 - **The Spectral Narrative** — the structural framework. Macro-level
-  compositional arc encoded as programmable kinetics signals in wall-clock
-  time, carrying continuous intensity and dynamics envelopes that drive
-  instrument activation, voice density, and harmonic switching.
+  compositional arc encoded as programmable kinetics signals over wall-clock
+  seconds or bars, with smooth or snap transitions, carrying continuous
+  intensity and dynamics envelopes that drive instrument activation, voice
+  density, and harmonic switching.
 
 <!-- [video ~60s: the full USER_GUIDE walkthrough in miniature — lead "C maj" →
 seek "none" → single-state form → launcher on channel 1 (piano), then layer
@@ -200,8 +201,8 @@ immediately, including a jazz standard arrangement and a traditional tune
 with form transformation.
 
 **[Algorithmic Orchestration](ALGORITHMIC_ORCHESTRATION.md)** — scoring for
-a virtual orchestra: instrument catalogue, voice lines, sections, blends,
-and the subKick groove interface.
+a virtual orchestra: instrument catalogue, voice lines, divisi, sections,
+blends, and the subKick groove interface.
 
 **[Architecture Guide](ARCHITECTURE.md)** — the technical deep dive into
 how the system works: the four-layer architecture, the R→E→T pipeline,

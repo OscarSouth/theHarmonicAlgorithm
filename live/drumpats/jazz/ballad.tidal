@@ -1,0 +1,42 @@
+ -- BALLAD  (jazz)                                 -- slow, brushes
+ -- sparse ride + hh 2&4; soft kick on 1; brush swirl (click) fills the space.
+ -- accent: ride.   ·   ~60-80 BPM · swing 58% → swing8 0.58
+ -- ── TRIGGERS ──  raw grids (highlight-visible, reusable gates)
+(kickseq, snareseq, clapseq, chseq, ohseq, hhseq, rideseq, percseq) =
+  ( "[[1 0 0 0] [0 0 0 0] [0 0 0 0] [0 0 0 0]]/4"  -- kick (soft 1)
+  , silence                                        -- snare
+  , silence                                        -- clap
+  , "[[0 0 0 0] [1 0 0 0] [0 0 0 0] [1 0 0 0]]/4"  -- hh-foot (2&4)
+  , silence                                        -- open
+  , "[[0 0 0 0] [1 0 0 0] [0 0 0 0] [1 0 0 0]]/4"  -- combined
+  , "[[1 0 0 0] [0 0 0 0] [1 0 0 0] [0 0 0 0]]/4"  -- ride (sparse)
+  , "[[1 1 1 1] [1 1 1 1] [1 1 1 1] [1 1 1 1]]/4"  -- perc (brush swirl→click)
+  )
+ -- ── AMPS ──  dynamics (Pattern Double; leading-zero decimals)
+(kickamp, snareamp, clapamp, hhamp, rideamp, percamp) =
+  ( "0.55 0.45"           -- kick (feathered, back)
+  , 1                     -- snare (comp)
+  , 1                     -- clap
+  , "1 0.8"               -- hh-foot (2&4)
+  , lfo tri 0.5 0.9       -- ride shimmer
+  , "0.3 0.25 0.3 0.25"   -- perc
+  )
+ -- ── PATTERNS ──  enriched (trigger × role-vel × amp) — the core version
+(kickpat, snarepat, clappat, chpat, ohpat, hhpat, ridepat, percpat, rhythm) =
+  ( kick  kickseq  |* vel 1.0  |* vel kickamp
+  , snare snareseq |* vel 0.9  |* vel snareamp |+ humanise 0.08
+  , snap  clapseq  |* vel 0.8  |* vel clapamp
+  , hhcl  chseq    |* vel 0.25 |* vel hhamp
+  , hhop  ohseq    |* vel 0.25 |* vel hhamp
+  , hh    hhseq    |* vel 0.5  |* vel hhamp
+  , ride  rideseq  |* vel 0.4  |* vel rideamp
+  , click percseq  |* vel 0.35 |* vel percamp
+  , rideseq )
+
+ -- ── PRELOADED INTERFACE ──
+kgrv f k d = p "grooveKit"
+  $ f
+  $ stack [silence
+    ,kickpat ,snarepat ,clappat ,hhpat ,ridepat ,percpat
+ -- ,chpat ,ohpat   -- (separate closed/open; alt to combined hhpat)
+    ]# ch 9 |* vel d

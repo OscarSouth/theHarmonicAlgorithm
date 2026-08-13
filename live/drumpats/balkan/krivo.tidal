@@ -1,0 +1,42 @@
+ -- KRIVO  (balkan)                                -- 13/16 (2+2+2+3+2+2) Šop 'crooked'  [eighth = pulse]
+ -- the crooked dance; tapan boom on grouping downbeats 0,2,4,6,9,11.
+ -- accent: kick (2+2+2+3+2+2).   ·   ~150-180 BPM · straight · 13/16 (2+2+2+3+2+2)
+ -- ── TRIGGERS ──  raw grids (highlight-visible, reusable gates)
+(kickseq, snareseq, clapseq, chseq, ohseq, hhseq, rideseq, percseq) =
+  ( "[[1 0 1 0 1 0 1 0 0 1 0 1 0]]/13"             -- kick (grouping downbeats)
+  , "[[0 0 0 0 0 0 0 1 0 0 0 0 0]]/13"             -- snare (3-group)
+  , silence                                        -- clap
+  , "[[1 1 1 1 1 1 1 1 1 1 1 1 1]]/13"             -- hh (all 13)
+  , silence                                        -- open
+  , "[[1 1 1 1 1 1 1 1 1 1 1 1 1]]/13"             -- combined
+  , silence                                        -- ride
+  , silence                                        -- perc
+  )
+ -- ── AMPS ──  dynamics (Pattern Double; leading-zero decimals)
+(kickamp, snareamp, clapamp, hhamp, rideamp, percamp) =
+  ( "1 0.9"               -- kick
+  , 1                     -- snare
+  , 1                     -- clap
+  , 1                     -- hats
+  , 1                     -- ride
+  , 1                     -- perc
+  )
+ -- ── PATTERNS ──  enriched (trigger × role-vel × amp) — the core version
+(kickpat, snarepat, clappat, chpat, ohpat, hhpat, ridepat, percpat, rhythm) =
+  ( kick  kickseq  |* vel 1.0  |* vel kickamp
+  , snare snareseq |* vel 0.9  |* vel snareamp |+ humanise 0.08
+  , snap  clapseq  |* vel 0.8  |* vel clapamp
+  , hhcl  chseq    |* vel 0.25 |* vel hhamp
+  , hhop  ohseq    |* vel 0.25 |* vel hhamp
+  , hh    hhseq    |* vel 0.5  |* vel hhamp
+  , ride  rideseq  |* vel 0.4  |* vel rideamp
+  , click percseq  |* vel 0.35 |* vel percamp
+  , kickseq )
+
+ -- ── PRELOADED INTERFACE ──
+kgrv f k d = p "grooveKit"
+  $ f
+  $ stack [silence
+    ,kickpat ,snarepat ,clappat ,hhpat ,ridepat ,percpat
+ -- ,chpat ,ohpat   -- (separate closed/open; alt to combined hhpat)
+    ]# ch 9 |* vel d

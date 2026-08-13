@@ -44,6 +44,8 @@ The V3 CHANGELOG is comprehensive for core features but missing coverage of the 
 - [x] **Algorithmic Orchestration** — The Orchestra module (`Orchestra.hs`) isn't mentioned as a V3 feature. It introduces: `instrument` function with MIDI range clipping, 15 pitched instrument functions (flute through contrabass), unpitched percussion (bassdrum, tamtam), the voice line system (SATB + octave variants via `VoiceLines` and `Voice` type), string articulation channel aliases (pizz/spicc/marc/legg/arco), orchestral section blocks (wind/brss/strg/perc), timbral blends (chalumeau/pastorale/brillante/maestoso/tutti). This is a major V3 feature.
 - [x] **`iK` type and bundling** — The `IK = (Kinetics, Pattern Int)` type that bundles kinetics context with chord selection pattern, created via `iK bpm form chordPat`. Mentioned implicitly but not called out as a named concept.
 - [x] **Three theoretical principles** — If you want these to be part of the V3 identity, briefly name them in the changelog (The Harmonic Algorithm, Algorithmic Orchestration, The Spectral Narrative).
+- [x] **Divisi** — Voice-splitting with equal-power loudness compensation: primed `Voice` constructors (`Soprano'`, `Bass8vb'`), primed `VoiceLines` tiers, `divisi N` auto-wrap, `# divisi2`/`# divisi3` tags. Now in CHANGELOG (Algorithmic Orchestration) + ALGORITHMIC_ORCHESTRATION.md + USER_GUIDE.
+- [x] **Form snap/bars (`at'`/`rh`/`rh'`)** — Snap transitions and bar-based (rehearsal-mark) form nodes, orthogonal to the seconds/smooth `at`. Now in CHANGELOG (Form & Kinetics) + USER_GUIDE §11 + forms.tidal.
 
 ---
 

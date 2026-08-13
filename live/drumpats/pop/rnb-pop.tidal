@@ -1,0 +1,42 @@
+ -- RNB-POP  (pop)                                  -- alt-R&B / neo-soul
+ -- sparse half-time: kick 0,10, snare on beat 3 + ghosts, swung 16th hats.
+ -- accent: pulse (half-time snare).   ·   ~90-105 BPM · swing 58% → swing16 0.58 · rnb-pop
+ -- ── TRIGGERS ──  raw grids (highlight-visible, reusable gates)
+(kickseq, snareseq, clapseq, chseq, ohseq, hhseq, rideseq, percseq) =
+  ( "[[1 0 0 0] [0 0 0 0] [0 0 1 0] [0 0 0 0]]/4"  -- kick (0,10)
+  , "[[0 0 0 0] [0 0 1 0] [1 0 0 0] [0 0 1 0]]/4"  -- snare (beat 3 + ghosts)
+  , silence                                        -- clap
+  , "[[1 1 1 1] [1 1 1 1] [1 1 1 1] [1 1 1 1]]/4"  -- closed 16th
+  , silence                                        -- open
+  , "[[1 1 1 1] [1 1 1 1] [1 1 1 1] [1 1 1 1]]/4"  -- combined
+  , silence                                        -- ride
+  , silence                                        -- perc
+  )
+ -- ── AMPS ──  dynamics (Pattern Double; leading-zero decimals)
+(kickamp, snareamp, clapamp, hhamp, rideamp, percamp) =
+  ( 1                     -- kick
+  , "1 0.5 0.85 0.5"      -- snare
+  , 1                     -- clap
+  , 1                     -- hats
+  , 1                     -- ride
+  , 1                     -- perc
+  )
+ -- ── PATTERNS ──  enriched (trigger × role-vel × amp) — the core version
+(kickpat, snarepat, clappat, chpat, ohpat, hhpat, ridepat, percpat, rhythm) =
+  ( kick  kickseq  |* vel 1.0  |* vel kickamp
+  , snare snareseq |* vel 0.9  |* vel snareamp |+ humanise 0.08
+  , snap  clapseq  |* vel 0.8  |* vel clapamp
+  , hhcl  chseq    |* vel 0.25 |* vel hhamp
+  , hhop  ohseq    |* vel 0.25 |* vel hhamp
+  , hh    hhseq    |* vel 0.5  |* vel hhamp
+  , ride  rideseq  |* vel 0.4  |* vel rideamp
+  , click percseq  |* vel 0.35 |* vel percamp
+  , snareseq )
+
+ -- ── PRELOADED INTERFACE ──
+kgrv f k d = p "grooveKit"
+  $ f
+  $ stack [silence
+    ,kickpat ,snarepat ,clappat ,hhpat ,ridepat ,percpat
+ -- ,chpat ,ohpat   -- (separate closed/open; alt to combined hhpat)
+    ]# ch 9 |* vel d

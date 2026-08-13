@@ -302,17 +302,19 @@ ctx <- harmonicContext "*" "*" "*"
 let start = initCadenceState 0 "C" [0,4,7]
 prog <- genSilent start 4 "*" 0.5 ctx
 
--- Test pattern lookup with modulo wrap
-lookupChord prog 0    -- First chord
-lookupChord prog 4    -- Wraps to index 0 (infinite cycling)
+-- Test voicing functions (Progression -> [[Int]])
+flow prog             -- smoothest voice leading, any inversion
+root prog             -- root pitch classes (bass line)
+fund prog             -- harmonic roots (inversion-invariant)
 
--- Test voicing functions
-rootNotes prog        -- Extract root notes
-bassNotes prog        -- Extract bass notes
+-- Pattern lookup takes a ProgressionContext (modulo wrap)
+let pc = fromProgression prog
+lookupChord pc 0      -- First chord
+lookupChord pc 4      -- Wraps to index 0 (infinite cycling)
 
 -- Test arrange with kinetics (single-state form = constant signals)
-let k = formK 120 [at 0 1 1 prog]
-arrange (0,1) flow id (rep prog 1) k (-9,9) ["0 1 2 3"]
+let k = iK 120 [at 0 1 1 pc] (rep pc 1)
+arrange (0,1) k (-9,9) T flow id ["0 1 2 3"]
 ```
 
 #### Arranger (src/Harmonic/Interface/Tidal/Arranger.hs)

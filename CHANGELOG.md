@@ -127,6 +127,12 @@ defined nodes. Concise, explicit, long form evolving and dynamic structure.
 progression`, realise into looping TidalCycles patterns with `formK bpm nodes`.
 Single-node forms produce constant signals, recreating formless behaviour.
 
+**`at'` / `rh` / `rh'` — snap transitions and bar-based nodes** — Two orthogonal
+axes on every form node: time unit (`at` seconds, `rh` rehearsal-mark bars) and
+transition (unprimed smooth-ramp, primed `'` snap — hold then jump on the exact
+time). Mix freely in one form; `rh'` snaps a bar-aligned scene cut, `at'` a
+seconds one. The 12-step display still reads the form in seconds.
+
 **`ki` / `slate` / `withForm`** — Range-gate patterns by kinetics level, combine
 gated layers into stacks, and reactively switch progressions as the form
 unfolds. Instrument layers activate and deactivate as the signal rises and falls.
@@ -144,6 +150,23 @@ range.
 
 **String Articulations** — `pizz`, `spicc`, `marc`, `legg`, `arco` channel
 aliases for instant timbral switching per instrument block.
+
+**Divisi** — Split a section or a single instrument+voice into independent desks
+with equal-power (`1/√n`) loudness compensation. Primed `VoiceLines` fields
+(`soprano'`, `soprano''` …) hold each desk's line; primed `Voice` constructors
+(`Soprano'`, `Bass8vb'`) select it, composing with the octave suffix. `divisi N`
+auto-wraps an instrument into `N` tier-reading desks; `# divisi2` / `# divisi3`
+are standalone volume tags for hand-built desks that differ in articulation or
+entry.
+
+**Motifs** — Recurring material as plain patterns: a `Pattern Bool` rhythm and a
+`Pattern Int` contour (voicing degrees that auto-track harmony). `mirror` (melodic
+inversion) and `>:<` (combine a rhythm with a fragment) fill the gaps the standard
+Tidal developments (`rev`, `slow`, `fast`, `|+`, `<~`, `struct`) leave. A per-piece
+one-statement panel binds `rhythm`/`contour`/`motif` (with `'`/`''` tiers); editing
+a slot and re-executing reprograms the piece. Clave/bell rhythm shorthands
+(`son32`, `rumba32`, `bossa32`, `bellpat32`) live in the boot file (`rumba32` fixed
+— it had duplicated `son32`).
 
 **Section Blocks + Timbral Blends** — `wind`, `brss`, `strg`, `perc` group
 instruments into sections. `chalumeau`, `pastorale`, `brillante`, `maestoso`,

@@ -116,7 +116,7 @@ p01 f k d = d01 $ do
   let o = ch 01
   f
     $ stack [silence
-      , arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+      , arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~"
         , "[0 1 2 3]/4"
       ] # o |* vel 0.8 |= legato 0.95
     ] |* vel d
@@ -129,11 +129,11 @@ do
 ```
 
 Three concepts here:
-- **`at time kinetics dynamics progression`** ([`Form.hs:61`](src/Harmonic/Interface/Tidal/Form.hs#L61)) — a form node. With one node the kinetics and dynamics signals are constant.
-- **`iK tempo formNodes chordSelection`** ([`Form.hs:67`](src/Harmonic/Interface/Tidal/Form.hs#L67)) — bundles everything a launcher needs into a single `IK` context.
-- **`arrange (lo,hi) k (-9,9) voicing modifier [patterns]`** ([`Bridge.hs:105`](src/Harmonic/Interface/Tidal/Bridge.hs#L105)) — maps the pattern across the progression. `(0,1)` is the kinetics range (active when kinetics is in this window), `(-9,9)` is the register.
+- **`at time kinetics dynamics progression`** ([`Form.hs:95`](src/Harmonic/Interface/Tidal/Form.hs#L95)) — a form node. With one node the kinetics and dynamics signals are constant. (`at` has siblings — `at'` snaps, `rh`/`rh'` take bars; see [§11](#11-kinetics-form-programmed-arc).)
+- **`iK tempo formNodes chordSelection`** ([`Form.hs:104`](src/Harmonic/Interface/Tidal/Form.hs#L104)) — bundles everything a launcher needs into a single `IK` context.
+- **`arrange (lo,hi) k (-9,9) T voicing modifier [patterns]`** ([`Bridge.hs:145`](src/Harmonic/Interface/Tidal/Bridge.hs#L145)) — maps the pattern across the progression. `(0,1)` is the kinetics range (active when kinetics is in this window), `(-9,9)` is the register, `T` selects the triad layer.
 
-`rep s 1` ([`Bridge.hs:86`](src/Harmonic/Interface/Tidal/Bridge.hs#L86)) auto-derives a one-chord-per-bar selection from the progression length.
+`rep s 1` ([`Bridge.hs:102`](src/Harmonic/Interface/Tidal/Bridge.hs#L102)) auto-derives a one-chord-per-bar selection from the progression length.
 
 **How** — define the launcher once. Every section below reuses `p01`. The pattern `"[0 1 2 3]/4"` cycles through chord tones. Change the pattern, re-run the `do` block, listen.
 
@@ -231,12 +231,12 @@ ___
 Swap the voicing in a launcher:
 
 ```haskell
-arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~", "[0 1 2 3]/4"] # ch 01
-arrange (0, 1) k (-9, 9) grid (overlapF 0) ["~", "[0 1 2 3]/4"] # ch 01
-arrange (0, 1) k (-9, 9) root (overlapF 0) ["~", "[0]/1"]       # ch 01 |- oct 2
+arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~", "[0 1 2 3]/4"] # ch 01
+arrange (0, 1) k (-9, 9) T grid (overlapF 0) ["~", "[0 1 2 3]/4"] # ch 01
+arrange (0, 1) k (-9, 9) T root (overlapF 0) ["~", "[0]/1"]       # ch 01 |- oct 2
 ```
 
-**How** — the voicing function is the 4th argument of `arrange`. Everything else stays identical. Stack multiple `arrange` calls with different voicings in a single launcher to build a full texture.
+**How** — the voicing function is the 5th argument of `arrange` (after the `T`/`S`/`M` layer). Everything else stays identical. Stack multiple `arrange` calls with different voicings in a single launcher to build a full texture.
 
 **Try it** — compare `flow` and `grid` on a long progression. Add a second `arrange` with `root` and an octave offset for a bass line.
 
@@ -248,7 +248,7 @@ ___
 
 **Why** — you control *which* chord plays and *when* it changes. `rep` does the default one-chord-per-bar; `warp` gives you explicit mininotation control.
 
-**What** — [`Bridge.hs:76`](src/Harmonic/Interface/Tidal/Bridge.hs#L76) for `warp`, [`Bridge.hs:86`](src/Harmonic/Interface/Tidal/Bridge.hs#L86) for `rep`.
+**What** — [`Bridge.hs:92`](src/Harmonic/Interface/Tidal/Bridge.hs#L92) for `warp`, [`Bridge.hs:102`](src/Harmonic/Interface/Tidal/Bridge.hs#L102) for `rep`.
 
 ```haskell
 -- Default: one chord per bar
@@ -281,16 +281,16 @@ ___
 
 **Why** — two ways that a pattern interacts with progression changes. `arrange` lets the pattern flow across chords at its own speed; `arrange'` compresses the full pattern into each chord slot. Both handle notes crossing harmony boundaries by sustaining naturally — no spurious onsets.
 
-**What** — [`Bridge.hs:105`](src/Harmonic/Interface/Tidal/Bridge.hs#L105) (arrange), [`Bridge.hs:205`](src/Harmonic/Interface/Tidal/Bridge.hs#L205) (arrange').
+**What** — [`Bridge.hs:145`](src/Harmonic/Interface/Tidal/Bridge.hs#L145) (arrange), [`Bridge.hs:260`](src/Harmonic/Interface/Tidal/Bridge.hs#L260) (arrange').
 
 ```haskell
 -- arrange: pattern flows across the progression
-arrange (0, 1) k (-9, 9) flow (overlapF 1) ["~"
+arrange (0, 1) k (-9, 9) T flow (overlapF 1) ["~"
   , "[0 1 2 3 4 5 6 7]/2"
 ] # ch 01
 
 -- arrange': the same pattern repeats in every chord slot
-arrange' (0, 1) k (-9, 9) flow (overlapF 0) ["~"
+arrange' (0, 1) k (-9, 9) T flow (overlapF 0) ["~"
   , "[0 1 2 3 4 5 6 7]/2"
 ] # ch 01
 ```
@@ -398,7 +398,7 @@ ___
 
 ## 11. Kinetics form (programmed arc)
 
-**Why** — wall-clock time as a compositional parameter. A form is a list of nodes, each placed at a specific second, with kinetics (0–1 continuous signal) and dynamics (amplitude envelope) values. Between nodes the signals interpolate linearly; the progression switches discretely at each node.
+**Why** — wall-clock time as a compositional parameter. A form is a list of nodes, each placed at a specific second, with kinetics (0–1 continuous signal) and dynamics (amplitude envelope) values. Between nodes the signals interpolate linearly (or snap — see below); the progression switches discretely at each node.
 
 **What** — [`Form.hs`](src/Harmonic/Interface/Tidal/Form.hs)
 
@@ -421,8 +421,8 @@ p01arc f k d = d01 $ do
   let o = ch 01
   f
     $ stack [silence
-      , arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~", "[0 1 2 3]/4"] # o |* vel 0.75
-      , arrange (0.7, 1) k (-9, 9) flow (overlapF 0) ["~", "[0 2 4 7 4 2]/4"] # o |+ oct 1 |* vel 0.6
+      , arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~", "[0 1 2 3]/4"] # o |* vel 0.75
+      , arrange (0.7, 1) k (-9, 9) T flow (overlapF 0) ["~", "[0 2 4 7 4 2]/4"] # o |+ oct 1 |* vel 0.6
     ] |* vel d
 
 do
@@ -431,6 +431,29 @@ do
 ```
 
 The upper-voice `arrange` has kinetics range `(0.7, 1)` — it only plays when the kinetics signal is at or above 0.7, i.e. during the climactic middle section. The chord pad `(0, 1)` plays throughout.
+
+**Snap transitions & bar-based nodes** — `at` is the seconds/smooth node constructor. Three siblings vary two orthogonal axes — time unit and transition:
+
+| Constructor | Time unit | Transition |
+|-------------|-----------|------------|
+| `at`  | seconds | smooth (ramp) |
+| `at'` | seconds | snap (hold, then jump) |
+| `rh`  | bars (rehearsal marks, 4/4) | smooth |
+| `rh'` | bars | snap |
+
+Snap suits hard cuts — an explosive entry, a scene change — where the kinetics should jump rather than ramp in. Bars align nodes to the metre without hand-computing seconds. Mix them in one form:
+
+```haskell
+cutForm =
+  [ rh   0   0.0  0.0  sA   -- bar 0: silence
+  , rh   4   0.5  0.6  sA   -- bar 4: smooth fade-in
+  , rh'  8   1.0  1.0  sB   -- bar 8: SNAP to full on the adventurous prog
+  , rh  16   0.4  0.5  sB   -- bar 16: ramp down
+  , at' 40   0.0  0.0  sA   -- 40s: snap to silence (mixing units is fine)
+  ]
+```
+
+Flip `rh' 8` to `rh 8` and the hard cut becomes a ramp.
 
 Reusable form templates live in [`live/forms.tidal`](live/forms.tidal):
 - **7m24s** spectral narrative (454s loop, 11 nodes)
@@ -484,20 +507,37 @@ p01satb f k d = d01 $ do
   let o = ch 01
   f
     $ stack [silence
-      , arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~", "[3]/1"] # o |+ oct 1 |* vel 0.7
-      , arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~", "[2]/1"] # o              |* vel 0.6
-      , arrange (0, 1) k (-9, 9) flow (overlapF 0) ["~", "[1]/1"] # o              |* vel 0.6
-      , arrange (0, 1) k (-9, 9) root (overlapF 0) ["~", "[0]/1"] # o |- oct 1 |* vel 0.8
+      , arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~", "[3]/1"] # o |+ oct 1 |* vel 0.7
+      , arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~", "[2]/1"] # o              |* vel 0.6
+      , arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~", "[1]/1"] # o              |* vel 0.6
+      , arrange (0, 1) k (-9, 9) T root (overlapF 0) ["~", "[0]/1"] # o |- oct 1 |* vel 0.8
     ] |* vel d
 ```
 
-Four voices: soprano (highest, +1 oct), alto, tenor (middle), bass (-1 oct with `root` voicing). Each is just an `arrange` call with a different pattern index and octave offset.
+Four voices: soprano (highest, +1 oct), alto, tenor (middle), bass (-1 oct with `root` voicing). Each is just an `arrange` call with a different pattern index and octave offset. The `T` selects the triad layer of the progression (`S`/`M` reach the strata and mode layers).
 
 **How** — stack `arrange` calls inside a launcher's `stack`. The voice functions (`flow`, `grid`, `root`) pick which pitches are selected; the octave offset places the voice in register.
 
+### Divisi
+
+When a voice splits into several desks, each desk is quieter than the undivided line. Divisi handles the split and the equal-power (`1/√n`) loudness compensation. Each voice carries three tiers in one `voiceLines` record — `soprano`, `soprano'`, `soprano''` — all ordinary degree patterns; unset tiers default one/two degrees above the base, so an undeclared `divisi 3` already voices a chord.
+
+Three composable forms:
+
+- **`divisi N`** wraps one instrument line into `N` desks reading successive tiers, scaled `1/√N`. Space form — drop `divisi N` and the line is a plain single voice:
+
+  ```haskell
+  , divisi 3 violin1 T (0, 1) k vl grid Soprano       -- Soprano / Soprano' / Soprano''
+  , divisi 2 contrabass T (0.9, 1) k vl grid Bass8vb  -- Bass8vb / Bass8vb' (octave + tier)
+  ```
+
+- **Primed `Voice` constructors** (`Soprano'`, `Bass8vb'`) select a desk manually; the prime composes with the octave suffix.
+
+- **`# divisi2` / `# divisi3`** are standalone volume tags for hand-built desks that differ in articulation or entry — duplicate the line, tag each (composes with `# pizz`).
+
 ### The full virtual orchestra
 
-This stacked-voice paradigm is the foundation for the **Algorithmic Orchestration** system: 15 pitched instruments (flute, oboe, clarinet, bassoon, horn, trombone, bass trombone, harp, timpani, violin 1/2, viola, cello, contrabass), each with physical MIDI range clipping, addressed by voice (`Soprano`/`Alto`/`Tenor`/`Bass`, plus `8va`/`15va`/`8vb`/`15vb` octave variants). String articulations (`pizz`, `spicc`, `marc`, `legg`, `arco`) switch channel aliases per block. Section blocks (`wind`, `brss`, `strg`, `perc`) and timbral blends (`chalumeau`, `pastorale`, `brillante`, `maestoso`, `tutti`) group instruments into ensemble presets.
+This stacked-voice paradigm is the foundation for the **Algorithmic Orchestration** system: 15 pitched instruments (flute, oboe, clarinet, bassoon, horn, trombone, bass trombone, harp, timpani, violin 1/2, viola, cello, contrabass), each with physical MIDI range clipping, addressed by voice (`Soprano`/`Alto`/`Tenor`/`Bass`, plus `8va`/`15va`/`8vb`/`15vb` octave variants and `'`/`''` divisi tiers — e.g. `Bass8vb'`). String articulations (`pizz`, `spicc`, `marc`, `legg`, `arco`) switch channel aliases per block; divisi (`divisi N`, `# divisi2`/`# divisi3`) splits a voice into desks. Section blocks (`wind`, `brss`, `strg`, `perc`) and timbral blends (`chalumeau`, `pastorale`, `brillante`, `maestoso`, `tutti`) group instruments into ensemble presets.
 
 For this walkthrough we stay on the single piano channel. For the full orchestra:
 
@@ -508,7 +548,40 @@ For this walkthrough we stay on the single piano channel. For the full orchestra
 
 ___
 
-## 14. Going further
+## 14. Motifs (motivic development)
+
+**Why** — name the recurring material a piece is built from, and develop it with the classic tools instead of retyping strings.
+
+**What** — [`BootTidal.hs`](live/BootTidal.hs) (`>:<`, `mirror`, clave library). Motifs are plain patterns: a `Pattern Bool` **rhythm** and a `Pattern Int` **contour** (voicing degrees — realised against the harmony by `arrange`, so a contour tracks the chords). One statement binds all three names, `motif = rhythm >:< contour`:
+
+```haskell
+(rhythm, contour, motif) =
+  ( son32                 -- rhythm gate (a son clave)
+  , "[3 2 1 0]/4"         -- contour (a descending figure)
+  , rhythm >:< contour
+  ) :: (Pattern Bool, Pattern Int, Pattern Int)
+```
+
+Primed tiers (`rhythm'`, `contour''`, … up to `''`) fall back to BootTidal defaults. Blocks read a contour as a degree pattern (`soprano = contour`), gate a voice or drum (`struct rhythm $ …`, `kick rhythm`), or use the pre-combined `motif`.
+
+**Motivic development** — the classic operations are just Tidal, plus `mirror` (inversion) and `>:<` (combination):
+
+| Development | Tool | Example |
+|---|---|---|
+| Retrograde | `rev` | `rev contour` |
+| Inversion | `mirror axis` | `mirror 3 contour` |
+| Augmentation / diminution | `slow` / `fast` | `slow 2 motif` |
+| Transposition | `\|+` / `\|-` | `contour \|+ 2` |
+| Rotation | `<~` / `~>` | `"<0 1>" <~ rhythm` |
+| Combination | `struct` / `>:<` | `rhythm >:< contour` |
+
+**How** — a contour is voicing-index degrees, so it re-realises against whatever chord is sounding; restate an idea at a new pitch by transposing the *harmony* beneath a fixed contour. `>:<` gates the contour with the rhythm's onsets; `mirror axis d = 2*axis - d`.
+
+**Try it** — re-execute the `(rhythm, contour, motif)` block with `contour = "[0 1 2 3]/4"` or `rhythm = bossa32` and hear the piece reprogram in one step. Swap `mirror 3` for `rev`.
+
+___
+
+## 15. Going further
 
 **Complete examples** —
 - [`live/examples/blue_in_green.tidal`](live/examples/blue_in_green.tidal) — jazz chorus-improv-chorus on the 12m spectral narrative
@@ -544,11 +617,15 @@ s <- seek "bach" $ cue start $ tonal ctx $ len 4 $ entropy 0.5 $ gen   -- online
 **Arrangement** —
 
 ```haskell
-arrange  (lo,hi) k (-9,9) voicing modifier [patterns] # ch N
-arrange' (lo,hi) k (-9,9) voicing modifier [patterns] # ch N   -- squeeze variant
+arrange  (lo,hi) k (-9,9) T voicing modifier [patterns] # ch N
+arrange' (lo,hi) k (-9,9) T voicing modifier [patterns] # ch N   -- squeeze variant
 ```
 
-**Form** — `at time kinetics dynamics progression`, `iK tempo [nodes] chordSelection`.
+**Form** — `at time kinetics dynamics progression`, `iK tempo [nodes] chordSelection`. Node siblings: `at'` (seconds+snap), `rh` (bars+smooth), `rh'` (bars+snap).
+
+**Divisi** — `divisi N instr T (lo,hi) k vl voicing Voice` (N desks); primed voices `Soprano'`/`Bass8vb'` pick a desk; `# divisi2`/`# divisi3` volume tags.
+
+**Motifs** — `(rhythm, contour, motif) = (…, …, rhythm >:< contour)` (one-statement panel, `'`/`''` tiers). Develop: `rev`, `mirror axis`, `slow`/`fast`, `|+`, `<~`, `struct`/`>:<`. Claves: `son32`, `rumba32`, `bossa32`, `bellpat32`.
 
 **Manipulation** — `rotate`, `excerpt`, `transposeP`, `reverse`, `fuse`, `fuse2`, `interleave`, `expandP`, `insert`, `switch`, `clone`, `extract`, `progOverlap`, `progOverlapF`, `progOverlapB`.
 

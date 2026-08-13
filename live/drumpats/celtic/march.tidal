@@ -1,0 +1,42 @@
+ -- MARCH  (celtic)                                -- 4/4 steady quadruple (pipe march)
+ -- kick 1 & 3, snare backbeat 2 & 4; steady, martial.
+ -- accent: pulse (backbeat).   ·   ~100-120 BPM · straight · 4/4
+ -- ── TRIGGERS ──  raw grids (highlight-visible, reusable gates)
+(kickseq, snareseq, clapseq, chseq, ohseq, hhseq, rideseq, percseq) =
+  ( "[[1 0 0 0] [0 0 0 0] [1 0 0 0] [0 0 0 0]]/4"  -- kick (1&3)
+  , "[[0 0 0 0] [1 0 1 0] [0 0 0 0] [1 0 1 0]]/4"  -- snare (2&4 + rudimental &)
+  , silence                                        -- clap
+  , "[[1 0 1 0] [1 0 1 0] [1 0 1 0] [1 0 1 0]]/4"  -- hh (8ths)
+  , silence                                        -- open
+  , "[[1 0 1 0] [1 0 1 0] [1 0 1 0] [1 0 1 0]]/4"  -- combined
+  , silence                                        -- ride
+  , silence                                        -- perc
+  )
+ -- ── AMPS ──  dynamics (Pattern Double; leading-zero decimals)
+(kickamp, snareamp, clapamp, hhamp, rideamp, percamp) =
+  ( 1                     -- kick
+  , "1 0.85"              -- snare
+  , 1                     -- clap
+  , 1                     -- hats
+  , 1                     -- ride
+  , 1                     -- perc
+  )
+ -- ── PATTERNS ──  enriched (trigger × role-vel × amp) — the core version
+(kickpat, snarepat, clappat, chpat, ohpat, hhpat, ridepat, percpat, rhythm) =
+  ( kick  kickseq  |* vel 1.0  |* vel kickamp
+  , snare snareseq |* vel 0.9  |* vel snareamp |+ humanise 0.08
+  , snap  clapseq  |* vel 0.8  |* vel clapamp
+  , hhcl  chseq    |* vel 0.25 |* vel hhamp
+  , hhop  ohseq    |* vel 0.25 |* vel hhamp
+  , hh    hhseq    |* vel 0.5  |* vel hhamp
+  , ride  rideseq  |* vel 0.4  |* vel rideamp
+  , click percseq  |* vel 0.35 |* vel percamp
+  , snareseq )
+
+ -- ── PRELOADED INTERFACE ──
+kgrv f k d = p "grooveKit"
+  $ f
+  $ stack [silence
+    ,kickpat ,snarepat ,clappat ,hhpat ,ridepat ,percpat
+ -- ,chpat ,ohpat   -- (separate closed/open; alt to combined hhpat)
+    ]# ch 9 |* vel d

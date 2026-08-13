@@ -48,12 +48,53 @@ testProgB = PC.fromProgression $ P.Progression $ Seq.fromList
 spec :: Spec
 spec = do
   describe "FormNode construction" $ do
-    it "creates node with at constructor" $ do
+    it "creates node with at constructor (seconds, smooth)" $ do
       let node = at 10.0 0.5 0.8 testProgA
-      fnTime node `shouldBe` 10.0
+      fnTime node `shouldBe` Secs 10.0
       fnKinetics node `shouldBe` 0.5
       fnDynamic node `shouldBe` 0.8
       fnProg node `shouldBe` testProgA
+      fnTrans node `shouldBe` Smooth
+
+    it "time unit and transition are orthogonal across at/at'/rh/rh'" $ do
+      fnTime  (rh  4 0 0 testProgA) `shouldBe` Bars 4
+      fnTime  (rh' 4 0 0 testProgA) `shouldBe` Bars 4
+      fnTime  (at' 4 0 0 testProgA) `shouldBe` Secs 4
+      fnTrans (at  4 0 0 testProgA) `shouldBe` Smooth
+      fnTrans (at' 4 0 0 testProgA) `shouldBe` Snap
+      fnTrans (rh  4 0 0 testProgA) `shouldBe` Smooth
+      fnTrans (rh' 4 0 0 testProgA) `shouldBe` Snap
+
+  describe "bars (rh) vs seconds (at)" $ do
+    -- rh 4 at 120bpm = 4 bars * 4 beats = 16 cycles = 8s;  at 8 (120bpm) = 8*2 = 16 cycles = 8s
+    let kBar = formK 120 [at 0 0 0 testProgA, rh 4 1 1 testProgA]
+        kSec = formK 120 [at 0 0 0 testProgA, at 8 1 1 testProgA]
+    it "rh resolves bars to the same loop seconds as the equivalent at" $ do
+      kLoopSecs kBar `shouldBe` 8
+      kLoopSecs kSec `shouldBe` 8
+      kCps kBar `shouldBe` kCps kSec
+    it "rh and equivalent at produce identical kinetics signals" $ do
+      let bar = [ value e | e <- queryArc (kSignal kBar) (Arc 0 16) ]
+          sec = [ value e | e <- queryArc (kSignal kSec) (Arc 0 16) ]
+      bar `shouldBe` sec
+
+  describe "snap (') vs smooth transition" $ do
+    -- 60bpm → cps 1 → span 10 cycles; sample the midpoint (cycle 5..6)
+    let midVals kin = [ value e | e <- queryArc (kSignal kin) (Arc 5 6) ]
+    it "smooth ramps toward the next node" $ do
+      let k = formK 60 [at 0 0.0 0.0 testProgA, at 10 1.0 1.0 testProgA]
+      midVals k `shouldSatisfy` all (> 0.3)
+    it "snap holds the start value until the next node" $ do
+      let k = formK 60 [at' 0 0.0 0.0 testProgA, at 10 1.0 1.0 testProgA]
+      midVals k `shouldSatisfy` all (\v -> abs v < 1e-9)
+
+  describe "display invariants (kLoopSecs / kCps)" $ do
+    it "seconds form keeps kLoopSecs = last node seconds (unchanged)" $ do
+      let k = formK 90 [at 0 0 0 testProgA, at 148 0 0 testProgA]
+      kLoopSecs k `shouldBe` 148
+      kCps k `shouldBe` 1.5
+    it "single-node form stays atemporal (kLoopSecs 0)" $ do
+      kLoopSecs (formK 90 [at 0 0.7 0.9 testProgA]) `shouldBe` 0
 
   describe "Single-state form" $ do
     it "single node produces constant kinetics signal" $ do

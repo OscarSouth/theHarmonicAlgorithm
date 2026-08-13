@@ -1,0 +1,42 @@
+ -- NINE-EIGHT FUNK  (odd-meter)                   -- 9/8 (2+2+2+3), fusion funk  [eighth = pulse]
+ -- funky 9: kick 0 & 4, snare 2 & 6 (backbeats); busy hats.
+ -- accent: pulse (snare).   ·   ~100-130 BPM · swing 58% → swing16 0.58 · 9/8 (2+2+2+3)
+ -- ── TRIGGERS ──  raw grids (highlight-visible, reusable gates)
+(kickseq, snareseq, clapseq, chseq, ohseq, hhseq, rideseq, percseq) =
+  ( "[[1 0 0 0 1 0 0 0 0]]/9"                      -- kick (0 & 4)
+  , "[[0 0 1 0 0 0 1 0 0]]/9"                      -- snare (2 & 6)
+  , silence                                        -- clap
+  , "[[1 1 1 1 1 1 1 1 1]]/9"                      -- hh (all eighths)
+  , silence                                        -- open
+  , "[[1 1 1 1 1 1 1 1 1]]/9"                      -- combined
+  , silence                                        -- ride
+  , silence                                        -- perc
+  )
+ -- ── AMPS ──  dynamics (Pattern Double; leading-zero decimals)
+(kickamp, snareamp, clapamp, hhamp, rideamp, percamp) =
+  ( "1 0.9"               -- kick: grouping accent
+  , "1 0.8"               -- snare
+  , 1                     -- clap
+  , lfo saw 0.5 1         -- hats
+  , 1                     -- ride
+  , 1                     -- perc: groove
+  )
+ -- ── PATTERNS ──  enriched (trigger × role-vel × amp) — the core version
+(kickpat, snarepat, clappat, chpat, ohpat, hhpat, ridepat, percpat, rhythm) =
+  ( kick  kickseq  |* vel 1.0  |* vel kickamp
+  , snare snareseq |* vel 0.9  |* vel snareamp |+ humanise 0.08
+  , snap  clapseq  |* vel 0.8  |* vel clapamp
+  , hhcl  chseq    |* vel 0.25 |* vel hhamp
+  , hhop  ohseq    |* vel 0.25 |* vel hhamp
+  , hh    hhseq    |* vel 0.5  |* vel hhamp
+  , ride  rideseq  |* vel 0.4  |* vel rideamp
+  , click percseq  |* vel 0.35 |* vel percamp
+  , snareseq )
+
+ -- ── PRELOADED INTERFACE ──
+kgrv f k d = p "grooveKit"
+  $ f
+  $ stack [silence
+    ,kickpat ,snarepat ,clappat ,hhpat ,ridepat ,percpat
+ -- ,chpat ,ohpat   -- (separate closed/open; alt to combined hhpat)
+    ]# ch 9 |* vel d

@@ -1,98 +1,176 @@
 '.source.tidalcycles':
 
-  # ── Generation Snippets ──────────────────────────────────
+  # ══════════════════════════════════════════════════════════
+  # ALGORITHMIC ORCHESTRATION SNIPPETS
+  # ══════════════════════════════════════════════════════════
 
-  'gen block':
-    'prefix': 'gen'
+  # ── Session ───────────────────────────────────────────────
+
+  'transport':
+    'prefix': 'transport'
     'body': '''
-      s <- seek "*" $ cue start $ tonal ctx $ len $1 $ entropy 0.5 $ gen
-    '''
-
-
-  'gen block (verbose)':
-    'prefix': "gen'"
-    'body': '''
-      s <- seek "*" $ cue start $ tonal ctx $ len $1 $ entropy 0.5 $ gen'
-    '''
-
-
-  'gen block (trace)':
-    'prefix': "gen''"
-    'body': '''
-      s <- seek "*" $ cue start $ tonal ctx $ len $1 $ entropy 0.5 $ gen''
-    '''
-
-
-  'gen session':
-    'prefix': 'gensession'
-    'body': '''
-      do
-        start <- lead "$1"
-        let ctx = $2hContext
-        s <- seek "*" $ cue start $ tonal ctx $ len $3 $ entropy 0.5 $ gen
-        putStrLn $ show s
-    '''
-
-
-  # ── Utility Snippets ──────────────────────────────────────
-
-  'pattern block':
-    'prefix': 'p'
-    'body': '''
-      p$1 f k d = d$1 $ do
-        let o = ch $1
-        f
-          $ stack [silence
-             -- --
-            ,arrange (0,1) k (-9,9) flow (overlapF 0) ["~"
-              ,$2
-            ]# o |* vel 1
-             -- --
-          ] |* vel d
-      $3
-    '''
-
-
-  'arrange block':
-    'prefix': 'rrange'
-    'body': '''
-      arrange (0,1) k (-9,9) flow (overlapF 0) ["~"
-        ,$1
-      ]# o |* vel 1
-       -- --
+       -- TRANSPORT
+      mapM_ id [p "transport"
+       $ seqP
+         $ sync 999999 ++ [runSeq]
+       ,resetCycles,hush,allNotesOff
+       ,setcps (tempo/60)
+       ]
     '''
 
 
   'orchestrator':
-    'prefix': 'orch'
-    'body': """
+    'prefix': 'state'
+    'body': '''
+      tempo = $1
+
+      ctx = hcKey "$2"
+        $ hcRoots "$2"
+        $ hContext
+
+      s <- lead "$3" >>=
+        \\composer -> seek "$4"
+        $ cue composer
+        $ tonal ctx
+        $ len 4
+        $ entropy 0.5
+        $ attempt 2 6
+        $ gen
+
+      form = --    k      d
+        [ at 0    1.0    1.0    s
+        ]
+
       do
         let
-          f = id
+          r = warp "[1 2 3 4]/4"
+          f = (swingBy 0.02 2)
           d = (* 1)
-          k = iK tempo form (warp "[1 2 3 4]/8")
-        putStrLn $ "LAUNCH¬¬\\n" ++ show s
-        mapM_ id [launch, setbpm tempo
-         -- ,p01  f k $ d 0.9
-         ]
-      $1
-    """
+          k = iK tempo form r -- (rep s 1)
+        putStrLn "LAUNCH ¬¬"
+        print s
+        mapM_ id [hush, setbpm tempo
+          ,display k
+          -- ,strg f k  $ d 0.99
+          -- ,wind f k  $ d 0.99
+          -- ,brss f k  $ d 0.99
+          -- ,perc f k  $ d 0.99
+          ]
 
-
-  'subkick block':
-    'prefix': 'subk'
-    'body': '''
-      subk f k d = p "subKick"
-        $ f
-          $ subKick d k root ( 1/4
-            ,"$1"
-            ,"0 1 0 -"
-            ,"1*4"
-          )
+      hush
     '''
 
 
-  # ── Orchestral Snippets ─────────────────────────────────
+  # ── Generation ────────────────────────────────────────────
+
+  'lead':
+    'prefix': 'lead'
+    'body': '''
+      start <- lead "$1"
+    '''
+
+
+  'harmonic context':
+    'prefix': 'ctx'
+    'body': '''
+      ctx = invSkip 1
+        $ hcOvertones "$1"
+        $ hcKey "$2"
+        $ hcRoots "$2"
+        -- $ hcPedal "$3"
+        $ hContext
+    '''
+
+
+  'gen block':
+    'prefix': 'gen'
+    'body': '''
+      s <- lead "$1" >>=
+        \\composer -> seek "$2"
+        $ cue composer
+        $ tonal ctx
+        $ len 4
+        $ entropy 0.5
+        $ attempt 2 6
+        $ gen
+    '''
+
+  # ── Form ──────────────────────────────────────────────────
+
+  'form: single state':
+    'prefix': 'formless'
+    'body': '''
+      form = --    k      d
+        [ at 0    1.0    1.0    s
+        ]
+    '''
+
+
+  'form: dance':
+    'prefix': 'dance'
+    'body': '''
+      form = -- symmetric dance form
+        --           k     d
+        -- INTRO (32) — build from silence
+        [ rh   0    0.0   0.0   s
+        , rh  16    0.2   0.3   s   -- elements layer in
+        , rh' 28    0.35  0.55  s   -- riser: sparse but LOUD (k<d); SNAP -> jump into drop
+        -- FIRST DROP (64, 4x16) — perceptible jump into each 16
+        , rh' 32    0.9   0.7   s   -- THE DROP: full band, restrained loudness (k>d)
+        , rh' 48    0.7   0.82  s   -- thinner but louder (k<d)
+        , rh' 64    0.9   0.8   s   -- full again
+        , rh  80    0.85  0.9   s   -- ramp up toward the break
+        , rh' 94    0.9   0.92  s   -- SNAP -> jump into break
+        -- MID BREAK (16) — saw
+        , rh  96    0.15  0.35  s   -- BREAK: minimal, still present
+        , rh' 110   0.35  0.7   s   -- riser: sparse but LOUD (k<d); SNAP -> jump into second drop
+        -- SECOND DROP (64, 4x16) — the change; climb to peak
+        , rh' 112   1.0   0.9   s   -- SECOND DROP: full band
+        , rh' 128   0.9   0.98  s   -- eased instrumentation, near-max loud (golden zone)
+        , rh  144   1.0   1.0   s   -- EVERYTHING MAX — k and d align at the peak
+        , rh' 160   0.6   1.0   s   -- stripped but still BLARING (k<<d); SNAP -> jump
+        -- OUTRO (32) — fall away
+        , rh' 176   0.4   0.65  s   -- OUTRO: instant fall
+        , rh  192   0.2   0.3   s   -- winding down
+        , rh  208   0.0   0.0   s   -- silence
+        , rh  212   0.0   0.0   s   -- 4-bar gap (nice to DJs)
+        ]
+    '''
+
+
+
+  # ── Launcher ──────────────────────────────────────────────
+
+  'launcher':
+    'prefix': 'launch'
+    'body': '''
+      do
+        let
+          r = warp "[1 2 3 4]/4"
+          f = (swingBy 0.04 2)
+          d = (* 1)
+          -- k = lK exP exP s r
+          k = iK tempo form r -- (rep s 1)
+        putStrLn "LAUNCH ¬¬"; print s
+        mapM_ id [hush, setbpm tempo
+          ,display k
+          -- ,metronome 4 $d 0.3
+          -- ,count  k $d 0.6
+          -- ,strg f k $d 0.99
+          -- ,wind f k $d 0.99
+          -- ,brss f k $d 0.99
+          -- ,perc f k $d 0.99
+          -- ,subk f k $d 0.99
+          -- ,walk f k $d 0.99
+          -- ,k909 f k $d 0.99
+          -- ,kmpc f k $d 0.99
+          -- ,m32  f k $d 0.99
+          -- ,mdf  f k $d 0.99
+          ]
+    '''
+
+
+  # ── Sections & Instruments ────────────────────────────────
 
   'orchestral section':
     'prefix': 'orchsec'
@@ -106,171 +184,11 @@
               }
         f
           $ stack [silence
-              , $2 (0,1) k vl flow Soprano
-              , $3 (0,1) k vl flow Alto
-              , $4 (0,1) k vl flow Tenor8vb
-              , $5 (0,1) k vl flow Bass8vb
+              , $2 T (0,1) k vl flow Soprano
+              , $3 T (0,1) k vl flow Alto
+              , $4 T (0,1) k vl flow Tenor8vb
+              , $5 T (0,1) k vl flow Bass8vb
           ] |* vel d
-    '''
-
-
-  'orchestral launcher':
-    'prefix': 'orchlaunch'
-    'body': """
-      do
-        let
-          f = id
-          d = (* 1)
-          k = iK tempo form (warp "[1 2 3 4]/8")
-        putStrLn $ "ORCHESTRAL LAUNCH¬¬"
-        mapM_ id [launch, setbpm tempo
-         -- ,wind f k       $ d 0.9
-         -- ,strg f k       $ d 0.8
-         -- ,brss f k       $ d 0.9
-         -- ,perc f k       $ d 0.7
-         ]
-      $1
-    """
-
-
-  # ── Form Snippets ─────────────────────────────────────────
-
-  'form: single state':
-    'prefix': 'formless'
-    'body': '''
-      form = [at 0 1 1 $1]
-    '''
-
-
-  'form: 7m24s spectral narrative':
-    'prefix': 'form444'
-    'body': '''
-      form =                              -- 7m24s spectral narrative (454s loop)
-        [ at     0.0   0.0   0.0   $1    -- exposition: emergence
-        , at    55.5   0.15  0.3   $1    -- 1/8: establishing
-        , at   111.0   0.3   0.45  $1    -- 1/4: inciting event
-        , at   166.5   0.5   0.6   $1    -- 3/8: development tension
-        , at   222.0   0.4   0.5   $1    -- 1/2: the swerve
-        , at   275.0   0.8   0.85  $1    -- PRIMARY: cumulation
-        , at   333.0   1.0   1.0   $1    -- 3/4: peak
-        , at   380.0   0.6   0.7   $1    -- SECONDARY: resolution begins
-        , at   420.0   0.2   0.3   $1    -- TERTIARY: convergence
-        , at   444.0   0.0   0.0   $1    -- fine: equilibrium
-        , at   454.0   0.0   0.0   $1    -- silence (10s gap)
-        ]
-    '''
-
-
-  'form: 12m spectral narrative':
-    'prefix': 'form720'
-    'body': '''
-      form =                              -- 12m spectral narrative (730s loop)
-        [ at     0.0   0.0   0.0   $1    -- exposition: emergence
-        , at    90.0   0.15  0.3   $1    -- 1/8: establishing
-        , at   180.0   0.3   0.45  $1    -- 1/4: inciting event
-        , at   270.0   0.5   0.6   $1    -- 3/8: development tension
-        , at   360.0   0.4   0.5   $1    -- 1/2: the swerve
-        , at   445.0   0.8   0.85  $1    -- PRIMARY: cumulation
-        , at   540.0   1.0   1.0   $1    -- 3/4: peak
-        , at   615.0   0.6   0.7   $1    -- SECONDARY: resolution begins
-        , at   680.0   0.2   0.3   $1    -- TERTIARY: convergence
-        , at   720.0   0.0   0.0   $1    -- fine: equilibrium
-        , at   730.0   0.0   0.0   $1    -- silence (10s gap)
-        ]
-    '''
-
-
-  'form: 19m24s spectral narrative':
-    'prefix': 'form1164'
-    'body': '''
-      form =                              -- 19m24s spectral narrative (1174s loop)
-        [ at     0.0   0.0   0.0   $1    -- exposition: emergence
-        , at   145.5   0.15  0.3   $1    -- 1/8: establishing
-        , at   291.0   0.3   0.45  $1    -- 1/4: inciting event
-        , at   436.5   0.5   0.6   $1    -- 3/8: development tension
-        , at   582.0   0.4   0.5   $1    -- 1/2: the swerve
-        , at   720.0   0.8   0.85  $1    -- PRIMARY: cumulation
-        , at   873.0   1.0   1.0   $1    -- 3/4: peak
-        , at   995.0   0.6   0.7   $1    -- SECONDARY: resolution begins
-        , at  1100.0   0.2   0.3   $1    -- TERTIARY: convergence
-        , at  1164.0   0.0   0.0   $1    -- fine: equilibrium
-        , at  1174.0   0.0   0.0   $1    -- silence (10s gap)
-        ]
-    '''
-
-
-  'form: variable-length spectral narrative':
-    'prefix': 'formvar'
-    'body': '''
-      let dur = $1
-      form =                                    -- variable spectral narrative
-        [ at  0                  0.0   0.0   $2    -- exposition: emergence
-        , at  (dur * 0.125)      0.15  0.3   $2    -- 1/8: establishing
-        , at  (dur * 0.25)       0.3   0.45  $2    -- 1/4: inciting event
-        , at  (dur * 0.375)      0.5   0.6   $2    -- 3/8: development tension
-        , at  (dur * 0.5)        0.4   0.5   $2    -- 1/2: the swerve
-        , at  (dur * 0.618)      0.8   0.85  $2    -- PRIMARY: cumulation (golden ratio)
-        , at  (dur * 0.75)       1.0   1.0   $2    -- 3/4: peak
-        , at  (dur * 0.855)      0.6   0.7   $2    -- SECONDARY: resolution begins
-        , at  (dur * 0.945)      0.2   0.3   $2    -- TERTIARY: convergence
-        , at  dur                0.0   0.0   $2    -- fine: equilibrium
-        , at  (dur + 10)         0.0   0.0   $2    -- silence (10s gap)
-        ]
-    '''
-
-
-  'form: 3min pop @ 112 BPM':
-    'prefix': 'formpop'
-    'body': '''
-      form =                                          -- 3min pop @ 112 BPM (190s loop)
-        [ at     0.00   0.3   0.4   verse    -- intro        4 bars  |  0:00
-        , at     8.57   0.4   0.5   verse    -- verse 1     16 bars  |  0:09
-        , at    42.86   0.7   0.7   chorus   -- chorus 1     8 bars  |  0:43
-        , at    60.00   0.4   0.5   verse    -- verse 2     16 bars  |  1:00
-        , at    94.29   0.8   0.8   chorus   -- chorus 2     8 bars  |  1:34
-        , at   111.43   0.5   0.6   bridge   -- bridge       8 bars  |  1:51
-        , at   128.57   0.9   0.9   chorus   -- chorus 3     8 bars  |  2:09
-        , at   145.71   1.0   1.0   chorus   -- final ch     8 bars  |  2:26
-        , at   162.86   0.2   0.3   verse    -- outro        8 bars  |  2:43
-        , at   180.00   0.0   0.0   verse    -- fine                 |  3:00
-        , at   190.00   0.0   0.0   verse    -- silence (10s gap)
-        ]
-    '''
-
-
-  'form: variable-tempo pop':
-    'prefix': 'formpopvar'
-    'body': '''
-      let bpm = $1; bar = 240 / bpm
-      form =                                                  -- pop (84 bars)
-        [ at  0                 0.3   0.4   verse    -- intro        4 bars
-        , at  (bar * 4)         0.4   0.5   verse    -- verse 1     16 bars
-        , at  (bar * 20)        0.7   0.7   chorus   -- chorus 1     8 bars
-        , at  (bar * 28)        0.4   0.5   verse    -- verse 2     16 bars
-        , at  (bar * 44)        0.8   0.8   chorus   -- chorus 2     8 bars
-        , at  (bar * 52)        0.5   0.6   bridge   -- bridge       8 bars
-        , at  (bar * 60)        0.9   0.9   chorus   -- chorus 3     8 bars
-        , at  (bar * 68)        1.0   1.0   chorus   -- final ch     8 bars
-        , at  (bar * 76)        0.2   0.3   verse    -- outro        8 bars
-        , at  (bar * 84)        0.0   0.0   verse    -- fine
-        , at  (bar * 84 + 10)   0.0   0.0   verse    -- silence (10s gap)
-        ]
-    '''
-
-
-  # ── Additional Snippets ──────────────────────────────────
-
-  'lead':
-    'prefix': 'lead'
-    'body': '''
-      start <- lead "$1"
-    '''
-
-
-  'harmonic context':
-    'prefix': 'ctx'
-    'body': '''
-      ctx = $1hContext
     '''
 
 
@@ -286,9 +204,9 @@
               }
         f
           $ stack [silence
-              , $2 (0,1) k vl flow Soprano
-              , $3 (0,1) k vl flow Alto
-              , $4 (0,1) k vl flow Tenor8vb
+              , $2 T (0,1) k vl flow Soprano
+              , $3 T (0,1) k vl flow Alto
+              , $4 T (0,1) k vl flow Tenor8vb
           ] |* vel d
     '''
 
@@ -306,19 +224,355 @@
         f
           $ stack [silence
               -- Strings foundation (always)
-              , violin1    (0, 1)   k vl flow Soprano    # art
-              , viola      (0, 1)   k vl flow Alto       # art
-              , cello      (0, 1)   k vl flow Tenor8vb   # art
-              , contrabass (0, 1)   k vl grid Bass8vb    # art
+              , violin1    T (0, 1)   k vl flow Soprano    # art
+              , viola      T (0, 1)   k vl flow Alto       # art
+              , cello      T (0, 1)   k vl flow Tenor8vb   # art
+              , contrabass T (0, 1)   k vl grid Bass8vb    # art
               -- Winds enter at 0.2
-              , flute      (0.2, 1) k vl flow Soprano
-              , oboe       (0.2, 1) k vl flow Alto
-              , clarinet   (0.2, 1) k vl flow Tenor8vb
-              , bassoon    (0.2, 1) k vl flow Bass8vb
+              , flute      T (0.2, 1) k vl flow Soprano
+              , oboe       T (0.2, 1) k vl flow Alto
+              , clarinet   T (0.2, 1) k vl flow Tenor8vb
+              , bassoon    T (0.2, 1) k vl flow Bass8vb
               -- Brass at 0.5
-              , horn       (0.5, 1) k vl flow Soprano
-              , trombone   (0.5, 1) k vl flow Bass8vb
+              , horn       T (0.5, 1) k vl flow Soprano
+              , trombone   T (0.5, 1) k vl flow Bass8vb
               -- Percussion at peak
-              , timpani    (0.8, 1) k vl grid Bass8vb
+              , timpani    T (0.8, 1) k vl grid Bass8vb
           ] |* vel d
+    '''
+
+
+  'instrument line':
+    'prefix': 'instr'
+    'body': '''
+      , $1 T ($2, 1) k vl $3 $4 # $5
+    '''
+
+
+  # ── Divisi ────────────────────────────────────────────────
+
+  'divisi (auto-wrap N desks)':
+    'prefix': 'divisi'
+    'body': '''
+      , divisi $1 $2 T (0, 1) k vl grid $3
+    '''
+
+
+  'divisi desks (hand-built + tags)':
+    'prefix': 'divisidesk'
+    'body': '''
+      , $1 T (0, 1)   k vl flow $2   # divisi2
+      , $1 T (0.9, 1) k vl grid $2'  # divisi2
+    '''
+
+
+  # ── Motifs ────────────────────────────────────────────────
+
+  'motif panel':
+    'prefix': 'mpanel'
+    'body': '''
+      -- ── MOTIFS ───────────────────────────────────────────────
+      -- One statement binds rhythm / contour / motif. Primed tiers
+      -- fall back to BootTidal defaults. Swap + re-exec to reprogram.
+      (rhythm, contour, motif) =
+        ( $1                    -- rhythm gate  (Pattern Bool)
+        , "$2"                  -- contour      (voicing degrees)
+        , rhythm >:< contour    -- combined     (rhythm gates contour)
+        ) :: (Pattern Bool, Pattern Int, Pattern Int)
+    '''
+
+
+  'motif':
+    'prefix': 'motif'
+    'body': '''
+      (rhythm, contour, motif) =
+        ( "[$11]/4"
+        , "[0]/4"
+        , rhythm >:< contour
+        ) :: (Pattern Bool, Pattern Int, Pattern Int)
+    '''
+
+
+  'motif develop (transforms)':
+    'prefix': 'develop'
+    'body': '''
+      -- motivic development — apply to a contour or motif:
+      --   rev contour          retrograde
+      --   mirror $1 contour     inversion about degree $1
+      --   slow 2 motif          augmentation      fast 2 motif   diminution
+      --   contour |+ $2         transposition
+      --   "<0 1>" <~ rhythm     rotation
+    '''
+
+
+  # ── Display ───────────────────────────────────────────────
+
+  'display':
+    'prefix': 'disp'
+    'body': '''
+          ,display k              -- 12-step counter, seconds
+          -- ,display' k          -- same counter, bars (1-indexed)
+          -- ,count k     $ d 0.05
+          -- ,metronome 4 $ d 0.6
+    '''
+
+
+  # ══════════════════════════════════════════════════════════
+  # NORMAL SYNTH / MIDI TOOLBOX
+  # Piloting specific digital/analogue instruments (AIRA blocks to follow).
+  #
+  # Methodology: `p` is a GENERIC interface on a fixed channel (`p07`-style);
+  # the named rig blocks (k909/kmpc/walk/m32/mdf) are DEVICE-specific. Layers
+  # are added quickly with the insertion snippets — `rrange` drops a new
+  # arrange voice into a channel-voice stack, `slate` drops a new gated layer
+  # into a drum kit, `cc` drops a modulation line onto a synth.
+  # ══════════════════════════════════════════════════════════
+
+  'channel voice (arrange on ch N)':
+    'prefix': 'p'
+    'body': '''
+      p$1 f k d = d$1 $ do
+        let o = ch $1
+        f
+          $ stack [silence
+             -- --
+            ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"
+              ,$2
+            ]# o |* vel 0.7 |+ oct 1 |= legato 0.9
+             -- --
+          ] |* vel d
+      $3
+    '''
+
+
+  'arrange layer':
+    'prefix': 'rrange'
+    'body': '''
+      arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"
+        ,$1
+      ]# o |* vel 1
+       -- --
+    '''
+
+
+  'slate layer (drum kit)':
+    'prefix': 'slate'
+    'body': '''
+      ,slate ($1,1) k [silence
+        ,$2 "$3"
+        ]
+    '''
+
+
+  'minimal house slate-stack (dance form)':
+    'prefix': 'minimal'
+    'body': '''
+      -- MINIMAL / DEEP HOUSE — gates map to the `dance` form; the hat develops with energy
+      -- hat tier 1: offbeat CLOSED ("&") — the tick; builds/only-upbeats/simmer
+      ,slate (0.3, 0.54) k [silence
+        ,hh "[~ 1]" |* vel 0.45
+        ]
+      -- kick — four-on-floor, rock solid (no LFO); defines the drops
+      ,slate (0.45, 1) k [silence
+        ,kick "1"
+        ]
+      -- hat tier 2: offbeat OPEN ("&") — the pump; stays up through the peak (fills the 16th gap)
+      ,slate (0.55, 1) k [silence
+        ,hh "[~ 2]" |* vel 0.5
+        ]
+      -- clap — backbeat on 2 & 4
+      ,slate (0.65, 1) k [silence
+        ,snap "[~ 1]/2" |* vel 0.6
+        ]
+      -- hat tier 3: 16th CLOSED groove with a gap on the "&" (open rings through) — LFO pumps it
+      ,slate (0.8, 1) k [silence
+        ,hh "[1 1 ~ 1]" |* vel (lfo saw 0.1 0.5)
+        ]
+      -- mild ride on beat 1 of every 16-bar phrase (form outline) — enable to taste
+      ,slate (0.45, 1) k [silence
+        -- ,ride "1/64" |* vel 0.3
+        ]
+      -- peak punctuation — crash on each 16-bar downbeat, top energy only (outlines the form)
+      -- (enable the snare for a heavier backbeat at the climax)
+      ,slate (0.95, 1) k [silence
+        ,crash "1/64" |* vel 0.7
+        -- ,snare "[0 1]/2" |* vel 0.6
+        ]
+    '''
+
+
+  'minimal deep tech slate-stack (dance form)':
+    'prefix': 'deeptech'
+    'body': '''
+      -- MINIMAL DEEP TECH — a TRAJECTORY through three grooves (techno/minimal · house/deep · house/tech), tuned to the `dance` form.
+      -- As energy climbs the kit MORPHS genre: MINIMAL (intro/break: kick + offbeat tick) → DEEP (drops: skip + open "tss" + clap,
+      -- = deep combined [1 0 2 1]) → TECH (peak: 16th roll + rim + crash, = tech combined [1 1 2 1]). Breakdown strips to the tick.
+      -- Gate thresholds sit BETWEEN the form's k-plateaus (0.15 break · 0.2 intro · 0.35 riser · 0.6-0.7 eased drops · 0.85-0.9 drops · 1.0 peak).
+      -- Swing 54-58%: pairs with f = swingBy 0.04 2; push to swingBy 0.08 2 for the deeper minimal/deep shuffle.
+      -- kick — four-on-floor + house-pump accent; the WARM FOUNDATION from the intro build; strips out only in the break
+      ,slate (0.18, 1) k [silence
+        ,kick "[[1 0 0 0] [1 0 0 0] [1 0 0 0] [1 0 0 0]]/4" |* vel "[1 0.95 0.97 0.95]/4"
+        ]
+      -- MINIMAL — offbeat "&" closed tick (techno/minimal): the hypnotic pulse of intro/riser/break; hands over to DEEP at the drop
+      ,slate (0.12, 0.58) k [silence
+        ,hh "[[0 0 1 0] [0 0 1 0] [0 0 1 0] [0 0 1 0]]/4" |* vel 0.4
+        ]
+      -- MINIMAL — off-grid glitch perc (techno/minimal): keeps the BREAK alive under the tick [opt-in]
+      ,slate (0.1, 0.55) k [silence
+        -- ,click "[[0 0 0 1] [0 1 0 0] [0 0 1 0] [0 0 0 1]]/4" |* vel 0.4
+        ]
+      -- DEEP — clap on 2 & 4 (house/deep): the backbeat enters at the drop
+      ,slate (0.6, 1) k [silence
+        ,snap "[[0 0 0 0] [1 0 0 0] [0 0 0 0] [1 0 0 0]]/4" |* vel 0.55
+        ]
+      -- DEEP/TECH — offbeat OPEN "tss" (house/deep · house/tech): the shared thread through every drop and the peak
+      ,slate (0.6, 1) k [silence
+        ,hh "[[0 0 2 0] [0 0 2 0] [0 0 2 0] [0 0 2 0]]/4" |* vel 0.5
+        ]
+      -- DEEP — closed skip, beat+'a' (house/deep): the EASED / thinner drops; with the open = deep combined [1 0 2 1]. LFO pump
+      ,slate (0.6, 0.82) k [silence
+        ,hh "[[1 0 0 1] [1 0 0 1] [1 0 0 1] [1 0 0 1]]/4" |* vel (lfo saw 0.3 0.5)
+        ]
+      -- TECH — rolling 16th closed, gap on the "&" (house/tech): the FULL drops + peak; with the open = tech combined [1 1 2 1]. LFO pump
+      ,slate (0.82, 1) k [silence
+        ,hh "[[1 1 0 1] [1 1 0 1] [1 1 0 1] [1 1 0 1]]/4" |* vel (lfo saw 0.15 0.55)
+        ]
+      -- TECH — syncopated rim (house/tech): SPARSE drive, tech-zone only, for impact
+      ,slate (0.8, 1) k [silence
+        ,click "[[0 0 0 1] [0 1 0 0] [0 0 0 1] [0 1 0 0]]/4" |* vel "{1 0.7 0.85}%4" |* vel 0.6
+        ]
+      -- ride on beat 1 of every 16-bar phrase (form outline) — enable to taste
+      ,slate (0.85, 1) k [silence
+        -- ,ride "1/64" |* vel 0.3
+        ]
+      -- peak punctuation — crash on each 16-bar downbeat, top energy only (outlines the form)
+      ,slate (0.95, 1) k [silence
+        ,crash "1/64" |* vel 0.7
+        ]
+    '''
+
+
+  'cc modulation line':
+    'prefix': 'cc'
+    'body': '''
+      ,cc $1 $2 # o
+    '''
+
+
+  'subkick block':
+    'prefix': 'subk'
+    'body': '''
+      subk f k d = p "subKick"
+        $ f
+          $ subKick d k root ( 1/4
+            ,"$1"
+            ,"[[0 1 0 0] 0 0 0]"
+            ,"1*4"
+          )
+    '''
+
+
+  'walking bass (lineHarmony)':
+    'prefix': 'walk'
+    'body': '''
+      walk f k d = p "lineHarmony"
+        $ f
+          $ lineHarmony d k root [ "~"
+            ,"$1"
+          ] # ch 8 |+ oct 0 # legato 0.95 |* vel d
+    '''
+
+
+  '909 drum kit':
+    'prefix': 'k909'
+    'body': '''
+      k909 f k d = p "909kit" $ do
+        let o = ch 9
+        f
+          $ stack [silence
+             -- --
+            ,slate (0.9,1) k [silence
+              ,snap "[0 1]/2" |* vel 0.3
+              ]
+            ,slate (0.8,1) k [silence
+              ,kick "[1]" |* vel 0.3
+              ]
+            ,slate (0.4,0.8) k [silence
+              ,hh "[~ 1]"
+              ]
+             -- --
+          ]# o # legato 0.01 |* vel d
+    '''
+
+
+  'MPC drum kit':
+    'prefix': 'kmpc'
+    'body': '''
+      kmpc f k d = p "mpckit" $ do
+        let o = ch 10
+        f
+          $ stack [silence
+             -- --
+            ,slate (0.5,1) k [silence
+              ,hh "0 2?" |* vel 0.2
+              ]
+            ,slate (0.2,1) k [silence
+              ,ride "0 . 1 1" |* vel 0.2
+              ]
+            ,slate (0.1,1) k [silence
+              ,degradeBy 0.8 $ stut 2 (1/2) (1/4) $ click "[0 1]/2" |* vel 0.1
+              ]
+             -- --
+          ]# o # legato 0.01 |* vel d
+    '''
+
+
+  'groove kit (swappable tuple)':
+    'prefix': 'kgrv'
+    'body': '''
+      kgrv f k d = p "grooveKit"
+        $ f
+        $ stack [silence
+          ,kickpat ,snarepat ,clappat ,hhpat ,ridepat ,percpat
+       -- ,chpat ,ohpat   -- (separate closed/open; alt to combined hhpat)
+          ]# ch 9 |* vel d
+    '''
+
+
+  'Moog Mother-32':
+    'prefix': 'm32'
+    'body': '''
+      m32 f k d = p "moogMother32" $ do
+        let o = ch 14
+        f
+          $ stack [silence
+             -- --
+            ,mono $ arrange (0,1) k (-9,9) S flow (overlapF 0) ["~"
+              ,$1
+            ]# o |+ oct 1 |* vel 1 |* legato 1
+             -- --
+          ] |* vel d
+    '''
+
+
+  'Moog DFAM':
+    'prefix': 'mdf'
+    'body': '''
+      mdf f k d = p "moogDFAM" $ 0.036 <~ do
+        let (osc1,osc2) = (ch 11, ch 12)
+        let pat = "$1"
+        f
+          $ stack [silence
+             -- --
+            ,steptrig "[1 2 3 4 5 6 7 8]/2"
+             -- --
+            ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"
+              ,pat
+            ]# osc1 |* vel 1 |- oct 1
+             -- --
+            ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"
+              -- ,pat
+            ]# osc2 |* vel 1 |- oct 1
+             -- --
+          ]# legato 0.25 |* vel d
     '''

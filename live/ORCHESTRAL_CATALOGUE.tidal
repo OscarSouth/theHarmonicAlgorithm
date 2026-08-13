@@ -90,6 +90,28 @@ once $ d01 $ note "[-12 45]*2" # ch 15 # legato 0.8
 once $ d01 $ note "[-36 45]*2" # ch 16 # legato 0.8
 
 
+-- ── DIVISI ───────────────────────────────────────────────
+--
+-- Divisi splits a voice into desks with equal-power (1/sqrt n)
+-- loudness compensation. In a block, either wrap an instrument
+-- with `divisi N` (auto-stacks N primed tiers) or hand-build the
+-- desks and tag each with `# divisi2` / `# divisi3`.
+--
+--   , divisi 2 violin1 T (0,1) k vl grid Soprano   -- Soprano + Soprano'
+--   , violin1 T (0,1) k vl grid Bass8vb'            -- primed voice + octave
+--
+-- The tags are just amp scalers — audition the drop here:
+
+-- FULL (arco, no split)
+once $ d01 $ note "0" # ch 16 # legato 0.8
+
+-- HALF-DESK (# divisi2 → amp * 1/sqrt 2 ≈ 0.71)
+once $ d01 $ note "0" # ch 16 # legato 0.8 # divisi2
+
+-- THIRD-DESK (# divisi3 → amp * 1/sqrt 3 ≈ 0.58)
+once $ d01 $ note "0" # ch 16 # legato 0.8 # divisi3
+
+
 -- ── SUBKICK (via "thru" device, Ch 10) ──────────────────
 
 -- Sub pitches: C2-B2 (MIDI 36-47), mapped from harmonic root

@@ -9,11 +9,16 @@
 module Harmonic.Interface.Tidal.Form
   ( -- * Types
     FormNode(..)
+  , FormTime(..)
+  , Transition(..)
   , Kinetics(..)
   , IK
 
     -- * Construction
   , at
+  , at'
+  , rh
+  , rh'
   , iK
   , lK
 
@@ -35,13 +40,25 @@ import Sound.Tidal.Context
 -- Types
 -------------------------------------------------------------------------------
 
+-- |A node's position in time — wall-clock 'Secs' or musical 'Bars' (4/4).
+-- Resolved to Tidal cycles at realization (see 'formK'). Mix freely in one form.
+data FormTime = Secs Double | Bars Double
+  deriving (Show, Eq)
+
+-- |How a section moves to the next node: 'Smooth' (ramped) or 'Snap'
+-- (hold this node's value, then jump on the next node's exact time).
+data Transition = Smooth | Snap
+  deriving (Show, Eq)
+
 -- |A node in a form definition: a point in time with kinetics level,
--- dynamic level, and active progression.
+-- dynamic level, active progression, and the transition style of the
+-- section starting here.
 data FormNode = FormNode
-  { fnTime     :: Double                  -- ^ Wall-clock seconds from start
+  { fnTime     :: FormTime                -- ^ Position (seconds or bars)
   , fnKinetics :: Double                  -- ^ 0.0-1.0 kinetics level
   , fnDynamic  :: Double                  -- ^ 0.0-1.0 dynamic level
   , fnProg     :: PC.ProgressionContext   -- ^ Active 3-layer progression at this node
+  , fnTrans    :: Transition              -- ^ Transition of the segment starting at this node
   } deriving (Show, Eq)
 
 -- |Realized form: continuous and discrete signals for live performance.
@@ -69,9 +86,17 @@ type IK = (Kinetics, Pattern Int)
 -- Construction
 -------------------------------------------------------------------------------
 
--- |Construct a form node at a given time with kinetics, dynamic, and progression context.
-at :: Double -> Double -> Double -> PC.ProgressionContext -> FormNode
-at t k d pc = FormNode t k d pc
+-- |Form node builders. Time unit and transition are orthogonal:
+-- @at@\/@at'@ take wall-clock seconds, @rh@\/@rh'@ take bars (rehearsal marks, 4/4);
+-- unprimed = smooth transition, primed = snap. @at@ is unchanged from before.
+--
+-- @at  0 0 0 s@   seconds, smooth   @rh  8 0.5 0.5 s@   bars, smooth
+-- @at' 60 1 1 s@  seconds, snap     @rh' 16 0.9 0.9 s@  bars, snap
+at, at', rh, rh' :: Double -> Double -> Double -> PC.ProgressionContext -> FormNode
+at  t k d pc = FormNode (Secs t) k d pc Smooth
+at' t k d pc = FormNode (Secs t) k d pc Snap
+rh  b k d pc = FormNode (Bars b) k d pc Smooth
+rh' b k d pc = FormNode (Bars b) k d pc Snap
 
 -- |Construct performance context from BPM, form nodes, and chord selection.
 --
@@ -95,47 +120,65 @@ lK sig dyn pc chordPat = (Kinetics sig dyn (pure pc) 0 0, chordPat)
 -- Realization
 -------------------------------------------------------------------------------
 
+-- |Beats per bar for 'Bars' resolution. 4/4, matching BootTidal's @bar@ helper
+-- (1 bar = 4 cycles, since @cps = bpm/60@ makes a cycle one beat).
+beatsPerBar :: Double
+beatsPerBar = 4
+
+-- |Resolve a node's position to Tidal cycles from form start.
+nodeCycles :: Double -> FormNode -> Double
+nodeCycles cps n = case fnTime n of
+  Secs s -> s * cps
+  Bars b -> b * beatsPerBar
+
+-- |Node position in wall-clock seconds (for 'kLoopSecs' / the display).
+nodeSecs :: Double -> FormNode -> Double
+nodeSecs cps n = case fnTime n of
+  Secs s -> s
+  Bars b -> b * beatsPerBar / cps
+
 -- |Realize a form definition into Kinetics signals at a given BPM.
 -- Single-node forms produce constant signals (global state).
--- Multi-node forms produce interpolated continuous signals and step-function
--- discrete signals that loop at the form's total duration.
+-- Multi-node forms produce per-segment signals — smooth (ramp) or snap (step)
+-- per each node's 'fnTrans' — and a step-function progression, looping at the
+-- form's total duration. Time is resolved from each node's 'FormTime'.
 formK :: Double -> [FormNode] -> Kinetics
 formK bpm nodes = Kinetics
-  { kSignal   = formContinuous cps nodes fnKinetics
-  , kDynamic  = formContinuous cps nodes fnDynamic
-  , kProg     = formDiscrete   cps nodes fnProg
+  { kSignal   = formSignal cps nodes fnKinetics
+  , kDynamic  = formSignal cps nodes fnDynamic
+  , kProg     = formStep   cps nodes fnProg
   , kLoopSecs = case nodes of
-                  (_:_:_) -> fnTime (last nodes)   -- multi-node: form duration
-                  _       -> 0                     -- single-node or empty: atemporal
+                  (_:_:_) -> nodeSecs cps (last nodes)   -- multi-node: form duration (seconds)
+                  _       -> 0                           -- single-node or empty: atemporal
   , kCps      = cps
   }
   where cps = bpm / 60
 
--- |Continuous signal: piecewise linear interpolation via timecat.
--- Single node: constant signal.
-formContinuous :: Double -> [FormNode] -> (FormNode -> Double) -> Pattern Double
-formContinuous _   [node] accessor = pure (realToFrac $ accessor node)
-formContinuous cps nodes  accessor =
-  let totalSecs   = fnTime (last nodes)
-      totalCycles = realToFrac (totalSecs * cps) :: Time
+-- |Kinetics/dynamic signal: piecewise per segment, ramped when the segment's
+-- start node is 'Smooth', held (stepped) when 'Snap'. Single node: constant.
+formSignal :: Double -> [FormNode] -> (FormNode -> Double) -> Pattern Double
+formSignal _   [node] accessor = pure (realToFrac $ accessor node)
+formSignal cps nodes  accessor =
+  let totalCycles = realToFrac (nodeCycles cps (last nodes)) :: Time
       pairs       = zip nodes (tail nodes)
-      segments    = [ ( realToFrac ((fnTime n2 - fnTime n1) * cps)
-                      , segment 16 $ range (realToFrac $ accessor n1)
-                                           (realToFrac $ accessor n2) saw
+      segments    = [ ( realToFrac (nodeCycles cps n2 - nodeCycles cps n1)
+                      , case fnTrans n1 of
+                          Snap   -> pure (realToFrac $ accessor n1)
+                          Smooth -> segment 16 $ range (realToFrac $ accessor n1)
+                                                       (realToFrac $ accessor n2) saw
                       )
                     | (n1, n2) <- pairs
                     ]
   in slow (pure totalCycles) $ timecat segments
 
--- |Discrete signal: step function via timecat + pure.
--- Single node: constant value.
-formDiscrete :: Double -> [FormNode] -> (FormNode -> a) -> Pattern a
-formDiscrete _   [node] accessor = pure (accessor node)
-formDiscrete cps nodes  accessor =
-  let totalSecs   = fnTime (last nodes)
-      totalCycles = realToFrac (totalSecs * cps) :: Time
+-- |Step signal: hold each node's value until the next (progression can't ramp).
+-- Independent of 'fnTrans'. Single node: constant value.
+formStep :: Double -> [FormNode] -> (FormNode -> a) -> Pattern a
+formStep _   [node] accessor = pure (accessor node)
+formStep cps nodes  accessor =
+  let totalCycles = realToFrac (nodeCycles cps (last nodes)) :: Time
       pairs       = zip nodes (tail nodes)
-      segments    = [ ( realToFrac ((fnTime n2 - fnTime n1) * cps)
+      segments    = [ ( realToFrac (nodeCycles cps n2 - nodeCycles cps n1)
                       , pure (accessor n1)
                       )
                     | (n1, n2) <- pairs

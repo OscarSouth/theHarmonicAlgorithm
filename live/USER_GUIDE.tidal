@@ -144,6 +144,9 @@ s <- seek "none" $ cue start $ len 4 $ entropy 0.5 $ gen
 -- A single-state form — constant kinetics & dynamics, one progression.
 -- `at time kinetics dynamics progression` defines a form node;
 -- with one node the signals are constant.
+-- (`at` has siblings: `rh` takes bars instead of seconds, and a prime
+--  makes the transition snap instead of smooth — `at'`, `rh`, `rh'`.
+--  Section 11 covers these.)
 form = [ at 0 1 1 s ]
 
 -- `iK tempo formNodes chordSelectionPattern` bundles everything
@@ -618,10 +621,37 @@ do
     , p01arc id k 0.85
     ]
 
+-- ── SNAP TRANSITIONS & BAR-BASED NODES ──
+-- `at` is the seconds/smooth constructor. Three siblings vary two
+-- orthogonal axes — time unit and transition:
+--
+--   at   seconds   smooth (ramp between nodes)
+--   at'  seconds   snap   (hold, then jump on the exact time)
+--   rh   bars      smooth      (rh = "rehearsal mark"; bar = 4 beats)
+--   rh'  bars      snap
+--
+-- Snap suits hard cuts — an explosive entry, a scene change — where
+-- you don't want the kinetics to ramp in. Bars align nodes to the
+-- metre without hand-computing seconds. Mix them freely:
+cutForm =
+  [ rh   0   0.0  0.0  sA   -- bar 0: silence
+  , rh   4   0.5  0.6  sA   -- bar 4: smooth fade-in on calm
+  , rh'  8   1.0  1.0  sB   -- bar 8: SNAP to full on the adventurous prog
+  , rh  16   0.4  0.5  sB   -- bar 16: ramp back down
+  , at' 40   0.0  0.0  sA   -- 40s: snap to silence (mixing units is fine)
+  ]
+
+do
+  let k = iK tempo cutForm (rep sA 1)
+  mapM_ id [hush, setbpm tempo
+    , p01arc id k 0.85
+    ]
+
 -- ── TRY THIS ──
 -- Adjust the node timings — stretch to 5 minutes or compress to 20s.
 -- Change the kinetics gating `(0.7, 1)` on the upper line. Try `(0, 0.3)`
 -- to make it the lead-in instead.
+-- In cutForm, flip `rh' 8` to `rh 8` and hear the hard cut become a ramp.
 -- See live/forms.tidal for 7m24s, 12m, 19m24s, and pop song templates.
 
 hush
@@ -713,6 +743,44 @@ do
 
 hush
 
+-- ── DIVISI ──
+-- When a voice splits into several desks, each desk is quieter than
+-- the undivided line. Divisi handles the split and the equal-power
+-- (1/sqrt n) loudness compensation. Each voice carries three tiers in
+-- one voiceLines record — base, ' , '' — all ordinary degree patterns;
+-- unset tiers default one/two degrees up, so an undeclared divisi
+-- already voices a chord.
+--
+-- `divisi N` wraps ONE arrange/instrument line into N desks reading
+-- successive tiers (here via `arrange` on ch 1). Drop `divisi N` and
+-- the line is a normal single voice.
+p01div f k d = d01 $ do
+  let o  = ch 01
+      vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 1 0]/4"    -- desk 1
+        , soprano' = "[5 4 3 2]/4"   -- desk 2 (a third up)
+        }
+  f
+    $ stack [silence
+      -- two desks, each 1/sqrt 2 quieter, from the two soprano tiers
+      , arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~", vlGet Soprano  vl] # o # divisi2
+      , arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~", vlGet Soprano' vl] # o # divisi2 |+ oct 1
+    ] |* vel d
+
+do
+  let k = iK tempo [at 0 1 1 s] (rep s 1)
+  mapM_ id [hush, setbpm tempo
+    , p01div id k 0.9
+    ]
+
+-- With the orchestral instrument functions the same split is one line:
+--   , divisi 2 violin1 T (0, 1) k vl grid Soprano   -- Soprano + Soprano'
+--   , violin1 T (0.9, 1) k vl grid Bass8vb'          -- primed voice + octave
+-- and `# divisi2` / `# divisi3` tag hand-built desks that differ in
+-- articulation or entry (compose with `# pizz`).
+
+hush
+
 -- ── THE FULL VIRTUAL ORCHESTRA ──
 --
 -- This stacked-voice paradigm is the foundation for the Algorithmic
@@ -720,10 +788,12 @@ hush
 -- bassoon, horn, trombone, bass trombone, harp, timpani, violin 1/2,
 -- viola, cello, contrabass), each with physical MIDI range clipping,
 -- addressed by voice (Soprano/Alto/Tenor/Bass, plus 8va/15va/8vb/15vb
--- octave variants). String articulations (pizz, spicc, marc, legg, arco)
--- switch channel aliases. Section blocks (wind, brss, strg, perc) and
--- timbral blends (chalumeau, pastorale, brillante, maestoso, tutti)
--- group instruments into ensemble presets.
+-- octave variants, and ' / '' divisi tiers — e.g. Bass8vb'). String
+-- articulations (pizz, spicc, marc, legg, arco) switch channel aliases.
+-- Divisi splits a voice into desks (divisi N, or # divisi2 / # divisi3
+-- tags) with equal-power loudness compensation. Section blocks (wind,
+-- brss, strg, perc) and timbral blends (chalumeau, pastorale, brillante,
+-- maestoso, tutti) group instruments into ensemble presets.
 --
 -- See:
 --   live/ORCHESTRAL_CATALOGUE.tidal  — test each instrument's range
@@ -734,7 +804,62 @@ hush
 
 
 -- ══════════════════════════════════════════════════════════
--- SECTION 14 — Going further
+-- SECTION 14 — Motifs (motivic development)
+-- ══════════════════════════════════════════════════════════
+-- live/BootTidal.hs  (>:<, mirror, clave library)
+--
+-- GOAL: name the recurring material a piece is built from, and
+-- develop it with the classic tools.
+--
+-- Motifs are plain patterns — a `Pattern Bool` rhythm and a
+-- `Pattern Int` contour (voicing degrees, realised against the
+-- harmony by `arrange`, so a contour tracks the chords).
+
+s <- seek "none" $ cue start $ tonal (hcKey "0#" $ hContext) $ len 4 $ entropy 0.5 $ gen
+
+-- One statement binds all three names; `motif = rhythm >:< contour`
+-- (>:< gates the contour with the rhythm's onsets). Primed tiers
+-- (rhythm'/contour''/…) fall back to BootTidal defaults.
+(rhythm, contour, motif) =
+  ( son32                 -- rhythm gate  (a son clave, from BootTidal)
+  , "[3 2 1 0]/4"         -- contour      (a descending figure)
+  , rhythm >:< contour
+  ) :: (Pattern Bool, Pattern Int, Pattern Int)
+
+-- The classic developments are just Tidal, plus mirror / >:< :
+--   rev contour          retrograde        mirror 3 contour   inversion (axis 3)
+--   slow 2 motif         augmentation      fast 2 motif       diminution
+--   contour |+ 2         transposition     "<0 1>" <~ rhythm  rotation
+
+-- A voice reads a motif as its degree pattern; a rhythm gates a voice
+-- (or a drum) via struct.
+p01mot f k d = d01 $ do
+  let o = ch 01
+  f
+    $ stack [silence
+      -- the contour as an upper voice
+      , arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~", contour] # o |+ oct 1 |* vel 0.7
+      -- its inversion, a bar later, underneath
+      , arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~", mirror 3 contour] # o |* vel 0.5
+      -- the son clave gating the root
+      , struct rhythm $ arrange (0, 1) k (-9, 9) T root (overlapF 0) ["~", "0"] # o |- oct 1 |* vel 0.8
+    ] |* vel d
+
+do
+  let k = iK tempo [at 0 1 1 s] (rep s 1)
+  mapM_ id [hush, setbpm tempo
+    , p01mot id k 0.9
+    ]
+
+-- ── TRY THIS ──
+-- Re-execute the (rhythm, contour, motif) block with `contour = "[0 1 2 3]/4"`
+-- or `rhythm = bossa32` and hear p01mot reprogram. Swap `mirror 3` for `rev`.
+
+hush
+
+
+-- ══════════════════════════════════════════════════════════
+-- SECTION 15 — Going further
 -- ══════════════════════════════════════════════════════════
 --
 -- COMPLETE EXAMPLES
@@ -771,11 +896,20 @@ hush
 --
 -- Chord selection: rep s 1, warp "[1 2 3 4]/4"
 --
--- Arrangement: arrange (lo,hi) k (-9,9) voicing modifier [patterns] # ch N
+-- Arrangement: arrange (lo,hi) k (-9,9) T voicing modifier [patterns] # ch N
 --              arrange' = squeeze variant
 --
--- Form node: at time kinetics dynamics progression
+-- Form node: at time kinetics dynamics progression   (seconds, smooth)
+--   at' = seconds+snap   rh = bars+smooth   rh' = bars+snap
 -- IK bundle: iK tempo [nodes] chordSelection
+--
+-- Divisi: divisi N instr T (lo,hi) k vl voicing Voice   -- N desks, tiers
+--   primed voices (Soprano', Bass8vb') pick a desk; # divisi2 / # divisi3
+--   are standalone volume tags
+--
+-- Motifs: (rhythm, contour, motif) = (.., .., rhythm >:< contour)  (one-statement panel)
+--   develop: rev, mirror axis, slow/fast, |+, <~, struct / >:<
+--   claves (BootTidal): son32, rumba32, bossa32, bellpat32 (+ 23 rotations)
 --
 -- Manipulation: rotate, excerpt, transposeP, reverse, fuse, fuse2,
 --               interleave, expandP, insert, switch, clone, extract,

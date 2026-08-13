@@ -48,8 +48,8 @@ These are independent: `(-9, 9)` controls compositional range, `clip` prevents i
 All orchestral blocks (and updated existing blocks) take `d` as the last parameter, enabling the `$ d` syntax:
 
 ```tidal
-,wind f r k       $ d 0.9
-,tutti arco f r k $ d 0.9
+,wind f k         $ d 0.9
+,tutti arco f k   $ d 0.9
 ,k909 f k         $ d 0.4
 ```
 
@@ -69,13 +69,13 @@ Every block (section or blend) has the same two-part structure:
         }
   f
     $ stack [silence
-        , instrument (ki_range) k vl voiceFunc Voice
+        , instrument Layer (ki_range) k vl voiceFunc Voice
         , ...
     ] |* vel d
 ```
 
 1. **Voice declaration** (`vl`): `voiceLines` with optional overrides
-2. **Instrument stack**: each line is an instrument with kinetics range, IK context, voice lines, voicing paradigm, voice assignment
+2. **Instrument stack**: each line is an instrument with layer (`T`/`S`/`M`), kinetics range, IK context, voice lines, voicing paradigm, voice assignment
 
 ## Instrument Functions
 
@@ -84,7 +84,7 @@ Every block (section or blend) has the same two-part structure:
 Each instrument is a partial application of `instrument range channel`:
 
 ```haskell
-instrument :: (Int, Int) -> Int -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
+instrument :: (Int, Int) -> Int -> Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
 ```
 
 Pipeline: `arrange` → `# ch` → `|+ oct` → `clip`
@@ -219,6 +219,61 @@ Applied to any voice: `Soprano8va`, `Tenor8vb`, `Bass15vb`, etc.
 
 The octave shift happens inside the instrument function (via `|+ oct`) before `clip` filters. No `|- oct 1` noise in templates.
 
+## Divisi
+
+When a section (or one instrument+voice) splits into several independent desks,
+each desk is quieter than the undivided line. Divisi handles the split and the
+equal-power loudness compensation (`1/√n`), in three composable forms.
+
+### Primed voice fields
+
+Each SATB voice has three divisi tiers held in one `voiceLines` record — base,
+`'`, and `''` — all ordinary degree patterns (same syntax as the base fields).
+Unset tiers default one/two degrees above the base, so an undeclared `divisi 3`
+already voices a chord:
+
+```haskell
+-- defaults: soprano 3/4/5 · alto 1/2/3 · tenor 2/3/4 · bass 0/1/2
+let vl = voiceLines {_vl = "~"
+      , soprano = "[3 2 1 0]/4", soprano' = "[0,1,2,3]"   -- desk 2 = cluster
+      , bass    = "0",           bass'    = "[0,1,2,3]"
+      }
+```
+
+### Primed voice constructors
+
+Any `Voice` can be primed to select its desk, and the prime composes with the
+octave suffix — octave and divisi tier are orthogonal:
+
+| Voice   | Reads field | Desk |
+|---------|-------------|------|
+| `Soprano`   | `soprano`   | 1 (base) |
+| `Soprano'`  | `soprano'`  | 2 |
+| `Soprano''` | `soprano''` | 3 |
+| `Bass8vb'`  | `bass'`     | 2, octave down |
+
+### `divisi N` — auto-wrap
+
+Prefix an instrument (space form, not `$`) to stack `N` desks reading successive
+tiers, scaled `1/√N`. Octave rides the `Voice` arg as usual:
+
+```tidal
+, divisi 3 violin1 T (0, 1) k vl grid Soprano       -- Soprano / Soprano' / Soprano''
+, divisi 2 contrabass T (0.9, 1) k vl grid Bass8vb  -- Bass8vb / Bass8vb'
+, violin1 T (0, 1) k vl grid Soprano                -- drop `divisi N` → plain single voice
+```
+
+### `# divisi2` / `# divisi3` — volume tags
+
+For hand-built desks that differ in articulation or entry (not uniform divisi),
+duplicate the line and tag each with the matching scaler. Postfix like the
+articulation aliases, composes with `# pizz`:
+
+```tidal
+, violin1 T (0, 1)   k vl flow Soprano  # divisi2   -- desk 1
+, violin1 T (0.9, 1) k vl grid Soprano' # divisi2   -- desk 2 (primed tier)
+```
+
 ## String Articulations
 
 Channel routing with default arco:
@@ -233,13 +288,13 @@ arco  = ch 16    -- arco (default)
 
 Override with `#`:
 ```tidal
-, violin1 (0,1) flow Soprano r k vl # pizz
+, violin1 T (0,1) k vl flow Soprano # pizz
 ```
 
 For `tutti`, the articulation is a parameter:
 ```tidal
-tutti arco f r k $ d 0.9
-tutti pizz f r k $ d 0.7
+tutti arco f k $ d 0.9
+tutti pizz f k $ d 0.7
 ```
 
 ## Sections
@@ -260,6 +315,50 @@ tutti pizz f r k $ d 0.7
 | `brillante` | Bright top (flute 8va at high k) | flute 8va, flute, oboe, clarinet     |
 | `maestoso`  | Full winds + brass (climactic)   | wind + horn, trombone                |
 | `tutti`     | Full orchestra                   | strings + winds + brass + timpani    |
+
+## Motifs
+
+Motifs are the recurring material a piece is built from. They are **plain patterns**, not a new
+type — a `Pattern Bool` **rhythm** (a `struct` gate) and a `Pattern Int` **contour** (voicing-index
+degrees). A contour auto-tracks the harmony: each degree indexes the active bar's voicing
+(`sc !! (n mod len)`, octave `n div len`), so `"[3 2 1 0]/4"` is *relative to the chord*, re-realised
+every bar — restate an idea at a new pitch by transposing the harmony under a fixed contour.
+
+### Motivic development — one tool each
+
+The classic developments are just TidalCycles; only inversion and combination are added:
+
+| Development    | Tool                | Example                     |
+|----------------|---------------------|-----------------------------|
+| Retrograde     | `rev`               | `rev contour`               |
+| Inversion      | `mirror axis`       | `mirror 3 contour` (about degree 3) |
+| Augmentation   | `slow n`            | `slow 2 motif`              |
+| Diminution     | `fast n`            | `fast 2 motif`              |
+| Transposition  | `\|+` / `\|-`        | `contour \|+ 2`             |
+| Rotation       | `<~` / `~>`         | `"<0 1>" <~ rhythm`         |
+| Combination    | `struct` / `>:<`    | `rhythm >:< contour`        |
+
+`>:<` (= `struct`) gates a fragment with a rhythm — the rhythm's onsets sample the contour's pitches.
+`mirror axis d = 2*axis - d`. The clave/bell rhythm shorthands (`son32`, `rumba32`, `bossa32`,
+`bellpat32`, and their `23` rotations) live in `BootTidal.hs`.
+
+### The motif panel (per-piece swap)
+
+A piece names its material in one statement — a recursive tuple binding of three names, where
+`motif = rhythm >:< contour`:
+
+```haskell
+(rhythm, contour, motif) =
+  ( son32                 -- rhythm gate
+  , "[3 2 1 0]/4"         -- contour (voicing degrees)
+  , rhythm >:< contour
+  ) :: (Pattern Bool, Pattern Int, Pattern Int)
+```
+
+Primed tiers (`rhythm'`/`contour''`/…, up to `''`) fall back to BootTidal defaults, so a block can
+reference any tier. Blocks use the names in their voice lines (`soprano = contour`), as gates
+(`struct rhythm $ …`, `kick rhythm`), or pre-combined (`motif`). Editing a slot and re-executing the
+block reprograms the piece's "genetic" material in one step.
 
 ## Groove — subKick
 
@@ -300,6 +399,34 @@ subk f k d = p "subKick"
 - Sub group gates at `(0.1, 1)`, kick at `(0.2, 1)` via `ki`
 - `maxDur < 1` triggers auto-off; `maxDur >= 1` means manual-off only
 
+## Form Declaration
+
+A `form` is a list of nodes, each `<time> <kinetics> <dynamic> <progression>`.
+Two orthogonal axes choose how a node is written — **time unit** and
+**transition** — via four constructors:
+
+| Constructor | Time unit | Transition |
+|-------------|-----------|------------|
+| `at`  | seconds | smooth (ramp) |
+| `at'` | seconds | snap (hold, then jump) |
+| `rh`  | bars (rehearsal marks, 4/4) | smooth |
+| `rh'` | bars | snap |
+
+Prime = snap; `rh` = bar-aligned nodes (bar = 4 beats). Mix freely in one form:
+
+```tidal
+form =
+  [ at   0   0.0  0.0  s     -- 0s, smooth
+  , rh   8   0.5  0.5  s     -- bar 8, smooth ramp
+  , rh'  16  0.9  0.9  s     -- bar 16, hard SNAP (scene cut)
+  , at'  120 0.2  0.2  s     -- 120s, snap
+  ]
+```
+
+`snap` holds the node's value until the next node's exact time, then jumps —
+for hard cuts (an explosive entry, a catastrophe). `smooth` ramps between nodes.
+The 12-step display reads the form in seconds regardless of unit.
+
 ## Kinetics Layering
 
 Per-instrument kinetics ranges create crescendo ordering:
@@ -308,13 +435,13 @@ Per-instrument kinetics ranges create crescendo ordering:
 tutti art f k d =
   ...
     -- Strings foundation (always)
-    , violin1    (0, 1)   k vl flow Soprano    # art
+    , violin1    T (0, 1)   k vl flow Soprano    # art
     -- Winds enter at 0.2
-    , flute      (0.2, 1) k vl flow Soprano
+    , flute      T (0.2, 1) k vl flow Soprano
     -- Brass at 0.5
-    , horn       (0.5, 1) k vl flow Soprano
+    , horn       T (0.5, 1) k vl flow Soprano
     -- Percussion at peak
-    , timpani    (0.8, 1) k vl grid Bass8vb
+    , timpani    T (0.8, 1) k vl grid Bass8vb
 ```
 
 As kinetics rises from 0→1, instruments enter progressively.
@@ -337,10 +464,10 @@ wind' f k d = p "wind" $ do
         }
   f
     $ stack [silence
-        , flute    (0,1) k vl flow Soprano
-        , oboe     (0,1) k vl flow Alto
-        , clarinet (0,1) k vl flow Tenor8vb
-        , bassoon  (0,1) k vl flow Bass8vb
+        , flute    T (0,1) k vl flow Soprano
+        , oboe     T (0,1) k vl flow Alto
+        , clarinet T (0,1) k vl flow Tenor8vb
+        , bassoon  T (0,1) k vl flow Bass8vb
     ] |* vel d
 ```
 

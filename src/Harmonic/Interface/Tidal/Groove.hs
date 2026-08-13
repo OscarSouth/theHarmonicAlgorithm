@@ -11,6 +11,7 @@
 module Harmonic.Interface.Tidal.Groove
   ( fund
   , subKick
+  , noteoff
   ) where
 
 import qualified Harmonic.Rules.Types.Pitch as Pitch
@@ -18,7 +19,8 @@ import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Progression as P
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import Harmonic.Interface.Tidal.Form (Kinetics(..), IK, ki)
-import Data.List (nub)
+import Data.List (nub, sortOn)
+import Data.Maybe (catMaybes)
 import Data.Foldable (toList)
 import Sound.Tidal.Context
 
@@ -35,6 +37,33 @@ fund prog =
           rootNoteName = H.chordNoteName chord
           rootPc = Pitch.pitchClass rootNoteName
       in [Pitch.unPitchClass rootPc]
+
+-- | Truncate each gate onset's note length to at most @1\/n@ of a bar (bar = 4
+--   cycles), else extend it to the next onset. Only @True@ onsets sound; a
+--   truncated tail is a rest; onsets are not moved. Pair with @# legato 1@ on
+--   sustaining instruments to hear the length. Precondition: @n > 0@.
+--
+--   Bar patterns are written @\"/4\"@ (1 cycle = 1 beat, 1 bar = 4 cycles), so
+--   e.g. @noteoff 4@ caps each hit at a quarter note (1 cycle):
+--
+--   > noteoff 4 "[[1 0 0 0] [0 0 0 0] [1 0 0 0] [1 0 0 0]]/4"  ==  "[1 0 1 1]/4"
+noteoff :: Time -> Pattern Bool -> Pattern Bool
+noteoff n p = splitQueries $ p { query = f, steps = Nothing, pureValue = Nothing }
+  where
+    barLen = 4
+    cap    = barLen / n
+    f st =
+      let a   = arc st
+          b0  = barLen * sam (start a / barLen)          -- enclosing-bar start
+          ons = sortOn (start . wholeOrPart)
+                  $ filter (\e -> eventHasOnset e && value e)
+                  $ query p st { arc = Arc b0 (b0 + barLen) }
+          nexts = drop 1 (map (start . wholeOrPart) ons) ++ [b0 + barLen]
+          build ev nx =
+            let s0 = start (wholeOrPart ev)
+                w  = Arc s0 (min nx (s0 + cap))
+            in (\pt -> ev { whole = Just w, part = pt }) <$> subArc a w
+      in catMaybes (zipWith build ons nexts)
 
 -- | Normalize pitch classes to C2-B2 range (MIDI 36-47) for MPC sub program.
 -- Empty list returns 35 (B1, where no sample is assigned = silence).

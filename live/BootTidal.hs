@@ -115,6 +115,7 @@ launch = mapM_ ($ silence) [
   p "tubeblip",
   p "909kit",
   p "mpckit",
+  p "grooveKit",
   p "moogDFAM",
   p "moogMother32",
   p "sh101",
@@ -174,6 +175,14 @@ pushBy = (~>)
 (|=) = (#)
 oct n = note (12*n)
 humanise n = vel $ (range (-0.09 * n) (0.09 * n) $ rand)
+
+-- Swing by musical PROPORTION p (0.5 = straight, 0.667 = triplet). Places the
+-- swung note exactly at proportion p of its subdivision. 1 cycle = 1 beat here,
+-- so: swing8 swings 8th-notes (the "&"); swing16 swings 16th-notes (the "e/a").
+--   jazz 8th-feel (spang-a-lang / offbeat-8th) → swing8;  16th-shuffle
+--   (funk / UK-garage / house / phonk / fusion) → swing16.  e.g. f = swing8 0.6
+swing8  p = swingBy (p - 0.5) 1
+swing16 p = swingBy (p - 0.5) 2
 
 -------------------------------------------------------------------------------
 -- Transport / Timing
@@ -290,6 +299,59 @@ display k =
        , thruCh10Fast # midicmd "control" # ctlNum 117 # control secsHiPat
          -- Current form-local seconds, low byte (30 events/cycle from thruCh10Fast; ≤18 ms jitter)
        , thruCh10Fast # midicmd "control" # ctlNum 118 # control secsLoPat
+       ]
+:}
+
+-- display' — identical to `display`, but the P2..P4 counter shows the current
+-- BAR NUMBER (1-indexed) within the form loop instead of elapsed seconds.
+-- One bar = 4 cycles (rep/warp are slow 4; cps = tempo/60). SC-agnostic: the
+-- counter is painted as a plain integer, so no led-coordinator.scd change.
+-- Add to your launcher's mapM_ list:  ,display' k
+:{
+display' k =
+  let loopSecs     = kLoopSecs (fst k)
+      cps          = kCps (fst k)
+      cyclesPerBar = 4 :: Double
+      loopBars     = loopSecs * cps / cyclesPerBar
+      loopInt      = floor loopBars :: Int
+      hiByte       = fromIntegral (loopInt `div` 128) :: Double
+      loByte       = fromIntegral (loopInt `mod` 128) :: Double
+      thruCh10     = s "thru" # midichan 9             -- 1 event / cycle (constant CCs, struct-driven onsets)
+      thruCh10Fast = fast 30 (s "thru") # midichan 9   -- 30 events / cycle (catches the bar-boundary transition)
+
+      -- 1-indexed bar counter, phase-locked to cycle 0. Ticks once per bar
+      -- (every 4 cycles), in lockstep with the chord selection `snd k`.
+      -- Values are 1..loopBars inclusive (first bar of the loop displays "1").
+      -- Atemporal forms broadcast 0 continuously (SC treats this as blank).
+      n = floor loopBars :: Int
+      currentBarsPat = if n >= 1 && cps > 0
+        then sig $ \t ->
+               let cyclesNow     = realToFrac t :: Double
+                   barsNow       = cyclesNow / cyclesPerBar
+                   formLocalBars = barsNow - fromIntegral (floor (barsNow / loopBars) :: Int) * loopBars
+                   displayed     = (floor formLocalBars :: Int) + 1
+               in fromIntegral displayed :: Double
+        else pure 0
+
+      barsHiPat = fmap (\x -> fromIntegral (floor x `div` 128) :: Double) currentBarsPat
+      barsLoPat = fmap (\x -> fromIntegral (floor x `mod` 128) :: Double) currentBarsPat
+
+  in p "displayClock" $ stack
+       [ -- Bar onset: CC 113 = current bar (clamped to 1..8)
+         (1/64) ~> (struct (fmap (const True) (snd k)) $
+           thruCh10 # midicmd "control" # ctlNum 113
+             # control (fmap (fromIntegral . min 8) (snd k)))
+         -- Bar off: CC 113 = 0 at +1/8 cycle (P1 blank between flashes)
+       , (1/64) ~> (struct ((pure (1/8)) ~> fmap (const True) (snd k)) $
+           thruCh10 # midicmd "control" # ctlNum 113 # control 0)
+         -- Loop length in bars, high byte
+       , thruCh10 # midicmd "control" # ctlNum 114 # control (pure hiByte)
+         -- Loop length in bars, low byte
+       , thruCh10 # midicmd "control" # ctlNum 115 # control (pure loByte)
+         -- Current form-local bar, high byte
+       , thruCh10Fast # midicmd "control" # ctlNum 117 # control barsHiPat
+         -- Current form-local bar, low byte
+       , thruCh10Fast # midicmd "control" # ctlNum 118 # control barsLoPat
        ]
 :}
 
@@ -485,16 +547,51 @@ p6delLevel v    = cc 92  v #ch 5
 -- struct/mask on any instrument or drum part.
 -------------------------------------------------------------------------------
 
-son32     = "[1 [0 1] 0 1 . 0 1 1 0]/4"
+-- Explicit 16-step (2-bar) boolean grids, one stroke per position.
+-- `32` = 3-2 clave; `23` = the 2-3 rotation (2 <~ over the /4 = 2-bar span
+-- swaps the halves). Onset positions (1-indexed) noted per pattern.
+son32     = "[1 0 0 1 0 0 1 0 0 0 1 0 1 0 0 0]/4" :: Pattern Bool   -- son clave 3-2:   1 4 7 11 13
 son23     = 2 <~ son32
-rumba32   = "[1 [0 1] 0 1 . 0 1 1 0]/4"
+rumba32   = "[1 0 0 1 0 0 0 1 0 0 1 0 1 0 0 0]/4" :: Pattern Bool   -- rumba clave 3-2: 1 4 8 11 13
 rumba23   = 2 <~ rumba32
-bossa32   = "[1 [0 1] 0 [0 1] . 0 1 [0 1] 0]/4"
+bossa32   = "[1 0 0 1 0 0 0 1 0 0 1 0 0 1 0 0]/4" :: Pattern Bool   -- bossa clave 3-2: 1 4 8 11 14
 bossa23   = 2 <~ bossa32
-bellpat32 = "[1 1 [1 1] [0 1] [1 0] [1 1] [0 1] [0 1]]/4"
+bellpat32 = "[1 0 1 0 1 1 0 1 1 0 1 1 0 1 0 1]/4" :: Pattern Bool   -- bell / cascara:  1 3 5 6 8 9 11 12 14 16
 bellpat23 = 2 <~ bellpat32
 
 binaryrange lo hi = binary $ lo |+ irand (hi - lo)
+
+-------------------------------------------------------------------------------
+-- Motivic development
+--
+-- Motifs are plain patterns: a `Pattern Bool` rhythm, a `Pattern Int` contour
+-- (voicing-index degrees — realised against the active harmony by `arrange`).
+-- The classic developments are just Tidal:
+--   retrograde  = rev        augmentation = slow n      transposition = |+ / |-
+--   diminution  = fast n     rotation     = <~ / ~>     combination   = struct
+-- Two additions fill the gaps:
+--   >:<     combine a rhythm with a fragment (rhythm's onsets sample it)
+--   mirror  melodic inversion of a contour about a degree axis
+-------------------------------------------------------------------------------
+
+:{
+infixl 4 >:<
+(>:<) :: Pattern Bool -> Pattern Int -> Pattern Int
+(>:<) = struct
+:}
+
+:{
+mirror :: Int -> Pattern Int -> Pattern Int
+mirror axis = fmap (\d -> 2 * axis - d)
+:}
+
+-- Preloaded motif slots (rhythm / contour / motif, with ' and '' tiers).
+-- Each tuple binds all three in one statement (motif = rhythm >:< contour).
+-- Arrangement files override the non-primed trio; unset tiers fall back here.
+-- Default is a neutral root pulse (rhythm ungated, contour = root).
+(rhythm  , contour  , motif  ) = ("1/4", "0/4", rhythm   >:< contour  ) :: (Pattern Bool, Pattern Int, Pattern Int)
+(rhythm' , contour' , motif' ) = ("1/4", "0/4", rhythm'  >:< contour' ) :: (Pattern Bool, Pattern Int, Pattern Int)
+(rhythm'', contour'', motif'') = ("1/4", "0/4", rhythm'' >:< contour'') :: (Pattern Bool, Pattern Int, Pattern Int)
 
 -------------------------------------------------------------------------------
 -- Performance Utilities (count, metronome)

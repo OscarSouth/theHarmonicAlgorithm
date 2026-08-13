@@ -76,9 +76,9 @@ The project is organised around three principles that trace its trajectory from 
 
 1. **The Harmonic Algorithm** — *Generative harmony and integration.* The R→E→T pipeline (Section 2) that generates harmonic progressions from learned transition probabilities. Originating as an exhaustive combinatorial mapping of overtone triads (2016), diagnosed through Wiggins' Creative Systems Framework (2018), and realised in V3 as a Markov walk through Neo4j with gamma-distribution sampling.
 
-2. **Algorithmic Orchestration** — *Live-coded orchestration with abstracted musical elements.* The paradigm of scoring for a virtual orchestra via TidalCycles, where musical elements are abstracted into three concerns: harmony/contexts (the Harmonic Algorithm), form/constants (the Spectral Narrative), and interfaces/timbres (instrument functions, voice lines, articulations). See [ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md).
+2. **Algorithmic Orchestration** — *Live-coded orchestration with abstracted musical elements.* The paradigm of scoring for a virtual orchestra via TidalCycles, where musical elements are abstracted into three concerns: harmony/contexts (the Harmonic Algorithm), form/constants (the Spectral Narrative), and interfaces/timbres (instrument functions, voice lines, articulations, divisi). See [ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md).
 
-3. **The Spectral Narrative** — *Kinetics framework and algorithmic structural design.* Macro-level compositional arc as programmable structure: form defined in wall-clock seconds carrying three signals (kinetics, dynamics, progression), with proportional nodes following a dramatic arc through exposition, development, cumulation, and resolution. See Section 7 and [USER_GUIDE.md](USER_GUIDE.md) Section 7.
+3. **The Spectral Narrative** — *Kinetics framework and algorithmic structural design.* Macro-level compositional arc as programmable structure: form nodes carrying three signals (kinetics, dynamics, progression), placed in wall-clock seconds or bars (rehearsal marks) with smooth or snap transitions, following a dramatic arc through exposition, development, cumulation, and resolution. See Section 7 and [USER_GUIDE.md](USER_GUIDE.md) Section 7.
 
 ---
 
@@ -631,22 +631,26 @@ lookupChord prog idx =
 
 **Arrangement with Kinetics**:
 ```haskell
-arrange :: (Double, Double) -> IK -> (Int, Int) -> VoiceFunction
+arrange :: (Double, Double) -> IK -> (Int, Int) -> Layer -> VoiceFunction
         -> (Progression -> Progression) -> [Pattern Int] -> Pattern ValueMap
 ```
 
-`arrange` reads the active progression from `kProg k` via `innerJoin`, applies a progression modifier (e.g. `overlapF 0` or `id`), and masks events by the kinetics signal range. The `IK` tuple `(Kinetics, Pattern Int)` bundles both kinetics context and chord selection pattern, replacing the old separate progression and kinetics parameters.
+`arrange` reads the active progression from `kProg k` via `innerJoin`, applies a progression modifier (e.g. `overlapF 0` or `id`), and masks events by the kinetics signal range. The `Layer` argument (`T`/`S`/`M`) selects which of the progression's three layers — triad, strata, or diatonic mode — to voice. The `IK` tuple `(Kinetics, Pattern Int)` bundles both kinetics context and chord selection pattern, replacing the old separate progression and kinetics parameters.
 
 **Current Usage** (TidalCycles):
 ```haskell
 -- Create IK context from form and chord pattern
 let k = iK tempo [at 0 1 1 prog] (rep prog 1)
 
--- Arrange with flow voicing
-d01 $ arrange (0,1) k (-9,9) flow id ["0 1 2 3"] # ch 01
+-- Bar-based / snap form nodes (orthogonal to seconds/smooth):
+--   at  seconds+smooth   at' seconds+snap   rh bars+smooth   rh' bars+snap
+let k = iK tempo [ rh 0 0 0 prog, rh' 8 1 1 prog, rh 16 0.3 0.3 prog ] (rep prog 1)
+
+-- Arrange with flow voicing (T = triad layer)
+d01 $ arrange (0,1) k (-9,9) T flow id ["0 1 2 3"] # ch 01
 
 -- Arrange with grid voicing (root locked in bass)
-d01 $ arrange (0,1) k (-9,9) grid (overlapF 0) ["0 1 2 3"] # ch 01
+d01 $ arrange (0,1) k (-9,9) T grid (overlapF 0) ["0 1 2 3"] # ch 01
 ```
 
 For full usage examples, see [USER_GUIDE.md](USER_GUIDE.md) and [live/USER_GUIDE.tidal](live/USER_GUIDE.tidal).
@@ -668,7 +672,7 @@ See source files for implementation details: `src/Harmonic/Interface/Tidal/Arran
 **Launcher Paradigm** (kinetics-driven):
 ```haskell
 -- Example: Juno synthesizer with flow voicing and kinetics
-juno f k d = p "juno" $ f $ arrange (0,1) k (-9,9) flow id ["pattern"]
+juno f k d = p "juno" $ f $ arrange (0,1) k (-9,9) T flow id ["pattern"]
   |* vel d
 
 -- Usage in TidalCycles (k = iK tempo form (warp "0 1 2 3"))
@@ -766,7 +770,7 @@ describe "wide voicing" $ do
 ```haskell
 -- Wide voicing (large pitch ranges)
 let k = iK tempo [at 0 1 1 prog] (rep prog 1)
-d01 $ arrange (0,1) k (-9,9) wide id ["0 1 2 3"] # ch 01
+d01 $ arrange (0,1) k (-9,9) T wide id ["0 1 2 3"] # ch 01
 ```
 
 ### 9.2 Custom Evaluation Functions
@@ -958,8 +962,13 @@ Measured on M1 MacBook Pro (2021), Neo4j local Docker:
 - **Overtone Series**: Harmonic series of a fundamental pitch (C → [C, E, G, Bb, ...])
 - **PitchClass**: ℤ₁₂ cyclic group element representing pitch-class (0=C, 1=C#, ..., 11=B)
 - **Progression**: Monoid-wrapped sequence of CadenceState
-- **FormNode**: A point in a form definition: wall-clock time, kinetics level (0–1), dynamic level (0–1), and active progression
-- **Kinetics**: Realized form signals: kSignal (continuous kinetics 0–1), kDynamic (continuous dynamics 0–1), kProg (discrete progression step function). Bundled with chord selection pattern as `IK = (Kinetics, Pattern Int)` via `iK tempo form chordPat`
+- **FormNode**: A point in a form definition: time, kinetics level (0–1), dynamic level (0–1), active progression, and transition style. Time is a `FormTime` (`Secs` or `Bars`); transition is `Smooth` (ramp) or `Snap` (hold then jump). Built with `at` (secs+smooth), `at'` (secs+snap), `rh` (bars+smooth), `rh'` (bars+snap)
+- **Rehearsal mark (`rh`)**: A form node placed at a bar number rather than a wall-clock second (bar = 4 beats, 4/4), resolved to cycles at realization. Primed (`rh'`) for a snap transition
+- **Divisi**: Splitting a section or one instrument+voice into independent desks with equal-power (`1/√n`) loudness compensation. Desks are held as primed `VoiceLines` tiers (`soprano'`, `soprano''`) and selected by primed `Voice` constructors (`Soprano'`, `Bass8vb'`); `divisi N` auto-wraps an instrument, `# divisi2`/`# divisi3` tag hand-built desks
+- **Motif**: Recurring material as plain patterns — a `Pattern Bool` rhythm and a `Pattern Int` contour (voicing-index degrees that auto-track harmony). Named per-piece via a one-statement `(rhythm, contour, motif)` tuple with `'`/`''` tiers
+- **Contour**: A melodic shape written as voicing-index degrees; realised against the active bar's voicing by `arrange` (`sc !! (n mod len)`), so it tracks the harmony and is restated at a new pitch by transposing the harmony beneath it
+- **Motivic development**: Transforming a motif — retrograde (`rev`), inversion (`mirror axis`), augmentation/diminution (`slow`/`fast`), transposition (`|+`), rotation (`<~`), combination (`struct`/`>:<`)
+- **Kinetics**: Realized form signals: kSignal (kinetics 0–1, ramped or stepped per node transition), kDynamic (dynamics 0–1), kProg (discrete progression step function). Bundled with chord selection pattern as `IK = (Kinetics, Pattern Int)` via `iK tempo form chordPat`
 - **ki (range gating)**: `ki (lo, hi) k pat` — masks pattern events by kinetics signal level, only passing when kSignal is within the specified range. `k :: IK = (Kinetics, Pattern Int)`
 - **slate**: Gated stack — `slate range k [pats]` — combines ki range gating with stack for layered drum/instrument activation
 - **Zero-Form**: Intervals shifted so first pitch = 0 (transposition-invariant)

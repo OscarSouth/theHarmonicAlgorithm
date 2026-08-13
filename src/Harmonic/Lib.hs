@@ -173,7 +173,8 @@ module Harmonic.Lib (
   overlapF,
 
   -- Form / Kinetics
-  FormNode(..), Kinetics(..), IK, at, iK, lK, formK,
+  FormNode(..), FormTime(..), Transition(..), Kinetics(..), IK,
+  at, at', rh, rh', iK, lK, formK,
   ki, slate, withForm,
   -- Arranger functions (voicing paradigms)
   rotate, excerpt, insert, switch, clone, extract,
@@ -185,7 +186,7 @@ module Harmonic.Lib (
   fromChords, prog,
 
   -- Groove interface (drums/sub bass)
-  subKick, fund,
+  subKick, fund, noteoff,
 
   -- Walking-bass line interface
   lineHarmony,
@@ -274,10 +275,11 @@ import Harmonic.Interface.Tidal.Arranger (
     ScaleSource(..), melodyStateFrom,
     lead, parseLeadTokens, LeadToken(..)
   )
-import Harmonic.Interface.Tidal.Groove (subKick, fund)
+import Harmonic.Interface.Tidal.Groove (subKick, fund, noteoff)
 import Harmonic.Interface.Tidal.LineHarmony (lineHarmony)
 import Harmonic.Interface.Tidal.Form (
-    FormNode(..), Kinetics(..), IK, at, iK, lK, formK,
+    FormNode(..), FormTime(..), Transition(..), Kinetics(..), IK,
+    at, at', rh, rh', iK, lK, formK,
     ki, slate, withForm
   )
 import Harmonic.Interface.Tidal.Instruments

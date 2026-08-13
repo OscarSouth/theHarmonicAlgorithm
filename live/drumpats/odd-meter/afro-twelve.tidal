@@ -1,0 +1,42 @@
+ -- AFRO-TWELVE  (odd-meter)                       -- 12/8 Afro bell (bembé)  [eighth = pulse]
+ -- 12/8: kick on the 4 dotted-beats (0,3,6,9); bembé bell on the ride; hand-drum perc.
+ -- accent: ride (bell).   ·   ~90-120 BPM · straight · 12/8
+ -- ── TRIGGERS ──  raw grids (highlight-visible, reusable gates)
+(kickseq, snareseq, clapseq, chseq, ohseq, hhseq, rideseq, percseq) =
+  ( "[[1 0 0 1 0 0 1 0 0 1 0 0]]/12"               -- kick (0,3,6,9)
+  , "[[0 0 0 0 0 0 1 0 0 0 0 0]]/12"               -- snare (3rd beat)
+  , silence                                        -- clap
+  , silence                                        -- closed
+  , silence                                        -- open
+  , silence                                        -- combined
+  , "[[1 0 1 1 0 1 0 1 1 0 1 0]]/12"               -- ride (bembé bell)
+  , "[[1 0 0 1 0 0 1 0 0 1 0 0]]/12"               -- perc (hand-drum)
+  )
+ -- ── AMPS ──  dynamics (Pattern Double; leading-zero decimals)
+(kickamp, snareamp, clapamp, hhamp, rideamp, percamp) =
+  ( "1 0.9"               -- kick: grouping accent
+  , "1 0.8"               -- snare
+  , 1                     -- clap
+  , "1 0.7 0.9 0.7"       -- hats
+  , 1                     -- ride (bell)
+  , "{1 0.7 0.5}%4"       -- perc (congas)
+  )
+ -- ── PATTERNS ──  enriched (trigger × role-vel × amp) — the core version
+(kickpat, snarepat, clappat, chpat, ohpat, hhpat, ridepat, percpat, rhythm) =
+  ( kick  kickseq  |* vel 1.0  |* vel kickamp
+  , snare snareseq |* vel 0.9  |* vel snareamp |+ humanise 0.08
+  , snap  clapseq  |* vel 0.8  |* vel clapamp
+  , hhcl  chseq    |* vel 0.25 |* vel hhamp
+  , hhop  ohseq    |* vel 0.25 |* vel hhamp
+  , hh    hhseq    |* vel 0.5  |* vel hhamp
+  , ride  rideseq  |* vel 0.4  |* vel rideamp
+  , click percseq  |* vel 0.35 |* vel percamp
+  , rideseq )
+
+ -- ── PRELOADED INTERFACE ──
+kgrv f k d = p "grooveKit"
+  $ f
+  $ stack [silence
+    ,kickpat ,snarepat ,clappat ,hhpat ,ridepat ,percpat
+ -- ,chpat ,ohpat   -- (separate closed/open; alt to combined hhpat)
+    ]# ch 9 |* vel d
