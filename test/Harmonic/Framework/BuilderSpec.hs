@@ -68,16 +68,16 @@ spec = do
       it "creates context with note name overtones (C overtone series)" $ do
         let ctx = harmonicContext "c" "*" "*"
         _hcOvertones ctx `shouldBe` "c"
-        -- Verify parsed pitch classes: C overtones = [0,4,7,10] (C, E, G, Bb)
-        sort (parseOvertones $ _hcOvertones ctx) `shouldBe` [0, 4, 7, 10]
-      
+        -- Verify parsed pitch classes: C overtones = [0,4,7] (C, E, G)
+        sort (parseOvertones $ _hcOvertones ctx) `shouldBe` [0, 4, 7]
+
       it "creates context with multiple note overtones" $ do
         let ctx = harmonicContext "D A D F A Ab" "*" "*"
         _hcOvertones ctx `shouldBe` "D A D F A Ab"
-        -- Verify parsed pitch classes (4 partials per note, merged and deduped):
-        -- D: 2,6,9,0; A: 9,1,4,7; F: 5,9,0,3; Ab: 8,0,3,6
+        -- Verify parsed pitch classes (3 partials per note, merged and deduped):
+        -- D: 2,9,6; A: 9,4,1; F: 5,0,9; Ab: 8,3,0
         let pcs = sort $ parseOvertones $ _hcOvertones ctx
-        sort pcs `shouldBe` [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+        sort pcs `shouldBe` [0, 1, 2, 3, 4, 5, 6, 8, 9]
       
       -- Key filtering (key signatures)
       it "creates context with sharp key (1# = G major)" $ do

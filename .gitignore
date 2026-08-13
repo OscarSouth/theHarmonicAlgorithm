@@ -48,6 +48,7 @@ cabal.sandbox.config
 .mcp.json
 
 .claude
+CLAUDE.md
 .serena
 notes
 
@@ -56,3 +57,6 @@ analysis/
 
 # Personal / private live material (never published)
 live/local/
+
+# Personal practice curriculum (private for now)
+documents/practice/

@@ -193,18 +193,20 @@ possibleTriads'' (r, ps) =
 -- where that string's overtone series contains the pitch class.
 --
 -- Overtone numbering follows the thesis convention:
---   OT1 = fundamental (offset 0), OT2 = P5 (offset 7),
---   OT3 = M3 (offset 4), OT4 = m7 (offset 10), OT5 = M2 (offset 2)
+--   OT1 = fundamental (offset 0), OT2 = P5 (offset 7), OT3 = M3 (offset 4)
+-- Annotation covers OT1-OT3 — the distinct pitch classes of the playable
+-- tapped-harmonic domain.
 --
 -- Example:
 -- @
 -- annotateOvertones [("E",4),("A",9),("D",2),("G",7)] [11,7,2]
--- -- → [(11,[("E",2),("D",4)]), (7,[("G",1)]), (2,[("E",5),("D",1)])]
+-- -- → [(11,[("E",2),("G",3)]), (7,[("G",1)]), (2,[("D",1),("G",2)])]
 -- @
 annotateOvertones :: [(String, Int)] -> [Int] -> [(Int, [(String, Int)])]
 annotateOvertones tuning pitches = map annotate pitches
   where
-    otOffsets = zip [1..5] [0, 7, 4, 10, 2 :: Int]
+    -- OT1-OT3 only: the playable tapped-harmonic domain (root, P5, M3)
+    otOffsets = zip [1..3] [0, 7, 4 :: Int]
     annotate p = (p, concatMap (sourcesFor p) tuning)
     sourcesFor p (name, fund) =
       [ (name, otNum)

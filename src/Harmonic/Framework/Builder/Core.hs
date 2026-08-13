@@ -514,8 +514,8 @@ consonanceFallbackWith gen currentState context =
   let -- Get current root pitch class for movement computation
       currentRoot = P.pitchClass (H.stateCadenceRoot currentState)
 
-      -- Get overtone palette (4 partials per fundamental)
-      overtones = parseOvertones' 4 (_hcOvertones context)
+      -- Get overtone palette (3 partials per fundamental: root, P5, M3)
+      overtones = parseOvertones' 3 (_hcOvertones context)
 
       -- Apply key filter to overtones
       keyPcs = parseKey (_hcKey context)
@@ -752,7 +752,7 @@ matchesContext context currentState cadence =
   let (movement, chord) = H.deconstructCadence cadence
 
       -- Get effective overtone palette (key-filtered)
-      rawOvertones = parseOvertones' 4 (_hcOvertones context)
+      rawOvertones = parseOvertones' 3 (_hcOvertones context)
       keyPcs = parseKey (_hcKey context)
       effectiveOvertones = if isWildcard (_hcKey context)
                            then rawOvertones

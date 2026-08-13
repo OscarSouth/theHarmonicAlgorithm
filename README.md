@@ -36,7 +36,7 @@ the *rules* of what's harmonically possible, *evaluate* the quality of each
 option using voice leading and dissonance scoring, then *traverse* the space
 probabilistically — balancing between the familiar and the unexpected.
 
-The project is built around three principles:
+The project is built around four principles:
 
 - **The Harmonic Algorithm** — the generative engine. An R→E→T pipeline
   that produces harmonic progressions from learned transition probabilities,
@@ -54,10 +54,25 @@ The project is built around three principles:
   intensity and dynamics envelopes that drive instrument activation, voice
   density, and harmonic switching.
 
-<!-- [video ~60s: the full USER_GUIDE walkthrough in miniature — lead "C maj" →
-seek "none" → single-state form → launcher on channel 1 (piano), then layer
-an hcPedal constraint, then wrap it in a kinetics form arc with two gated
-voices rising and falling over ~45 seconds] -->
+- **Octatripentatonics** — the harmonic-organisation research frontier.
+  Every progression carries its harmony in three densities at once —
+  chords, pentatonics and modes — walked through a curated space of
+  interlocking five-note scales. It's my own ongoing thread of music
+  theory, grown out of the system and now feeding back into it
+  ([OCTATRIPENTATONICS.md](OCTATRIPENTATONICS.md)).
+
+The system has grown into a genuinely performable instrument along the
+way. Mid-piece, I can regenerate just the two bars that aren't working and
+keep everything else; ask for a dozen candidate progressions and have the
+best one picked for me; or bring in a walking bassline that follows the
+changes like a duet partner. All of it live, all of it code.
+
+> ### ▶ VIDEO — The whole thing in miniature
+> _~60s: lead "C maj" → seek "*" → a launcher on one piano channel; layer
+> an hcPedal constraint, then wrap it in a kinetics arc with two gated
+> voices rising and falling over ~45 seconds._
+>
+> `[ youtube link — TBD ]`
 
 ___
 
@@ -84,23 +99,33 @@ The same starting chord can lead to radically different musical outcomes.
 A single parameter — entropy — controls the balance between familiar harmonic
 motion and surprising, exploratory leaps:
 
-<!-- [audio ~10s: entropy 0.2 — same starting state, smooth conventional voice leading, close cadences] -->
-<!-- [audio ~10s: entropy 0.8 — same starting state, unexpected turns and distant modulations] -->
+> ### ▶ VIDEO — Entropy, heard
+> _~30s: the same starting state at entropy 0.2 (smooth, conventional,
+> close cadences) and 0.8 (unexpected turns, distant modulations)._
+>
+> `[ youtube link — TBD ]`
 
 The system also lets you blend the harmonic sensibilities of different composers.
 These aren't presets — they're weighted combinations of learned transition
 probabilities:
 
-<!-- [audio ~10s: seek "bach" — strong functional harmony, clear cadential motion] -->
-<!-- [audio ~10s: seek "debussy" — colourful, modal inflections, parallel motion] -->
-<!-- [audio ~10s: seek "bach:30 debussy:70" — functional foundations with impressionistic colour] -->
+> ### ▶ VIDEO — Composer blending, heard
+> _~40s: seek "bach" (functional harmony, clear cadences), seek "debussy"
+> (colour, modal inflections), then "bach:30 debussy:70" — functional
+> foundations wearing impressionistic colour._
+>
+> `[ youtube link — TBD ]`
 
-Use `"none"` to bypass the graph entirely — no Neo4j required. Progressions
-are shaped by your context filters and entropy alone.
-<!-- [video ~90s: live coding session — building a piece Section-by-Section from
-the USER_GUIDE: starting state → context with hcPedal → generation → single-state
-launcher → add a second arrange voice → wrap in a multi-node kinetics form,
-ending with a full arc rising and falling on a single piano channel] -->
+(And if you can't run Docker right now: `seek "none"` bypasses the graph
+entirely — progressions shaped by your context filters and entropy alone.)
+
+> ### ▶ VIDEO — Building a piece, live
+> _~90s: a live coding session assembled section by section from the User
+> Guide — starting state → context with hcPedal → generation → launcher →
+> a second arrange voice → a multi-node kinetics form, the full arc rising
+> and falling on a single piano channel._
+>
+> `[ youtube link — TBD ]`
 
 ___
 
@@ -109,44 +134,57 @@ ___
 Let's start simple. Here's what it looks like to generate your first
 progression — just a starting chord, a length, and an entropy value:
 
-<!-- [gif ~15s: USER_GUIDE Section 1 in the TidalCycles editor — executing
-`start <- lead "C maj"` and `s <- seek "none" $ cue start $ len 8 $ entropy
-0.5 $ gen'`, the generation diagnostics printing bar-by-bar with candidate
-pools visible] -->
+> ### ▶ VIDEO — First generation
+> _~15s: User Guide §1 in the TidalCycles editor — `start <- lead "C maj"`,
+> then `s <- seek "*" $ cue start $ len 8 $ entropy 0.5 $ gen'`, the
+> diagnostics printing bar by bar with candidate pools visible._
+>
+> `[ youtube link — TBD ]`
 
 Now let's apply some constraints. The Harmonic Algorithm lets you filter
-by key signature, overtone series, and root motion — narrowing the
+by key signature, overtone palette, and root motion — narrowing the
 harmonic possibilities to match your musical context:
 
-<!-- [gif ~20s: USER_GUIDE Section 4 — layering hcKey "0#", then hcPedal "C",
-then consonant onto hContext and re-running gen' after each. The candidate
-pool sizes shrink visibly in the diagnostic output as constraints narrow] -->
+> ### ▶ VIDEO — Narrowing the space
+> _~20s: User Guide §4 — layering hcKey "0#", then hcPedal "C", then
+> consonant onto hContext, re-running gen' after each. The candidate pools
+> shrink visibly as the constraints tighten._
+>
+> `[ youtube link — TBD ]`
 
 Things get interesting when you bring this into TidalCycles. The library
 integrates directly — generated progressions become patterns you can
 manipulate, voice, and perform live:
 
-<!-- [gif ~20s: USER_GUIDE Section 8 — same progression and pattern under
-arrange, then arrange', then with overlapF 2, showing how pattern-across-states
-vs pattern-within-states vs natural legato sustain reshape the musical result] -->
+> ### ▶ VIDEO — Patterns meet harmony
+> _~20s: User Guide §9 — the same progression and pattern under arrange,
+> then arrange', then with overlapF 2: pattern-across-chords vs
+> pattern-within-chords vs natural legato sustain._
+>
+> `[ youtube link — TBD ]`
 
 You don't always need the algorithm to generate for you. Sometimes you
 want to build progressions by hand — the changes to a standard, a
 specific harmonic idea — and use the library's voicing and arrangement
 tools to bring them to life:
 
-<!-- [gif ~15s: USER_GUIDE Section 10 — building a progression by hand with
-`prog sharp (notesToPCs <$> [[C,E,G], [F,A,C'], [G,B,D], [A,C',E]])`, then
-launching it through the same p01 launcher as the generated examples] -->
+> ### ▶ VIDEO — By hand
+> _~15s: User Guide §11 — `prog (notesToPCs <$> [[C,E,G], [F,A,C],
+> [G,B,D], [A,C,E]])`, launched through the same launcher as the
+> generated examples._
+>
+> `[ youtube link — TBD ]`
 
 And here's the composer blending in action — switching between learned
 styles and hearing how the same harmonic starting point leads to
 completely different musical journeys:
 
-<!-- [gif ~20s: USER_GUIDE Section 5 — the same context and cue state, with
-seek "bach", then seek "debussy", then seek "bach:30 debussy:70" side by
-side, each with audible output. The gen' header shows the composer string
-and, for blends, the portmanteau name] -->
+> ### ▶ VIDEO — Blends, on screen
+> _~20s: User Guide §5 — one context and cue state under seek "bach",
+> "debussy", and "bach:30 debussy:70", each audible; the gen' header
+> showing the composer string and, for blends, the portmanteau name._
+>
+> `[ youtube link — TBD ]`
 
 ___
 
@@ -190,15 +228,14 @@ ___
 
 Once you're up and running, there's plenty to explore:
 
-**[User Guide](USER_GUIDE.md)** — complete feature reference, readable
-without a running TidalCycles environment.
+**[User Guide](USER_GUIDE.md)** — the full walkthrough in readable form,
+video slots and all, no running TidalCycles environment required.
 
 **[Interactive User Guide](live/USER_GUIDE.tidal)** — the same guide as a
 hands-on tutorial with examples you can run directly in TidalCycles.
 
-**[Worked Examples](live/examples/)** — complete pieces you can play with
-immediately, including a jazz standard arrangement and a traditional tune
-with form transformation.
+**[Octatripentatonics](OCTATRIPENTATONICS.md)** — the theory frontier:
+strata, tristrata, and the three-layer harmony system, in full.
 
 **[Algorithmic Orchestration](ALGORITHMIC_ORCHESTRATION.md)** — scoring for
 a virtual orchestra: instrument catalogue, voice lines, divisi, sections,
@@ -209,10 +246,6 @@ how the system works: the four-layer architecture, the R→E→T pipeline,
 zero-form cadence storage, and the graph database model.
 
 **[Changelog](CHANGELOG.md)** — V3 features and migration notes.
-
-**[Contributor Guidelines](CLAUDE.md)** — for anyone who'd like to
-contribute: the vertical slice workflow, mandatory verification steps,
-and layer boundary rules.
 
 ___
 

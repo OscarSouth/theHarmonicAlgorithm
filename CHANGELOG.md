@@ -23,7 +23,8 @@ The aim is an instrument you can navigate fluidly in real time.
 **Composer Blending** — Channel a single composer's harmonic style, blend
 multiple with weighted ratios (`"debussy:0.75 bach:0.25"`), or aggregate across
 the full corpus with `"*"`. Blended composers get a portmanteau name in the
-output.
+output. Composer names are matched case-insensitively, at both parse and
+corpus-lookup time — `"Bach"`, `"BACH"`, and `"bach"` all resolve identically.
 
 **Offline Mode** — Pass `"none"` as the composer string to bypass the graph
 entirely and generate using only the fallback mechanism. No Neo4j required.
@@ -43,7 +44,10 @@ the constraint — not just the most or least dissonant option.
 the filtered pitch space for roots with `rise`/`fall` in the roots string. 
 A numeric suffix skips notes: `rise2` selects every second, `rise3` every 
 third, up to `rise6` for a tritone leap in a chromatic context. 
-Combine with key and root filters to shape the path.
+Combine with key and root filters to shape the path. Bracketed step lists give
+per-step control: `rise<1 2 3>` rotates through step sizes across successive
+generation steps, `rise<1,2>` picks one at random each step, and a trailing
+`?` makes the direction optional for that step rather than mandatory.
 
 **Inversion Spacing** — `invSkip N` enforces a minimum number of root-position
 chords between any two inversions — direct control over harmonic density and
@@ -52,6 +56,29 @@ stability across a progression.
 **`lead`** — Construct a starting state from a readable string: `lead "E min
 (5)"` gives E minor arrived at by ascending five semitones. Root, quality, and movement are
 each optional, falling through to random when omitted.
+
+**Octatripentatonic Generation (`genP`)** — A second generation mode layered
+over the same R→E→T engine, not a parallel generator. Eleven canonical
+five-note strata (`I`–`XI`) are grouped into twelve tristrata, each a trio of
+strata whose pairwise unions form a seven-note diatonic mode and whose triple
+union forms the eight-note octatripentatonic set. `genP`/`genP'`/`genP''` walk
+the strata graph bar by bar while the underlying triad generation stays fully
+constrained by it; 33 `genI`–`genXI` aliases (plain and `'`/`''` diagnostic
+variants) fix the starting strata for quick access. `hcTristrata` locks
+generation to one tristrata; `relStrata`/`absStrata` set per-bar position
+within it, relative or absolute. Every progression now carries three parallel
+layers — triad, strata, and mode — selected with a `Layer` (`T`/`S`/`M`)
+argument on `arrange`, `instrument`, and `divisi`; the strata and mode layers
+get their own dedicated voicing strategy, `strataModeFlow`, alongside
+`flow`/`grid`/`lite`/`root`/`fund`.
+
+**Rank & Select (`attempt`/`viability`)** — `attempt N K` runs up to `K` full
+generation passes, stops early once `N` of them are viable, and keeps only the
+single highest-scoring progression — scored on root motion, voice leading,
+cadence favourability (online, from the corpus), and mode validity.
+`viability T` sets the score floor a pass must clear to count (default `0.6`).
+Works identically online and offline. At Verbose (`gen''`), a full scoreboard
+prints every attempt's per-term scores with a `← PICK` marker on the winner.
 
 ### Voicing
 
@@ -64,7 +91,23 @@ fundamental regardless of inversion — essential for kick drums and sub bass.
 **Rebuilt Voice Leading Engine** — Voicings are now solved globally across the
 entire progression including wrap-around, producing the kind of smooth contrary
 motion and minimal leaps that previously required manual arrangement. The
-improvement in voice smoothness is audible.
+improvement in voice smoothness is audible. The cost function checks parallel
+5ths and octaves across every voice pair, not just adjacent ones, penalizes
+register-exchange leaps (opposite-direction leaps of a 4th or more between two
+voices), and rewards contrary and stepwise motion. Bar 0 of every progression
+anchors to a compact root-position voicing rather than being left to the
+solver, so the whole progression starts from a predictable register.
+
+**Walking Bass Lines (`lineHarmony`/`walk`)** — A three-pass deterministic
+bass-line generator, distinct from the chord voicings above: chord tones land
+on beats 1 and 3, a weighted connector pool (diatonic approach, chromatic
+leading tones, chord-tone bonuses) fills beats 2 and 4, and the line is built
+once as a pure function of the progression rather than sampled per query.
+Entropy isn't set by hand — it's derived from the progression itself, blending
+root-motion angularity with chord-internal dissonance. Register is fixed to
+double bass (E1–C3). Feed it a `genP`-derived progression and it automatically
+reweights toward that bar's strata pitches and drops chromatic passing tones
+entirely, keeping the line inside the octatripentatonic set.
 
 ### Arrangement
 
@@ -110,11 +153,33 @@ Define musical sections and assemble them into different formal arrangements.
 in a single composable chain. Removal syntax (`-Bb'`) subtracts specific
 pitches. The filter shapes musical character as much as the notes themselves.
 
+**Regenerate In Place (`genFrom`)** — `genFrom s a b` regenerates only bars `a`
+through `b` of an existing progression — 1-indexed and wrap-aware, so
+`genFrom s 4 2` on a 5-bar progression regenerates bars 4, 5, 1, 2 and leaves
+bar 3 untouched. The cue is auto-inferred from the bar immediately before the
+range. Progressions carrying strata/mode layer provenance are spliced
+strata-aware, coherently regenerating all three layers across the seam;
+legacy triad-only progressions fall back to the original splice-and-fix-seam
+behaviour. Composes with `attempt`/`viability` and the rest of the modifier
+chain.
+
 ### Groove
 
 **subKick** — MPC-style kick and sub bass logic that follows the harmonic root
 of the current chord. The low end always locks to the harmony, even as the
 progression changes underneath. Complimentary MPC program will be provided.
+Sub-bass LED indication (CC 20-31, one per pitch class) is no longer computed
+and dispatched from Haskell — it's now derived externally, SC-side, from the
+sub channel's outgoing MIDI traffic. Only the kick's high-C indicator (CC 32)
+still emits directly from the generation engine.
+
+**Drum Pattern Library** — Around 200 hand-programmed grooves spanning 21
+genres — from afro-cuban, dub, and jazz to phonk, techno, and trance — live in
+`live/drumpats/`, each playable through the `kgrv` interface on its own
+dedicated orbit. `noteoff N` shapes any drum gate pattern's note-length to a
+fraction of a bar (or extends it to the next onset if shorter) — pair with
+`# legato 1` to hear the cut. `swing8`/`swing16` add proportional swing at the
+8th- or 16th-note level for jazz, funk, UK garage, and house feels.
 
 ### Form & Kinetics
 
@@ -136,6 +201,15 @@ seconds one. The 12-step display still reads the form in seconds.
 **`ki` / `slate` / `withForm`** — Range-gate patterns by kinetics level, combine
 gated layers into stacks, and reactively switch progressions as the form
 unfolds. Instrument layers activate and deactivate as the signal rises and falls.
+
+**Live Kinetics (`lK`)** — Builds an `IK` context directly from live
+`Pattern Double` signals — an LFO, a random walk, an incoming MIDI CC —
+instead of a pre-programmed `at`/`rh` timeline, with the same downstream
+range-gating and dynamics behaviour as `iK`. `kinPick` dispatches between a
+list of patterns by partitioning `[0,1]` into matching windows and playing
+whichever pattern the current kinetics signal falls into. `display'` is a
+bar-counting variant of `display`, broadcasting loop length and the current
+1-indexed bar as MIDI CC rather than elapsed wall-clock seconds.
 
 ### Algorithmic Orchestration
 

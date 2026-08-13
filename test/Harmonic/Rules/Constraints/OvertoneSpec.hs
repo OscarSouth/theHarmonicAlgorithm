@@ -116,14 +116,14 @@ spec = do
 
     it "returns empty sources for unproducible pitch" $ do
       let result = annotateOvertones [("E", 4)] [3]
-      -- Eb(3): (3-4) mod 12 = 11, not in offsets [0,7,4,10,2]
+      -- Eb(3): (3-4) mod 12 = 11, not in offsets [0,7,4]
       result `shouldBe` [(3, [])]
 
     it "annotates full EADG chord correctly" $ do
       let tuning = [("E",4),("A",9),("D",2),("G",7)]
           result = annotateOvertones tuning [7]
-      -- G(7): A + 10 = 7 → OT4, G + 0 = 7 → OT1
-      result `shouldBe` [(7, [("A", 4), ("G", 1)])]
+      -- G(7): D + 5? no — only G + 0 = 7 → OT1 within the OT1-OT3 domain
+      result `shouldBe` [(7, [("G", 1)])]
 
   describe "formatOvertoneAnnotation" $ do
 

@@ -64,14 +64,14 @@ spec = do
   describe "Overtone parsing (parseTuning)" $ do
     
     describe "Single note overtones" $ do
-      it "C generates first 4 overtones [0,4,7,10] = C,E,G,Bb" $ do
-        sort (parseTuning "C") `shouldBe` [0, 4, 7, 10]
-      
-      it "G generates [2,5,7,11] = G,B,D,F" $ do
-        sort (parseTuning "G") `shouldBe` [2, 5, 7, 11]
-      
-      it "E generates [2,4,8,11] = E,G#,B,D" $ do
-        sort (parseTuning "E") `shouldBe` [2, 4, 8, 11]
+      it "C generates first 3 distinct overtones [0,4,7] = C,E,G" $ do
+        sort (parseTuning "C") `shouldBe` [0, 4, 7]
+
+      it "G generates [2,7,11] = G,B,D" $ do
+        sort (parseTuning "G") `shouldBe` [2, 7, 11]
+
+      it "E generates [4,8,11] = E,G#,B" $ do
+        sort (parseTuning "E") `shouldBe` [4, 8, 11]
     
     describe "Bass tuning example (E A D G)" $ do
       it "E A D G combines overtones of all four strings" $ do

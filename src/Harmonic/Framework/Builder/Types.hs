@@ -267,7 +267,7 @@ parsePedalTones input
 -- |Parse a HarmonicContext once into efficient lookup structures.
 parseContextOnce :: HarmonicContext -> ParsedContext
 parseContextOnce ctx =
-  let rawOvertones = parseOvertones' 4 (_hcOvertones ctx)
+  let rawOvertones = parseOvertones' 3 (_hcOvertones ctx)
       keyPcs = parseKey (_hcKey ctx)
       keyWild = isWildcard (_hcKey ctx)
       effectiveOvertones = if keyWild

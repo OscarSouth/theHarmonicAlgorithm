@@ -153,9 +153,11 @@ chromaticSet = [0..11]
 
 -- |Generate first n overtones from a fundamental pitch class.
 -- Uses the overtone series: root, P5, M3, m7, M2 (first 5 partials mapped to octave)
--- 
+--
 -- For example, C (0) generates: [0, 7, 4, 10, 2] = C, G, E, Bb, D
--- Default n=4 gives root, P5, M3, m7 (dominant 7th chord tones)
+-- Default n=3 gives root, P5, M3 — the distinct pitch classes of the
+-- playable tapped-harmonic domain (sounding partials 1-5: root, root,
+-- fifth, root, third)
 overtoneSeriesFrom :: Int -> PitchClass -> [PitchClass]
 overtoneSeriesFrom n root = take n $ map ((`mod` 12) . (+ root)) [0, 7, 4, 10, 2]
 
@@ -366,7 +368,7 @@ resolveRoots :: Text -> Text -> Text -> [PitchClass]
 resolveRoots overtoneFilter keyFilter rootsFilter
   | T.toLower (T.strip rootsFilter) == "key" = parseKey keyFilter
   | T.toLower (T.strip rootsFilter) == "tones" = 
-      let overtones = parseOvertones' 4 overtoneFilter
+      let overtones = parseOvertones' 3 overtoneFilter
           keyPcs = parseKey keyFilter
       in if isWildcard keyFilter
          then overtones
@@ -413,21 +415,22 @@ parseGeneralToken n token
 -- Shortcut Functions (n=3 default, matching legacy)
 -------------------------------------------------------------------------------
 
--- |Parse tuning with 4 overtones (default: root, P5, M3, m7)
+-- |Parse tuning with 3 overtones (default: root, P5, M3 — the distinct
+-- pitch classes of the playable tapped-harmonic domain)
 parseTuning :: Text -> [PitchClass]
-parseTuning = parseTuning' 4
+parseTuning = parseTuning' 3
 
 -- |Parse key (overtone count not used for keys)
 parseKey :: Text -> [PitchClass]
-parseKey = parseKey' 4
+parseKey = parseKey' 3
 
--- |Parse fundamentals with 4 overtones (default)
+-- |Parse fundamentals with 3 overtones (default)
 parseFunds :: Text -> [PitchClass]
-parseFunds = parseFunds' 4
+parseFunds = parseFunds' 3
 
--- |Parse overtones with 4 overtones (default: root, P5, M3, m7)
+-- |Parse overtones with 3 overtones (default: root, P5, M3)
 parseOvertones :: Text -> [PitchClass]
-parseOvertones = parseOvertones' 4
+parseOvertones = parseOvertones' 3
 
 -------------------------------------------------------------------------------
 -- String-Friendly Versions (for Tidal live coding)
