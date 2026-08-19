@@ -150,7 +150,13 @@ hContext = HarmonicContext "*" "*" "*" Free 0 "" ""
 -- When applied to a HarmonicContext, the generation engine filters the
 -- candidate pool at each step so that only chords with equal or greater
 -- (Dissonant) or equal or lesser (Consonant) dissonance than the current
--- chord are eligible. Free imposes no constraint (default).
+-- chord are preferred. Free imposes no constraint (default).
+--
+-- __Advisory, not hard__: if the drift predicate would empty the pool at a
+-- step, the filter relaxes and that step proceeds unconstrained rather than
+-- reaching an absorbing state ('applyDriftFilter' in Builder.Core). Note the
+-- predicate is 'dissonanceScore' — an evaluation function acting as a
+-- filter, the documented E-inside-R leak (see ARCHITECTURE §2).
 data Drift = Dissonant | Consonant | Free deriving (Show, Eq)
 
 -- |Set overtone filter. Default: @"*"@ (all pitches).
@@ -172,12 +178,14 @@ hcRoots :: String -> HarmonicContext -> HarmonicContext
 hcRoots r ctx = ctx { _hcRoots = T.pack r }
 
 -- |Modify context to trend toward increasing dissonance.
--- Each subsequent chord must have dissonance >= the current chord.
+-- Each subsequent chord should have dissonance >= the current chord;
+-- advisory — relaxes at any step where it would empty the pool.
 dissonant :: HarmonicContext -> HarmonicContext
 dissonant ctx = ctx { _hcDrift = Dissonant }
 
 -- |Modify context to trend toward decreasing dissonance.
--- Each subsequent chord must have dissonance <= the current chord.
+-- Each subsequent chord should have dissonance <= the current chord;
+-- advisory — relaxes at any step where it would empty the pool.
 consonant :: HarmonicContext -> HarmonicContext
 consonant ctx = ctx { _hcDrift = Consonant }
 
@@ -188,6 +196,10 @@ consonant ctx = ctx { _hcDrift = Consonant }
 -- @invSkip 2@ requires at least 2 non-inversions between inversions.
 -- The starting state counts toward the counter (a non-inversion start
 -- means the first generated step may already be an inversion with @invSkip 1@).
+--
+-- __Advisory, not hard__: if excluding inversions would empty the pool at a
+-- step, the spacing constraint relaxes for that step rather than halting
+-- generation.
 invSkip :: Int -> HarmonicContext -> HarmonicContext
 invSkip n ctx = ctx { _hcInversionSpacing = n }
 
@@ -196,6 +208,12 @@ invSkip n ctx = ctx { _hcInversionSpacing = n }
 -- Tokens are note names (@"C"@, @"G#"@, @"Bb"@). A trailing @?@ marks a tone
 -- as preferred rather than required — it is applied when it does not reduce
 -- the candidate pool below a minimum viable size, and relaxed otherwise.
+--
+-- __Advisory at the limit__: the relaxation chain is preferred → required →
+-- unfiltered ('applyPedalFilter' in Builder.Core), so even /required/ tones
+-- are dropped as a last resort at a step where enforcing them would leave no
+-- candidates — generation never reaches an absorbing state through a pedal
+-- constraint.
 --
 -- @hcPedal "C" $ hContext@       — C must appear in every chord
 -- @hcPedal "C G" $ hContext@     — C and G must both appear
@@ -219,15 +237,17 @@ hcTristrata t ctx = ctx { _hcTristrata = T.pack t }
 -------------------------------------------------------------------------------
 
 -- |Configuration for the progression generator.
-data GeneratorConfig = GeneratorConfig
-  { gcPoolSize :: Int  -- ^ Candidate pool size (default 30)
-  } deriving (Show, Eq)
+--
+-- Currently carries no options: the former @gcPoolSize@ field was removed
+-- (2026-08-19) because no generation path ever read it — the candidate pool
+-- is deliberately unlimited (full 660-candidate fallback; see
+-- 'Harmonic.Framework.Builder.Core'). The type is kept so the @genWith@ /
+-- @generateWith@ signatures stay stable for any future option.
+data GeneratorConfig = GeneratorConfig deriving (Show, Eq)
 
 -- |Default configuration.
 defaultConfig :: GeneratorConfig
 defaultConfig = GeneratorConfig
-  { gcPoolSize = 30
-  }
 
 -- |Pre-parsed HarmonicContext for O(1) membership tests.
 -- Computed once per generation run, avoiding repeated text parsing.
@@ -327,7 +347,7 @@ data GenConfig = GenConfig
   { _gcCue         :: IO H.CadenceState  -- ^ Starting state (default: random)
   , _gcLen         :: Int                 -- ^ Number of chords (default: 4)
   , _gcSeek        :: String              -- ^ Composer blend string (default: "*")
-  , _gcEntropy     :: Double              -- ^ Gamma shape parameter (default: 0.2)
+  , _gcEntropy     :: Double              -- ^ Entropy in [0,1]; gamma shape = 1 + e*9 (default: 0.2)
   , _gcTonal       :: HarmonicContext     -- ^ R constraints (default: hContext)
   , _gcVerbosity   :: Verbosity           -- ^ Output level (default: Silent)
   , _gcMode        :: GenMode             -- ^ Generation mode (default: Fresh)

@@ -200,7 +200,9 @@ The Markov module processes the YCACL dataset into a transition matrix: a mappin
 Map CadenceKey [(CadenceKey, Double)]
 ```
 
-When no transitions exist from a current state (an empty row), the system treats this as a self-transition---movement into an identical state. This avoids probability rows that don't sum to 1 and maps to Wiggins' concept of "Hopeless Uninspiration": an empty conceptual space. The solution is acceptable because such states are extremely rare and the user can always manually specify a movement.
+When no transitions exist from a current state (an empty row), the system treats this as a self-transition---movement into an identical state. This avoids probability rows that don't sum to 1. In CSF terms this is a *local dead end in the traversal* --- the walk has nowhere to go from here --- not one of Wiggins' uninspiration modes, which are global properties of the system. (V3 handles the same situation as an explicit "absorbing state" in `Framework/Builder/Core.hs`, and its 660-candidate constructive fallback means the pool is in practice never empty.) The solution is acceptable because such states are extremely rare and the user can always manually specify a movement.
+
+*A note on currency: this section describes the 2018 architecture as published. V3 does not hold a transition matrix in memory --- transition weights are read per-step from Neo4j `[:NEXT]` edges (`Evaluation/Database/Query.hs`), and `Evaluation/Analysis/Markov.hs` survives only on the offline ingestion path.*
 
 ### 4.5 The Overtone Module (Programmatic R)
 
@@ -280,12 +282,12 @@ The Form/Kinetics system (`FormNode`, `Kinetics`, `at`, `formK`) enables multi-s
 
 ### 5.7 Entropy as Creativity Parameter (Gamma Distribution)
 
-The generation engine uses a **gamma distribution** to sample candidate indices from a scored pool. The `entropy` parameter (shape parameter of the gamma distribution) controls the degree of randomness:
+The generation engine uses a **gamma distribution** to sample candidate indices from a scored pool. The `entropy` parameter in [0, 1] is an affine input to the distribution's shape --- `shape = 1.0 + entropy * 9.0` (`Traversal/Probabilistic.hs`) --- so the sampler runs from Gamma(1, 1) to Gamma(10, 1):
 
-- **Low entropy** (0.1--0.3): Samples near the top of the ranked pool, producing conventional, predictable progressions
-- **High entropy** (0.5--1.0): Samples more uniformly, producing unexpected harmonic turns and distant modulations
+- **Low entropy** (0.1--0.3): the distribution peaks at the top of the ranked pool, producing conventional, predictable progressions.
+- **High entropy** (0.5--1.0): the distribution's mode *relocates down the ranking* --- at entropy 1.0 it peaks around index 9 and the top-ranked candidate becomes very unlikely. High entropy is not "more uniform": the sampler stays committed, but to mid-ranked candidates, systematically declining what E rates highest.
 
-This parameter maps directly to the T component of the Creative Systems Framework---it controls *how* the system traverses the conceptual space defined by R.
+This parameter maps directly to the T component of the Creative Systems Framework---it controls *how* the system traverses the conceptual space defined by R. The relocation point matters for the CSF reading: turning entropy up is not neutral extra exploration but a deliberate re-weighting away from the evaluation's preference, which is what makes it musically interesting and why it is a performance dial rather than a set-and-forget constant.
 
 ### 5.8 Composer Blending (Weighted Graph Traversal)
 
@@ -388,11 +390,11 @@ The arc of this research traces a clear progression:
 
 At each stage, the core question remains the same: given the constraints of a physical instrument and the laws of tonal harmony, how can a performer navigate the vast space of harmonic possibility in a way that is both musically satisfying and practically fluent?
 
-The Creative Systems Framework provides the vocabulary for this question. The original manual charts define a valid R but suffer from inadequate T. The 2018 Markov model transforms T while preserving R. The V3 system enriches all three components: R gains key/overtone/root filters with consonance drift; T gains entropy control and composer blending; E gains Hindemith dissonance scoring and cyclic voice leading optimisation.
+The Creative Systems Framework provides the vocabulary for this question. The original manual charts define a valid R but suffer from inadequate T. The 2018 Markov model transforms T while preserving R. The V3 system enriches all three components: R gains key/overtone/root filters with consonance drift; T gains entropy-controlled gamma sampling over the graph walk; E gains composer blending, Hindemith dissonance scoring and (at the whole-progression level) cyclic voice leading optimisation.
 
 ### 8.2 Future Directions
 
-The system's architecture---separating Rules, Evaluation, and Traversal into distinct layers with clean boundaries---supports continued evolution. The graph database can incorporate additional corpora beyond Bach chorales. The overtone annotation system connects the computational output back to the physical instrument. The TidalCycles integration enables performance contexts that the original thesis could not have anticipated.
+The system's architecture---separating Rules, Evaluation, and Traversal into distinct layers with clean boundaries---supports continued evolution. The graph database already holds a multi-composer corpus (the 2018 system's Bach chorales were the seed) and can incorporate further corpora. The overtone annotation system connects the computational output back to the physical instrument. The TidalCycles integration enables performance contexts that the original thesis could not have anticipated.
 
 The fundamental insight persists from the thesis's foreword: "Music requires a human component... analysis comes from music. The purpose of analysis is not to search for any new or innovative musical discovery but to reveal possibilities which can be used in practice, throughout the human creative process of exploration and discovery."
 
@@ -425,8 +427,7 @@ The fundamental insight persists from the thesis's foreword: "Music requires a h
 
 ### Computational Creativity and Live Coding
 
-- Wiggins, G. A. (2001). *Towards a More Precise Characterisation of Creativity in AI*. Department of Computing, City University, London.
-- Wiggins, G. A. (2003). *Categorising Creative Systems*. Centre for Computational Creativity, City University, London.
+- Wiggins, G. A. (2006). *A preliminary framework for description, analysis and comparison of creative systems*. Knowledge-Based Systems 19(7), 449--458. --- The canonical source for the framework and the failure taxonomy used throughout this document. Earlier workshop versions: *Towards a More Precise Characterisation of Creativity in AI* (2001) and *Categorising Creative Systems* (2003), both City University, London.
 - McLean, A. (2007). *Improvising with Synthesised Vocables, with Analysis Towards Computational Creativity*. Goldsmiths College, University of London.
 - Candy, L. (2006). *Practice Based Research: A Guide*. CCS Report 2006-V1.0, University of Technology Sydney.
 
@@ -464,23 +465,25 @@ The complete tuning charts for EAeGB, EAeGC, and EADG are provided as separate P
 
 ## Appendix C: The Creative Systems Framework
 
-Wiggins' Creative Systems Framework describes a creative system as a triple **\<R, T, E\>**:
+Wiggins (2006) describes a creative system as three rule sets **R, T, E** operating over a universe **U** of possible concepts, with the rules written in a language **L**. The three are *rule sets*, not pipeline stages --- the framework's generator consumes all three at once (see `ARCHITECTURE.md` §2 for how V3's step order relates to this):
 
 | Component | Definition | In V3 |
 |-----------|-----------|-------|
-| **R** | Rules defining valid conceptual space | `HarmonicContext`: overtone filters, key, roots, drift, inversion spacing |
-| **T** | Traversal strategy for locating concepts | Gamma-distributed sampling with composer-weighted graph traversal |
-| **E** | Evaluation of concept quality | Hindemith dissonance scoring, Markov transition probabilities |
-| **U** | Universe of possible concepts | All cadence states in the Neo4j graph |
-| **L** | Language for expressing rules | Haskell + TidalCycles mininotation |
+| **R** | Rules defining the valid conceptual space | `HarmonicContext`: overtone filters, key, roots, drift, inversion spacing, pedal |
+| **T** | Traversal strategy for locating concepts | The per-step graph walk plus gamma-distributed sampling under the entropy parameter |
+| **E** | Evaluation of concept quality | Composer-weighted edge probabilities, Hindemith dissonance scoring; voice-leading cost at the whole-progression level |
+| **U** | Universe of all possible concepts | Every expressible cadence --- any root motion paired with any chord structure over the twelve pitch classes. Not the Neo4j graph: the graph is the corpus E draws its weights from, and the constructive fallback generates valid candidates the corpus never recorded |
+| **L** | Language for expressing rules | The filter-string mini-language of `Rules/Constraints/Filter.hs` (`"0#"`, `"C F G"`, `"C G?"`, `rise`/`fall`), in which every R constraint is written |
 
-Wiggins identifies several failure modes:
+Getting U right matters: if U were the graph, everything in it would be valid by construction, R would have nothing to exclude, and rule-breaking output would be impossible by definition rather than by design.
 
-- **Generative Uninspiration**: T cannot locate valued concepts within a sound R (the original manual algorithm's limitation)
-- **Conceptual Uninspiration**: E cannot select valued concepts within the space defined by R
-- **Hopeless Uninspiration**: R defines an empty conceptual space
+Wiggins identifies three failure modes, each with its own remedy:
 
-The V3 system addresses all three: the probabilistic traversal resolves Generative Uninspiration; entropy control and composer blending refine Conceptual evaluation; and filter validation prevents empty R spaces.
+- **Generative Uninspiration**: R and E are sound, but T never reaches the concepts E would value. The mild, recoverable case --- remedy: transform T. This was the original manual algorithm's failure, and its resolution is what the 2018 and V3 systems *are*.
+- **Conceptual Uninspiration**: nothing inside the space R admits is valued --- rules and taste have come apart. No amount of better traversal helps; the remedy is to transform R.
+- **Hopeless Uninspiration**: nothing anywhere in U is valued. Unfixable from inside the system --- no change to R or T can help, because every possible output already fails E.
+
+V3 is the systematic resolution of the *generative* case, and claims no more than that: entropy and composer blending are T- and E-refinements within a space whose rules the performer still curates by hand. Wiggins also names **aberration** --- output that violates R --- and its productive form, where rule-breaking output is valued anyway and becomes the mechanism by which R legitimately changes. V3's R is enforced as a pre-scoring filter, so the generator cannot aberrate; the human input path (`lead`) is where that happens. `ARCHITECTURE.md` §2 covers this in full.
 
 ## Appendix D: Pitch Class Algebra (Z12)
 

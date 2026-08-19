@@ -156,6 +156,86 @@ setCC c n val = once $ control (val) #io n c where io n c = (midi #midicmd "cont
 ped = cc 64
 vel = pF "amp"
 
+-------------------------------------------------------------------------------
+-- Continuo voice (ch 7) — the plucked/keyboard colour
+--
+-- The orchestra is a fixed, deliberate configuration. The one permitted
+-- variation is the ch-7 continuo voice, which may be sounded as any pitched
+-- polyphonic plucked / keyboard / mallet / choral colour.
+--
+-- Set ONCE per movement, in the launcher's mapM_ list — never hot-swapped
+-- mid-flow. `setContinuo` is IO (), so it sits alongside `hush` and `setbpm`:
+--
+--   mapM_ id [hush, setbpm tempo
+--     , setContinuo harpsichordV        -- Baroque continuo
+--     , strg f k  $ d 0.8
+--     ]
+--
+-- The JV-1010 selects a patch with Bank Select (CC0 msb / CC32 lsb) followed
+-- by a Program Change, so a continuo voice carries its full bank address. Quote
+-- Orchestral-card numbers straight off Roland's 001-255 listing via `orch`;
+-- reach the internal sets with `presetA` / `presetB`.
+-------------------------------------------------------------------------------
+
+-- Bank select (msb, lsb) + program change on one channel; fires once.
+:{
+progSel :: Int -> Int -> Int -> Int -> IO ()
+progSel c msb lsb pc = mapM_ id
+  [ setCC (fromIntegral c) 0  (fromIntegral msb)
+  , setCC (fromIntegral c) 32 (fromIntegral lsb)
+  , once $ midicmd "program" #progNum (fromIntegral pc) #ch (fromIntegral c)
+  ]
+:}
+
+-- A continuo voice is a full bank address: (bank msb, bank lsb, program 0-127).
+-- Carrying the bank means any card or internal set is reachable, not just
+-- the Orchestral board.
+type ContinuoVoice = (Int, Int, Int)
+
+:{
+setContinuo :: ContinuoVoice -> IO ()
+setContinuo (msb, lsb, pc) = progSel 7 msb lsb pc
+:}
+
+-- Bank addressing. JV-1010 preset banks are msb 81 / lsb 0-1; expansion
+-- cards continue the lsb series.
+-- TODO confirm orchLSB on the device; adjust if the voice lands wrong.
+:{
+orchMSB, orchLSB :: Int
+orchMSB = 81
+orchLSB = 32
+:}
+
+-- Orchestral-card patch n, quoted straight off Roland's 001-255 listing
+-- (it spans two 128-patch sub-banks, so the arithmetic is done here).
+:{
+orch :: Int -> ContinuoVoice
+orch n = (orchMSB, orchLSB + ((n - 1) `div` 128), (n - 1) `mod` 128)
+:}
+
+-- Internal preset banks, patch n numbered 1-128 as printed.
+:{
+presetA, presetB :: Int -> ContinuoVoice
+presetA n = (81, 0, n - 1)
+presetB n = (81, 1, n - 1)
+:}
+
+-- Named continuo voices. SR-JV80-02 Orchestral unless noted.
+:{
+harpV, harpPluckedV, harpsichordV, pianoV, celestaV, glockenV, tubularV, choirV, guitarV, organV :: ContinuoVoice
+harpV        = orch 186   -- Harp 1        (default: Orpheus's lyre)
+harpPluckedV = orch 188   -- Plucked Harp
+harpsichordV = orch 196   -- Harpsichord1  (Baroque continuo)
+pianoV       = orch 192   -- ClasclPiano1
+celestaV     = orch 200   -- Celesta 1
+glockenV     = orch 211   -- Glocken 1
+tubularV     = orch 216   -- TubulaBells1
+choirV       = orch 227   -- Choir 1
+guitarV      = orch 185   -- Classical Gt
+organV       = presetA 18 -- church/pipe organ from the internal set
+                          -- TODO confirm patch number on the device
+:}
+
 allNotesOff = setCC "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]" "[123,64]" 0
 subPedalOff = setCC "10" "64" 0
 launch' = launch >> subPedalOff
@@ -583,6 +663,29 @@ infixl 4 >:<
 :{
 mirror :: Int -> Pattern Int -> Pattern Int
 mirror axis = fmap (\d -> 2 * axis - d)
+:}
+
+-- Retrograde over a SPAN, not a cycle.
+--
+-- Tidal's `rev` reverses within each cycle. One cycle here is one beat, so a
+-- motif written the house way (`"[0 3 1 2 …]/4"`, a bar) spans four cycles —
+-- and `rev` on it reverses each beat in place, leaving the phrase order
+-- untouched. That reads as "rev did nothing" and is easy to ship by mistake.
+--
+-- `retro` reverses a whole bar; `retroN n` reverses over n cycles, for motifs
+-- longer or shorter than a bar.
+--
+--   rev    contour   -- each beat reversed; phrase intact
+--   retro  contour   -- true phrase retrograde
+--   retroN 8 motif   -- retrograde a two-bar phrase
+:{
+retroN :: Pattern Time -> Pattern a -> Pattern a
+retroN n = slow n . rev . fast n
+:}
+
+:{
+retro :: Pattern a -> Pattern a
+retro = retroN 4    -- one bar (4 cycles), matching Form.beatsPerBar
 :}
 
 -- Preloaded motif slots (rhythm / contour / motif, with ' and '' tiers).

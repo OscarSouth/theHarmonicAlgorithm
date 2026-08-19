@@ -61,6 +61,68 @@
     '''
 
 
+  'suite movement (full skeleton)':
+    'prefix': 'movement'
+    'body': '''
+      -- ============================================================================
+      -- $1
+      -- $2
+      -- ============================================================================
+      --
+      -- Super-structure position: $3
+      --
+      -- Programme note.
+      --
+      -- Adaptation: what this reimagination does differently.
+      -- ============================================================================
+
+      tempo = $4
+
+      start <- lead "$5"
+
+      let ctx = hcKey "$6"
+              $ hContext
+
+      s <- seek "$7" $ cue start $ tonal ctx $ len 8 $ entropy 0.25 $ attempt 2 6 $ gen
+
+      -- Form: ~370s loop (360s music + 10s silence)
+      -- Arc: opening -> development -> peak -> close
+      -- rh = bars (metrical) · at = seconds (narrative);  ' = snap, else smooth
+      form =
+        [ rh    0    0.0   0.0   s
+        , rh    2    0.5   0.5   s     -- opening
+        , rh  162    0.0   0.0   s
+        , rh  166    0.0   0.0   s     -- gap
+        ]
+
+      -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+      -- $8: one line on what this section does
+      $8 f k d = p "$8" $ do
+        let vl = voiceLines {_vl = "~"
+              , soprano = "[3 2 1 0]/4"
+              }
+        f
+          $ stack [silence
+              , $9 T (0, 1) k vl flow Soprano
+          ] |* vel d
+
+      -- ── LAUNCHER ────────────────────────────────────────────
+
+      do
+        let
+          f = id
+          d = (* 1)
+          k = iK tempo form (warp "[1 2 3 4]/4")
+        putStrLn "$1"
+        mapM_ id [hush, setbpm tempo
+          ,$8 f k  $ d 0.85
+          ]
+
+      hush''
+    '''
+
+
   # ── Generation ────────────────────────────────────────────
 
   'lead':
@@ -286,7 +348,7 @@
     'prefix': 'motif'
     'body': '''
       (rhythm, contour, motif) =
-        ( "[$11]/4"
+        ( "[${1}1]/4"
         , "[0]/4"
         , rhythm >:< contour
         ) :: (Pattern Bool, Pattern Int, Pattern Int)
@@ -297,7 +359,7 @@
     'prefix': 'develop'
     'body': '''
       -- motivic development — apply to a contour or motif:
-      --   rev contour          retrograde
+      --   retro contour        retrograde (whole bar; rev = per cycle)
       --   mirror $1 contour     inversion about degree $1
       --   slow 2 motif          augmentation      fast 2 motif   diminution
       --   contour |+ $2         transposition

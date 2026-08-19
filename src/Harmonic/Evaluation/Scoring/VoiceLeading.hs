@@ -4,8 +4,11 @@
 -- Module      : Harmonic.Evaluation.Scoring.VoiceLeading
 -- Description : Cyclic DP voice leading optimization
 -- 
--- This module implements the Traversal (T) component of the Creative Systems
--- Framework. Voice leading determines HOW we move through harmonic space.
+-- Part of the Evaluation (E) component of the Creative Systems Framework:
+-- voice-leading cost scores the quality of movement between sonorities. It
+-- does not run in the per-step generation loop — it enters evaluation at the
+-- whole-progression level ("Harmonic.Evaluation.Scoring.Progression", used
+-- by @attempt@) and is applied by the Tidal Arranger when realising voicings.
 --
 -- KEY DESIGN DECISIONS:
 --

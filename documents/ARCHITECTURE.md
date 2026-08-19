@@ -12,16 +12,18 @@ newer subsystems, [OCTATRIPENTATONICS.md](OCTATRIPENTATONICS.md) and
 ## 1. Overview
 
 theHarmonicAlgorithm generates harmonic progressions from transitions
-learned across 80+ composers of the Yale Classical Archives Corpus
+learned across 460+ composers of the Yale Classical Archives Corpus
 (YCACL), and plays them through TidalCycles. Generation:
 
 1. Cadence transitions are stored in Neo4j as a weighted graph.
 2. Harmonic constraints define what is *valid* (overtones, key, roots,
    pedal tones, drift, inversion spacing).
-3. Candidates are scored — corpus weight, dissonance, voice leading.
+3. Candidates are scored — corpus weight and dissonance per step;
+   voice-leading cost at progression scoring and arrangement.
 4. The next chord is sampled probabilistically, entropy controlling how
    far down the ranking the sampler will reach.
-5. The result is arranged into TidalCycles patterns.
+5. The result is arranged into TidalCycles patterns (this is where
+   cyclic-DP voicing runs).
 
 ```
                  R→E→T GENERATION PIPELINE
@@ -37,14 +39,12 @@ learned across 80+ composers of the Yale Classical Archives Corpus
                       ▼
   ┌───────────────────────────────────────────┐
   │ E: EVALUATION — score the valid           │
-  │   graph weight · dissonance ·             │
-  │   voice-leading cost                      │
+  │   graph weight · dissonance               │
   └───────────────────┬───────────────────────┘
                       ▼
   ┌───────────────────────────────────────────┐
   │ T: TRAVERSAL — choose                     │
-  │   gamma sampling (entropy) ·              │
-  │   cyclic-DP voicing                       │
+  │   gamma sampling (entropy)                │
   └───────────────────┬───────────────────────┘
                       ▼
   Output state (next chord) → appended, then repeat
@@ -55,8 +55,9 @@ learned across 80+ composers of the Yale Classical Archives Corpus
 1. **The Harmonic Algorithm** — the generative engine described here:
    an R→E→T pipeline whose ancestry runs from an exhaustive
    combinatorial mapping of overtone triads (2016), through a diagnosis
-   under Wiggins' Creative Systems Framework (2018), to a Markov walk
-   over a Neo4j graph with gamma-distribution sampling (V3).
+   under Wiggins' Creative Systems Framework (Wiggins 2006; the
+   diagnosis made in the 2018 paper), to a Markov walk over a Neo4j
+   graph with gamma-distribution sampling (V3).
 2. **Algorithmic Orchestration** — scoring for a virtual orchestra
    through TidalCycles, with musical elements abstracted into harmony,
    form and instrument interfaces. See
@@ -76,13 +77,80 @@ generation as three separable components:
 | Component | Question | In this system |
 |---|---|---|
 | **Rules (R)** | What is *valid*? | Constraint filters over pitch-class sets, chord structures and root motion |
-| **Evaluation (E)** | Which valid things are *good*? | Corpus edge weights, Hindemith dissonance, voice-leading cost |
-| **Traversal (T)** | Which one do we *take*? | Gamma-distribution sampling under an entropy parameter |
+| **Evaluation (E)** | Which valid things are *good*? | Corpus edge weights and Hindemith dissonance per step; voice-leading cost at the whole-progression level (`attempt`) and in the Arranger |
+| **Traversal (T)** | Which one do we *take*? | The per-step graph walk, sampled by a gamma distribution under an entropy parameter |
 
 The separation is the point. Mixing constraint and preference makes a
 system brittle; keeping them apart means the same R can be traversed
 differently (change entropy, change nothing else), and a new E can be
 dropped in without touching what counts as valid.
+
+### What the pipeline order actually is
+
+In Wiggins' formalism R, E and T are three *rule sets*, and the
+generator consumes all three at once — no stage ordering is implied by
+the framework. "R→E→T" here is the *reading order of the simplest
+step*: for plain `gen` with overtone/key/roots filters, one step of
+`stepChainBody` (`Framework/Builder/Core.hs`) literally filters, then
+scores, then samples. The full system deviates from that order in four
+designed ways, and it is more useful to know them than to pretend the
+arrow is an invariant:
+
+1. **Soft constraints filter after scoring.** `drift`, `invSkip` and
+   pedal preference run over the *scored* pool (`Core.hs` step body),
+   so their path is R→E→R→T — and all three relax to the unfiltered
+   pool rather than emptying it, making them advisory rather than hard
+   R (the overtone/key/roots core is hard).
+2. **The fallback fuses E and T.** The 660-candidate constructive
+   fallback's score includes a small gamma perturbation
+   (`computeFallbackScoreWithBoost`), deliberately breaking score ties
+   so the pool needs no size cap. A little T lives inside that E.
+3. **`genP` runs T first.** The strata walk is computed for the whole
+   progression up front and then *defines* per-bar R and biases E —
+   T→R→E→T. (`OCTATRIPENTATONICS.md` describes the per-bar layer;
+   this is the step before it.)
+4. **`attempt N K` runs E after T.** Whole progressions are generated,
+   then scored by a second, differently-weighted evaluation
+   (`Evaluation/Scoring/Progression.hs` — the only place voice-leading
+   cost enters evaluation) and the best is kept: (R→E→T)ⁿ → E.
+
+None of these breaks the framework — they are what "T consults R and E"
+looks like in a real system. What the separation guarantees is not a
+fixed stage order but that each rule set can be changed without
+rewriting the others.
+
+### Aberration, and why this generator cannot do it
+
+Wiggins requires E to be *independent* of R: if taste can only approve
+what the rules already permit, no rule-breaking output can ever be
+valued, and the rules can never legitimately change. Output that
+violates R is **aberration**; aberration that E values anyway is
+*productive*, and it is the one mechanism by which R gets rewritten.
+
+In this codebase R is enforced as a pre-scoring filter over both
+candidate sources, so the generator structurally cannot aberrate — it
+will never offer a chord outside its own rules. The aberration channel
+is human: `lead` (`Interface/Tidal/Arranger.hs`) takes no
+`HarmonicContext` and validates nothing, so a hand-typed chord enters
+the progression regardless of the active rules; `genFrom`, splicing and
+`genGrid` likewise move material without re-validation. Every widening
+of R in this project's history has come through that channel. One
+narrow, deliberate exception exists inside the generator itself: with
+`rise`/`fall` active, the targeted bass pitch class is exempted from
+the overtone check (`Core.hs`, `matchesContextWithTarget`) to allow
+chromatic passing bass notes — a designed crack in R, kept small on
+purpose.
+
+The channel stays open but is no longer silent: when a Fresh or grid
+generation's starting state escapes the active context, a one-line
+non-fatal notice is printed at emission time
+(`printCueEscapeNotice`, `Builder.hs`) — `⚠ cue escapes R: contains F#
+A# C# outside the key/overtone set` — once per invocation, including
+under `attempt`. The cue is honoured regardless; the notice makes the
+aberration visible at the moment it happens. Relatedly, the diagnostic
+trace's *Candidates* line lists only chords present in the final
+sampled pool — a chord excluded by R or by an advisory filter at that
+step is never displayed as if it had been available.
 
 | Layer | Modules | Responsibility |
 |---|---|---|
@@ -341,7 +409,7 @@ resolve `r.weights` against the caller's composer blend — `"*"` sums
 across the corpus, a name selects one, `"bach:30 debussy:70"` mixes with
 those coefficients.
 
-**Corpus**: Yale Classical Archives Corpus, 80+ composers. Ingestion
+**Corpus**: Yale Classical Archives Corpus, 460+ composers. Ingestion
 extracts the fundamental of each slice, generates the most consonant
 triad interpretations, weights them, and cross-multiplies adjacent
 slices into transitions. `Analysis/Markov.hs` normalises counts into
@@ -402,7 +470,13 @@ before returning a pattern, keeping lazy evaluation from deferring work
 into the moment a note is due.
 
 **Separation of validity from preference.** The R→E→T split (Section 2)
-is applied consistently: filters never rank, scorers never exclude.
+is the design ideal: filters do not rank, scorers do not exclude. Two
+known, deliberate leaks cross it — `applyDriftFilter` excludes using a
+dissonance score (an E function acting as a filter), and the composer
+blend drops zero-weight transitions (a scorer acting as a filter,
+because a move a composer never made is absent, not merely unfavoured).
+Both are documented rather than hidden; anything new should hold the
+line.
 
 ---
 
@@ -415,7 +489,7 @@ is applied consistently: filters never rank, scorers never exclude.
 | **Chord** | An absolute sonority: root plus intervals |
 | **Confidence** | Per-edge weight stored on `:NEXT`, derived from corpus transition counts |
 | **Drift** | Constraint on dissonance direction across a progression (`consonant`/`dissonant`) |
-| **Entropy** | Shape parameter of the gamma sampler; how far down the ranking traversal reaches |
+| **Entropy** | Dial in [0, 1] mapped affinely to the gamma sampler's shape (`1 + entropy·9`); how far down the ranking traversal reaches |
 | **Form node** | A timed point carrying kinetics, dynamics and a progression |
 | **Kinetics** | Continuous 0–1 intensity signal driving range-gated arrangement |
 | **Layer (T/S/M)** | Triad, strata or mode density of one progression context |

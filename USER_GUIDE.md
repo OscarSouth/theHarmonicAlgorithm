@@ -732,12 +732,37 @@ Primed tiers (`rhythm'`, `contour''`, …) fall back to BootTidal defaults. Bloc
 
 | Development | Tool | Example |
 |---|---|---|
-| Retrograde | `rev` | `rev contour` |
+| Retrograde | `retro` / `retroN` | `retro contour` |
 | Inversion | `mirror axis` | `mirror 3 contour` |
 | Augmentation / diminution | `slow` / `fast` | `slow 2 motif` |
 | Transposition | `\|+` / `\|-` | `contour \|+ 2` |
 | Rotation | `<~` / `~>` | `"<0 1>" <~ rhythm` |
 | Combination | `struct` / `>:<` | `rhythm >:< contour` |
+
+**Scope: Tidal's transforms work on the cycle, not the bar.** One cycle is one
+beat, so a bar-length figure carries `/4` and spans four cycles. Tidal's `rev`
+then reverses each beat on its own and leaves the phrase intact — which reads
+as though it did nothing. `retro` is provided for this: it reverses the whole
+bar, and `retroN n` reverses over `n` cycles for longer or shorter phrases.
+
+```tidal
+rev    contour   -- each beat reversed; phrase order unchanged
+retro  contour   -- true phrase retrograde  (retro . retro = id)
+retroN 8 motif   -- retrograde a two-bar phrase
+```
+
+Rotation has the same trap: `~>` shifts in cycles, so shifting a figure by a
+multiple of its own period is a silent no-op — rotating `"[3 2 0 1]*4"`
+(period ¼ cycle) by ¼ lands back on itself. Rotate bar-scoped material
+instead: `0.5 ~> contour` gives a canon at the half-beat.
+
+When checking a development, note that `queryArc` returns events in **query
+order, not time order**. Inspect with the start time attached, or sort first —
+otherwise a perfectly good `rev` reads as a no-op:
+
+```tidal
+[ (wholeStart e, value e) | e <- queryArc (rev contour) (Arc 0 1) ]
+```
 
 **How** — a contour is voicing-index degrees, so it re-realises against whatever chord is sounding; restate an idea at a new pitch by transposing the *harmony* beneath a fixed contour. `mirror axis d = 2*axis - d`.
 
@@ -816,7 +841,7 @@ None is "more correct" — they trade immediacy against decidedness. A performan
 
 | Group | Prefixes |
 |---|---|
-| Session | `transport` · `state` |
+| Session | `transport` · `state` · `movement` |
 | Generation | `lead` · `ctx` · `gen` · `formless` · `dance` |
 | Launchers | `launch` · `p` · `rrange` · `slate` · `minimal` · `deeptech` |
 | Groove & lines | `subk` · `walk` |
@@ -896,7 +921,7 @@ arrange' (lo,hi) k (-9,9) LAYER voicing modifier [patterns] # ch N   -- squeeze 
 
 **Explicit** — `fromChords [[0,4,7], …]`; `prog (notesToPCs <$> [[C,E,G], …])`; `fromCadenceStates [initCadenceState mov "Root" [ints], …]`.
 
-**Snippets (Pulsar)** — `transport` · `state` · `lead` · `ctx` · `gen` · `formless` · `dance` · `launch` · `p` · `rrange` · `slate` · `minimal` · `deeptech` · `subk` · `walk` · `mpanel` · `motif` · `develop` · `cc` · `disp`.
+**Snippets (Pulsar)** — `transport` · `state` · `movement` · `lead` · `ctx` · `gen` · `formless` · `dance` · `launch` · `p` · `rrange` · `slate` · `minimal` · `deeptech` · `subk` · `walk` · `mpanel` · `motif` · `develop` · `cc` · `disp`.
 
 ___
 

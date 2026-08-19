@@ -151,7 +151,10 @@ from given the previous bar's assignment and the `hcTristrata` allow-list:
 ### `genP` paradigm (`Harmonic.Framework.Builder`) — filter over R→E→T
 
 `genP` is **a per-bar filter layer over the existing R→E→T pipeline**, not
-a parallel generator. Each bar:
+a parallel generator — though note the whole strata walk is itself a
+traversal, computed up front before any bar generates, which then *defines*
+each bar's R (see `ARCHITECTURE.md` §2 on pipeline-order deviations). Each
+bar:
 
 1. The strata walk picks `(s_i, t_i)` via `Strata.initialPlacement` +
    `Strata.allowedNext`/`Strata.selectNext`, optionally narrowed by

@@ -17,11 +17,11 @@
 --
 -- == Design
 --
--- The Creative Systems Framework mapping:
---
---   * R (Rules) = The type system itself constrains valid pitch operations
---   * T (Traversal) = Transpose operation as group action
---   * E (Evaluation) = Interval measurement for dissonance\/voice-leading
+-- This module sits in the Rules (R) layer: the ℤ₁₂ algebra is part of the
+-- language the system's validity rules are written in. (R, E and T describe
+-- the creative system as a whole, not individual types — transposition and
+-- interval measurement here are algebra, and become traversal or evaluation
+-- only in the layers that use them for those purposes.)
 --
 -- Pitch classes are elements of ℤ₁₂, the integers modulo 12:
 --

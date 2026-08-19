@@ -73,7 +73,7 @@ import           Harmonic.Framework.Builder.Diagnostics (computeChordTrace)
 -- Simplified algorithm:
 --   1. Start from initial CadenceState
 --   2. For each step: build candidate pool, gamma-select next
---   3. Pool = filtered graph transitions + consonanceFallback (up to poolSize)
+--   3. Pool = filtered graph transitions + consonanceFallback (unlimited)
 buildChain :: GeneratorConfig
            -> GenIO            -- ^ Shared random generator
            -> Double           -- ^ Entropy [0,1]
@@ -165,6 +165,14 @@ stepChainBody _config gen mVerbosity ent _context pctx composerWeights ((current
 
   -- Build candidate pool: graph candidates + consonanceFallback
   -- NO POOL SIZE LIMIT - use full 660-candidate fallback generation
+  --
+  -- The fallback is computed UNCONDITIONALLY every step, by design: that is
+  -- what guarantees backfill is always present when graphCount is small
+  -- (conditional computation was tried and proved fragile). Online, with a
+  -- typical graphCount of 20-60, the fallback segment of the stacked
+  -- ranking is effectively unreachable by the gamma draw — the cost is a
+  -- ~660-candidate score-and-sort per step, negligible next to the per-step
+  -- Neo4j round-trip. Offline the fallback IS the pool. Keep unconditional.
   fallbackAll <- consonanceFallbackParsed gen current pctx
   -- Apply R constraints to fallback candidates (same as graph candidates)
   let unfilteredFallback = [(cad, score) | (cad, score, _, _, _) <- fallbackAll]
@@ -238,9 +246,22 @@ stepChainBody _config gen mVerbosity ent _context pctx composerWeights ((current
           diags = case mVerbosity of
             Nothing -> revDiags
             Just verbosity ->
-              let selectedFrom = if idx < graphCount then "graph" else "fallback"
-                  graphTop6 = take 6 [(show cad, conf) | (cad, conf) <- graphCandidates]
-                  fallbackTop6' = take 6 [(show cad, score, cd, md, gd) | (cad, score, cd, md, gd) <- fallbackAll]
+              -- Candidates display: only chords actually present in finalPool
+              -- (the list the gamma index sampled), so the trace never shows
+              -- a chord that R or the advisory filters excluded this step.
+              -- Membership by rendered form — Cadence has no Eq, and equal
+              -- shows denote the same sonority. Provenance likewise: a
+              -- selection is "graph" iff the chord exists among the graph
+              -- candidates (indexing against the pre-filter graphCount
+              -- mislabels whenever a soft filter shrank the graph segment).
+              let finalShows = map (show . fst) finalPool
+                  graphShows = map (show . fst) graphCandidates
+                  selectedFrom = if show nextCadence `elem` graphShows
+                                   then "graph" else "fallback"
+                  graphTop6 = take 6 [(s', conf) | (cad, conf) <- graphCandidates
+                                                 , let s' = show cad, s' `elem` finalShows]
+                  fallbackTop6' = take 6 [(s', score, cd, md, gd) | (cad, score, cd, md, gd) <- fallbackAll
+                                                                  , let s' = show cad, s' `elem` finalShows]
                   (renderedChord, transformTrace) = computeChordTrace verbosity newState
                   priorRoot = H.stateCadenceRoot current
                   priorRootPC = P.unPitchClass (P.pitchClass priorRoot)
@@ -556,15 +577,17 @@ consonanceFallbackParsed :: GenIO -> H.CadenceState -> ParsedContext -> IO [(H.C
 consonanceFallbackParsed gen currentState pctx =
   let currentRoot = P.pitchClass (H.stateCadenceRoot currentState)
       effectiveOvertones = IntSet.toList (pcEffectiveOvertones pctx)
+      -- No dedup needed: overtoneSets emits distinct nCr combinations per
+      -- root and each triad's head is its root, so the list is duplicate-free
+      -- by construction.
       triads = concatMap (\r -> overtoneSets 3 [r] effectiveOvertones) effectiveOvertones
-      uniqueTriads = triads
       boost = pcSoftBoost pctx
   in do
       results <- mapM (\t -> do
                          let cad = triadToCadenceFrom currentRoot t
                          (score, cd, md, gd) <- computeFallbackScoreWithBoost gen currentRoot cad t boost
                          pure (cad, score, cd, md, gd)
-                       ) uniqueTriads
+                       ) triads
       pure $ sortBy (compare `on` (\(_, s, _, _, _) -> Down s)) results
 
 -- |Convert a triad (list of pitch classes) to a Cadence with movement from current root.
@@ -589,18 +612,26 @@ triadToCadenceFrom currentRoot pitches =
 -- Fallback Scoring
 -------------------------------------------------------------------------------
 
--- |Compute multiplicative fallback score with entropy-based randomness.
+-- |Compute multiplicative fallback score with stochastic perturbation.
 -- Formula: badness = rootMotionDiss × structureDiss × (gammaDraw + 1)
 --          score = 10000 - badness
 --
 -- Chord dissonance range: 6 (major/minor triad) to ~50 (dense cluster)
 -- Root motion range: 1 (P5/P4) to 6 (tritone)
--- Gamma draw range: ~0.0-5.0 (minimum entropy, shape=1.01)
+-- Gamma draw range: mostly ~0-3, occasionally larger (fixed shape=1.01,
+-- near-exponential)
 --
 -- The multiplicative formula spreads scores organically based on:
 --   * Root motion quality (smooth vs rough)
 --   * Vertical consonance (simple vs complex)
 --   * Stochastic perturbation (via gamma draw)
+--
+-- The gamma draw is DELIBERATE tie-breaking noise and is independent of
+-- '_gcEntropy' by design: the entropy dial acts at selection time
+-- ('gammaIndexScaledWith' over the ranked pool), not at scoring time. A
+-- consequence to know about: the fallback ranking is stochastic per step
+-- even at entropy 0.0, so offline generation retains run-to-run variety at
+-- the deterministic end of the dial.
 --
 -- This prevents score clustering and eliminates the need for pool size limits.
 -- Returns IO (finalScore, chordDiss, motionDiss, gammaDraw)

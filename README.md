@@ -26,15 +26,15 @@ in performance and composition, utilising the overtones of the instrument.
 The Harmonic Algorithm takes the underpinning theoretical ideas from this
 research and realises them as a Haskell library with deep TidalCycles
 integration for live coding. Under the hood, harmonic transitions from over
-80 composers are stored in a Neo4j graph database. The system learns how
+460 composers are stored in a Neo4j graph database. The system learns how
 harmony moves — not just what chords exist, but how they lead into one
 another — and uses this knowledge to generate progressions that feel
 musically coherent while remaining endlessly surprising.
 
 The core idea draws on Geraint Wiggins' Creative Systems Framework: define
 the *rules* of what's harmonically possible, *evaluate* the quality of each
-option using voice leading and dissonance scoring, then *traverse* the space
-probabilistically — balancing between the familiar and the unexpected.
+option using corpus statistics and dissonance scoring, then *traverse* the
+space probabilistically — balancing between the familiar and the unexpected.
 
 The project is built around four principles:
 
@@ -223,7 +223,7 @@ You can also explore in the REPL with `stack ghci`.
 
 ### 2. Add the composer graph
 
-The graph holds harmonic transitions learned from 80+ composers. Start
+The graph holds harmonic transitions learned from 460+ composers. Start
 Neo4j, then load the pre-built database published with the
 [latest release](https://github.com/OscarSouth/theHarmonicAlgorithm/releases):
 

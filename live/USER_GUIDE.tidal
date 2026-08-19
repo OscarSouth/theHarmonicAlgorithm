@@ -1094,9 +1094,32 @@ s <- seek "*" $ cue start $ tonal (hcKey "0#" $ hContext) $ len 4 $ entropy 0.5 
   ) :: (Pattern Bool, Pattern Int, Pattern Int)
 
 -- The classic developments are just Tidal, plus mirror / >:< :
---   rev contour         retrograde      mirror 3 contour  inversion (axis 3)
+--   retro contour       retrograde      mirror 3 contour  inversion (axis 3)
 --   slow 2 motif        augmentation    fast 2 motif      diminution
 --   contour |+ 2        transposition   "<0 1>" <~ rhythm rotation
+--
+-- ── SCOPE: cycle vs bar ──
+-- These transforms work on the CYCLE. One cycle is one beat here, so a
+-- bar-length figure carries `/4` and spans four cycles — and Tidal's `rev`
+-- then reverses each beat on its own rather than retrograding the phrase.
+-- `retro` is provided for this (BootTidal, beside `mirror`):
+--
+--   rev    contour   -- each beat reversed; phrase order unchanged
+--   retro  contour   -- true phrase retrograde  (retro . retro = id)
+--   retroN 8 motif   -- retrograde over n cycles (here, two bars)
+--
+-- The same caveat applies to rotation. `~>` shifts in cycles, so shifting a
+-- figure by a multiple of its own period is a silent no-op — rotating
+-- `"[3 2 0 1]*4"` (period 1/4 cycle) by 1/4 lands back on itself. Rotate
+-- bar-scoped material, or shift by a fraction of the period:
+--
+--   0.5 ~> contour                      -- canon at the half-beat
+--
+-- Check a development before trusting it. Note that `queryArc` returns
+-- events in query order, NOT time order, so inspect with the start time
+-- attached or sort first — otherwise a working `rev` looks like a no-op:
+--
+--   [ (wholeStart e, value e) | e <- queryArc (rev contour) (Arc 0 1) ]
 
 p01mot f k d = d01 $ do
   let o = ch 01
@@ -1232,7 +1255,8 @@ hush
 -- open from a state file, develop by snippet, end blank-page.
 --
 -- ── THE PREFIX INDEX (live/snippets.cson) ──
---   session      transport · state (a full launch block)
+--   session      transport · state (a full launch block) ·
+--                movement (a full suite-movement skeleton)
 --   generation   lead · ctx · gen · formless · dance
 --   launcher     launch · p · rrange · slate · minimal · deeptech
 --   groove/lines subk · walk

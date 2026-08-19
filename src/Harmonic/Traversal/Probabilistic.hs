@@ -67,11 +67,11 @@ gammaIndex shape maxIndex = do
   pure $ max 0 (min idx maxIndex)
 
 -- |Draw an index scaled for entropy in [0, 1] range.
--- 
--- Maps entropy to gamma shape parameter:
---   entropy = 0.0 -> shape = 1.0 (strongly peaked at index 0)
---   entropy = 0.5 -> shape = 3.0 (moderate spread)
---   entropy = 1.0 -> shape = 5.0 (spread toward higher indices)
+--
+-- Maps entropy to gamma shape parameter (shape = 1 + entropy * 9):
+--   entropy = 0.0 -> shape =  1.0 (strongly peaked at index 0)
+--   entropy = 0.5 -> shape =  5.5 (moderate spread)
+--   entropy = 1.0 -> shape = 10.0 (spread toward higher indices)
 --
 -- The index is clamped to [0, poolSize-1].
 -- This is the primary selection function for the redesigned algorithm.
@@ -81,7 +81,7 @@ gammaIndexScaled :: Double  -- ^ Entropy in [0, 1] range
 gammaIndexScaled entropy poolSize = do
   rng <- createSystemRandom
   let clampedEntropy = max 0.0 (min 1.0 entropy)
-      shape = 1.0 + clampedEntropy * 9.0  -- Maps [0,1] -> [1,5]
+      shape = 1.0 + clampedEntropy * 9.0  -- Maps [0,1] -> [1,10]
       safeShape = max 0.01 shape
   x <- Dist.gamma safeShape 1.0 rng
   let idx = floor x
@@ -96,7 +96,7 @@ gammaIndexScaledWith :: GenIO    -- ^ Shared random generator
                      -> IO Int
 gammaIndexScaledWith gen entropy poolSize = do
   let clampedEntropy = max 0.0 (min 1.0 entropy)
-      shape = 1.0 + clampedEntropy * 9.0  -- Maps [0,1] -> [1,5]
+      shape = 1.0 + clampedEntropy * 9.0  -- Maps [0,1] -> [1,10]
       safeShape = max 0.01 shape
   x <- Dist.gamma safeShape 1.0 gen
   let idx = floor x

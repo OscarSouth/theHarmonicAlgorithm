@@ -135,16 +135,11 @@ spec = do
         sort (parseFunds $ _hcRoots ctx) `shouldBe` [1, 2, 4, 6, 7, 9, 11]
 
   describe "GeneratorConfig" $ do
-    
+
     describe "defaultConfig" $ do
-      it "has reasonable pool size" $ do
-        let poolSize = gcPoolSize defaultConfig
-        poolSize `shouldSatisfy` (> 0)
-        poolSize `shouldSatisfy` (<= 100)
-      
-      it "default pool size is 30" $ do
-        gcPoolSize defaultConfig `shouldBe` 30
-      
+      it "is the nullary config (no dead options)" $ do
+        defaultConfig `shouldBe` GeneratorConfig
+
   describe "Wildcard matching" $ do
     
     describe "isWildcard" $ do

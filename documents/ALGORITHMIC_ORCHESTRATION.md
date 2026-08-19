@@ -27,6 +27,42 @@ Code → TidalCycles → SuperDirt → MIDI → Roland JV-1010 → orchestral mu
 | 15      | Strings legg   | String artic      |
 | 16      | Strings arco   | String artic      |
 
+### The continuo voice (ch 7)
+
+The orchestra above is a fixed, deliberate configuration — it is not extended.
+The one permitted variation is **channel 7**, which may be voiced as any pitched
+polyphonic plucked, keyboard, mallet or choral colour. Set it **once per
+movement** in the launcher; never hot-swap it mid-flow.
+
+```tidal
+mapM_ id [hush, setbpm tempo
+  , setContinuo harpsichordV       -- Baroque continuo
+  , strg f k  $ d 0.8
+  ]
+```
+
+A continuo voice carries a full bank address `(msb, lsb, program)`, so any card or
+internal set is reachable. Quote SR-JV80-02 Orchestral patches straight off
+Roland's 001–255 listing with `orch` (it spans two 128-patch sub-banks and the
+arithmetic is handled); reach the internal sets with `presetA` / `presetB`.
+
+| Voice | Patch | Typical use |
+|---|---|---|
+| `harpV` | Orchestral 186 Harp 1 | default — Orpheus's lyre |
+| `harpPluckedV` | Orchestral 188 Plucked Harp | drier attack |
+| `harpsichordV` | Orchestral 196 Harpsichord1 | Baroque continuo (Bach, Vivaldi) |
+| `pianoV` | Orchestral 192 ClasclPiano1 | — |
+| `celestaV` | Orchestral 200 Celesta 1 | Venus, Neptune |
+| `glockenV` | Orchestral 211 Glocken 1 | bright mallet colour |
+| `tubularV` | Orchestral 216 TubulaBells1 | bell weight |
+| `choirV` | Orchestral 227 Choir 1 | Neptune's wordless chorus |
+| `guitarV` | Orchestral 185 Classical Gt | — |
+| `organV` | internal `presetA 18` | organ weight (Mars) |
+
+Definitions live in `live/BootTidal.hs` beside the MIDI helpers. Two constants
+need confirming against the device the first time this is used: `orchLSB` (the
+expansion card's bank) and the `organV` patch number.
+
 ## Performance Architecture
 
 Voice leading (cyclic DP) is expensive. With 16+ stacked `arrange` calls (full orchestral mode), naive per-frame recomputation causes TidalCycles "skip" messages.
@@ -445,6 +481,111 @@ tutti art f k d =
 ```
 
 As kinetics rises from 0→1, instruments enter progressively.
+
+## Suite Movement Structure
+
+Every movement file in a suite follows the same eight-part skeleton. The
+reference implementation is `Orpheus/scene2/09_pas_de_deux.tidal`; all 57
+movements across the six suites conform.
+
+| # | Part | Notes |
+|---|---|---|
+| 1 | `-- ====` banner | movement title / work / composer + date |
+| 2 | `-- Super-structure position:` | where the movement sits in the work's dramatic arc |
+| 3 | programme note + `-- Adaptation:` / `-- Reimagination:` | prose; what the source is and what we changed |
+| 4 | generation | `tempo` · `lead` · `let ctx` · `s <- seek … $ attempt N K $ gen` |
+| 5 | `-- Form:` + `-- Arc:` | loop length, then the kinetics journey in one line |
+| 6 | `-- ── MOTIFS ──` *(optional)* | the `(rhythm, contour, motif)` panel, when the movement has a repeated cell |
+| 7 | `-- ── ORCHESTRAL BLOCKS ──` | one function per section, each with a prose comment |
+| 8 | `-- ── LAUNCHER ──` | `do let f/d/k` … `mapM_ id [hush, setbpm tempo, …]`, then `hush''` |
+
+**Super-structure position** uses a dramaturgical vocabulary rather than a bare
+fraction — `Establishing`, `Inciting event`, `Development`, `The Swerve`,
+`GOLDEN RATIO`, `PRIMARY`/`SECONDARY`/`TERTIARY`, `Peak`, `Convergence` — given
+alone, as a fraction with a parenthetical name, or as a range:
+
+```tidal
+-- Super-structure position: 3/4 (PEAK — PRIMARY) — THE LOOK; the longest
+-- movement and the ballet's dramatic climax.
+-- Super-structure positions: 1/8 (Establishing) through 1/4 (Inciting event)
+```
+
+**Form time base** is chosen per idiom, and the two axes are independent
+(see *Form Declaration* above):
+
+- `rh` / `rh'` — **bars**, for metrical idioms (Brandenburg, M-k191, TheGreat,
+  Seasons). Bars resolve at 4/4: `bars = seconds × bpm / 240`.
+- `at` / `at'` — **seconds**, for narrative or rubato timing (Orpheus, Planets).
+
+Skeleton:
+
+```tidal
+-- ============================================================================
+-- IV. MOVEMENT TITLE
+-- Work, catalogue number — Composer (date)
+-- ============================================================================
+--
+-- Super-structure position: 1/2 (Development) — one line on the dramatic role.
+--
+-- Programme note …
+--
+-- Adaptation: what this reimagination does differently.
+-- ============================================================================
+
+tempo = 108
+
+start <- lead "F maj"
+
+let ctx = hcKey "1b"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.25 $ attempt 2 6 $ gen
+
+-- Form: ~370s loop (360s music + 10s silence)
+-- Arc: ritornello -> episode -> return -> peak -> concluding ritornello
+form =
+  [ rh    0    0.0   0.0   s
+  , rh    2    0.5   0.5   s     -- ritornello: full ensemble
+  , rh  166    0.0   0.0   s     -- gap
+  ]
+
+-- ── MOTIFS ───────────────────────────────────────────────
+(rhythm, contour, motif) =
+  ( "[1 1 1 1 1 1]/4"          -- rhythm gate  (Pattern Bool)
+  , "[3 1 3 0]/4"              -- contour      (voicing degrees)
+  , rhythm >:< contour         -- rhythm gates contour
+  ) :: (Pattern Bool, Pattern Int, Pattern Int)
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- Horns: the hunting call
+horns f k d = p "horns" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = motif
+        }
+  f
+    $ stack [silence
+        , horn T (0, 1) k vl flow Soprano
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (warp "[1 2 3 4]/4")
+  putStrLn "WORK — IV. Movement Title"
+  mapM_ id [hush, setbpm tempo
+    ,horns f k  $ d 0.85
+    ]
+
+hush''
+```
+
+Rhythm gates are **bar-scoped**: one cycle is one beat, so a bar-length gate
+carries `/4`. `"[1 1 1 1]*2"` is eight strokes per *beat* (32 per bar), which is
+almost never what a motif wants — write `"[1 1 1 1 1 1 1 1]/4"` instead.
 
 ## Examples
 

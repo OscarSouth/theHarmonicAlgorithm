@@ -7,8 +7,8 @@
 -- This module implements the main generation loop that connects:
 --
 --   * R (Rules): HarmonicContext constraints via Filter module
---   * E (Evaluation): Database-derived composer probabilities
---   * T (Traversal): Voice leading optimization
+--   * E (Evaluation): Database-derived composer probabilities + dissonance
+--   * T (Traversal): gamma-distributed sampling over the graph walk
 --
 -- == Academic Lineage
 --
@@ -219,6 +219,7 @@ import           Harmonic.Rules.Constraints.Overtone (formatOvertoneAnnotation, 
 import           Data.Foldable (toList)
 import           Data.List (intercalate, sort, nub)
 import           Data.Maybe (fromMaybe)
+import qualified Data.IntSet as IntSet
 import qualified Data.Sequence as Seq
 
 -- Sub-module imports
@@ -820,6 +821,18 @@ execGenConfigPC gc
 -- progression with regen bars inserted), not the regen segment alone.
 emitFinalised :: GenConfig -> (PC.ProgressionContext, GenerationDiagnostics) -> IO ()
 emitFinalised gc (pc, diag) = do
+  -- Cue-escapes-R notice (non-fatal). The cue is the human aberration
+  -- channel by design and is always honoured; this makes an escape visible
+  -- at the moment it happens. Emitted here because emitFinalised runs
+  -- exactly once per user invocation (single-pass, or the attempt winner),
+  -- and the emitted progression's first state IS the cue actually used —
+  -- resolving _gcCue again would re-draw the random default cue. Scope:
+  -- Fresh/GridMode only; the regen modes infer their cue from existing
+  -- material, and the strata path has its own containment check.
+  case _gcMode gc of
+    Fresh    -> emitCueNotice
+    GridMode -> emitCueNotice
+    _        -> pure ()
   let isStrata = case _gcMode gc of
         StrataMode _    -> True
         FromProgPC {}   -> True
@@ -836,6 +849,11 @@ emitFinalised gc (pc, diag) = do
   printHeader (T.pack (_gcSeek gc)) (_gcEntropy gc) (_gcTonal gc)
   print (PC.triadLayer pc)
   putStrLn ""
+  where
+    emitCueNotice =
+      case Seq.viewl (Prog.unProgression (PC.triadLayer pc)) of
+        firstState Seq.:< _ -> printCueEscapeNotice (_gcTonal gc) firstState
+        Seq.EmptyL          -> pure ()
 
 -- |Single-pass body of 'execGenConfigPC' — used directly when no multi-
 -- attempt selection is requested. Thin wrapper that performs pure
@@ -1029,7 +1047,8 @@ chordNamesOf prog =
       chords = map H.fromCadenceState cads
   in zipWith Prog.showTriad enharms chords
 
--- |Set entropy (gamma shape parameter). Higher values = more unusual choices.
+-- |Set entropy in [0, 1] — mapped affinely to the gamma sampler's shape
+-- (@shape = 1 + entropy * 9@). Higher values = more unusual choices.
 --
 -- @s <- seek "*" $ entropy 0.5 $ gen@
 entropy :: Double -> GenConfig -> GenConfig
@@ -1702,6 +1721,37 @@ runStrataGenFrom srcPC s e gc = do
       splicedPC = PC.pcSplice srcPC s e insertPC
 
   pure (splicedPC, regenDiag)
+
+-- |Non-fatal notice when the starting state escapes the active R context
+-- (key/overtone containment, allowed roots). The cue is always honoured —
+-- 'cue' and the random default cue are the human aberration channel by
+-- design — this only makes the escape visible. Prints nothing when the
+-- state sits inside R or when the relevant filters are wildcards. Mirrors
+-- 'matchesContextWithTarget' with no bass target and no strict containment
+-- (its default treatment), so it never flags a state the step filter
+-- itself would accept.
+printCueEscapeNotice :: HarmonicContext -> H.CadenceState -> IO ()
+printCueEscapeNotice ctx start = do
+  let pctx      = parseContextOnce ctx
+      rootPC    = P.unPitchClass (P.pitchClass (H.stateCadenceRoot start))
+      intervals = map P.unPitchClass (H.cadenceIntervals (H.stateCadence start))
+      absPCs    = [ (i + rootPC) `mod` 12 | i <- intervals ]
+      toneOff   = if pcIsKeyWild pctx && pcIsOvertonesWild pctx
+                    then []
+                    else [ p | p <- nub absPCs
+                             , not (IntSet.member p (pcEffectiveOvertones pctx)) ]
+      rootOff   = not (pcIsRootsWild pctx)
+                  && not (IntSet.member rootPC (pcAllowedBassNotes pctx))
+      spelling  = H.inferSpelling absPCs
+      enharm    = H.enharmonicFunc spelling
+      spellPC p = show (enharm (P.mkPitchClass p))
+      parts     = [ "contains " ++ unwords (map spellPC toneOff)
+                    ++ " outside the key/overtone set" | not (null toneOff) ]
+             ++ [ "root " ++ spellPC rootPC ++ " outside the allowed roots"
+                | rootOff ]
+  when (not (null parts)) $
+    putStrLn $ "⚠ cue escapes R: " ++ intercalate "; " parts
+             ++ "  (" ++ show ctx ++ ")"
 
 -- |Report an invalid starting cue for 'genP'. Prints a warning naming
 -- the cue's escape pitches alongside a grid of viable triads in the

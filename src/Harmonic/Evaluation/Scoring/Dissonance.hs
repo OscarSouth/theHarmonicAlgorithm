@@ -17,14 +17,18 @@
 --
 -- == Weighting Vector
 --
--- @dissVect = [16,8,4,2,1,24]@ maps interval classes to consonance weights:
+-- @dissVect = [16,8,4,2,1,24]@ maps interval classes to *dissonance*
+-- weights — higher is more dissonant:
 --
---   * Perfect fifth (ic 1): 16
---   * Perfect fourth (ic 2): 8
---   * Major third\/minor sixth (ic 3): 4
---   * Minor third\/major sixth (ic 4): 2
---   * Major second\/minor seventh (ic 5): 1
+--   * Minor second\/major seventh (ic 1): 16
+--   * Major second\/minor seventh (ic 2): 8
+--   * Minor third\/major sixth (ic 3): 4
+--   * Major third\/minor sixth (ic 4): 2
+--   * Perfect fourth\/perfect fifth (ic 5): 1 (most consonant)
 --   * Tritone (ic 6): 24 (most dissonant)
+--
+-- (Matches the authoritative table on 'hindemithVector' below; an earlier
+-- version of this header had the interval names shifted one class up.)
 
 module Harmonic.Evaluation.Scoring.Dissonance
   ( -- * Core Dissonance Calculation

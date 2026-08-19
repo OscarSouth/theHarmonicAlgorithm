@@ -89,7 +89,7 @@
 -- * South, O. (2016). /The Harmonic Algorithm/. MA thesis.
 -- * South, O. (2016). /Harmonic Algorithm Reflections/.
 -- * South, O. (2018). /Data Science In The Creative Process/. DBS.
--- * Wiggins, G.A. (2001). /Towards a more precise characterisation of creativity in AI/.
+-- * Wiggins, G.A. (2006). /A preliminary framework for description, analysis and comparison of creative systems/. Knowledge-Based Systems 19(7). — the R\/T\/E framework and failure taxonomy.
 -- * Hindemith, P. (1937). /The Craft of Musical Composition/.
 -- * Pastorius, J. (2001). /Modern Electric Bass/. — harmonic vocabulary on bass.
 -- * Manring, M. — Hipshot re-tuner technique, multiple D-Tuners.
