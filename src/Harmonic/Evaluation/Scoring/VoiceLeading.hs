@@ -21,16 +21,19 @@
 --    progression, considering wrap-around from last to first chord.
 --
 -- 3. Register Constraints
---    All voices constrained to [0, 36] range (C2 to C5 roughly).
---    First chord starts in compact root position.
+--    Candidate pitches live in [7, 35] (pitchPlacements over [minPitch,
+--    maxPitch] bounds; the effective ceiling is 35 = 11+24). First chord
+--    starts in compact root position, and the whole result is shifted so
+--    the first root lands in [-12, -1].
 --
--- 4. Two Paradigms:
---    * root: smooth, compact voice leading with root always in bass
---    * flow: smooth, compact voice leading allowing any inversion
+-- 4. Two DP Paradigms (plus extractors and the chroma engine):
+--    * solveRoot (grid): smooth, compact voice leading, root always in bass
+--    * solveFlow (flow): smooth, compact voice leading, any inversion
 
 module Harmonic.Evaluation.Scoring.VoiceLeading
   ( -- * Cost Functions
     voiceLeadingCost
+  , alignVoices
   , totalCost
   , cyclicCost
   
@@ -40,6 +43,7 @@ module Harmonic.Evaluation.Scoring.VoiceLeading
   
     -- * Candidate Generation
   , allVoicings
+  , pitchPlacements
   , initialCompact
   
     -- * Paradigm Solvers (Cyclic DP)
@@ -52,7 +56,8 @@ module Harmonic.Evaluation.Scoring.VoiceLeading
   , normalizeByFirstRoot
   ) where
 
-import Data.List (sort, minimumBy)
+import Data.List (sort, nub, minimumBy)
+import qualified Data.List as List
 import Data.Function (on)
 import Data.Maybe (catMaybes)
 import qualified Data.Map.Strict as Map
@@ -72,27 +77,22 @@ import Harmonic.Rules.Types.Pitch (PitchClass(..), mkPitchClass, unPitchClass, t
 minPitch :: Int
 minPitch = 7
 
--- | Maximum allowed pitch for exploration (exploration ceiling)
--- Allows upper voices to ascend up to a 7th above target octave
+-- | Maximum allowed pitch for exploration (exploration ceiling).
+-- Note: never binds in practice — 'pitchPlacements' only generates
+-- pc, pc+12, pc+24, so the effective ceiling is 35 (= 11 + 24).
 maxPitch :: Int
 maxPitch = 41
 
--- | Target octave lower bound (middle C octave)
--- Initial voicings start here
+-- | Target octave lower bound: 'initialCompact' places bar 0's bass at
+-- rootPC + this, i.e. in [12, 23].
 targetOctaveMin :: Int
 targetOctaveMin = 12
 
--- | Target octave upper bound
-targetOctaveMax :: Int
-targetOctaveMax = 23
-
--- | Target range for first chord's root (lower bound, C3)
+-- | Post-normalization anchor: 'normalizeByFirstRoot' shifts the whole
+-- progression so bar 0's bass lands at its pitch class + this, i.e. in
+-- [-12, -1].
 targetFirstRootMin :: Int
 targetFirstRootMin = -12
-
--- | Target range for first chord's root (upper bound, B3)
-targetFirstRootMax :: Int
-targetFirstRootMax = -1
 
 -------------------------------------------------------------------------------
 -- Voice Movement Calculation
@@ -105,7 +105,9 @@ voiceMovement :: Int -> Int -> Int
 voiceMovement from to = abs (to - from)
 {-# INLINE voiceMovement #-}
 
--- |Calculate minimal movement between two pitch class values (mod 12)
+-- |Calculate minimal movement between two pitch class values (mod 12).
+-- Exported API; currently unused inside the engine (kept for REPL and
+-- downstream use).
 minimalMovement :: PitchClass -> PitchClass -> Int
 minimalMovement (P from) (P to) = 
   let up   = (to - from) `mod` 12
@@ -137,20 +139,48 @@ minimalMovement (P from) (P to) =
 -- Magnitudes calibrated to compose: contrary motion and register exchange
 -- are deliberately disjoint by magnitude (≤4 vs ≥5 thresholds), aligning
 -- with the leap-penalty trigger so the same motion is never both
--- rewarded and penalised.
+-- rewarded and penalised. They also differ in pair scope by design:
+-- register exchange scans ADJACENT pairs only (a register swap is a
+-- neighbouring-voices phenomenon), while contrary motion rewards ANY pair.
+--
+-- The total is floored at 1 for any actual motion (from /= to): bonuses
+-- could otherwise exceed base + penalties and drive a moving transition
+-- below the held-chord cost of 0 — inverting the musical preference. A
+-- held chord ("available static movement") is always strictly cheapest;
+-- bonuses still discriminate among positive-cost alternatives. The floor
+-- applies to the TOTAL only — component bonuses stay un-clamped inside
+-- the sum (e.g. [0,4,7]→[-1,2,7] = base 3 + stepwise −1 = 2).
+-- Cross-cardinality transitions (mixed-set seams: lead' cues, hand-built
+-- fromChords material) are costed by optimal monotone padding: the smaller
+-- sorted voicing is expanded by duplicating tones per the minimal-distance
+-- non-crossing alignment in which every voice of BOTH chords participates
+-- ('alignVoices'), then the full cost above runs verbatim on the aligned
+-- pair. An extra voice pays exactly its distance to the tone it splits
+-- from (a literal unison doubling is free); no voice can appear or vanish
+-- unpenalised. Historical note: this branch was a flat 999 sentinel,
+-- which in the DP acted as "ignore this edge" — seam registers were
+-- decided by downstream edges alone and the cyclic wrap objective was
+-- silently disabled on mixed material.
 voiceLeadingCost :: [Int] -> [Int] -> Int
 voiceLeadingCost from to
-  | length from /= length to = 999  -- Incompatible voicings
+  | null from || null to = 0        -- Empty bar: neutral edge
+  | length from /= length to =
+      let (from', to') = alignVoices from to
+      in voiceLeadingCost from' to'
   | from == to = 0                  -- Identical voicings have zero cost
   | otherwise =
-      baseCost + parallelPenalty + leapPenalty
-               + registerExchangePenalty + contraryBonus + stepwiseBonus
+      max 1 (baseCost + parallelPenalty + leapPenalty
+               + registerExchangePenalty + contraryBonus + stepwiseBonus)
   where
-    n           = length from
     movements   = zipWith voiceMovement from to
     signedMoves = zipWith (-) to from
-    allPairs    = [(i, j) | i <- [0 .. n - 2], j <- [i + 1 .. n - 1]]
-    adjPairs    = [(i, i + 1) | i <- [0 .. n - 2]]
+
+    -- Per-voice tuples traversed once; pair scans use tails/zip rather
+    -- than repeated list indexing (the old `!!`-based loops made each
+    -- call effectively O(n³) — a real cost at 36–432 DP candidates/bar).
+    voiceData   = zip3 from to signedMoves
+    pairsAll    = [ (a, b) | (a : rest) <- List.tails voiceData, b <- rest ]
+    pairsAdj    = zip voiceData (drop 1 voiceData)
 
     baseCost = sum movements
 
@@ -158,30 +188,25 @@ voiceLeadingCost from to
     -- The interval is preserved across the transition AND at least one
     -- voice moves (purely held intervals don't count).
     isPerfect ivl = ivl == 7 || ivl == 0
-    isParallelPerfect (i, j) =
-      let fromInt = (from !! j - from !! i) `mod` 12
-          toInt   = (to   !! j - to   !! i) `mod` 12
-      in isPerfect fromInt && fromInt == toInt
-         && (movements !! i > 0 || movements !! j > 0)
-    parallelPenalty = 3 * length (filter isParallelPerfect allPairs)
+    isParallelPerfect ((f1, t1, s1), (f2, t2, s2)) =
+      let fromInt = (f2 - f1) `mod` 12
+          toInt   = (t2 - t1) `mod` 12
+      in isPerfect fromInt && fromInt == toInt && (s1 /= 0 || s2 /= 0)
+    parallelPenalty = 3 * length (filter isParallelPerfect pairsAll)
 
     -- Per-voice penalty for movements > 4 semitones (anything above a P4).
     leapPenalty = 2 * length (filter (> 4) movements)
 
     -- Adjacent split-leap detection: both voices leap ≥5 in opposite directions.
-    isExchange (i, j) =
-      let mi = signedMoves !! i
-          mj = signedMoves !! j
-      in mi * mj < 0 && abs mi >= 5 && abs mj >= 5
-    registerExchangePenalty = 4 * length (filter isExchange adjPairs)
+    isExchange ((_, _, s1), (_, _, s2)) =
+      s1 * s2 < 0 && abs s1 >= 5 && abs s2 >= 5
+    registerExchangePenalty = 4 * length (filter isExchange pairsAdj)
 
     -- Contrary motion: any voice pair, both moving ≤4 in opposite directions
     -- (smooth divergence). Disjoint from register exchange by magnitude.
-    isContrary (i, j) =
-      let mi = signedMoves !! i
-          mj = signedMoves !! j
-      in mi * mj < 0 && abs mi <= 4 && abs mj <= 4
-    contraryBonus = (-1) * length (filter isContrary allPairs)
+    isContrary ((_, _, s1), (_, _, s2)) =
+      s1 * s2 < 0 && abs s1 <= 4 && abs s2 <= 4
+    contraryBonus = (-1) * length (filter isContrary pairsAll)
 
     -- Stepwise: per voice with movement of 1 or 2 semitones, bonus only
     -- when ≥2 voices step (preserves >=1 floor for single-voice steps).
@@ -189,14 +214,50 @@ voiceLeadingCost from to
       let stepCount = length (filter (\m -> m == 1 || m == 2) movements)
       in if stepCount >= 2 then -(stepCount - 1) else 0
 
--- |Calculate intervals between adjacent voices in a chord
-intervalsBetweenVoices :: [Int] -> [Int]
-intervalsBetweenVoices xs = zipWith (\a b -> (b - a) `mod` 12) xs (tail xs)
-
--- |Calculate the span of a chord (highest - lowest pitch)
-chordSpan :: [Int] -> Int
-chordSpan [] = 0
-chordSpan xs = maximum xs - minimum xs
+-- |Optimal monotone padding for cross-cardinality voice leading.
+-- Given two SORTED voicings of different lengths, expands the smaller by
+-- duplicating tones so both have the larger's length, choosing the
+-- duplication per the minimal-total-|distance| monotone (non-crossing)
+-- alignment in which every voice of BOTH chords participates: each voice
+-- of the larger maps to exactly one voice of the smaller, the mapping is
+-- non-decreasing, and every smaller voice is used at least once. This is
+-- the "lowest / middle / highest voices of the larger lead the smaller"
+-- intuition: a 5-note chord resolves into a triad through its outer and
+-- inner voices, and the doubled tones pay exactly their split distance.
+-- O(m·n) DP (≤ 49 cells at max cardinality 7). Symmetric in its result
+-- (roles of from/to only decide which side gets padded). Equal-length
+-- input is returned unchanged.
+alignVoices :: [Int] -> [Int] -> ([Int], [Int])
+alignVoices from to
+  | length from == length to = (from, to)
+  | length from <  length to = (padTo from to, to)
+  | otherwise                = (from, padTo to from)
+  where
+    -- Expand @small@ (length m) to @big@'s length n by optimal monotone
+    -- assignment big!!j -> small!!(a j), a non-decreasing surjection.
+    padTo small big =
+      let m    = length small
+          n    = length big
+          s    = V.fromList small
+          b    = V.fromList big
+          huge = 10 ^ (9 :: Int)
+          dist j i = abs (b V.! j - s V.! i)
+          -- rows !! j: at each small-index i, (min cost with big j -> small i,
+          -- predecessor small-index at big (j-1))
+          row0 = V.generate m (\i -> if i == 0 then (dist 0 0, 0) else (huge, i))
+          step prev j = V.generate m $ \i ->
+            let stayC = fst (prev V.! i)
+                diagC = if i > 0 then fst (prev V.! (i - 1)) else huge
+                best  = min stayC diagC
+                prevI = if diagC < stayC then i - 1 else i
+            in if best >= huge then (huge, i) else (dist j i + best, prevI)
+          rows = scanl step row0 [1 .. n - 1]
+          backtrack j i acc
+            | j == 0    = i : acc
+            | otherwise = let (_, prevI) = (rows !! j) V.! i
+                          in backtrack (j - 1) prevI (i : acc)
+          assignment = backtrack (n - 1) (m - 1) []
+      in map (s V.!) assignment
 
 -- |Calculate total voice leading cost for a sequence of chords
 totalCost :: [[Int]] -> Int
@@ -228,19 +289,28 @@ pitchPlacements pc =
   in filter (\p -> p >= minPitch && p <= maxPitch) 
        [pcMod, pcMod + 12, pcMod + 24]
 
--- |Generate all valid voicings for a triad (3 pitch classes).
--- Each pitch class can be placed at multiple octaves within [0, 36].
+-- |Generate all valid voicings for a pitch-class set of any cardinality.
+-- Each pitch class is placed at its 'pitchPlacements' octaves (PCs 0-6
+-- get 2 placements in [12, 30]; PCs 7-11 get 3 in [7, 35]) — candidate
+-- count is the per-PC placement product (2^a·3^b: typically 12 for a
+-- triad, 36 for a tetrad, 72 for a 5-PC set), NOT 3^N. The key-dependent
+-- window asymmetry is a known calibration; widening it changes every
+-- solved voicing globally and is deferred behind a before/after
+-- listening protocol.
 -- Results are sorted low-to-high and deduplicated.
+--
+-- Historical note: this was hard-coded to 3 notes, with non-triads falling
+-- back to the single candidate @[sort pcs]@ pinned in octave [0,11] — which
+-- collapsed bars 2..n of any multi-bar 4+-note progression ~2 octaves below
+-- bar 1 under 'flow'/'grid' (bar 1 goes through 'initialCompact', the rest
+-- through here, then 'normalizeByFirstRoot' applies one uniform shift).
 allVoicings :: [Int] -> [[Int]]
 allVoicings pcs
-  | length pcs /= 3 = [sort pcs]  -- Fallback for non-triads
+  | null pcs = [[]]
   | otherwise =
-    let [pc0, pc1, pc2] = map (`mod` 12) pcs
-        placements0 = pitchPlacements pc0
-        placements1 = pitchPlacements pc1
-        placements2 = pitchPlacements pc2
-        -- Generate all combinations
-        allCombos = [[p0, p1, p2] | p0 <- placements0, p1 <- placements1, p2 <- placements2]
+    let placements = map (pitchPlacements . (`mod` 12)) pcs
+        -- Cartesian product of per-note octave placements
+        allCombos = sequence placements
         -- Sort each voicing low-to-high, deduplicate via Set (O(n log n) vs nub's O(n²))
         sorted = map sort allCombos
     in Set.toList (Set.fromList sorted)
@@ -248,19 +318,17 @@ allVoicings pcs
 -- |Create initial compact voicing: root in bass in target octave (12-23),
 -- upper voices stacked compactly above.
 initialCompact :: Int -> [Int] -> [Int]
+initialCompact _ [] = []
 initialCompact rootPC pcs =
   let rootMod = rootPC `mod` 12
       -- Place root in target octave (12-23)
       bassPos = rootMod + targetOctaveMin
       -- Get other pitch classes
       otherPCs = filter (\p -> p `mod` 12 /= rootMod) (map (`mod` 12) pcs)
-      -- Stack each above bass: find lowest placement > bass within bounds
-      stackAbove bass pc = 
-        let placements = pitchPlacements pc
-            valid = filter (> bass) placements
-        in if null valid 
-           then bass + ((pc - rootMod + 12) `mod` 12)  -- Fallback
-           else minimum valid
+      -- Stack each above bass: find lowest placement > bass.
+      -- `filter (> bass)` is never empty: bass <= 23 < 24 <= pc+24, and
+      -- pc+24 is always in pitchPlacements' output.
+      stackAbove bass pc = minimum (filter (> bass) (pitchPlacements pc))
       uppers = map (stackAbove bassPos) otherPCs
   in sort (bassPos : uppers)
 
@@ -272,7 +340,18 @@ initialCompact rootPC pcs =
 type DPState = Map Int (Int, Int)
 
 -- |Solve voice leading using cyclic DP.
--- Finds globally optimal voicings minimizing total cyclic cost.
+-- Finds globally optimal voicings minimizing total cyclic cost — the
+-- wrap edge (last bar -> bar 0) is part of the objective, so loops
+-- close smoothly.
+--
+-- Bar 0 is DELIBERATELY pinned to 'initialCompact' (compact root
+-- position): the published contract is a predictable starting register,
+-- so the optimum is conditional on that anchor rather than searched
+-- over bar-0 voicings.
+--
+-- Tie-breaking: 'minimumBy' keeps the first minimum and candidates are
+-- in ascending (lowest-register-first) order, so exact ties resolve to
+-- the lowest-register choice.
 --
 -- Parameters:
 --   * filterCandidates: function to filter candidates (e.g., root-only for solveRoot)
@@ -280,9 +359,16 @@ type DPState = Map Int (Int, Int)
 --   * chords: input chords (pitch classes)
 solveCyclicDP :: (Int -> [[Int]] -> [[Int]]) -> [Int] -> [[Int]] -> [[Int]]
 solveCyclicDP _ _ [] = []
-solveCyclicDP _ _ [x] = [initialCompact (head x `mod` 12) x]
-solveCyclicDP filterCandidates rootPCs chords =
-  let n = length chords
+solveCyclicDP _ _ [x] = [initialCompact (bassPC x) (dedupPCs x)]
+solveCyclicDP filterCandidates rootPCs rawChords =
+  let -- Canonical dedup: pitch-class sets carry no duplicates. Keeps the
+      -- first occurrence so the root stays at head, and keeps
+      -- 'initialCompact' (which drops duplicate roots) and 'allVoicings'
+      -- (which would keep them) at the same cardinality — a duplicated
+      -- root PC previously guaranteed a cross-cardinality edge out of
+      -- bar 0.
+      chords = map dedupPCs rawChords
+      n = length chords
       rootPCsV = V.fromList rootPCs
       chordsV = V.fromList chords
 
@@ -356,14 +442,18 @@ solveCyclicDP filterCandidates rootPCs chords =
 
 -- |Solve with root always in bass (root paradigm).
 -- Filters candidates at each position to only those where bass note mod 12 == root PC.
--- Result is normalized so first chord's root is in [7,18].
+-- Result is normalized so first chord's root is in [-12,-1].
 solveRoot :: [[Int]] -> [[Int]]
 solveRoot [] = []
 solveRoot chords =
-  let rootPCs = map (\c -> head c `mod` 12) chords
-      filterByRoot rootPC cands = 
-        let valid = filter (\v -> head v `mod` 12 == rootPC) cands
-        in if null valid then cands else valid  -- Fallback if filtering removes all
+  let rootPCs = map bassPC chords
+      -- The fallback below is provably unreachable for non-empty chords: a
+      -- root-in-bass candidate always exists, because every non-root PC
+      -- has a placement at pc+24 >= 24, above any minimum root placement
+      -- (<= 23). Kept as free defense rather than a crash surface.
+      filterByRoot rootPC cands =
+        let valid = filter (\v -> bassPC v == rootPC) cands
+        in if null valid then cands else valid
       solved = solveCyclicDP filterByRoot rootPCs chords
   in normalizeByFirstRoot solved
 
@@ -381,14 +471,14 @@ solveRoot chords =
 solveFlow :: [[Int]] -> [[Int]]
 solveFlow [] = []
 solveFlow chords =
-  let rootPCs = map (\c -> head c `mod` 12) chords
+  let rootPCs = map bassPC chords
       noFilter _ cands = cands  -- No filtering, all inversions allowed
       solved = solveCyclicDP noFilter rootPCs chords
   in normalizeByFirstRoot solved
 
 -- |LITE paradigm: Literal voicing with no optimization.
 -- Takes raw pitch class lists and normalizes them.
--- Normalized so first chord's root is in [7,18].
+-- Normalized so first chord's root is in [-12,-1].
 -- Use this for comparing raw pitch classes against optimized voicings.
 liteVoicing :: [[Int]] -> [[Int]]
 liteVoicing [] = []
@@ -400,35 +490,35 @@ liteVoicing raw = normalizeByFirstRoot raw
 -- Use this for bass line extraction from voiced progressions.
 bassVoicing :: [[Int]] -> [[Int]]
 bassVoicing [] = []
-bassVoicing chords = map (\chord -> [head chord `mod` 12]) chords
+bassVoicing chords = map (\chord -> if null chord then [] else [bassPC chord]) chords
 
 -------------------------------------------------------------------------------
 -- Post-processing
 -------------------------------------------------------------------------------
 
--- |Normalize a progression so first chord's root is in [7,18] (G0 to F#1).
--- This ensures consistent output ranges across all progressions regardless
--- of key or where the solver explored during optimization.
---
--- Strategy: Calculate shift needed to place first chord's root (bass note)
--- into [targetFirstRootMin, targetFirstRootMax], then apply to all pitches.
+-- |Normalize a progression by a single uniform shift placing the first
+-- chord's root (bass note) at @firstRootPC + targetFirstRootMin@ — i.e.
+-- into [-12, -1]. One constant transposition for the whole progression:
+-- consistent output register regardless of key or where the solver
+-- explored. (In practice the shift is always -24 after the DP solvers,
+-- whose bar 0 is 'initialCompact' in [12, 23], and -12 for
+-- 'liteVoicing', whose raw input has its root in [0, 11].)
 normalizeByFirstRoot :: [[Int]] -> [[Int]]
 normalizeByFirstRoot [] = []
-normalizeByFirstRoot voicings =
-  let firstChord = head voicings
-      firstRoot = head firstChord  -- Bass note of first chord
-      firstRootPC = firstRoot `mod` 12
-      
-      -- Calculate the current octave of the first root
-      currentOctave = firstRoot `div` 12
-      
-      -- Find target octave: we want firstRootPC + targetOctave * 12 to be in [-12,-1]
-      -- targetFirstRootMin = -12 (C3), targetFirstRootMax = -1 (B3)
-      -- targetOctave = -1 places all pitch classes in [-12,-1]
-      targetOctave = (-1)
-      targetRoot = firstRootPC + targetOctave * 12
-      
-      -- Shift amount: how much to add/subtract to move firstRoot to targetRoot
-      shift = targetRoot - firstRoot
-      
-  in map (map (+ shift)) voicings
+normalizeByFirstRoot voicings@(firstChord : _)
+  | null firstChord = voicings  -- empty first bar: nothing to anchor on
+  | otherwise =
+      let firstRoot   = head firstChord
+          firstRootPC = firstRoot `mod` 12
+          targetRoot  = firstRootPC + targetFirstRootMin
+          shift       = targetRoot - firstRoot
+      in map (map (+ shift)) voicings
+
+-- |Bass pitch class of a voicing (0 for an empty bar — degrades, never crashes).
+bassPC :: [Int] -> Int
+bassPC []      = 0
+bassPC (p : _) = p `mod` 12
+
+-- |Duplicate-free pitch classes, first occurrence kept (root stays at head).
+dedupPCs :: [Int] -> [Int]
+dedupPCs = nub . map (`mod` 12)

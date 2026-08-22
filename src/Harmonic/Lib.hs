@@ -103,6 +103,7 @@ module Harmonic.Lib (
   --   gen'  - compact summary
   --   gen'' - verbose traces
   gen, gen', gen'',
+  gen4, gen4', gen4'', quad,
   genGrid, genFrom, genFrom', genFrom'',
 
   -- ========== genP PARADIGM (strata-first) ==========
@@ -195,7 +196,7 @@ module Harmonic.Lib (
   ScaleSource(..), melodyStateFrom,
 
   -- Starting state construction
-  lead, parseLeadTokens, LeadToken(..),
+  lead, lead', parseLeadTokens, LeadToken(..),
 
   module Harmonic.Interface.Tidal.Instruments,
   module Harmonic.Interface.Tidal.Orchestra,
@@ -228,6 +229,7 @@ import Harmonic.Traversal.Probabilistic
 import Harmonic.Framework.Builder (
     -- Modifier-based API
     gen, gen', gen'',
+    gen4, gen4', gen4'', quad,
     genGrid, genFrom, genFrom', genFrom'',
     -- genP paradigm (strata-first)
     genP, genP', genP'',
@@ -273,7 +275,7 @@ import Harmonic.Interface.Tidal.Arranger (
     grid, flow, lite, literal, root,
     fromChords, prog,
     ScaleSource(..), melodyStateFrom,
-    lead, parseLeadTokens, LeadToken(..)
+    lead, lead', parseLeadTokens, LeadToken(..)
   )
 import Harmonic.Interface.Tidal.Groove (subKick, fund, noteoff)
 import Harmonic.Interface.Tidal.LineHarmony (lineHarmony)

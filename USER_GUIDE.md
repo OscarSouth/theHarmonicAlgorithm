@@ -316,6 +316,8 @@ arrange (0, 1) k (-9, 9) T root (overlapF 0) ["~", "[0]/1"]       # ch 01 |- oct
 
 **How** — the voicing function is the 5th argument of `arrange` (after the layer). Everything else stays identical. Stack multiple `arrange` calls with different voicings in one launcher to build a full texture.
 
+Two behaviors worth knowing: **mixed chord sizes voice-lead for real** — a triad flowing into a 4-note chord (a `lead'` cue, hand-built material) is costed by aligning the larger chord's outer and inner voices onto the smaller, so seams hold common tones instead of jumping register; and **scale-sized bars route themselves** — any bar with 6+ pitch classes gets `strataModeFlow`'s degree semantics (the engine built for the S/M chroma layers) rather than a chord-voice-leading solve that would be both slow and the wrong musical question. Everything harmony-sized (up to 5 voices) gets the full cyclic DP.
+
 **Try it** — compare `flow` and `grid` on a long progression. Add a second `arrange` with `root` and an octave offset for a bass line.
 
 > **▶ VIDEO — Vertical textures**
@@ -825,7 +827,47 @@ genPReport (pure pc)                -- provenance + triads in one report
 
 ___
 
-## 20. Snippets & the liveness gradient
+## 20. Four-note generation (`gen4`)
+
+**Why** — seventh-chord density with the same corpus-trained walk: every bar a 4-note chord, still steered by the composer graph.
+
+**What** — a third generator family alongside `gen` and `genP`. Each step selects a triad exactly as `gen` does (graph + fallback, R filters, gamma draw), then **fuses in one more tone** from the R-valid palette — candidates ranked most-consonant-first by full-chord dissonance, drawn at the same entropy. The walk then continues from the fused chord's *most consonant embedded triad*, so the added tone can reinterpret the harmony (a dim triad plus an added fifth walks on as minor) while every graph key stays corpus-shaped — generation stays online throughout.
+
+```haskell
+start <- lead "C maj"
+s <- seek "*" $ cue start $ len 8 $ entropy 0.3 $ gen4'   -- gen4 / gen4' / gen4''
+```
+
+A triad cue is fused once, so output is uniformly 4-note from bar 1. For an explicit 4-note opening there is `lead'`, which takes note names directly (first note = root/bass; typed accidentals drive spelling; optional `(N)` movement like `lead`):
+
+```haskell
+start <- lead' "Eb Gb Bb Db"        -- Eb m7, printed and used as-is
+start <- lead' "A C E G (5)"        -- A m7, ascending-5th approach
+```
+
+`quad` is the underlying modifier — `gen4 = quad gen` — so everything composes as usual, including regeneration:
+
+```haskell
+s  <- seek "*" $ attempt 3 12 $ entropy 0.4 $ gen4''      -- rank-and-select
+s' <- seek "*" $ entropy 0.3 $ genFrom s 3 5              -- family-aware: regen bars 3-5 stay 4-note
+```
+
+The `gen4'` trace adds one line per bar under the Candidates line: `fused: +Ab → F m7  [rank 2/9]` — which tone was added, the resulting name, and where the draw landed in the consonant-first ranking. R adherence is structural: the added tone always comes from the active palette (`tonal`/`hcKey` constraints), the bass never moves, and pedal tones can only gain members. `consonant`/`dissonant` drift governs both the triad skeleton *and* the fused surface.
+
+One boundary: `gen4` and `genP` never mix. Strata progressions stay 3-5-7 by design; `quad` on a strata source fails fast with a message.
+
+**Try it** — run the same seed idea as `gen'` then `gen4'` and compare the grids: same walk character, thicker sonorities. Then `arrange` with `"0 1 2 3"` — index 3 is now a real fourth chord tone, not the octave.
+
+> **▶ VIDEO — The fourth voice**
+> _~60s: one progression generated twice — gen' then gen4' — same cue, same entropy; the fused: lines on screen as the second run plays._
+>
+> `[ youtube link — TBD ]`
+>
+> <!-- author discussion space -->
+
+___
+
+## 21. Snippets & the liveness gradient
 
 **Why** — choose, deliberately, how much of a performance is prepared and how much is conjured at the keyboard.
 
@@ -865,7 +907,7 @@ The `state` snippet is the canonical prepared opening: tempo, context, a generat
 
 ___
 
-## 21. Going further
+## 22. Going further
 
 **Instrument catalogue** —
 - [`live/ORCHESTRAL_CATALOGUE.tidal`](live/ORCHESTRAL_CATALOGUE.tidal) — range tests per instrument

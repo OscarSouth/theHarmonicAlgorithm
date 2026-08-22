@@ -1,5 +1,6 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 -- |
--- Module      : Harmonic.Core.VoiceLeadingSpec
+-- Module      : Harmonic.Evaluation.Scoring.VoiceLeadingSpec
 -- Description : Voice leading cost function validation
 --
 -- Tests the cost function behavior including:
@@ -15,6 +16,7 @@ import Test.Hspec.QuickCheck
 import Test.QuickCheck
 
 import Harmonic.Evaluation.Scoring.VoiceLeading
+import qualified Data.List
 
 -------------------------------------------------------------------------------
 -- Voice Leading Cost Function Tests
@@ -82,8 +84,32 @@ spec = do
       let cToFsharp = voiceLeadingCost [0,4,7] [1,6,10]
       cToF `shouldSatisfy` (< cToFsharp)
     
-    it "incompatible voicing lengths = high cost" $
-      voiceLeadingCost [0,4,7] [0,4] `shouldBe` 999
+    it "cross-cardinality cost is finite and distance-based (was a flat 999)" $ do
+      -- [0,4] aligned to [0,4,7]: pad [0,4,4], movements 0,0,3 → base 3
+      voiceLeadingCost [0,4,7] [0,4] `shouldBe` 3
+      -- common-tone seam: C maj -> C7 pads the held G, Bb pays 3
+      voiceLeadingCost [-12,-8,-5] [-12,-8,-5,-2] `shouldBe` 3
+
+    it "cross-cardinality cost is symmetric" $
+      voiceLeadingCost [-12,-8,-5,-2] [-12,-8,-5] `shouldBe` 3
+
+    it "cross-cardinality symmetry (property)" $ property $
+      \(xs :: [Int]) (ys :: [Int]) ->
+        let f = Data.List.sort (map (`mod` 24) (take 5 xs))
+            t = Data.List.sort (map (`mod` 24) (take 3 ys))
+        in not (null f) && not (null t) ==>
+             voiceLeadingCost f t == voiceLeadingCost t f
+
+    it "mixed-cardinality seam picks an optimal cyclic solution" $ do
+      -- DP result must be at least as cheap as BOTH known-good hand
+      -- solutions (common-tone-on-top and 7th-below-resolving shapes)
+      let dp = solveFlow [[0,4,7],[0,4,7,10],[5,9,0]]
+          commonTop  = [[12,16,19],[12,16,19,22],[12,17,21]]
+          seventhLow = [[12,16,19],[10,12,16,19],[9,12,17]]
+      cyclicCost dp `shouldSatisfy` (<= cyclicCost commonTop)
+      cyclicCost dp `shouldSatisfy` (<= cyclicCost seventhLow)
+      -- and the seam bar holds all three common tones
+      take 3 (dp !! 1) `shouldBe` head dp
     
     describe "voiceLeadingCost with boundary crossings" $ do
       
@@ -245,3 +271,76 @@ spec = do
       let input = [[0,4,7], [5,9,0], [7,11,2], [0,4,7]]
       let solved = solveFlow input
       length solved `shouldBe` 4
+
+  describe "allVoicings (N-note generalization)" $ do
+
+    it "triad candidate set is the full placement product (historical shape)" $ do
+      let vs = allVoicings [0,4,7]
+          expected = product (map (length . pitchPlacements) [0,4,7])
+      length vs `shouldBe` expected
+      all (\v -> length v == 3) vs `shouldBe` True
+
+    it "4-note sets get a full candidate space (no degenerate fallback)" $ do
+      let vs = allVoicings [0,4,7,10]
+          expected = product (map (length . pitchPlacements) [0,4,7,10])
+      length vs `shouldBe` expected
+      length vs > 1 `shouldBe` True
+      all (\v -> length v == 4) vs `shouldBe` True
+
+    it "every 4-note candidate is sorted low-to-high" $ do
+      let vs = allVoicings [10,1,4,8]
+      all (\v -> v == Data.List.sort v) vs `shouldBe` True
+
+    it "multi-bar 4-note flow keeps bars in a coherent register" $ do
+      -- Regression for the ~2-octave collapse: bar 2 used to land ~24
+      -- semitones below bar 1 (single [0,11]-pinned candidate).
+      let solved = solveFlow [[10,1,4,8],[6,10,1,4]]
+          lows = map minimum solved
+      length solved `shouldBe` 2
+      abs (head lows - lows !! 1) < 12 `shouldBe` True
+
+  describe "motion floor + practice-book anchors" $ do
+
+    it "practice-book anchor: [0,4,7] -> [-1,2,7] costs exactly 2" $
+      voiceLeadingCost [0,4,7] [-1,2,7] `shouldBe` 2
+
+    it "practice-book anchor: [0,4,7] -> [7,11,14] costs exactly 30" $
+      voiceLeadingCost [0,4,7] [7,11,14] `shouldBe` 30
+
+    it "a held chord is strictly cheaper than any motion" $ do
+      voiceLeadingCost [12,16,19] [12,16,19] `shouldBe` 0
+      -- all-voices-stepping contrary case scored -1 before the floor
+      voiceLeadingCost [0,4,7] [1,3,6] `shouldSatisfy` (>= 1)
+      voiceLeadingCost [12,16,19] [13,15,18] `shouldSatisfy` (>= 1)
+
+    it "cost is never negative (property)" $ property $
+      \(xs :: [Int]) (ys :: [Int]) ->
+        let f = Data.List.sort (map (`mod` 24) (take 5 xs))
+            t = Data.List.sort (map (`mod` 24) (take 5 ys))
+        in not (null f) && not (null t) ==>
+             voiceLeadingCost f t >= 0
+
+    it "cost is symmetric (property)" $ property $
+      \(xs :: [Int]) (ys :: [Int]) ->
+        let f = Data.List.sort (map (`mod` 24) (take 5 xs))
+            t = Data.List.sort (map (`mod` 24) (take 5 ys))
+        in length f == length t && not (null f) ==>
+             voiceLeadingCost f t == voiceLeadingCost t f
+
+  describe "dedup + empty-bar guards" $ do
+
+    it "duplicate PCs solve without a phantom-voice seam" $ do
+      let solved = solveFlow [[0,0,7],[5,9,0]]
+      map length solved `shouldBe` [2,3]
+
+    it "initialCompact dedups duplicate roots (pinned)" $
+      length (initialCompact 0 [0,0,7]) `shouldBe` 2
+
+    it "empty bars never crash the solvers" $ do
+      length (solveFlow [[],[0,4,7]]) `shouldBe` 2
+      length (solveRoot [[0,4,7],[]]) `shouldBe` 2
+      bassVoicing [[]] `shouldBe` [[]]
+
+    it "identity on clean input (guards are behavior-neutral)" $ do
+      solveFlow [[0,4,7],[5,9,0]]
+        `shouldBe` [[-12,-8,-5],[-12,-7,-3]]

@@ -22,6 +22,11 @@ import qualified Data.Text as T
 
 type ComposerWeights = Map T.Text Double
 
+-- |Initialise schema. Node identity is the @show@ string (movement +
+-- functionality) — the functionality half of every key follows the naming
+-- contract documented at the head of "Harmonic.Rules.Import.Transform"
+-- (the live DB carries legacy names; read the warning there BEFORE any
+-- re-ingestion).
 initGraph :: Bolt.BoltActionT IO ()
 initGraph = do
   _ <- Bolt.query "CALL apoc.schema.assert({}, {})"

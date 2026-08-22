@@ -17,6 +17,7 @@ import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
 
 import qualified Harmonic.Rules.Types.Harmony as H
+import Harmonic.Rules.Types.Pitch (mkPitchClass)
 import qualified Harmonic.Rules.Types.Progression as Prog
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import           Harmonic.Evaluation.Scoring.Progression
@@ -66,6 +67,26 @@ spec = do
     it "non-negative for any progression" $ do
       let pc = mkTriadCtx [ ("C", [0,4,7]), ("F", [0,4,7]) ]
       psVoiceLeading (scoreProgression pc) `shouldSatisfy` (>= 0)
+
+    it "measures honest sorted voicings (C->A no longer reads as 9 semitones)" $ do
+      -- Under the old wrapped/unsorted extraction an A-rooted [0,4,7] bar
+      -- read as [9,1,4]; C->A cyclic pairs then measured ~15/edge. Honest
+      -- sorted PCs give [0,4,7]->[1,4,9]: base 3, stepwise -1 => 2/edge
+      -- => score clamps to 1.0 under the 3.0/8.0 anchors.
+      let pc = mkTriadCtx [ ("C", [0,4,7]), ("A", [0,4,7]) ]
+      psVoiceLeading (scoreProgression pc) `shouldBe` 1.0
+
+    it "single-bar progression scores explicit neutral 0.5 (was accidental 1.0)" $ do
+      let pc = mkTriadCtx [ ("C", [0,4,7]) ]
+      psVoiceLeading (scoreProgression pc) `shouldBe` 0.5
+
+    it "smooth beats jagged" $ do
+      -- tritone-apart major triads: sorted absolute PCs [0,4,7]->[1,6,10],
+      -- 6+/edge — inside the 3.0/8.0 anchor window, scores below smooth
+      let smooth = mkTriadCtx [ ("C", [0,4,7]), ("A", [0,4,7]) ]
+          jagged = mkTriadCtx [ ("C", [0,4,7]), ("F#", [0,4,7]) ]
+      psVoiceLeading (scoreProgression smooth)
+        `shouldSatisfy` (> psVoiceLeading (scoreProgression jagged))
 
   describe "psModeValidity" $ do
     it "legacy (Nothing provenance) scores 1.0 unconditionally" $ do
@@ -148,6 +169,26 @@ spec = do
             , (T.pack (show cBeta),  [(cAlpha, 1.0)])
             ]
       cadenceFavFromMap srcMap prog `shouldBe` 1.0
+
+    it "a fused 4-note chain scores identically to its triad walk shadow (gen4)" $ do
+      -- Same alpha/beta walk, but each bar carries maj7 (triad + added 11)
+      -- as gen4 emits. walkTriadCadence must project the keys back to the
+      -- plain maj cadences — otherwise the map misses and the score is 0.
+      let fuse4 (m, r, ints) =
+            let base = H.initCadenceState m r ints
+                cad  = H.stateCadence base
+                cad4 = cad { H.cadenceFunctionality = "maj7"
+                           , H.cadenceIntervals = map mkPitchClass (ints ++ [11]) }
+            in base { H.stateCadence = cad4 }
+          fusedProg = Prog.Progression (Seq.fromList (map fuse4 [alphaSig, betaSig]))
+          triadProg = mkProg [alphaSig, betaSig]
+          srcMap = Map.fromList
+            [ (T.pack (show cAlpha), [(cBeta,  1.0)])
+            , (T.pack (show cBeta),  [(cAlpha, 1.0)])
+            ]
+      cadenceFavFromMap srcMap fusedProg
+        `shouldBe` cadenceFavFromMap srcMap triadProg
+      cadenceFavFromMap srcMap fusedProg `shouldBe` 1.0
 
     it "edge with no matching destination → contributes 0" $ do
       -- alpha→beta edge, but the map only has alpha→gamma. beta→alpha wraps

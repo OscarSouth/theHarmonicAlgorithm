@@ -1226,7 +1226,74 @@ hush
 
 
 -- ══════════════════════════════════════════════════════════
--- SECTION 20 — Snippets & the liveness gradient
+-- SECTION 20 — Four-note generation (gen4)
+-- ══════════════════════════════════════════════════════════
+-- src/Harmonic/Framework/Builder.hs        (quad, gen4 family)
+-- src/Harmonic/Framework/Builder/Core.hs   (fuseState)
+--
+-- GOAL: Seventh-chord density with the same corpus-trained walk.
+-- A third generator family alongside gen and genP: each step
+-- picks a triad exactly as gen does, then FUSES one more tone
+-- from the R-valid palette (most-consonant-first ranking, same
+-- entropy dial). The walk continues from the fused chord's most
+-- consonant embedded triad, so the added tone can reinterpret
+-- the harmony — while every graph key stays corpus-shaped and
+-- generation stays online.
+
+start <- lead "C maj"
+
+-- A triad cue is fused once — output is uniformly 4-note.
+-- Watch the new trace line under each bar's Candidates:
+--   fused: +Ab → F m7  [rank 2/9]
+-- (which tone was added, the fused name, where the draw landed
+-- in the consonant-first ranking).
+pc20 <- seek "*" $ cue start $ len 8 $ entropy 0.3 $ gen4'
+
+-- Play it. Degree 3 in the pattern is now a real fourth chord
+-- tone, not the octave wrap.
+p20 = do
+  let k = iK tempo [at 0 1 1 pc20] (rep pc20 1)
+  mapM_ id [hush, setbpm tempo
+    , (d01 $ arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~", "[0 1 2 3]/4"] # ch 01 |* vel 0.7 |= legato 1.2)
+    , (d01 $ arrange (0, 1) k (-9, 9) T root (overlapF 0) ["~", "[0]/1"] # ch 01 |- oct 2 |* vel 0.7 |= legato 3.6)
+    ]
+
+p20
+
+-- ── EXPLICIT 4-NOTE CUES: lead' ──
+-- lead' takes note names directly. First note = root/bass; typed
+-- accidentals drive the spelling (Eb → flat, D# → sharp);
+-- optional (N) fixes the approach movement, like lead.
+start' <- lead' "Eb Gb Bb Db"        -- Eb m7, used as-is (no fuse)
+pc20' <- seek "*" $ cue start' $ len 8 $ entropy 0.3 $ gen4'
+
+-- ── COMPOSES LIKE EVERYTHING ELSE ──
+-- quad is the underlying modifier (gen4 = quad gen):
+pc20'' <- seek "*" $ cue start $ len 8 $ attempt 3 12 $ entropy 0.4 $ gen4''
+
+-- Regeneration is family-aware: a uniform 4-note source regenerates
+-- 4-note bars automatically (families never mix; quad is inferred):
+pc20r <- seek "*" $ entropy 0.3 $ genFrom pc20 3 5
+
+-- R adherence is structural: the added tone always comes from
+-- the active palette (tonal / hcKey), the bass never moves, and
+-- consonant/dissonant drift governs BOTH the triad skeleton and
+-- the fused surface:
+pc20k <- seek "*" $ cue start $ len 8 $ tonal (hcKey "0#" $ consonant hContext) $ gen4'
+
+-- One boundary: gen4 and genP never mix — strata progressions
+-- stay 3-5-7 by design. quad on a strata source fails fast.
+
+-- ── TRY THIS ──
+-- Generate the same cue with gen' then gen4' and compare grids:
+-- same walk character, thicker sonorities. Then play pc20 with
+-- lite instead of flow and listen to the register difference.
+
+hush
+
+
+-- ══════════════════════════════════════════════════════════
+-- SECTION 21 — Snippets & the liveness gradient
 -- ══════════════════════════════════════════════════════════
 -- live/snippets.cson   (the snippet library — Pulsar format)
 --
@@ -1284,7 +1351,7 @@ hush
 
 
 -- ══════════════════════════════════════════════════════════
--- SECTION 21 — Going further
+-- SECTION 22 — Going further
 -- ══════════════════════════════════════════════════════════
 --
 -- INSTRUMENT CATALOGUE

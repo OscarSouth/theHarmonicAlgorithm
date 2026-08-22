@@ -32,6 +32,7 @@ module Harmonic.Framework.Builder.Types
     -- * Pre-parsed Context
   , ParsedContext(..)
   , parseContextOnce
+  , keySpellingOf
 
     -- * Bass Direction (re-exported from Filter)
   , BassDirection(..)
@@ -48,6 +49,7 @@ module Harmonic.Framework.Builder.Types
   , TransformTrace(..)
   , AdvanceTrace(..)
   , StepDiagnostic(..)
+  , FusionDiag(..)
   , GenerationDiagnostics(..)
   , AttemptDiagnostic(..)
   ) where
@@ -238,16 +240,22 @@ hcTristrata t ctx = ctx { _hcTristrata = T.pack t }
 
 -- |Configuration for the progression generator.
 --
--- Currently carries no options: the former @gcPoolSize@ field was removed
--- (2026-08-19) because no generation path ever read it — the candidate pool
--- is deliberately unlimited (full 660-candidate fallback; see
--- 'Harmonic.Framework.Builder.Core'). The type is kept so the @genWith@ /
--- @generateWith@ signatures stay stable for any future option.
-data GeneratorConfig = GeneratorConfig deriving (Show, Eq)
+-- @gcQuad@ switches on the gen4 family: after each triad selection, the
+-- step fuses one R-valid palette tone into the chord (4-note output) and
+-- the walk continues from the fused chord's most-consonant embedded triad
+-- (see 'Harmonic.Framework.Builder.Core.fuseState').
+--
+-- Historical note: the former @gcPoolSize@ field was removed (2026-08-19)
+-- because no generation path ever read it — the candidate pool is
+-- deliberately unlimited (full 660-candidate fallback; see
+-- 'Harmonic.Framework.Builder.Core').
+data GeneratorConfig = GeneratorConfig
+  { gcQuad :: !Bool  -- ^ gen4: fuse a 4th tone into every generated bar (default False)
+  } deriving (Show, Eq)
 
 -- |Default configuration.
 defaultConfig :: GeneratorConfig
-defaultConfig = GeneratorConfig
+defaultConfig = GeneratorConfig { gcQuad = False }
 
 -- |Pre-parsed HarmonicContext for O(1) membership tests.
 -- Computed once per generation run, avoiding repeated text parsing.
@@ -266,6 +274,7 @@ data ParsedContext = ParsedContext
   , pcAllowedTristrata   :: ![Sc.Tristrata] -- ^ Tristrata allow-list ('genP' only; default = all 12)
   , pcSoftBoost          :: !Double         -- ^ Multiplier applied to 'badness' at candidate-scoring time. Default 1.0 (no effect). 'genP' sets this per bar based on (s', t') continuity against the prior bar.
   , pcStrictContainment  :: !Bool           -- ^ When 'True', every absolute PC of a candidate cadence (including the bass) must be a member of 'pcEffectiveOvertones'. Default 'False' preserves the legacy bass-exemption behaviour for 'gen'. 'runStrataGen' sets 'True' per bar to enforce single-strata containment.
+  , pcKeySpelling        :: !(Maybe H.EnharmonicSpelling) -- ^ Enharmonic side implied by the declared key signature ('Nothing' for wildcard / 0-accidental / C). When present it overrides per-bar spelling inference — a five-flat context never prints F#.
   }
 
 -- |Parse pedal tone string into required and preferred IntSets.
@@ -319,7 +328,40 @@ parseContextOnce ctx =
     , pcAllowedTristrata   = allowedTS
     , pcSoftBoost          = 1.0
     , pcStrictContainment  = False
+    , pcKeySpelling        = keySpellingOf (_hcKey ctx)
     }
+
+-- |Enharmonic side implied by a key-signature string. A key filter may
+-- carry several tokens (their pitch sets union into the candidate pool),
+-- so the side is a per-token vote: every token flat-side -> flat, every
+-- token sharp-side -> sharp, mixed or indeterminate -> neutral (spelling
+-- falls back to content inference and continuity). Count forms carry
+-- their side directly ("2b" flat, "3#" sharp; zero-accidental forms are
+-- neutral); note-name forms follow the circle of fifths (F and every
+-- flat name -> flat; G, D, A, E, B and every sharp name -> sharp; C is
+-- ambiguous -> neutral). Removal tokens ("-G") shape the pool, not the
+-- spelling, and do not vote. Wildcards are neutral.
+keySpellingOf :: Text -> Maybe H.EnharmonicSpelling
+keySpellingOf raw
+  | isWildcard raw = Nothing
+  | otherwise =
+      let toks  = [ t | t <- T.words (T.toLower (T.strip raw))
+                      , not ("-" `T.isPrefixOf` t) ]
+          sides = [ s | Just s <- map tokenSide toks ]
+      in case sides of
+           [] -> Nothing
+           ss | all (== H.FlatSpelling)  ss -> Just H.FlatSpelling
+              | all (== H.SharpSpelling) ss -> Just H.SharpSpelling
+              | otherwise                   -> Nothing
+  where
+    tokenSide t
+      | t `elem` ["0#", "0b"]          = Nothing
+      | "#" `T.isSuffixOf` t           = Just H.SharpSpelling
+      | t == "b"                       = Just H.SharpSpelling  -- the key of B
+      | T.any (== 'b') t               = Just H.FlatSpelling
+      | t == "f"                       = Just H.FlatSpelling
+      | t `elem` ["g", "d", "a", "e"]  = Just H.SharpSpelling
+      | otherwise                      = Nothing  -- "c", unrecognised
 
 -------------------------------------------------------------------------------
 -- Generation Configuration (Modifier-Based API)
@@ -357,6 +399,7 @@ data GenConfig = GenConfig
   , _gcBoostSame   :: Double              -- ^ same-strata continuity multiplier (default 0.90)
   , _gcBoostFlip   :: Double              -- ^ flip-flop bias multiplier        (default 0.80)
   , _gcBoostTri    :: Double              -- ^ same-tristrata bias multiplier   (default 0.70)
+  , _gcQuad        :: Bool                -- ^ gen4 family: fuse a 4th R-valid tone into every bar (default False)
   , _gcMaxAttempts   :: Int               -- ^ Maximum generation attempts in rank-and-select (default 1: single-pass behaviour)
   , _gcViableTarget  :: Int               -- ^ Stop early once this many viable attempts have been collected (default 1)
   , _gcViabilityFloor :: Double           -- ^ Minimum 'totalScore' for an attempt to count as viable (default 0.5). Setting 0 recovers structural-only viability.
@@ -438,6 +481,16 @@ data StepDiagnostic = StepDiagnostic
   , sdParentKey       :: Maybe (P.PitchClass, Sc.ScaleFamily) -- ^ Parent key (root, family) of 'sdMode'
   , sdModeResult      :: Maybe Sc.ModeResult     -- ^ Raw mode classification result; 'ModeInvalid' surfaces overlap PCs to the renderer
   , sdBarSpelling     :: Maybe H.EnharmonicSpelling -- ^ Single enharmonic spelling for the bar, derived via 'H.inferSpelling' on the mode chroma (triad-root-first). Reused across chord name, strata chroma, mode label, mode chroma, and parent-key tag so the block renders in one coherent accidental system.
+  , sdFusion          :: Maybe FusionDiag        -- ^ gen4 only: how the 4th tone was fused into this bar ('Nothing' for plain gen/genP steps and palette-exhausted fallback bars)
+  } deriving (Show, Eq)
+
+-- |Diagnostic record for one gen4 fusion (the added-tone draw that turns
+-- the selected triad into a 4-note chord).
+data FusionDiag = FusionDiag
+  { fdAddedPC   :: Int     -- ^ Absolute pitch class of the added tone
+  , fdFusedName :: String  -- ^ Functionality of the fused 4-note chord
+  , fdGammaIdx  :: Int     -- ^ Gamma-selected index into the consonant-first ranking (0 = most consonant)
+  , fdPoolK     :: Int     -- ^ Number of fusion candidates (palette \\ triad, post-drift)
   } deriving (Show, Eq)
 
 -- |Complete diagnostics for a generation run

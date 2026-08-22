@@ -300,7 +300,7 @@ minim = 1/2
 --   * rotate, excerpt, insert, switch, clone, extract (Arranger)
 --   * transposeP, reverse, fuse, expand (Arranger)
 --   * progOverlap, progOverlapF, progOverlapB (Arranger)
---   * root, flow, lite (Voicing paradigms - 3 strategies via cyclic DP)
+--   * grid, flow, lite, literal, root (Voicing paradigms; grid/flow via cyclic DP)
 --   * arrange, applyProg, voiceRange (Pattern application)
 --   * overlapF (Pattern sustain/legato)
 --   * PitchClass, NoteName, Chord, Cadence, CadenceState (Core types)
@@ -309,9 +309,12 @@ minim = 1/2
 --   * HarmonicContext, GeneratorConfig (Context/config)
 --
 -- Voicing paradigms:
---   * root: Cyclic DP, root always in bass, smooth compact voice leading
+--   * grid: Cyclic DP, root always in bass, smooth compact voice leading
 --   * flow: Cyclic DP, any inversion allowed for smoothest motion
---   * lite: Literal intervals, no voice leading applied
+--   * lite/literal: Literal intervals, no voice leading applied
+--   * root: bass pitch class per bar (bass-line extraction; no DP)
+--   * fund: harmonic fundamental per bar, inversion-invariant (sub/kick)
+--   (>=6-PC bars auto-route to strataModeFlow's degree semantics)
 --
 -- All types are Phase B (MusicData has been deprecated).
 -------------------------------------------------------------------------------

@@ -45,7 +45,7 @@ import qualified Data.Map.Strict as Map
 import           Data.Map.Strict (Map)
 import qualified Data.Text as T
 import           Data.Text (Text)
-import           Data.List (nub)
+import           Data.List (nub, sort)
 
 import qualified Database.Bolt as Bolt
 
@@ -136,24 +136,52 @@ scoreRootMotion prog =
            avgRaw   = rawSum / fromIntegral (length edges)
        in clamp01 ((6.0 - avgRaw) / 5.0)
 
--- |Cyclic voice-leading cost over a literal-voicing extraction, linearly
--- mapped from per-edge cost @[vlLowAnchor, vlHighAnchor]@ to score
--- @[1, 0]@.
+-- |Cyclic voice-leading cost over an HONEST voicing extraction (sorted
+-- absolute PCs per bar, full cardinality), linearly mapped from per-edge
+-- cost @[vlLowAnchorCal, vlHighAnchorCal]@ to score @[1, 0]@.
 --
--- The anchors are calibrated against observed per-edge costs across
--- 'genVI' (natural-walk, strata-constrained, ~11–25) and 'gen' (legacy,
--- root-motion-prioritised, ~22–29) on length-8 / length-16 progressions
--- at varying entropies. See the data-driven tuning memory.
+-- Anchor calibration (2026-08-20, data-driven): 36-sample online probe —
+-- gen / gen4 / genVI × len {8, 16} × entropy {0.2, 0.4, 0.6}, two runs
+-- each (genVI cued in-strata; its random-cue empties excluded). Observed
+-- per-edge cyclic costs: gen 2.5–5.75, gen4 3.25–12.0, genVI 3.0–7.1;
+-- combined p10 ≈ 3.0, p90 ≈ 7.1. Anchors set at 3.0 (excellent) / 8.0
+-- (poor) — p90 plus margin, so only genuinely rough runs bottom out.
+-- (The previous 10/30 anchors were calibrated against the old
+-- unsorted/mod-12-wrapped measurement artefact and do not transfer.)
+vlLowAnchorCal, vlHighAnchorCal :: Double
+vlLowAnchorCal  = 3.0
+vlHighAnchorCal = 8.0
+
 scoreVoiceLeading :: Prog.Progression -> Double
-scoreVoiceLeading prog =
-  let voicings = Prog.literalVoicing prog
-      n        = max 1 (length voicings)
-      cost     = fromIntegral (VL.cyclicCost voicings) :: Double
-      perEdge  = cost / fromIntegral n
-  in clamp01 ((vlHighAnchor - perEdge) / (vlHighAnchor - vlLowAnchor))
+scoreVoiceLeading prog
+  -- Fewer than two bars: no edges exist to measure — explicit neutral
+  -- score (previously an accidental perfect 1.0 via the clamp).
+  | length states < 2 = 0.5
+  | otherwise =
+      let voicings = map honestVoicing states
+          n        = max 1 (length voicings)
+          cost     = fromIntegral (VL.cyclicCost voicings) :: Double
+          perEdge  = cost / fromIntegral n
+      in clamp01 ((vlHighAnchor - perEdge) / (vlHighAnchor - vlLowAnchor))
   where
-    vlLowAnchor  = 10.0  -- per-edge cost considered "excellent"
-    vlHighAnchor = 30.0  -- per-edge cost considered "poor"
+    states = toList (Prog.unProgression prog)
+    -- Honest per-bar extraction: sorted absolute PCs at full cardinality.
+    -- Replaces 'Prog.literalVoicing', which returned UNSORTED,
+    -- mod-12-wrapped pseudo-voicings via the toTriad reduction (an
+    -- A-rooted [0,4,7] bar read as [9,1,4], so C→A root motion measured
+    -- 9 semitones instead of 3 — the old 10/30 anchors were calibrated
+    -- against that artefact). gen4 chains now score the heard 4-note
+    -- surface; mixed-cardinality bars score real alignment costs.
+    honestVoicing cs =
+      let r = P.unPitchClass (P.pitchClass (H.stateCadenceRoot cs))
+      in sort [ (P.unPitchClass i + r) `mod` 12
+              | i <- H.cadenceIntervals (H.stateCadence cs) ]
+    -- Anchors recalibrated 2026-08-20 against the honest measurement:
+    -- online probe gen/genVI/gen4 × len 8/16 × entropy {0.2,0.4,0.6},
+    -- per-edge cyclic costs of sorted absolute-PC voicings. See the
+    -- calibration values below (updated by the probe in the VL pass).
+    vlLowAnchor  = vlLowAnchorCal
+    vlHighAnchor = vlHighAnchorCal
 
 -- |Fraction of bars whose mode-layer cardinality is 7 (i.e. 'ModeOk' shape).
 --
@@ -208,7 +236,11 @@ type TransitionMap = Map Text [(H.Cadence, Double)]
 -- the 'show' instance projects to @(movement, functionality)@ only.
 cadenceFavFromMap :: TransitionMap -> Prog.Progression -> Double
 cadenceFavFromMap srcMap prog =
-  let cads = map H.stateCadence
+  -- Project each bar through the gen4 walk shadow ('walkTriadCadence',
+  -- identity for triads) so 4-note chains score the same corpus edges the
+  -- walk actually followed; without this a fused chain's keys miss the
+  -- map entirely and psCadenceFav collapses to 0.
+  let cads = map (H.walkTriadCadence . H.stateCadence)
                  (toList (Prog.unProgression prog))
       n = length cads
   in if n < 2 then 0
@@ -282,7 +314,8 @@ computeCadenceFav
   -> Prog.Progression
   -> Bolt.BoltActionT IO Double
 computeCadenceFav seekStr prog = do
-  let cads      = map H.stateCadence (toList (Prog.unProgression prog))
+  -- Walk-shadow projection: see 'cadenceFavFromMap'.
+  let cads      = map (H.walkTriadCadence . H.stateCadence) (toList (Prog.unProgression prog))
       srcKeys   = nub (map (T.pack . show) cads)
       blend     = Q.parseComposerWeights seekStr
   pairs <- forM srcKeys $ \k -> do

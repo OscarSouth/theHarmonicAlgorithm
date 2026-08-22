@@ -5,6 +5,33 @@
 -- Transforms raw CSV corpus records into 'Cadence' structures suitable for
 -- Neo4j graph storage: fundamental extraction, triad generation via
 -- "Harmonic.Rules.Constraints.Overtone", and dissonance scoring.
+--
+-- == BEFORE RE-INGESTING THE CORPUS, READ THIS ==
+--
+-- The LIVE database's node keys (@show@ = movement + functionality) carry
+-- functionality names produced under LEGACY naming rules — e.g. zero form
+-- @[0,3,8]@ is stored as @maj_1stInv@, @[0,2,7]@ as @sus4_1stInv@,
+-- @[0,5,10]@ as @sus4_2ndInv@. The CURRENT namers in this pipeline
+-- ('H.toTriad' via 'H.toCadence' below) deliberately diverge from those
+-- rules (@min#5@, @sus2@, @7sus4@ for the same forms). Every read-side
+-- fetch key is therefore built through 'H.corpusFunctionality', whose
+-- 55-form @corpusNameTable@ ("Harmonic.Rules.Types.Harmony") was
+-- transcribed verbatim from the live database (2026-08-19).
+--
+-- Consequence: running this ingestion pipeline as-is would create a graph
+-- whose keyspace DIVERGES from @corpusNameTable@ — every fetch would miss
+-- and generation would silently drop to fallback-only. Any re-ingestion
+-- must do one of:
+--
+--   (a) route write-side naming through 'H.corpusFunctionality' so the
+--       new keyspace is identical to the table (preferred — keeps read
+--       and write sides on one contract), or
+--   (b) re-ingest with the current namers and then REGENERATE
+--       @corpusNameTable@ from the fresh database:
+--       @MATCH (c:Cadence) RETURN DISTINCT c.chord, c.show@.
+--
+-- Either way, verify afterwards with an online @gen'@ run: graph counts
+-- (@[nG/...]@) must stay nonzero across steps that select inversion forms.
 
 module Harmonic.Rules.Import.Transform where
 
@@ -38,6 +65,12 @@ buildCadences slices =
    in concatMap expand transitions
   where
     expand (fromChoices, toChoices) =
+      -- NODE-KEY DECISION POINT: 'H.toCadence' stamps the functionality
+      -- that becomes the graph node's @show@ key. See the module-header
+      -- warning — the live DB's keys were stamped under legacy naming,
+      -- which the current 'H.toTriad'-derived names diverge from. Do not
+      -- re-ingest without resolving that (route through
+      -- 'H.corpusFunctionality', or rebuild @corpusNameTable@ after).
       [ H.toCadence (fromChord, toChord)
       | fromChord <- fromChoices
       , toChord   <- toChoices

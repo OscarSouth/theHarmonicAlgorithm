@@ -349,7 +349,47 @@ data ProgressionContext = ProgressionContext
 `arrange` takes the layer as an argument, so the same pattern can read
 chords, pentatonics or modes from one generated result. The legacy
 `gen` family fills all three layers with the triad; the strata-first
-`genP` family populates them distinctly.
+`genP` family populates them distinctly; the `gen4` family (below)
+fills all three with the 4-note progression.
+
+### 5.3a The gen4 family (4-note generation)
+
+A third, distinct generator family (`quad`, `gen4`/`gen4'`/`gen4''`,
+family-aware `genFrom`; `lead'` for explicit N-note cues). It never touches the
+strata family — strata progressions stay 3-5-7, and `quad` on a strata
+source fails fast.
+
+Each step is **two-stage**: (1) select a triad through the unchanged
+R→E→T pipeline; (2) fuse in one more tone from the R-valid palette.
+The fusion is state-local set theory: every R-valid triad sharing
+exactly two pitches with the selected triad T unions to T ∪ {x} with
+x ∈ palette \ T, so the candidate list is simply the palette's
+remaining tones — ranked most-consonant-first by full-chord
+`dissonanceScore` and drawn by the same entropy-scaled gamma as the
+walk. R adherence is structural (x is in the palette; the bass never
+moves; pedal sets only gain members), and `consonant`/`dissonant`
+drift advisorily filters the fused surface against the previous fused
+bar as well as the triad stage.
+
+The corpus graph is 3-set only, so the walk uses a **shadow
+projection** (`walkTriadCadence`): every state is projected to its
+most-consonant *rooted* embedded triad for graph fetch keys, R
+filters, and drift comparisons — identity for all ≤3-interval states.
+The chain state is the fused chord itself, so the added tone feeds
+back: a dim triad plus an added fifth walks on as minor. Graph keys
+stay corpus-shaped throughout — gen4 generation is fully online.
+Corpus-shaped means `corpusFunctionality`'s 55-form table (Harmony.hs),
+transcribed from the live graph: the database was ingested under
+legacy naming (e.g. `[0,3,8]` → `maj_1stInv`), which the modernised
+zero-form namers deliberately diverge from, so fetch keys cannot be
+derived from them. The same table fixed a latent bug in `gen` itself:
+`constructCadence` previously read inversions back under modern names,
+so every graph-selected inversion silently dropped the walk to
+fallback for one step.
+
+Attempt scoring projects each bar through the same shadow before
+keying the corpus map (`cadenceFavFromMap`), and voice-leading scoring
+evaluates the triad skeleton (uniform 3-note comparisons, by design).
 
 ### 5.4 HarmonicContext
 
@@ -434,6 +474,42 @@ smoothest motion, solved by cyclic dynamic programming over the
 progression *including* the wrap back to the first chord), `grid` (root
 locked in the bass, smooth above), `lite` (raw intervals), `root`, and
 `fund` (harmonic fundamental, for sub and kick).
+
+The voice-leading engine (2026-08-20 pass) is seam-aware and
+strictly-scoped:
+
+- **Mixed cardinalities voice-lead for real.** A transition between bars
+  of different sizes is costed by optimal monotone padding
+  (`alignVoices`): the smaller sorted voicing is expanded by duplicating
+  tones per the minimal-distance non-crossing alignment in which every
+  voice of both chords participates, then the full cost function runs on
+  the aligned pair. (Previously a flat 999 sentinel made such edges
+  invisible to the DP — seam registers were arbitrary and the cyclic
+  wrap objective silently vanished on mixed material.)
+- **A held chord is strictly cheapest.** The cost total is floored at 1
+  for any actual motion; bonuses (contrary, stepwise) discriminate among
+  moving alternatives but can no longer beat stillness.
+- **Strict-context routing.** genP-provenance S/M layers are always
+  voiced by `strataModeFlow` (degree/"key-signature" semantics; octave
+  placement now chosen by common-tone MIDI overlap, so shared tones
+  pedal in register). The general `flow`/`grid` DP handles all
+  harmony-sized material — bars of ≤5 voices, uniform or mixed; ≥6-PC
+  bars (hand-built scale sets) safety-route to the chroma engine
+  (16-bar 7-PC DP would take ~107 s interpreted and answer the wrong
+  musical question).
+- **Attempt scoring measures the heard surface**: sorted absolute PCs at
+  full cardinality (the previous extraction was unsorted and
+  mod-12-wrapped, so root motion C→A measured 9 semitones; anchors were
+  recalibrated empirically — see `Scoring/Progression.hs`).
+- **Deferred, known**: the per-`arrange` voicing cache is not shared
+  across calls, so a 15-instrument Orchestra score solves the same
+  progression 15 times at REPL-eval time (bounded, off the audio
+  thread). A cross-call cache is future work. Loading the live session
+  with `stack ghci --ghci-options -fobject-code` compiles the library to
+  objects for a measured ~8-9× speedup on all VL solves — but the object
+  cache (`.stack-work/odir`) goes stale against source edits and then
+  poisons plain sessions (linker errors); delete it after changing
+  source, or use the flag only in performance sessions.
 
 **Form and kinetics.** A form is a list of nodes (`Form.hs`), each
 placed in seconds (`at`, `at'`) or bars (`rh`, `rh'`) and carrying three

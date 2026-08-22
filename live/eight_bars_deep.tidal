@@ -1,0 +1,102 @@
+-- ══════════════════════════════════════════════════════════
+-- Eight Bars Deep
+-- ══════════════════════════════════════════════════════════
+-- Deep/tech house grown out of the "Sixteen Bars" production
+-- session (see live/sixteen_bars.tidal): the machine wrote the
+-- changes, the arrangement builds groove and contour from
+-- dynamics and a slowly-arriving melody. 122 BPM.
+--
+-- Form: 8 chords, each held TWO bars (rep s 2) — 16 bars per
+-- pass, 64 cycles, with a full-form dynamic swell that resets at
+-- the wrap. Channels: pad ch 2, electric piano ch 7 (stabs +
+-- melody), bass ch 8, kit ch 9 (deep-house drumpat).
+--
+-- Requires live/BootTidal.hs; Neo4j only for the recipe.
+
+hush
+
+-- ══════════════════════════════════════════════════════════
+-- THE RECIPE (stochastic)
+-- ══════════════════════════════════════════════════════════
+-- A hand-declared Am7 cue (lead'), natural-minor palette, low
+-- entropy, consonant drift: the corpus answers with hypnosis,
+-- not narrative — exactly what the genre wants.
+
+startD <- lead' "A C E G"
+sD <- seek "*" $ cue startD $ tonal (hcKey "0#" $ consonant $ hContext) $ len 8 $ entropy 0.3 $ attempt 3 8 $ gen4
+
+-- ══════════════════════════════════════════════════════════
+-- THE PIECE (frozen — the session take)
+-- ══════════════════════════════════════════════════════════
+--   || Am7 | Em7 | Am7 | Em7 | Am7 | C6 | Em7 | Am7 ||
+-- i–v hypnosis with one relative-major lift at chord 6.
+
+deep8 = fromChords
+  [ [9,0,4,7], [4,7,11,2], [9,0,4,7], [4,7,11,2]
+  , [9,0,4,7], [0,4,7,9],  [4,7,11,2], [9,0,4,7]
+  ]
+
+-- ══════════════════════════════════════════════════════════
+-- THE ARRANGEMENT
+-- ══════════════════════════════════════════════════════════
+-- Load the drum pattern first (defines kickpat/…/kgrv):
+--   :script live/drumpats/house/deep.tidal
+--
+-- Groove and contour live in the dynamics:
+--   * rampD — one swell across the whole 16-bar pass (resets at
+--     the wrap; the C6 lift lands near the loudest point).
+--   * stab velocities breathe in a 4-beat cycle; stabs, bass and
+--     kit share a 56% 16th swing (the deep-house pocket).
+--   * bass 16ths are sparse and syncopated, accented with the
+--     four-on-floor kick, folded up an octave where they'd fall
+--     off the instrument (raiseFloor).
+--   * the melody ARRIVES: silent for the first four bars, then
+--     half-bar fragments that widen into a falling resolution as
+--     the form peaks — contour by absence first, motion later.
+--   * pad (ch 2): the full flow-voiced chord, one breath per two
+--     bars, an octave up, far back in the mix.
+
+import qualified Data.Map.Strict as DMap
+
+:{
+raiseFloor fl = fmap (DMap.adjust bump "note")
+  where bump (VN (Note n)) = VN (Note (if n < fl then n + 12 else n))
+        bump v = v
+:}
+
+rampD = slow 64 $ range 0.72 1.06 saw
+
+:{
+deeptech s = do
+  let k = iK 122 [at 0 1 1 s] (rep s 2)
+  mapM_ id [hush, setbpm 122
+    , (d02 $ arrange (0,1) k (-9,9) T flow (overlapF 0) ["~", "[0,1,2,3]/8"] # ch 02 |+ oct 1 |* vel 0.32 |= legato 7.8 |* vel rampD)
+    , (d07 $ stack
+        [ swing16 0.56 $ arrange (0,1) k (-9,9) T flow (overlapF 0) ["~", "[~ [0,1,2,3]]"] |= vel "<0.5 0.42 0.46 0.42>" |= legato 0.4
+        , arrange (0,1) k (-9,9) T flow (overlapF 0) ["~", "<~ ~ [~ ~ 3 ~] [~ 2 ~ ~] [~ ~ 3 4] [~ 2 ~ 3] [4 ~ 3 2] [3 ~ ~ ~]>/8"] |+ oct 1 |* vel 0.62 |= legato 1.4
+        ] # ch 07 |* vel rampD)
+    -- NB the bass figure is BAR-length, so it carries /4 (one cycle =
+    -- one beat); without it the 16 steps land inside every beat.
+    , (d08 $ swing16 0.56 $ raiseFloor (-20) $ arrange (0,1) k (-9,9) T root (overlapF 0) ["~", "[[0 ~ ~ 0] [~ ~ 0 ~] [0 ~ 0 ~] [~ 0 ~ ~]]/4"] # ch 08 |- oct 2 |= vel "[0.6 0.48 0.52 0.48]/4" |* vel rampD |= legato 0.7)
+    , kgrv (swing16 0.56) k (0.45 * rampD)
+    ]
+:}
+
+deeptech deep8
+
+hush
+
+-- ══════════════════════════════════════════════════════════
+-- SUGGESTED NEXT STEPS
+-- ══════════════════════════════════════════════════════════
+--  * Harmonic variation on the second pass: regenerate chords
+--    6-7 hotter — s' <- seek "*" $ tonal (hcKey "0#" $ hContext)
+--    $ entropy 0.5 $ genFrom deep8 6 7 — and alternate takes
+--    with a form node per pass.
+--  * Open the filter over the form: ride a CC with the same
+--    rampD shape into the pad/EP synth if the device maps one.
+--  * Swap the stab voicing layer to S-layer pentatonics via a
+--    genP progression for a different modal colour under the
+--    same bass.
+--  * Halve the drums (kgrv id k …) for bars 1-8 of each pass and
+--    bring the full kit at bar 9 — arrival by subtraction.

@@ -53,7 +53,7 @@ main = hspec $ do
   describe "Harmonic.Core.Pitch" PitchSpec.spec
   describe "Harmonic.Core.Harmony" HarmonySpec.spec
   describe "Harmonic.Core.Overtone" OvertoneSpec.spec
-  describe "Harmonic.Core.VoiceLeading" VoiceLeadingSpec.spec
+  describe "Harmonic.Evaluation.Scoring.VoiceLeading" VoiceLeadingSpec.spec
   describe "Harmonic.Scoring.Progression" ScoringProgressionSpec.spec
   describe "Harmonic.Core.Progression" ProgressionSpec.spec
   describe "Harmonic.Core.ProgressionContext" ProgressionContextSpec.spec

@@ -25,6 +25,7 @@ module Harmonic.Framework.Builder.Core
 
     -- * Step primitives (exposed for genP-style per-bar context narrowing)
   , stepChainCore
+  , fuseState
   , stepChainOffline
 
     -- * Conversion
@@ -42,7 +43,7 @@ import qualified Data.Text as T
 import qualified Data.IntSet as IntSet
 import           Control.Monad (foldM)
 import           Control.Monad.IO.Class (liftIO)
-import           Data.List (sortBy)
+import           Data.List (sort, sortBy)
 import           Data.Function (on)
 import           Data.Ord (Down(..))
 import           System.Random.MWC (GenIO, createSystemRandom, uniform, uniformR)
@@ -136,7 +137,13 @@ stepChainBody :: GeneratorConfig
               -> Int
               -> [(H.Cadence, ComposerWeights)]   -- ^ Pre-fetched transitions (empty for offline)
               -> IO ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
-stepChainBody _config gen mVerbosity ent _context pctx composerWeights ((current, revChain, nonInvCount), revDiags) stepNum transitions = do
+stepChainBody config gen mVerbosity ent _context pctx composerWeights ((current, revChain, nonInvCount), revDiags) stepNum transitions = do
+  -- Walk shadow (gen4): all stage-1 machinery runs against the current
+  -- state's most-consonant rooted embedded triad, so drift comparisons stay
+  -- triad-vs-triad and graph keys stay corpus-shaped. Identity for every
+  -- <=3-interval state, i.e. all plain gen/genP steps.
+  let walkCur = H.walkTriadState current
+
   -- Resolve bass direction for this step (may consume randomness for
   -- optional '?' tokens and for BDRandomPick comma-list selectors)
   mDir <- resolveBassDirection gen stepNum (pcBassDirectionSpec pctx)
@@ -147,7 +154,7 @@ stepChainBody _config gen mVerbosity ent _context pctx composerWeights ((current
         Just (Fall n) -> Just $ nthBelow n prevBassPC (pcAllowedBassNotes pctx)
 
   -- Apply R constraints (pure filter by ParsedContext)
-  let filtered = applyRConstraintsWithTarget bassTarget pctx current transitions
+  let filtered = applyRConstraintsWithTarget bassTarget pctx walkCur transitions
 
   -- Score by composer blend
   -- Filter to confidence > 0 and sort highest first
@@ -173,17 +180,17 @@ stepChainBody _config gen mVerbosity ent _context pctx composerWeights ((current
   -- ranking is effectively unreachable by the gamma draw — the cost is a
   -- ~660-candidate score-and-sort per step, negligible next to the per-step
   -- Neo4j round-trip. Offline the fallback IS the pool. Keep unconditional.
-  fallbackAll <- consonanceFallbackParsed gen current pctx
+  fallbackAll <- consonanceFallbackParsed gen walkCur pctx
   -- Apply R constraints to fallback candidates (same as graph candidates)
   let unfilteredFallback = [(cad, score) | (cad, score, _, _, _) <- fallbackAll]
-      filteredFallback = filter (\(cad, _) -> matchesContextWithTarget bassTarget pctx current cad) unfilteredFallback
+      filteredFallback = filter (\(cad, _) -> matchesContextWithTarget bassTarget pctx walkCur cad) unfilteredFallback
       fallbackCount = length filteredFallback
       -- Create unified pool with (Cadence, score) format
       -- Graph candidates first (preserves database priority), then filtered fallback
       pool = graphCandidates ++ filteredFallback
 
       -- Apply dissonance drift filter
-      driftedPool = applyDriftFilter (pcDrift pctx) current pool
+      driftedPool = applyDriftFilter (pcDrift pctx) walkCur pool
 
       -- Apply inversion spacing constraint
       invSpacing = pcInversionSpacing pctx
@@ -192,7 +199,7 @@ stepChainBody _config gen mVerbosity ent _context pctx composerWeights ((current
                    then driftedPool
                    else filter (not . H.isInversion . fst) driftedPool
       prepedalPool = if null spacedPool then driftedPool else spacedPool
-      finalPool = applyPedalFilter pctx current prepedalPool
+      finalPool = applyPedalFilter pctx walkCur prepedalPool
 
   -- Select next cadence using gamma sampling
   if null finalPool
@@ -233,17 +240,27 @@ stepChainBody _config gen mVerbosity ent _context pctx composerWeights ((current
                     , sdParentKey = Nothing
                     , sdModeResult = Nothing
                     , sdBarSpelling = Nothing
+                    , sdFusion = Nothing
                     }
               in diag : revDiags
       pure ((current, current : revChain, nonInvCount), diags)
     else do
       idx <- gammaIndexScaledWith gen ent (length finalPool)
       let nextCadence = fst (finalPool !! idx)
-          (newState, advTrace) = advanceStateTraced current nextCadence
+          (newState, advTrace) = advanceStateTraced (pcKeySpelling pctx) walkCur nextCadence
           newCounter = if H.isInversion nextCadence then 0 else nonInvCount + 1
 
+      -- gen4: fuse one palette tone into the selected triad; the fused
+      -- state becomes the emitted bar AND the next walk state (whose
+      -- stage-1 shadow is its most-consonant embedded triad — the added
+      -- tone can reinterpret the harmony and steer the next step).
+      (emitState, mFusion) <-
+        if gcQuad config
+          then fuseState gen ent pctx (Just current) newState
+          else pure (newState, Nothing)
+
           -- Build diagnostics only when requested
-          diags = case mVerbosity of
+      let diags = case mVerbosity of
             Nothing -> revDiags
             Just verbosity ->
               -- Candidates display: only chords actually present in finalPool
@@ -262,10 +279,10 @@ stepChainBody _config gen mVerbosity ent _context pctx composerWeights ((current
                                                  , let s' = show cad, s' `elem` finalShows]
                   fallbackTop6' = take 6 [(s', score, cd, md, gd) | (cad, score, cd, md, gd) <- fallbackAll
                                                                   , let s' = show cad, s' `elem` finalShows]
-                  (renderedChord, transformTrace) = computeChordTrace verbosity newState
+                  (renderedChord, transformTrace) = computeChordTrace verbosity emitState
                   priorRoot = H.stateCadenceRoot current
                   priorRootPC = P.unPitchClass (P.pitchClass priorRoot)
-                  posteriorRoot = H.stateCadenceRoot newState
+                  posteriorRoot = H.stateCadenceRoot emitState
                   posteriorRootPC = P.unPitchClass (P.pitchClass posteriorRoot)
                   diag = StepDiagnostic
                     { sdStepNumber = stepNum
@@ -299,10 +316,11 @@ stepChainBody _config gen mVerbosity ent _context pctx composerWeights ((current
                     , sdParentKey = Nothing
                     , sdModeResult = Nothing
                     , sdBarSpelling = Nothing
+                    , sdFusion = mFusion
                     }
               in diag : revDiags
 
-      pure ((newState, newState : revChain, newCounter), diags)
+      pure ((emitState, emitState : revChain, newCounter), diags)
 
 -- |Unified single step for chain building (online, requires Neo4j).
 --
@@ -322,7 +340,12 @@ stepChainCore :: GeneratorConfig
               -> Int
               -> Bolt.BoltActionT IO ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
 stepChainCore config gen mVerbosity ent context pctx composerWeights acc@((current, _, _), _) stepNum = do
-  let currentShow = T.pack $ show (extractCadence current)
+  -- Fetch key via the walk projection: identity for triads (all corpus
+  -- states); for 4-note states (gen4 chain, or a 4-note lead' cue under
+  -- plain gen) the key is the most-consonant rooted embedded triad, which
+  -- always exists in the corpus keyspace — the walk never silently goes
+  -- offline on cardinality.
+  let currentShow = T.pack $ show (extractCadence (H.walkTriadState current))
   transitions <- fetchTransitions currentShow
   liftIO $ stepChainBody config gen mVerbosity ent context pctx composerWeights acc stepNum transitions
 
@@ -716,6 +739,71 @@ applyDriftFilter direction currentState pool =
   in if null filtered then pool else filtered
 
 -------------------------------------------------------------------------------
+-- gen4 Fusion (add one R-valid tone to a selected triad)
+-------------------------------------------------------------------------------
+
+-- |Fuse one palette tone into a triad state, producing the 4-note bar the
+-- gen4 family emits. State-local by construction: the candidate set is
+-- @pcEffectiveOvertones \\ triadAbsPCs@ — the set-theoretic collapse of
+-- "every R-valid triad sharing exactly 2 pitches with the selected triad,
+-- unioned over the original root" (any such triad unions to T ∪ {x}).
+-- R adherence is therefore automatic: the added tone is always in the
+-- palette, the bass never moves, and pedal tones can only gain members.
+--
+-- Selection: candidates ranked consonant-first by 'dissonanceScore' of the
+-- full 4-PC set, drawn by the same entropy-scaled gamma as the walk. When
+-- drift is active and the previous FUSED bar is supplied, candidates are
+-- first advisorily filtered by fused-chord dissonance against it
+-- (consonant → <=, dissonant → >=), relaxing to the full set when empty —
+-- mirroring 'applyDriftFilter'. The triad stage has already drift-filtered
+-- triad-vs-triad, so both the skeleton and the heard surface obey the
+-- modifier.
+--
+-- Degenerate palette (palette == triad, only possible under a 3-tone
+-- tonal context): returns the input unchanged — a plain triad bar.
+-- Root, movement, and spelling are preserved verbatim.
+fuseState :: GenIO
+          -> Double                  -- ^ Entropy [0,1]
+          -> ParsedContext
+          -> Maybe H.CadenceState    -- ^ Previous fused bar (drift reference); Nothing for the cue
+          -> H.CadenceState          -- ^ The selected triad state
+          -> IO (H.CadenceState, Maybe FusionDiag)
+fuseState gen ent pctx mPrev triadState = do
+  let rootPC   = P.unPitchClass (P.pitchClass (H.stateCadenceRoot triadState))
+      ivs      = map P.unPitchClass (H.cadenceIntervals (H.stateCadence triadState))
+      absPCs   = IntSet.fromList [ (i + rootPC) `mod` 12 | i <- ivs ]
+      cands    = IntSet.toList (pcEffectiveOvertones pctx IntSet.\\ absPCs)
+  if null cands
+    then pure (triadState, Nothing)
+    else do
+      let fusedOf x =
+            let interval = (x - rootPC) `mod` 12
+                zf       = sort (interval : ivs)
+            in (x, zf, dissonanceScore zf)
+          scoredAll = map fusedOf cands
+          -- advisory drift on the fused surface vs the previous fused bar
+          prevDiss = case mPrev of
+            Just prev | length (H.cadenceIntervals (H.stateCadence prev)) > 3 ->
+              Just (dissonanceScore
+                     (map P.unPitchClass (H.cadenceIntervals (H.stateCadence prev))))
+            _ -> Nothing
+          drifted = case (pcDrift pctx, prevDiss) of
+            (Consonant, Just d) -> filter (\(_, _, ds) -> ds <= d) scoredAll
+            (Dissonant, Just d) -> filter (\(_, _, ds) -> ds >= d) scoredAll
+            _                   -> scoredAll
+          pool   = if null drifted then scoredAll else drifted
+          ranked = sortBy (compare `on` (\(_, _, d) -> d)) pool
+      idx <- gammaIndexScaledWith gen ent (length ranked)
+      let (x, zf, _) = ranked !! idx
+          cad0  = H.stateCadence triadState
+          fused0 = H.mkCadenceStatePCs (H.stateCadenceRoot triadState)
+                     (H.cadenceMovement cad0) zf
+          -- keep the walk's spelling continuity decision for the bar
+          fused = fused0 { H.stateSpelling = H.stateSpelling triadState }
+          name  = H.cadenceFunctionality (H.stateCadence fused)
+      pure (fused, Just (FusionDiag x name idx (length ranked)))
+
+-------------------------------------------------------------------------------
 -- Pedal Tone Filter
 -------------------------------------------------------------------------------
 
@@ -898,14 +986,14 @@ matchesContextWithTarget bassTarget pctx currentState cadence =
 -- |Advance the CadenceState based on movement to a new cadence
 advanceState :: H.CadenceState -> H.Cadence -> H.CadenceState
 advanceState currentState newCadence =
-  fst $ advanceStateTraced currentState newCadence
+  fst $ advanceStateTraced Nothing currentState newCadence
 
 -- |Advance the CadenceState with full trace of intermediate values
 -- Used for maximum verbosity diagnostics (gen'')
 -- Enharmonic spelling is inferred from the new chord's absolute pitch content
 -- using the 3-layer inferSpelling system (3-set match → 2-set match → root fallback).
-advanceStateTraced :: H.CadenceState -> H.Cadence -> (H.CadenceState, AdvanceTrace)
-advanceStateTraced currentState newCadence =
+advanceStateTraced :: Maybe H.EnharmonicSpelling -> H.CadenceState -> H.Cadence -> (H.CadenceState, AdvanceTrace)
+advanceStateTraced keyBias currentState newCadence =
   let currentRoot = H.stateCadenceRoot currentState
       currentRootPC = P.pitchClass currentRoot
       movement = H.cadenceMovement newCadence
@@ -915,10 +1003,20 @@ advanceStateTraced currentState newCadence =
       tones = map P.unPitchClass $ H.cadenceIntervals newCadence
       absolutePitches = map (\t -> (t + P.unPitchClass newRootPC) `mod` 12) tones
       inferredSpelling = H.inferSpelling absolutePitches
-      -- Ambiguous patterns (e.g. min7o3 at roots where maj/min disagree) adopt prior spelling
-      newSpelling = if H.isAmbiguousPattern absolutePitches
-                    then H.stateSpelling currentState
-                    else inferredSpelling
+      -- Spelling precedence:
+      --   1. A declared key signature fixes the enharmonic side for the
+      --      whole walk — a flat-side key never spells sharp.
+      --   2. While the root pitch class stands still, the spelling stands
+      --      still: per-bar re-inference alone can flip side when an upper
+      --      tone changes over a stationary root.
+      --   3. Enharmonically ambiguous patterns adopt the prior spelling.
+      --   4. Otherwise, infer from absolute pitch content.
+      newSpelling = case keyBias of
+        Just ks -> ks
+        Nothing
+          | newRootPC == currentRootPC       -> H.stateSpelling currentState
+          | H.isAmbiguousPattern absolutePitches -> H.stateSpelling currentState
+          | otherwise                        -> inferredSpelling
       newRoot = H.enharmonicFunc newSpelling newRootPC
       newState = H.CadenceState newCadence newRoot newSpelling
 

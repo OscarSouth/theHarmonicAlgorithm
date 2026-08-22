@@ -115,6 +115,14 @@ printDiagnostics verbosity diag = do
       Just chord -> putStrLn $ "  Chord: " ++ chord
       Nothing -> return ()
 
+    -- gen4 fusion (added-tone draw)
+    case sdFusion step of
+      Just fd -> putStrLn $ "  Fusion: +PC" ++ show (fdAddedPC fd)
+                            ++ " → " ++ fdFusedName fd
+                            ++ "  [rank " ++ show (fdGammaIdx fd + 1)
+                            ++ "/" ++ show (fdPoolK fd) ++ "]"
+      Nothing -> return ()
+
     -- Transform trace (verbosity 2+)
     when (verbosity >= 2) $ case sdTransformTrace step of
       Just tt -> do
@@ -154,6 +162,13 @@ printDiagnostics verbosity diag = do
 -- Note: Reads raw DB data from the cadence within the state (which is the selected cadence after advance).
 computeChordTrace :: Int -> H.CadenceState -> (Maybe String, Maybe TransformTrace)
 computeChordTrace verbosity state
+  -- 4+ note states: the triad transform pipeline (fromCadenceStateTraced)
+  -- would reduce them via mostConsonant and print a misleading trace —
+  -- name via the cardinality dispatch instead, with no transform trace.
+  | verbosity >= 1
+  , length (H.cadenceIntervals (H.stateCadence state)) > 3 =
+      let enharm = H.enharmonicFunc (H.stateSpelling state)
+      in (Just $ Prog.showHarmony enharm state, Nothing)
   | verbosity >= 2 =
       let (chord, ttt) = H.fromCadenceStateTraced state
 

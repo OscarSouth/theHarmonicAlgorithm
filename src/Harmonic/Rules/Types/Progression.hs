@@ -57,6 +57,7 @@ module Harmonic.Rules.Types.Progression
   
     -- * Display Helpers
   , showTriad
+  , showHarmony
   ) where
 
 import GHC.Generics (Generic)
@@ -71,7 +72,8 @@ import qualified Data.Char as Char
 
 import Harmonic.Rules.Types.Pitch (PitchClass(..), mkPitchClass, unPitchClass, transpose, NoteName(..), pitchClass)
 -- |Import zeroFormPC for zero-form normalization in toCadenceStateFromPair to match DB convention
-import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), ChordState(..), CadenceState(..), fromCadenceState, Movement(..), fromMovement, toMovement, EnharmonicSpelling(..), zeroFormPC, enharmonicFunc, inferSpelling)
+import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), ChordState(..), CadenceState(..), fromCadenceState, Movement(..), fromMovement, toMovement, EnharmonicSpelling(..), zeroFormPC, enharmonicFunc, inferSpelling, toFunctionalityChord)
+import qualified Harmonic.Rules.Types.Scale as Sc
 
 -------------------------------------------------------------------------------
 -- Progression Type
@@ -96,10 +98,9 @@ instance Show Progression where
       let cadenceStates = toList seq
           -- Get enharmonic function from each cadence's stored spelling
           enharms = map (enharmonicFunc . stateSpelling) cadenceStates
-          -- Build chords from cadence states
-          chords = map fromCadenceState cadenceStates
-          -- Show each triad using its root's enharmonic spelling
-          showChords = zipWith showTriad enharms chords
+          -- Name each state via the cardinality dispatch (triads keep the
+          -- historical showTriad path; 4+ note states are never reduced)
+          showChords = zipWith showHarmony enharms cadenceStates
           -- Pad each chord string to fixed width (14 chars) and add separator
           paddedChords = map ((++"|   ") . padTo 14) showChords
           -- Group into lines of 4 chords with bar labels (consistent 3-space indent)
@@ -395,3 +396,39 @@ showTriad f (Chord noteName functionality _)
       takeWhile Char.isAlphaNum functionality ++ "/" ++ show (f (pitchClass noteName + P 6))
     -- Root position (default)
     | otherwise = show (f $ pitchClass noteName) ++ " " ++ functionality
+
+-- |Cardinality-dispatching display for a 'CadenceState'. The display seam
+-- for every printed chord name (grid, scoreboard, traces, cue messages):
+--
+--   * <= 3 intervals — the triad path ('fromCadenceState' / 'showTriad'),
+--     byte-identical to the historical behaviour, including inversion
+--     detection and slash-chord rendering. All corpus-generated cadences
+--     have exactly 3 intervals, so this arm covers all `gen`/`genP` output.
+--   * 4-6 intervals — root name + the stored 'cadenceFunctionality'
+--     (populated by 'toFunctionalityChord' at construction). Recomputed
+--     only when the stored name is empty (legacy chroma states). No
+--     inversion vocabulary exists for extended harmonies.
+--   * 7 intervals — mode classification pinned at the state's root
+--     ('classifyModeAt'), falling back to the chord namer when the set
+--     doesn't classify.
+--
+-- Never reduces pitch content: replaces the old path that forced every
+-- state through 'toTriad''s most-consonant reduction before naming.
+showHarmony :: (PitchClass -> NoteName) -> CadenceState -> String
+showHarmony f cs@(CadenceState cad root _)
+  | n <= 3 = showTriad f (fromCadenceState cs)
+  | n == 7 =
+      case Sc.classifyModeAt rootInt absPCs of
+        Just (Sc.Mode q (P r)) ->
+          show (f (mkPitchClass r)) ++ " " ++ Sc.showModeQuality q
+        Nothing -> chordName
+  | otherwise = chordName
+  where
+    ivs     = cadenceIntervals cad
+    n       = length ivs
+    rootInt = unPitchClass (pitchClass root)
+    absPCs  = map (+ pitchClass root) ivs
+    storedF = cadenceFunctionality cad
+    fn | null storedF = toFunctionalityChord ivs
+       | otherwise    = storedF
+    chordName = show (f (pitchClass root)) ++ " " ++ fn

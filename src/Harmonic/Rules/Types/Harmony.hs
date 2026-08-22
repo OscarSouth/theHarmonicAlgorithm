@@ -75,13 +75,19 @@ module Harmonic.Rules.Types.Harmony
   , fromChordState
   , fromCadenceState
   , initCadenceState
-  
+  , mkCadenceStatePCs
+
+    -- * Walk Projection (gen4)
+  , walkTriadCadence
+  , walkTriadState
+
     -- * Tracing (for maximum verbosity diagnostics)
   , ToTriadTrace(..)
   , fromCadenceStateTraced
   
     -- * DB Serialization (compatible with Neo4j format)
   , constructCadence
+  , corpusFunctionality
   , deconstructCadence
   
     -- * Utilities
@@ -977,6 +983,60 @@ initCadenceState movement note quality =
   where
     zeroFormInts xs = let m = minimum xs in sort $ map (\n -> (n - m) `mod` 12) xs
 
+-- |Build a CadenceState from a root, movement, and root-relative intervals,
+-- preserving full cardinality. The non-truncating counterpart to
+-- 'initCadenceState', which routes through 'flatTriad' / 'toCadence' and
+-- silently reduces >3 PCs to a triad. Intervals are root-relative
+-- (0 = the root; inserted if missing); stored in zero form (sorted,
+-- deduped mod 12). Functionality dispatches on cardinality: <=3 uses the
+-- triad namer, 4+ the chord namer. Spelling from the typed root when it
+-- implies one (Eb → flat), otherwise inferred from absolute pitch content.
+mkCadenceStatePCs :: NoteName -> Movement -> [Int] -> CadenceState
+mkCadenceStatePCs root movement intervals =
+  let rootPC          = unPitchClass (pitchClass root)
+      ivs             = sort $ List.nub $ map (`mod` 12) (0 : intervals)
+      pcs             = map mkPitchClass ivs
+      functionality
+        | length pcs <= 3 = toFunctionality pcs
+        | otherwise       = toFunctionalityChord pcs
+      absolutePitches = map (\i -> (i + rootPC) `mod` 12) ivs
+      spelling = case noteNameImpliesSpelling root of
+        Just explicit -> explicit
+        Nothing       -> inferSpelling absolutePitches
+  in CadenceState (Cadence functionality movement pcs) root spelling
+
+-------------------------------------------------------------------------------
+-- Walk projection (gen4)
+-------------------------------------------------------------------------------
+
+-- |Project a Cadence onto its most consonant ROOTED embedded triad.
+-- Identity for <=3 intervals (every corpus-generated cadence). For >3:
+-- enumerates the 3-subsets that keep the root ([0,a,b] over the nonzero
+-- intervals), picks the least dissonant via the Layer-B 'mostConsonant'
+-- replica, and renames with the triad namer. Root, movement, and (via
+-- 'walkTriadState') spelling are preserved, so the projected cadence's
+-- 'show' is always a corpus-shaped graph key. This is gen4's walk shadow:
+-- the added tone can reinterpret the harmony (e.g. [0,3,6]+7 projects to
+-- [0,3,7] minor) and thereby steer the next step.
+walkTriadCadence :: Cadence -> Cadence
+walkTriadCadence cad
+  | length ivs <= 3 = cad
+  | null triads     = cad
+  | otherwise       =
+      let best = mostConsonant triads
+          zf   = map mkPitchClass best
+      in Cadence (corpusFunctionality zf) (cadenceMovement cad) zf
+  where
+    ivs    = cadenceIntervals cad
+    uppers = List.nub [ i | i <- map (\p -> unPitchClass p `mod` 12) ivs, i /= 0 ]
+    triads = [ [0, a, b] | a <- uppers, b <- uppers, a < b ]
+
+-- |State-level walk projection: 'walkTriadCadence' on the cadence, root
+-- and spelling untouched. Identity for triad states.
+walkTriadState :: CadenceState -> CadenceState
+walkTriadState (CadenceState cad root spelling) =
+  CadenceState (walkTriadCadence cad) root spelling
+
 -------------------------------------------------------------------------------
 -- Tracing (for maximum verbosity diagnostics)
 -------------------------------------------------------------------------------
@@ -1070,9 +1130,71 @@ fromCadenceStateTraced (CadenceState cadence root spelling) =
 constructCadence :: (String, String) -> Cadence
 constructCadence (movementStr, chordStr) =
   let pitches = read chordStr :: [PitchClass]
-      functionality = toFunctionality pitches
+      functionality = corpusFunctionality pitches
       movement = read movementStr :: Movement
   in Cadence functionality movement pitches
+
+-- |Name a zero-form triad exactly as the corpus stores it. The graph's
+-- node keys (@show@ = movement + functionality) carry the names below;
+-- any cadence whose @show@ is used as a fetch key MUST be named through
+-- here, or the walk silently drops to fallback-only after landing on
+-- that form (a latent bug fixed 2026-08-19: 'constructCadence'
+-- previously named via bare 'toFunctionality', so every graph-selected
+-- inversion candidate — @[0,3,8]@ read back as @min#5@ instead of the
+-- stored @maj_1stInv@ — produced a keyless next fetch).
+--
+-- The table is the complete 55-form vocabulary transcribed verbatim from
+-- a live corpus dump (2026-08-19,
+-- @MATCH (c:Cadence) RETURN DISTINCT c.chord, c.show@). It reflects the
+-- LEGACY naming rules the database was ingested under — including the
+-- forms where the modernised 'nameFuncTriad' deliberately diverges
+-- (@[0,2,7]@ is stored @sus4_1stInv@, modern says @sus2@; @[0,5,10]@ is
+-- stored @sus4_2ndInv@, modern says @7sus4@) — so it cannot be derived
+-- from the current namers. If the corpus is ever re-ingested, regenerate
+-- this table from the same query.
+--
+-- Non-triad input (fewer/more than 3 PCs) falls back to the current
+-- namers — such sets are never corpus keys.
+corpusFunctionality :: [PitchClass] -> Functionality
+corpusFunctionality pcs =
+  case lookup (zeroFormPC pcs) corpusNameTable of
+    Just name -> name
+    Nothing
+      | length pcs <= 3 -> toFunctionality pcs
+      | otherwise       -> toFunctionalityChord pcs
+
+-- |Complete corpus triad-name vocabulary: zero form → stored functionality.
+corpusNameTable :: [([PitchClass], Functionality)]
+corpusNameTable = map (\(is, n) -> (map P is, n))
+  [ ([0,1,2],   "sus2b9no5"),    ([0,1,3],   "minb9no5")
+  , ([0,1,4],   "majb9no5"),     ([0,1,5],   "sus4b9no5")
+  , ([0,1,6],   "b9b5no3"),      ([0,1,7],   "b9no3")
+  , ([0,1,8],   "b9#5no3"),      ([0,1,9],   "6b9no3no5")
+  , ([0,1,10],  "7b9no3no5"),    ([0,1,11],  "maj7b9no3no5")
+  , ([0,2,3],   "minadd9no5"),   ([0,2,4],   "majadd9no5")
+  , ([0,2,5],   "sus2/4no5"),    ([0,2,6],   "sus2b5")
+  , ([0,2,7],   "sus4_1stInv"),  ([0,2,8],   "sus2#5")
+  , ([0,2,9],   "6sus2no5"),     ([0,2,10],  "7sus2no5")
+  , ([0,2,11],  "maj7sus2no5"),  ([0,3,4],   "#9no5")
+  , ([0,3,5],   "minadd11no5"),  ([0,3,6],   "dim")
+  , ([0,3,7],   "min"),          ([0,3,8],   "maj_1stInv")
+  , ([0,3,9],   "dim_1stInv"),   ([0,3,10],  "min7no5")
+  , ([0,3,11],  "minmaj7no5"),   ([0,4,5],   "majadd11no5")
+  , ([0,4,6],   "majb5"),        ([0,4,7],   "maj")
+  , ([0,4,8],   "aug"),          ([0,4,9],   "min_1stInv")
+  , ([0,4,10],  "7no5"),         ([0,4,11],  "maj7no5")
+  , ([0,5,6],   "sus4b5"),       ([0,5,7],   "sus4")
+  , ([0,5,8],   "min_2ndInv"),   ([0,5,9],   "maj_2ndInv")
+  , ([0,5,10],  "sus4_2ndInv"),  ([0,5,11],  "maj7sus4no5")
+  , ([0,6,7],   "#11no3"),       ([0,6,8],   "#11#5no3")
+  , ([0,6,9],   "dim_2ndInv"),   ([0,6,10],  "7b5no3")
+  , ([0,6,11],  "maj7b5no3"),    ([0,7,8],   "b13no3")
+  , ([0,7,9],   "6no3"),         ([0,7,10],  "7no3")
+  , ([0,7,11],  "maj7no3"),      ([0,8,9],   "6#5no3")
+  , ([0,8,10],  "7#5no3"),       ([0,8,11],  "maj7#5no3")
+  , ([0,9,10],  "67no3no5"),     ([0,9,11],  "6maj7no3no5")
+  , ([0,10,11], "7maj7no3no5")
+  ]
 
 -- |Deconstruct a Cadence to DB text format (movement, pitch class list)
 -- Returns the Movement and [PitchClass] for serialization

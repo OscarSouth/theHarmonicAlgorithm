@@ -36,7 +36,7 @@ module Harmonic.Interface.Tidal.Arranger
   , progOverlapF
   , progOverlapB
 
-    -- * Voicing Extractors (3 Paradigms)
+    -- * Voicing Extractors (Voicing paradigms)
   , grid   -- Root locked in bass, smooth compact voice leading (cyclic DP)
   , flow   -- Any inversion allowed for smoothest voice leading (cyclic DP)
   , lite   -- Literal, no transformation
@@ -54,6 +54,7 @@ module Harmonic.Interface.Tidal.Arranger
 
     -- * Starting State Construction
   , lead
+  , lead'
   , parseLeadTokens
   , LeadToken(..)
   ) where
@@ -71,11 +72,13 @@ import System.Random.MWC (createSystemRandom, uniformRM, GenIO)
 import Harmonic.Rules.Types.Progression
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import Harmonic.Rules.Types.ProgressionContext (ProgressionContext, liftPC)
-import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), CadenceState(..), fromCadenceState, ChordState(..), EnharmonicSpelling(..), toFunctionality, toFunctionalityChord, Movement(..), enharmonicFunc, inferSpelling, initCadenceState)
+import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), CadenceState(..), fromCadenceState, ChordState(..), EnharmonicSpelling(..), toFunctionality, toFunctionalityChord, Movement(..), enharmonicFunc, inferSpelling, isAmbiguousPattern, initCadenceState, mkCadenceStatePCs, toMovement)
+import qualified Harmonic.Rules.Constraints.Filter as Filter
+import qualified Data.Text as T
 import Harmonic.Traversal.Probabilistic (gammaIndexScaledWith)
 import Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
-import Harmonic.Rules.Types.Pitch (PitchClass(..), NoteName(..), pitchClass, mkPitchClass, unPitchClass)
-import Harmonic.Evaluation.Scoring.VoiceLeading (solveRoot, solveFlow, liteVoicing, bassVoicing, normalizeByFirstRoot, initialCompact)
+import Harmonic.Rules.Types.Pitch (PitchClass(..), NoteName(..), pitchClass, mkPitchClass, unPitchClass, flat, sharp)
+import Harmonic.Evaluation.Scoring.VoiceLeading (solveRoot, solveFlow, liteVoicing, bassVoicing, normalizeByFirstRoot, initialCompact, alignVoices)
 import Data.Function (on)
 import Data.List (minimumBy)
 
@@ -279,7 +282,7 @@ rebuildCadenceState cad root newIntervals =
   in CadenceState newCad root spelling
 
 -------------------------------------------------------------------------------
--- Voicing Extractors (3 Paradigms)
+-- Voicing Extractors (Voicing paradigms)
 -------------------------------------------------------------------------------
 
 -- |GRID paradigm: Root locked in bass with smooth compact voice leading.
@@ -287,21 +290,25 @@ rebuildCadenceState cad root newIntervals =
 -- First chord starts compact with root in bass; all subsequent chords
 -- maintain root in bass with minimal voice movement.
 grid :: Progression -> [[Int]]
-grid prog =
-  let intVoicings = map (map fromIntegral) $ literalVoicing' prog
-  in solveRoot intVoicings
+grid prog
+  | hasBigChroma prog = strataModeFlow prog
+  | otherwise =
+      let intVoicings = map (map fromIntegral) $ literalVoicing' prog
+      in solveRoot intVoicings
 
 -- |FLOW paradigm: Smoothest voice leading with any inversion allowed.
 -- Uses cyclic DP to find globally optimal voicings.
 -- Voice crossings permitted for optimal smoothness; bass doesn't need
 -- to be the root if an inversion provides smoother voice leading.
 flow :: Progression -> [[Int]]
-flow prog = 
-  let intVoicings = map (map fromIntegral) $ literalVoicing' prog
-  in solveFlow intVoicings
+flow prog
+  | hasBigChroma prog = strataModeFlow prog
+  | otherwise =
+      let intVoicings = map (map fromIntegral) $ literalVoicing' prog
+      in solveFlow intVoicings
 
 -- |LITE paradigm: Literal voicings with first-root normalization.
--- Returns pitches as stored, but normalized so first chord's root is in [7,18].
+-- Returns pitches as stored, but normalized so first chord's root is in [-12,-1].
 -- No voice leading optimization applied (only octave normalization).
 lite :: Progression -> [[Int]]
 lite prog = 
@@ -369,10 +376,29 @@ shiftBar v0 cs =
       nextRootPC = case nextPCs of (p:_) -> p; [] -> 0
       natural    = initialCompact nextRootPC nextPCs
       candidates = [ map (+ (k * 12)) natural | k <- [-3 .. 3] ]
-      score v    = sum (zipWith (\a b -> abs (a - b)) v v0)
-  in case candidates of
-       [] -> v0
-       _  -> minimumBy (compare `on` score) candidates
+      -- Primary metric: exact-MIDI common tones with the anchor — the
+      -- pedal property (tones shared between bars hold their register,
+      -- chosen rather than lucky under root motion). Tie-break: minimal
+      -- aligned distance; 'alignVoices' handles bars whose cardinality
+      -- differs from the anchor's (the old zipWith silently truncated).
+      overlap v  = length (filter (`elem` v0) v)
+      dist v     = let (a, b) = alignVoices v v0
+                   in sum (zipWith (\x y -> abs (x - y)) a b)
+      score v    = (negate (overlap v), dist v)
+  in minimumBy (compare `on` score) candidates
+
+-- |True iff any bar carries >= 6 pitch classes — scale-cluster territory
+-- (hand-built mode sets; genP chroma layers route by provenance in Bridge
+-- before reaching here). The cyclic DP on 6/7-voice sets is both
+-- prohibitively slow live (16-bar 7-PC ≈ 107 s interpreted) and musically
+-- the wrong tool ("voice leading" between scale-clusters); such material
+-- gets the chroma engine's degree semantics as a safety fallback, not a
+-- contract. Harmony-sized bars (<= 5 voices, mixed or uniform) always get
+-- the real DP.
+hasBigChroma :: Progression -> Bool
+hasBigChroma prog =
+  any (\cs -> length (cadenceIntervals (stateCadence cs)) >= 6)
+      (toList (unProgression prog))
 
 -- |Read a CadenceState's absolute PCs in cadence-interval order (NOT sorted).
 -- For genP strata/mode layers (intervals start at 0 from harmonic root), this
@@ -430,13 +456,29 @@ fromChordsRaw :: [[Int]] -> Progression
 fromChordsRaw [] = mempty
 fromChordsRaw chordSets = Progression (Seq.fromList cadenceStates)
   where
-    cadenceStates = map toCadenceState chordSets
+    -- Spelling continuity: while the root pitch class stands still, the
+    -- spelling stands still. Per-bar inference alone can flip enharmonic
+    -- side between bars that share a root when an upper tone changes;
+    -- holding the side over a stationary root keeps one region of a
+    -- progression on one accidental system. The first bar infers freely;
+    -- later bars adopt the previous spelling when the root is unchanged
+    -- or the pitch content is enharmonically ambiguous.
+    cadenceStates = go Nothing chordSets
+      where
+        go _ [] = []
+        go prev (pcs : rest) =
+          let cs = toCadenceState prev pcs
+              rootPC = (`mod` 12) (if null pcs then 0 else head pcs)
+          in cs : go (Just (rootPC, stateSpelling cs)) rest
 
-    toCadenceState :: [Int] -> CadenceState
-    toCadenceState pcs =
+    toCadenceState :: Maybe (Int, EnharmonicSpelling) -> [Int] -> CadenceState
+    toCadenceState prev pcs =
       let root = if null pcs then 0 else head pcs
           rootPC = mkPitchClass root
-          intervals = sort $ map (\p -> (p - root) `mod` 12) pcs
+          -- Dedup: pitch-class sets carry no duplicates (matches
+          -- mkCadenceStatePCs; a duplicated PC would otherwise reach the
+          -- voicing paths as a phantom voice).
+          intervals = nub $ sort $ map (\p -> (p - root) `mod` 12) pcs
           intervalPCs = map mkPitchClass intervals
           chordName = nameChord intervals
           -- Create Cadence with record syntax
@@ -445,8 +487,12 @@ fromChordsRaw chordSets = Progression (Seq.fromList cadenceStates)
             , cadenceMovement = Unison  -- Placeholder (no prior context)
             , cadenceIntervals = intervalPCs
             }
-          -- Infer spelling from absolute pitch content
-          spelling = inferSpelling (map (`mod` 12) pcs)
+          absPCs = map (`mod` 12) pcs
+          spelling = case prev of
+            Just (prevRoot, prevSpelling)
+              | prevRoot == root `mod` 12          -> prevSpelling
+              | isAmbiguousPattern absPCs          -> prevSpelling
+            _                                      -> inferSpelling absPCs
           rootNote = enharmonicFunc spelling rootPC
        in CadenceState cadence rootNote spelling
 
@@ -609,3 +655,44 @@ lead input = do
   let cs = initCadenceState movement rootStr ivs
   putStrLn $ rootStr ++ " " ++ qualLabel
   pure cs
+
+-- |Construct a 'CadenceState' from an explicit list of note names —
+-- the arbitrary-cardinality counterpart to 'lead'. The first note is the
+-- root/bass; the rest become root-relative intervals (any count, so
+-- 4-note cues for @gen4@ and beyond are first-class). Never truncates:
+-- builds via 'mkCadenceStatePCs', so all pitch content survives into the
+-- cue. Enharmonics follow the typed accidentals ("Eb" spells flat,
+-- "D#" sharp; double accidentals accepted and resolved). An optional
+-- @(N)@ token fixes the approach movement, otherwise it is randomized
+-- exactly like 'lead'. Unrecognized tokens are reported and skipped;
+-- with no valid notes at all, falls back to fully random 'lead'.
+--
+-- Examples:
+-- @
+-- start <- lead' "Eb Gb Bb Db"      -- Eb m7, random movement
+-- start <- lead' "A C E G (5)"      -- A m7, ascending 5th approach
+-- start <- lead' "C E G"            -- plain triad, same as lead "C maj"
+-- @
+lead' :: String -> IO CadenceState
+lead' input = do
+  rng <- createSystemRandom
+  let toks       = words input
+      mMove      = listToMaybe [ n | t <- toks, Just n <- [parseMovement t] ]
+      noteToks   = [ t | t <- toks, parseMovement t == Nothing ]
+      parsed     = [ (t, Filter.noteNameToPitchClass (T.pack t)) | t <- noteToks ]
+      badToks    = [ t | (t, Nothing) <- parsed ]
+      notes      = [ (t, p) | (t, Just p) <- parsed ]
+  mapM_ (\t -> putStrLn ("lead': unrecognized note name '" ++ t ++ "' (skipped)")) badToks
+  case notes of
+    [] -> lead ""
+    ((rootTok, rootPC) : _) -> do
+      movement <- maybe (uniformRM (-5, 6) rng) pure mMove
+      let rootInt   = fromIntegral rootPC :: Int
+          -- typed accidental drives the root's enharmonic identity
+          rootName  = if 'b' `elem` drop 1 (map toLower rootTok)
+                        then flat (mkPitchClass rootInt) else sharp (mkPitchClass rootInt)
+          intervals = [ (fromIntegral p - rootInt) `mod` 12 | (_, p) <- notes ]
+          cs        = mkCadenceStatePCs rootName
+                        (toMovement (P 0) (mkPitchClass movement)) intervals
+      putStrLn $ show rootName ++ " " ++ cadenceFunctionality (stateCadence cs)
+      pure cs

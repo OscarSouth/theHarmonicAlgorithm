@@ -133,6 +133,38 @@ spec = do
       let p2 = mkTestProgression 3
       progLength (fuseProgression p1 p2) `shouldBe` 6
     
+  describe "showHarmony (cardinality display dispatch)" $ do
+
+    it "names a triad state identically to the showTriad path" $ do
+      let cs = initCadenceState 0 "C" [0,4,7]
+          enharm = enharmonicFunc (stateSpelling cs)
+      showHarmony enharm cs `shouldBe` showTriad enharm (fromCadenceState cs)
+
+    it "names a 4-note state from its full pitch content (dominant 7th)" $ do
+      let cad = Cadence (toFunctionalityChord (map P [0,4,7,10])) Unison (map P [0,4,7,10])
+          cs  = CadenceState cad C SharpSpelling
+          enharm = enharmonicFunc SharpSpelling
+      showHarmony enharm cs `shouldBe` "C 7"
+
+    it "names a 4-note minor seventh (Eb m7)" $ do
+      let ivs = map P [0,3,7,10]
+          cad = Cadence (toFunctionalityChord ivs) Unison ivs
+          cs  = CadenceState cad Eb FlatSpelling
+          enharm = enharmonicFunc FlatSpelling
+      showHarmony enharm cs `shouldBe` "Eb m7"
+
+    it "recomputes the name when stored functionality is empty" $ do
+      let cad = Cadence "" Unison (map P [0,3,6,10])
+          cs  = CadenceState cad C SharpSpelling
+          enharm = enharmonicFunc SharpSpelling
+      showHarmony enharm cs `shouldBe` "C m7b5"
+
+    it "grid Show renders a 4-note bar unreduced" $ do
+      let ivs = map P [0,4,7,10]
+          cad = Cadence (toFunctionalityChord ivs) Unison ivs
+          p   = fromCadenceStates [CadenceState cad C SharpSpelling]
+      show p `shouldContain` "C 7"
+
   describe "Voicing Extractors" $ do
     
     it "literalVoicing returns one list per cadence state" $ do

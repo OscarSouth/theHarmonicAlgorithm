@@ -80,6 +80,20 @@ cadence favourability (online, from the corpus), and mode validity.
 Works identically online and offline. At Verbose (`gen''`), a full scoreboard
 prints every attempt's per-term scores with a `← PICK` marker on the winner.
 
+**Four-Note Generation (`gen4`)** — A third generator family alongside `gen`
+and `genP`: every bar carries a 4-note chord. Each step selects a triad
+through the same corpus-trained walk, then fuses in one more tone from the
+R-valid palette (most-consonant-first, drawn at the same entropy); the walk
+continues from the fused chord's most consonant embedded triad, so the added
+tone can reinterpret the harmony while generation stays fully online.
+`quad` is the underlying modifier (`gen4 = quad gen`; `genFrom` is
+family-aware — a 4-note source regenerates 4-note bars automatically,
+families never mix); `lead'` builds cues from explicit note-name lists
+(`lead' "Eb Gb Bb Db"` → Eb m7). Shipped alongside: chord names now print at
+full cardinality everywhere (4-note chords no longer display reduced to
+triads), and multi-bar voicings of 4+-note material under `flow`/`grid` stay
+in register.
+
 ### Voicing
 
 **Five Voicing Strategies** — `flow` finds the smoothest path through the full
@@ -97,6 +111,19 @@ register-exchange leaps (opposite-direction leaps of a 4th or more between two
 voices), and rewards contrary and stepwise motion. Bar 0 of every progression
 anchors to a compact root-position voicing rather than being left to the
 solver, so the whole progression starts from a predictable register.
+
+**Seam-Aware Voice Leading** — Mixed-cardinality transitions (a triad into a
+4-note chord, a 5-note set into a triad) are now voice-led for real: the
+smaller voicing is padded by an optimal monotone alignment — the larger
+chord's outer and inner voices lead the smaller's — and the full cost
+function runs on the aligned pair. A held chord is strictly cheaper than any
+motion. Chroma layers (genP's 5/7-PC strata and modes) route by provenance to
+their dedicated engine, whose octave placement now maximises common-tone
+overlap so shared tones pedal in register; hand-built scale-sized sets (≥6
+voices) safety-route there too. `genFrom` is family-aware — a 4-note (gen4)
+source regenerates 4-note bars automatically, and families never mix.
+Attempt scoring's voice-leading axis measures the heard surface at full
+cardinality, with empirically recalibrated anchors.
 
 **Walking Bass Lines (`lineHarmony`/`walk`)** — A three-pass deterministic
 bass-line generator, distinct from the chord voicings above: chord tones land

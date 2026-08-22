@@ -22,6 +22,7 @@ module Harmonic.Interface.Tidal.Bridge
   ( -- * Voice Functions
     VoiceFunction
   , voiceRange
+  , layerForVoicing
 
     -- * Chord Selection Helpers
   , warp
@@ -57,6 +58,7 @@ import qualified Harmonic.Interface.Tidal.Arranger as A
 import Harmonic.Interface.Tidal.Form (Kinetics(..), IK)
 
 import Data.List (nub)
+import Data.Maybe (isJust)
 import Data.Foldable (toList)
 import Sound.Tidal.Context hiding (voice)
 
@@ -118,33 +120,26 @@ rep pc repVal =
 --
 -- Parameter order: context first (kinetics range, IK, MIDI range), then
 -- interactive (voice function, modifier, patterns).
--- |Resolve the effective voicing function for a layer. The triad layer
--- always honours the user's 'VoiceFunction'. Strata / mode layers carrying
--- full chroma (cardinality > 3 per bar — i.e. genP-origin) are
--- unconditionally routed through 'A.strataModeFlow' regardless of the
--- user's choice, giving "key-signature" voice-leading semantics: pattern
--- index @i@ in the next bar plays the same pitch as bar @i@ if available,
--- otherwise the closest pitch.
+-- |Project the requested layer from a context together with its voicing
+-- route. Strict-context routing: the S/M layers of a genP-provenance
+-- context are THE curated 5/7-PC chroma (uniform per layer) and are
+-- always voiced by 'A.strataModeFlow' — degree/"key-signature" semantics:
+-- pattern index @i@ plays the i-th scale degree of that bar's set. The T
+-- layer always honours the user's 'VoiceFunction', as do S/M layers of
+-- gen/gen4 contexts (ordinary-harmony duplicates of the triad layer).
 --
--- 3-PC S/M layers (gen-origin via 'PC.fromProgression') fall through to
--- the user's voiceFunc since they're triadic duplicates of the triad layer.
-chooseVF :: Layer -> VoiceFunction -> VoiceFunction
-chooseVF T  vf = vf
-chooseVF _  vf = \prog ->
-  if isOctaSM prog then A.strataModeFlow prog else vf prog
-
--- |True iff the progression's first bar carries more than 3 cadence
--- intervals — the cardinality signature of a genP strata (5) or mode (7)
--- layer. Empty progressions return False (fall through to user's voiceFunc,
--- which already handles empties).
-isOctaSM :: P.Progression -> Bool
-isOctaSM prog = case toList (P.unProgression prog) of
-  []     -> False
-  (cs:_) -> length (H.cadenceIntervals (H.stateCadence cs)) > 3
+-- Routing by provenance + layer replaces the old first-bar cardinality
+-- sniff ('isOctaSM'), which mis-routed mixed-cardinality material in both
+-- directions (triad-first-bar chroma escaped to the DP; 4-note-first-bar
+-- harmony was captured by the chroma engine).
+layerForVoicing :: Layer -> PC.ProgressionContext -> (Bool, P.Progression)
+layerForVoicing lyr ctx =
+  let chroma = lyr /= T && isJust (PC.pcProvenance ctx)
+  in (chroma, PC.layer lyr ctx)
 
 arrange :: (Double, Double)                     -- ^ Kinetics range
         -> IK                                    -- ^ Performance context (kinetics + chord selection)
-        -> (Int, Int)                            -- ^ MIDI note range filter
+        -> (Int, Int)                            -- ^ Degree-index trim for the input patterns (scale degrees, not MIDI; instrument-range clipping happens later via clip)
         -> Layer                                 -- ^ Progression layer to voice (T | S | M)
         -> VoiceFunction                         -- ^ Voice function (flow, root, etc.)
         -> (P.Progression -> P.Progression)      -- ^ Progression modifier (overlapF 0, id, etc.)
@@ -153,12 +148,11 @@ arrange :: (Double, Double)                     -- ^ Kinetics range
 arrange (lo, hi) (kin, chordPat) register lyr voiceFunc modifier pats =
   let -- Pre-compute note range filter ONCE (shared across all innerJoin invocations)
       ranged = voiceRange register (stack pats)
-      -- Project the 3-layer kProg pattern to the requested layer once
-      progPat = fmap (PC.layer lyr) (kProg kin)
-      -- Resolve the effective voicing function: T layer always honours the
-      -- user's voiceFunc; S/M layers carrying full chroma (>3 PCs/bar) are
-      -- always voice-led via 'A.strataModeFlow' for key-signature semantic.
-      effectiveVF = chooseVF lyr voiceFunc
+      -- Project the 3-layer kProg pattern to the requested layer once,
+      -- carrying the provenance-based voicing route with it
+      progPat = fmap (layerForVoicing lyr) (kProg kin)
+      effectiveVF (chroma, p) =
+        if chroma then A.strataModeFlow p else voiceFunc p
       -- Pre-compute voicings at construction time. The 'forced' binding's
       -- WHNF requires walking every inner list spine, which in turn forces
       -- the lazy 'strataModeFlow' / 'flow' voicing computation per bar.
@@ -166,60 +160,24 @@ arrange (lo, hi) (kin, chordPat) register lyr voiceFunc modifier pats =
       -- 'skip:' events on first query) to REPL evaluation time.
       allEvents = queryArc progPat (Arc 0 1000)
       uniqueProgs = nub (map value allEvents)
-      cache = [ (p, let vs     = effectiveVF (modifier p)
-                        sc     = map (map fromIntegral) vs :: [[Note]]
-                        nc     = length vs
-                        forced = forceAll sc
-                    in forced `seq` (sc, nc))
-              | p <- uniqueProgs ]
+      cache = [ (key, let vs     = effectiveVF (fmap modifier key)
+                          sc     = map (map fromIntegral) vs :: [[Note]]
+                          nc     = length vs
+                          forced = forceAll sc
+                      in forced `seq` (sc, nc))
+              | key <- uniqueProgs ]
       cacheForced = foldr (\(_, (s, _)) acc -> forceAll s `seq` acc) () cache
-      lookupCache prog = case lookup prog cache of
+      lookupCache key = case lookup key cache of
         Just hit -> hit
-        Nothing  -> let vs     = effectiveVF (modifier prog)
+        Nothing  -> let vs     = effectiveVF (fmap modifier key)
                         sc     = map (map fromIntegral) vs :: [[Note]]
                         forced = forceAll sc
                     in forced `seq` (sc, length vs)
   in cacheForced `seq` (|* pF "amp" (kDynamic kin)) $
      mask (fmap (\x -> x >= lo && x <= hi) (kSignal kin)) $
-       innerJoin $ fmap (\prog ->
-         arrangeLookup (lookupCache prog) chordPat ranged
+       innerJoin $ fmap (\key ->
+         arrangeLookup (lookupCache key) chordPat ranged
        ) progPat
-
--- |Internal: onset-join arrangement logic (unchanged from original arrange).
-arrangeCore :: VoiceFunction
-            -> P.Progression
-            -> Pattern Int        -- ^ Chord selection pattern (1-indexed)
-            -> (Int, Int)         -- ^ MIDI note range filter
-            -> [Pattern Int]      -- ^ Input patterns to harmonize
-            -> Pattern ValueMap
-arrangeCore voiceFunc prog chordPat register pats
-  | null voicings = silence
-  | otherwise =
-      let chordIdx = fmap (\i -> (i - 1) `mod` nChords) chordPat
-
-          mapped = Pattern (\st ->
-            let noteEvs = query ranged st
-            in concatMap (\nEv -> case whole nEv of
-              Nothing -> []
-              Just wArc ->
-                let onsetT  = start wArc
-                    ci      = lookupChordAt onsetT chordIdx
-                    sc      = scales !! (ci `mod` nChords)
-                    noteVal = value nEv
-                    scLen   = max 1 (length sc)
-                    octave  = noteVal `div` scLen
-                    idx     = noteVal `mod` scLen
-                in [nEv { value = (sc !! idx) + fromIntegral (octave * 12) }]
-              ) noteEvs
-            ) Nothing Nothing
-
-      in note mapped
-  where
-    voicings = voiceFunc prog
-    scales   = map (map fromIntegral) voicings :: [[Note]]
-    nChords  = length voicings
-    stacked  = stack pats
-    ranged   = voiceRange register stacked
 
 -- |Cached onset-join: takes pre-computed (scales, nChords) and pre-built ranged pattern.
 arrangeLookup :: ([[Note]], Int)
@@ -259,7 +217,7 @@ arrangeLookup (scales, nChords) chordPat ranged
 -- each chord slot gets the full input pattern compressed to fit.
 arrange' :: (Double, Double)                     -- ^ Kinetics range
          -> IK                                    -- ^ Performance context
-         -> (Int, Int)                            -- ^ MIDI note range filter
+         -> (Int, Int)                            -- ^ Degree-index trim for the input patterns (scale degrees, not MIDI; instrument-range clipping happens later via clip)
          -> Layer                                 -- ^ Progression layer (T | S | M)
          -> VoiceFunction                         -- ^ Voice function
          -> (P.Progression -> P.Progression)      -- ^ Progression modifier
@@ -268,51 +226,32 @@ arrange' :: (Double, Double)                     -- ^ Kinetics range
 arrange' (lo, hi) (kin, chordPat) register lyr voiceFunc modifier pats =
   let -- Pre-compute note range filter ONCE (shared across all innerJoin invocations)
       ranged = voiceRange register (stack pats)
-      progPat = fmap (PC.layer lyr) (kProg kin)
-      effectiveVF = chooseVF lyr voiceFunc
+      progPat = fmap (layerForVoicing lyr) (kProg kin)
+      effectiveVF (chroma, p) =
+        if chroma then A.strataModeFlow p else voiceFunc p
       -- Pre-compute voicings at construction time. See 'arrange' for the
       -- forced/cacheForced rationale: hoists per-bar voicing computation
       -- from the audio thread to REPL evaluation time.
       allEvents = queryArc progPat (Arc 0 1000)
       uniqueProgs = nub (map value allEvents)
-      cache = [ (p, let vs     = effectiveVF (modifier p)
-                        sc     = map (map fromIntegral) vs :: [[Note]]
-                        nc     = length vs
-                        forced = forceAll sc
-                    in forced `seq` (sc, nc))
-              | p <- uniqueProgs ]
+      cache = [ (key, let vs     = effectiveVF (fmap modifier key)
+                          sc     = map (map fromIntegral) vs :: [[Note]]
+                          nc     = length vs
+                          forced = forceAll sc
+                      in forced `seq` (sc, nc))
+              | key <- uniqueProgs ]
       cacheForced = foldr (\(_, (s, _)) acc -> forceAll s `seq` acc) () cache
-      lookupCache prog = case lookup prog cache of
+      lookupCache key = case lookup key cache of
         Just hit -> hit
-        Nothing  -> let vs     = effectiveVF (modifier prog)
+        Nothing  -> let vs     = effectiveVF (fmap modifier key)
                         sc     = map (map fromIntegral) vs :: [[Note]]
                         forced = forceAll sc
                     in forced `seq` (sc, length vs)
   in cacheForced `seq` (|* pF "amp" (kDynamic kin)) $
      mask (fmap (\x -> x >= lo && x <= hi) (kSignal kin)) $
-       innerJoin $ fmap (\prog ->
-         arrangeLookup' (lookupCache prog) chordPat ranged
+       innerJoin $ fmap (\key ->
+         arrangeLookup' (lookupCache key) chordPat ranged
        ) progPat
-
--- |Internal: squeeze arrangement logic (unchanged from original arrange').
-arrangeCore' :: VoiceFunction
-             -> P.Progression
-             -> Pattern Int        -- ^ Chord selection pattern (1-indexed)
-             -> (Int, Int)         -- ^ MIDI note range filter
-             -> [Pattern Int]      -- ^ Input patterns to harmonize
-             -> Pattern ValueMap
-arrangeCore' voiceFunc prog chordPat register pats
-  | null voicings = silence
-  | otherwise =
-      let chordIdx  = fmap (\i -> (i - 1) `mod` nChords) chordPat
-          chordPats = map (\sc -> note (toScale sc ranged)) scales
-      in squeeze chordIdx chordPats
-  where
-    voicings = voiceFunc prog
-    scales   = map (map fromIntegral) voicings :: [[Note]]
-    nChords  = length voicings
-    stacked  = stack pats
-    ranged   = voiceRange register stacked
 
 -- |Cached squeeze: takes pre-computed (scales, nChords) and pre-built ranged pattern.
 arrangeLookup' :: ([[Note]], Int)

@@ -286,6 +286,59 @@ spec = do
     it "unrecognized pattern [0,1,6] is not an inversion" $
       isInversion (Cadence "" Unison [P 0, P 1, P 6]) `shouldBe` False
 
+  describe "mkCadenceStatePCs (non-truncating constructor)" $ do
+
+    it "preserves all four intervals" $ do
+      let cs = mkCadenceStatePCs Eb Unison [0,3,7,10]
+      cadenceIntervals (stateCadence cs) `shouldBe` [P 0, P 3, P 7, P 10]
+
+    it "names 4-note content with the chord namer" $ do
+      let cs = mkCadenceStatePCs Eb Unison [0,3,7,10]
+      cadenceFunctionality (stateCadence cs) `shouldBe` "m7"
+
+    it "names triad content with the triad namer" $ do
+      let cs = mkCadenceStatePCs C Unison [0,4,7]
+      cadenceFunctionality (stateCadence cs) `shouldBe` "maj"
+
+    it "inserts the root interval when missing and dedupes mod 12" $ do
+      let cs = mkCadenceStatePCs C Unison [4,7,16,10]
+      cadenceIntervals (stateCadence cs) `shouldBe` [P 0, P 4, P 7, P 10]
+
+    it "flat root name implies flat spelling" $ do
+      let cs = mkCadenceStatePCs Eb Unison [0,3,7,10]
+      stateSpelling cs `shouldBe` FlatSpelling
+
+  describe "walkTriadCadence / walkTriadState (gen4 walk projection)" $ do
+
+    it "is identity for triad cadences" $ do
+      let cad = Cadence "maj" Unison [P 0, P 4, P 7]
+      walkTriadCadence cad `shouldBe` cad
+
+    it "is identity for every corpus inversion zero-form" $ do
+      let forms = [[0,3,8],[0,4,9],[0,5,9],[0,5,8],[0,6,9],[0,3,9],[0,4,7],[0,3,7],[0,3,6]]
+      mapM_ (\f -> let cad = Cadence "x" Unison (map P f)
+                   in walkTriadCadence cad `shouldBe` cad) forms
+
+    it "projects a dominant 7th to its rooted major triad" $ do
+      let cad = Cadence "7" Unison [P 0, P 4, P 7, P 10]
+      cadenceIntervals (walkTriadCadence cad) `shouldBe` [P 0, P 4, P 7]
+      cadenceFunctionality (walkTriadCadence cad) `shouldBe` "maj"
+
+    it "reinterprets dim+added-P5 as minor ([0,3,6,7] -> [0,3,7])" $ do
+      let cad = Cadence "" Unison [P 0, P 3, P 6, P 7]
+      cadenceIntervals (walkTriadCadence cad) `shouldBe` [P 0, P 3, P 7]
+
+    it "preserves movement, root, and spelling" $ do
+      let cs  = mkCadenceStatePCs Eb (Desc (P 5)) [0,3,7,10]
+          cs' = walkTriadState cs
+      cadenceMovement (stateCadence cs') `shouldBe` Desc (P 5)
+      stateCadenceRoot cs' `shouldBe` Eb
+      stateSpelling cs' `shouldBe` stateSpelling cs
+
+    it "projected cadence shows as a corpus-shaped graph key" $ do
+      let cs = mkCadenceStatePCs C (Asc (P 2)) [0,3,7,10]
+      show (stateCadence (walkTriadState cs)) `shouldBe` "( asc 2 -> min )"
+
 -------------------------------------------------------------------------------
 -- Helper
 -------------------------------------------------------------------------------

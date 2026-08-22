@@ -28,9 +28,9 @@ import qualified Data.Text as T
 import Data.Text (Text)
 import Data.List (sort)
 
-import Harmonic.Framework.Builder (HarmonicContext(..), GeneratorConfig(..), defaultConfig, Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, TransformTrace(..), AdvanceTrace(..), StepDiagnostic(..), harmonicContext, matchesContext, parseComposersWithOrder, makePortmanteau, extractByPosition, takeFromBeginning, takeFromEnd, takeFromMiddle, GenConfig(..), GenMode(..), Verbosity(..), defaultGenConfig, gen, gen', gen'', genGrid, genFrom, cue, len, seek, entropy, tonal, hContext, genSilent)
+import Harmonic.Framework.Builder (HarmonicContext(..), GeneratorConfig(..), defaultConfig, Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, TransformTrace(..), AdvanceTrace(..), StepDiagnostic(..), harmonicContext, matchesContext, parseComposersWithOrder, makePortmanteau, extractByPosition, takeFromBeginning, takeFromEnd, takeFromMiddle, GenConfig(..), GenMode(..), Verbosity(..), defaultGenConfig, gen, gen', gen'', genGrid, genFrom, cue, len, seek, entropy, tonal, hContext, genSilent, gen4, quad, genP)
 import Harmonic.Framework.Builder.Core (applyDriftFilter, matchesContextWithTarget)
-import Harmonic.Framework.Builder.Types (parseContextOnce)
+import Harmonic.Framework.Builder.Types (parseContextOnce, keySpellingOf)
 import Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
 import qualified Data.Map.Strict as Map
 import Harmonic.Rules.Constraints.Filter (parseOvertones, parseKey, parseFunds)
@@ -38,6 +38,8 @@ import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as P
 import qualified Harmonic.Rules.Types.Progression as Prog
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
+import qualified Harmonic.Rules.Types.Scale as Sc
+import Data.Foldable (toList)
 
 -------------------------------------------------------------------------------
 -- Tests
@@ -137,8 +139,8 @@ spec = do
   describe "GeneratorConfig" $ do
 
     describe "defaultConfig" $ do
-      it "is the nullary config (no dead options)" $ do
-        defaultConfig `shouldBe` GeneratorConfig
+      it "defaults to the plain gen family (quad off)" $ do
+        defaultConfig `shouldBe` GeneratorConfig { gcQuad = False }
 
   describe "Wildcard matching" $ do
     
@@ -903,3 +905,110 @@ spec = do
       let start = H.initCadenceState 0 "C" [0,4,7]
       prog <- seek "none" $ cue start $ len 4 $ gen
       PC.pcLength prog `shouldBe` 4
+
+  describe "gen4 family (offline)" $ do
+    let intervalsOf pc =
+          [ H.cadenceIntervals (H.stateCadence cs)
+          | cs <- toList (Prog.unProgression (PC.triadLayer pc)) ]
+
+    it "every bar carries 4 distinct pitch classes (cue fused)" $ do
+      let start = H.initCadenceState 0 "C" [0,4,7]
+      pc <- seek "none" $ cue start $ len 6 $ entropy 0.3 $ gen4
+      PC.pcLength pc `shouldBe` 6
+      mapM_ (\ivs -> length ivs `shouldBe` 4) (intervalsOf pc)
+
+    it "a 4-note cue passes through unfused" $ do
+      let start = H.mkCadenceStatePCs P.Eb H.Unison [0,3,7,10]
+      pc <- seek "none" $ cue start $ len 4 $ gen4
+      head (intervalsOf pc) `shouldBe` [P.P 0, P.P 3, P.P 7, P.P 10]
+
+    it "added tones respect the tonal palette (R adherence)" $ do
+      let ctx = hcKey "0#" hContext  -- no sharps/flats: PCs {0,2,4,5,7,9,11}
+          start = H.initCadenceState 0 "C" [0,4,7]
+      pc <- seek "none" $ cue start $ len 6 $ entropy 0.5 $ tonal ctx $ gen4
+      let allowed = [0,2,4,5,7,9,11] :: [Int]
+          absPCsOf cs =
+            let r = P.unPitchClass (P.pitchClass (H.stateCadenceRoot cs))
+            in [ (P.unPitchClass i + r) `mod` 12
+               | i <- H.cadenceIntervals (H.stateCadence cs) ]
+      mapM_ (\cs -> mapM_ (\p -> p `shouldSatisfy` (`elem` allowed))
+                          (absPCsOf cs))
+            (toList (Prog.unProgression (PC.triadLayer pc)))
+
+    it "consonant drift keeps fused-bar dissonance non-increasing" $ do
+      let start = H.initCadenceState 0 "C" [0,4,7]
+      pc <- seek "none" $ cue start $ len 8 $ entropy 0.0 $ tonal (consonant hContext) $ gen4
+      let disses = [ dissonanceScore (map P.unPitchClass ivs)
+                   | ivs <- intervalsOf pc ]
+      -- advisory: non-increasing except where the filter had to relax;
+      -- at entropy 0 with a full palette relaxation is not expected
+      and (zipWith (>=) disses (tail disses)) `shouldBe` True
+
+    it "quad on genP errors (family separation)" $ do
+      let runIt = seek "none" $ quad $ genP Sc.I
+      runIt `shouldThrow` anyErrorCall
+
+  describe "genFrom family uniformity (regen never mixes families)" $ do
+    let barSizes pc =
+          [ length (H.cadenceIntervals (H.stateCadence cs))
+          | cs <- toList (Prog.unProgression (PC.triadLayer pc)) ]
+
+    it "genFrom on a gen4 source regenerates 4-note bars" $ do
+      let start = H.initCadenceState 0 "C" [0,4,7]
+      src <- seek "none" $ cue start $ len 5 $ gen4
+      out <- seek "none" $ genFrom src 2 3
+      barSizes out `shouldBe` replicate 5 4
+
+    it "genFrom on a triad source regenerates 3-note bars" $ do
+      let start = H.initCadenceState 0 "C" [0,4,7]
+      src <- seek "none" $ cue start $ len 5 $ gen
+      out <- seek "none" $ genFrom src 2 3
+      barSizes out `shouldBe` replicate 5 3
+
+    it "explicit quad on a triad source fails fast" $ do
+      let start = H.initCadenceState 0 "C" [0,4,7]
+      src <- seek "none" $ cue start $ len 4 $ gen
+      seek "none" (quad (genFrom src 2 3)) `shouldThrow` anyErrorCall
+
+  describe "corpusFunctionality (graph keyspace naming)" $ do
+    it "names inversion forms as the corpus stores them" $ do
+      H.corpusFunctionality [P.P 0, P.P 3, P.P 8] `shouldBe` "maj_1stInv"
+      H.corpusFunctionality [P.P 0, P.P 5, P.P 8] `shouldBe` "min_2ndInv"
+      H.corpusFunctionality [P.P 0, P.P 2, P.P 7] `shouldBe` "sus4_1stInv"
+      H.corpusFunctionality [P.P 0, P.P 5, P.P 10] `shouldBe` "sus4_2ndInv"
+      H.corpusFunctionality [P.P 0, P.P 4, P.P 7] `shouldBe` "maj"
+
+    it "constructCadence keys are corpus-shaped for inversions" $ do
+      show (H.constructCadence ("desc 1", "[P 0,P 3,P 8]"))
+        `shouldBe` "( desc 1 -> maj_1stInv )"
+  describe "key-signature spelling bias (walk)" $ do
+    it "a five-flat walk spells flat throughout" $ do
+      let start = H.initCadenceState 0 "Db" [0,4,7]
+      pc <- seek "none" $ cue start $ tonal (hcKey "5b" hContext) $ len 8 $ entropy 0.6 $ gen
+      let sps = [ H.stateSpelling cs
+                | cs <- toList (Prog.unProgression (PC.triadLayer pc)) ]
+      sps `shouldBe` replicate 8 H.FlatSpelling
+
+    it "a three-sharp walk spells sharp throughout" $ do
+      let start = H.initCadenceState 0 "A" [0,4,7]
+      pc <- seek "none" $ cue start $ tonal (hcKey "3#" hContext) $ len 8 $ entropy 0.6 $ gen
+      let sps = [ H.stateSpelling cs
+                | cs <- toList (Prog.unProgression (PC.triadLayer pc)) ]
+      sps `shouldBe` replicate 8 H.SharpSpelling
+
+  describe "keySpellingOf (per-token enharmonic vote)" $ do
+    it "single and multi flat-side keys vote flat" $ do
+      keySpellingOf "5b" `shouldBe` Just H.FlatSpelling
+      keySpellingOf "2b 5b" `shouldBe` Just H.FlatSpelling
+      keySpellingOf "f bb" `shouldBe` Just H.FlatSpelling
+    it "sharp-side note-name keys vote sharp" $ do
+      keySpellingOf "g d" `shouldBe` Just H.SharpSpelling
+      keySpellingOf "b" `shouldBe` Just H.SharpSpelling
+      keySpellingOf "3#" `shouldBe` Just H.SharpSpelling
+    it "mixed, neutral, and wildcard keys abstain" $ do
+      keySpellingOf "2b 3#" `shouldBe` Nothing
+      keySpellingOf "0#" `shouldBe` Nothing
+      keySpellingOf "c" `shouldBe` Nothing
+      keySpellingOf "*" `shouldBe` Nothing
+    it "removal tokens do not vote" $ do
+      keySpellingOf "1b -G" `shouldBe` Just H.FlatSpelling

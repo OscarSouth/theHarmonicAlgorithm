@@ -101,6 +101,10 @@ module Harmonic.Framework.Builder
   , gen'
   , gen''
   , genGrid
+  , gen4
+  , gen4'
+  , gen4''
+  , quad
   , genFrom
   , genFrom'
   , genFrom''
@@ -295,7 +299,7 @@ genWith config start len composerStr entropy ctx = generateWith config start len
 --   1. Start with user-provided CadenceState
 --   2. For each step: build candidate pool, gamma-select next cadence
 --   3. Candidate pool = graph transitions (filtered) + consonanceFallback
---   4. Pool size is configurable (default 30)
+--      (unlimited — the pool is never truncated)
 generateWith :: GeneratorConfig
              -> H.CadenceState
              -> Int
@@ -415,6 +419,19 @@ renderStandardSteps composerStr ctx diag = do
       let candNames = [renderCandidateName name | (name, _) <- topCands]
           candStr = intercalate " | " candNames
       putStrLn $ "     Candidates: " ++ candStr
+
+    -- gen4: one additive line describing the added-tone draw. The
+    -- Candidates line above stays triad-stage only (final-pool members).
+    case sdFusion step of
+      Just fd -> do
+        let spelling = case toList (Prog.unProgression (gdProgression diag)) of
+              css | barNum - 1 < length css -> H.stateSpelling (css !! (barNum - 1))
+              _ -> H.FlatSpelling
+            toneName = show (H.enharmonicFunc spelling (P.mkPitchClass (fdAddedPC fd)))
+        putStrLn $ "     fused: +" ++ toneName
+                   ++ " → " ++ sdPosteriorRoot step ++ " " ++ fdFusedName fd
+                   ++ "  [rank " ++ show (fdGammaIdx fd + 1) ++ "/" ++ show (fdPoolK fd) ++ "]"
+      Nothing -> pure ()
 
     putStrLn ""
 
@@ -620,12 +637,24 @@ execGenConfig gc = do
 -- can be suppressed and only the winner's emitted.
 execGenConfigWithDiag :: GenConfig -> IO (Prog.Progression, GenerationDiagnostics)
 execGenConfigWithDiag gc = do
-  start <- _gcCue gc
+  start0 <- _gcCue gc
+  -- gen4: fuse a triad cue once so the output is uniformly 4-note from
+  -- bar 1 (user decision 2026-08-19). A 4-note lead' cue passes through
+  -- untouched; sub-triad cues are left alone.
+  start <- if _gcQuad gc
+                && length (H.cadenceIntervals (H.stateCadence start0)) == 3
+             then do
+               rng <- createSystemRandom
+               let pctx = parseContextOnce (_gcTonal gc)
+               (fused, _) <- fuseState rng (_gcEntropy gc) pctx Nothing start0
+               pure fused
+             else pure start0
+  let cfg = defaultConfig { gcQuad = _gcQuad gc }
   case _gcMode gc of
     Fresh -> case _gcVerbosity gc of
-      Silent   -> generate'  start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
-      Standard -> generate'  start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
-      Verbose  -> generate'' start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
+      Silent   -> genWith'  cfg start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
+      Standard -> genWith'  cfg start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
+      Verbose  -> genWith'' cfg start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
 
     GridMode -> do
       let grid = Prog.fromCadenceStates (replicate (_gcLen gc) start)
@@ -641,8 +670,20 @@ execGenConfigWithDiag gc = do
       pure (grid, diag)
 
     FromProg srcProg s e -> do
+      -- Family uniformity: regeneration produces states of the family the
+      -- source already is. genFrom auto-detects (uniform 4-note source →
+      -- _gcQuad); an EXPLICIT quad on a non-4-note source would create the
+      -- family mixing regeneration must never produce → fail fast.
+      let srcSizes = [ length (H.cadenceIntervals (H.stateCadence cs))
+                     | cs <- toList (Prog.unProgression srcProg) ]
+          srcQuad  = not (null srcSizes) && all (== 4) srcSizes
+          srcMixed = length (nub srcSizes) > 1
+      when (_gcQuad gc && not srcQuad) $
+        error "genFrom is family-aware: this source is not a uniform 4-note (gen4) progression — regenerate with plain genFrom (quad is inferred from the source)"
+      when srcMixed $
+        putStrLn "genFrom: hand-mixed source cardinalities — regenerating as plain triads (regen never amplifies mixing)"
       -- Generate _gcLen+1 chords (cue + new), then drop cue, splice into source.
-      (fullProg, regenDiag) <- generate' start (_gcLen gc + 1)
+      (fullProg, regenDiag) <- genWith' cfg start (_gcLen gc + 1)
                                  (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
       let newChords = tail $ toList $ Prog.unProgression fullProg
           result    = Prog.spliceProgression srcProg s e newChords
@@ -682,6 +723,7 @@ defaultGenConfig = GenConfig
   , _gcBoostSame   = 0.90
   , _gcBoostFlip   = 0.80
   , _gcBoostTri    = 0.70
+  , _gcQuad        = False
   , _gcMaxAttempts  = 1
   , _gcViableTarget = 1
   -- Calibrated from a 30-sample online probe (gen, 8 bars, entropy 0.4,
@@ -721,16 +763,54 @@ gen'' = defaultGenConfig { _gcVerbosity = Verbose }
 genGrid :: GenConfig
 genGrid = defaultGenConfig { _gcMode = GridMode }
 
+-- |Switch on the gen4 family: every generated bar carries a 4-note chord.
+--
+-- Each step first selects a triad exactly as plain 'gen' (graph + fallback,
+-- R filters, gamma draw), then fuses in one more R-valid palette tone —
+-- ranked consonant-first by full-chord dissonance, drawn at the same
+-- entropy. The walk continues from the fused chord's most-consonant
+-- embedded triad, so the added tone can reinterpret the harmony and steer
+-- the next step, while every graph key stays corpus-shaped (generation
+-- stays online). A triad cue is fused once so output is uniformly 4-note;
+-- a 4-note 'lead'' cue passes through untouched.
+--
+-- Composes with the usual modifier chain. Never applies to the strata
+-- family ('genP') — strata progressions stay 3-5-7.
+--
+-- @s <- seek "*" $ cue start $ entropy 0.4 $ quad gen'@
+quad :: GenConfig -> GenConfig
+quad gc = gc { _gcQuad = True }
+
+-- |gen4 family sugar: 'quad' pre-applied to 'gen' \/ 'gen'' \/ 'gen'''.
+--
+-- @s <- seek "*" $ len 8 $ entropy 0.3 $ gen4'@
+gen4 :: GenConfig
+gen4 = quad gen
+
+-- |'gen4' with compact musical summary.
+gen4' :: GenConfig
+gen4' = quad gen'
+
+-- |'gen4' with verbose diagnostic traces.
+gen4'' :: GenConfig
+gen4'' = quad gen''
+
 -- |Regenerate a range of bars within an existing progression.
 -- The cue is inferred from the bar before the start position (wrapping).
 --
--- Dispatches on @pcProvenance@:
+-- FAMILY-AWARE: regeneration always produces uniform states of the family
+-- the source progression already is — families never mix.
 --
--- * @Just _@ — strata-aware path: regenerates all three layers + provenance
---   in lockstep, with one-step lookahead at the @e → e+1@ seam to keep the
---   spliced bar sequence walk-graph valid under 'allowedNext'.
--- * @Nothing@ — legacy triad-only path: regenerates the triad layer via the
---   standard R→E→T pipeline, then splices.
+-- * @pcProvenance = Just _@ — strata-aware path: regenerates all three
+--   layers + provenance in lockstep, with one-step lookahead at the
+--   @e → e+1@ seam to keep the spliced bar sequence walk-graph valid
+--   under 'allowedNext'.
+-- * uniform 4-note triad layer (gen4 source) — regen bars come out 4-note
+--   ('_gcQuad' set automatically).
+-- * uniform 3-note (gen source) — plain triad regen.
+-- * hand-mixed cardinalities — regenerated as plain triads with a printed
+--   notice (hand-mixed material is the human aberration channel; regen
+--   does not amplify it).
 --
 -- @s' <- seek "*" $ entropy 0.3 $ genFrom s 2 3@
 -- @s' <- seek "*" $ cue start $ genFrom s 2 3    -- override inferred cue@
@@ -741,6 +821,7 @@ genFrom :: PC.ProgressionContext -> Int -> Int -> GenConfig
 genFrom pc s e = defaultGenConfig
   { _gcCue  = inferCue
   , _gcLen  = rSize
+  , _gcQuad = sourceIsQuad
   , _gcMode = case PC.pcProvenance pc of
       Just _  -> FromProgPC pc s e
       Nothing -> FromProg (PC.triadLayer pc) s e
@@ -753,6 +834,10 @@ genFrom pc s e = defaultGenConfig
     inferCue = case Prog.getCadenceState triad cuePos of
       Just cs -> pure cs
       Nothing -> _gcCue defaultGenConfig
+    -- Family detection: every bar exactly 4 intervals → gen4 source.
+    barSizes = [ length (H.cadenceIntervals (H.stateCadence cs))
+               | cs <- toList (Prog.unProgression triad) ]
+    sourceIsQuad = not (null barSizes) && all (== 4) barSizes
 
 -- |Standard-verbosity alias of 'genFrom'. Mirrors 'gen''/'genP''/'genI''.
 genFrom' :: PC.ProgressionContext -> Int -> Int -> GenConfig
@@ -871,6 +956,12 @@ singlePassExecPC gc = do
 -- attempt output is suppressed and only the winner's emitted.
 singlePassExecPCWithDiag :: GenConfig -> IO (PC.ProgressionContext, GenerationDiagnostics)
 singlePassExecPCWithDiag gc = case _gcMode gc of
+  -- Family separation: gen4 (quad) and the strata family (genP /
+  -- strata-aware genFrom) never mix — strata progressions stay 3-5-7.
+  StrataMode _ | _gcQuad gc ->
+    error "quad/gen4 applies to the gen family only — genP (strata) stays 3-5-7"
+  FromProgPC {} | _gcQuad gc ->
+    error "quad/gen4 applies to the gen family only — this source is strata-aware (genP provenance); regenerate it with plain genFrom (family is inferred from the source)"
   StrataMode sStart    -> runStrataGen sStart gc
   FromProgPC srcPC s e -> runStrataGenFrom srcPC s e gc
   _                    -> do
@@ -1044,8 +1135,7 @@ chordNamesOf :: Prog.Progression -> [String]
 chordNamesOf prog =
   let cads = toList (Prog.unProgression prog)
       enharms = map (H.enharmonicFunc . H.stateSpelling) cads
-      chords = map H.fromCadenceState cads
-  in zipWith Prog.showTriad enharms chords
+  in zipWith Prog.showHarmony enharms cads
 
 -- |Set entropy in [0, 1] — mapped affinely to the gamma sampler's shape
 -- (@shape = 1 + entropy * 9@). Higher values = more unusual choices.
@@ -1426,19 +1516,13 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
         ]
 
       -- Build a CadenceState from a root and root-relative intervals,
-      -- preserving full cardinality. Bypasses 'H.initCadenceState' because
-      -- that function routes through 'flatTriad' / 'toCadence' which
-      -- truncate >3 PCs (the legacy assumption that a Cadence is exactly
-      -- a triad). For strata / mode layers we want to keep the full 5 / 7
-      -- PC chroma intact for downstream voicing.
+      -- preserving full cardinality (no initCadenceState/toCadence
+      -- truncation). Delegates to the exported non-truncating constructor;
+      -- unlike the historical local version this also populates
+      -- cadenceFunctionality, which the display seam (showHarmony) would
+      -- otherwise recompute identically.
       mkChromaCS :: P.NoteName -> [Int] -> H.CadenceState
-      mkChromaCS root intervals =
-        let rootPC          = P.unPitchClass (P.pitchClass root)
-            pcs             = map P.mkPitchClass intervals
-            absolutePitches = map (\i -> (i + rootPC) `mod` 12) intervals
-            spelling        = H.inferSpelling absolutePitches
-            cadence         = H.Cadence "" H.Unison pcs
-        in H.CadenceState cadence root spelling
+      mkChromaCS root intervals = H.mkCadenceStatePCs root H.Unison intervals
 
       -- Build per-bar strata-layer + mode-layer CadenceStates rooted on
       -- each generated triad's harmonic root, carrying the full 5 / 7 PC
@@ -1495,8 +1579,7 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
       -- Slash-notation chord rendering using the bar's spelling.
       slashChordWith :: H.EnharmonicSpelling -> H.CadenceState -> String
       slashChordWith spelling cs =
-        let chord = H.fromCadenceState cs
-        in Prog.showTriad (H.enharmonicFunc spelling) chord
+        Prog.showHarmony (H.enharmonicFunc spelling) cs
 
       attachedDiags =
         [ let rootPC                = harmonicRootOf cs
@@ -1581,6 +1664,7 @@ mkStarterDiag cs =
        , sdParentKey               = Nothing
        , sdModeResult              = Nothing
        , sdBarSpelling             = Nothing
+       , sdFusion                  = Nothing
        }
 
 -------------------------------------------------------------------------------
@@ -1764,8 +1848,7 @@ printInvalidCueError start s = do
       absPCs       = [ (i + rootPC) `mod` 12 | i <- intervals ]
       spelling     = H.inferSpelling absPCs
       enharm       = H.enharmonicFunc spelling
-      chord        = H.fromCadenceState start
-      chordName    = Prog.showTriad enharm chord
+      chordName    = Prog.showHarmony enharm start
       strataPCs    = sort (map P.unPitchClass (Sc.strataChroma s))
       offenders    = [ p | p <- absPCs, p `notElem` strataPCs ]
       spellPC p    = show (enharm (P.mkPitchClass p))
