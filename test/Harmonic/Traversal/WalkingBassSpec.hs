@@ -37,7 +37,8 @@
 --     * Loop closure: last beat -> first note <= 7 semitones
 --
 --   Utility helpers
---     * closestLowMidi picks the lowest in-range MIDI for a given PC
+--     * closestLowMidi picks the lowest in-range MIDI for a given PC;
+--       closestMidMidi the instance nearest the register centre (bar-0 anchor)
 module Harmonic.Traversal.WalkingBassSpec (spec) where
 
 import Test.Hspec
@@ -45,7 +46,7 @@ import Test.Hspec
 import Data.Foldable (toList)
 import qualified Data.Set as Set
 
-import Harmonic.Rules.Types.Pitch (pitchClass, unPitchClass)
+import Harmonic.Rules.Types.Pitch (pitchClass, unPitchClass, mkPitchClass, NoteName(..))
 import Harmonic.Rules.Types.Harmony
 import Harmonic.Rules.Types.Progression
 import Harmonic.Traversal.WalkingBass
@@ -143,6 +144,12 @@ chordPCsFor cs =
 fundPCOf :: CadenceState -> Int
 fundPCOf = unPitchClass . pitchClass . stateCadenceRoot
 
+-- Cardinality-preserving fixture constructor: 'initCadenceState' silently
+-- truncates >3-PC chords to triads, so tetrad fixtures build through
+-- 'mkCadenceStatePCs'.
+mkCS :: NoteName -> [Int] -> CadenceState
+mkCS nn = mkCadenceStatePCs nn (toMovement (mkPitchClass 0) (mkPitchClass 0))
+
 firstRootPC :: Progression -> Int
 firstRootPC prog =
   case toList (unProgression prog) of
@@ -168,9 +175,9 @@ spec = do
 
   describe "voice function wiring (beat 1 is a hard invariant)" $ do
 
-    it "bar 0 beat 0 = closestLowMidi of first chord's root" $ do
+    it "bar 0 beat 0 = closestMidMidi of first chord's root" $ do
       head (head (walkLine fund prog4))
-        `shouldBe` closestLowMidi (firstRootPC prog4)
+        `shouldBe` closestMidMidi (firstRootPC prog4)
 
     it "beat 0 of every bar equals fund's output PC" $ do
       let line = walkLine fund prog4
@@ -301,6 +308,14 @@ spec = do
       closestLowMidi 4 `shouldBe` 28   -- E1
       closestLowMidi 7 `shouldBe` 31   -- G1
       closestLowMidi 5 `shouldBe` 29   -- F1
+
+  describe "closestMidMidi" $ do
+
+    it "picks the register instance nearest the centre (lower on tie)" $ do
+      closestMidMidi 0 `shouldBe` 36   -- C2 (|36-38| < |48-38|)
+      closestMidMidi 2 `shouldBe` 38   -- D2 = the centre itself
+      closestMidMidi 4 `shouldBe` 40   -- E2 beats E1 (2 vs 10)
+      closestMidMidi 7 `shouldBe` 43   -- G2 beats G1 (5 vs 7)
 
   describe "isSymmetricChord" $ do
 
@@ -442,3 +457,188 @@ spec = do
       (b30 `mod` 12) `shouldBe` p5PC0
       abs (b40 - nextB1) `shouldBe` 1
       ((b40 - b30) * (nextB1 - b40) > 0) `shouldBe` True
+
+  describe "progConsonance" $ do
+
+    it "is 1.0 for pure major/minor triad progressions" $ do
+      progConsonance prog4 `shouldBe` 1.0
+
+    it "normalises per cardinality: an m7 vamp reads as consonant" $ do
+      let vamp = fromCadenceStates (replicate 4 (mkCS C [0,3,7,10]))
+      progConsonance vamp `shouldBe` 1.0
+
+    it "ranks a dominant-7 progression below a triad progression" $ do
+      let doms = fromCadenceStates [ mkCS r [0,4,7,10] | r <- [F, Bb, F, C] ]
+      progConsonance doms `shouldSatisfy` (< progConsonance prog4)
+
+    it "stays in [0, 1]" $ do
+      mapM_ (\p -> progConsonance p `shouldSatisfy` (\x -> x >= 0 && x <= 1))
+            [prog4, prog8, progTritone, progDim, progDmG]
+
+  describe "duplicate-run beat 1 (root-fifth alternation)" $ do
+
+    it "a 4-bar one-chord vamp walks beat 1 as root-P5-root-P5" $ do
+      let vamp = fromCadenceStates (replicate 4 (mkCS C [0,3,7,10]))
+          b1pcs = map ((`mod` 12) . head) (walkLine fund vamp)
+      b1pcs `shouldBe` [0, 7, 0, 7]
+
+    it "distinct-chord progressions never substitute the P5 on beat 1" $ do
+      let b1pcs = map ((`mod` 12) . head) (walkLine fund prog8)
+          roots = map fundPCOf (toList (unProgression prog8))
+      b1pcs `shouldBe` roots
+
+  describe "register loop closure" $ do
+
+    it "the last bar's beat 1 stays within a fifth of bar 0's beat 1" $ do
+      mapM_ (\p -> do
+              let line = walkLine fund p
+              abs (head (last line) - head (head line))
+                `shouldSatisfy` (<= 7))
+            [prog4, prog8, progDim, progDescTone, progDmG]
+
+  describe "inferKeyCentre (regional, walk-internal)" $ do
+
+    -- The five harvested fixtures from notes/walking_bass_theory.md:477-486.
+    let keyPCs prog = map unPitchClass (inferKeyCentre prog)
+
+    it "BbM7 Eb7 AbM7 infers Ab" $ do
+      let p = fromCadenceStates [mkCS Bb [0,4,7,11], mkCS Eb [0,4,7,10], mkCS Ab [0,4,7,11]]
+      keyPCs p `shouldBe` replicate 3 8
+
+    it "Am7 Em7 Bm7 infers G" $ do
+      let p = fromCadenceStates [mkCS A [0,3,7,10], mkCS E [0,3,7,10], mkCS B [0,3,7,10]]
+      keyPCs p `shouldBe` replicate 3 7
+
+    it "FM7 Am7 BbM7 infers F" $ do
+      let p = fromCadenceStates [mkCS F [0,4,7,11], mkCS A [0,3,7,10], mkCS Bb [0,4,7,11]]
+      keyPCs p `shouldBe` replicate 3 5
+
+    it "FM7 Em7 Dm7 infers C" $ do
+      let p = fromCadenceStates [mkCS F [0,4,7,11], mkCS E [0,3,7,10], mkCS D [0,3,7,10]]
+      keyPCs p `shouldBe` replicate 3 0
+
+    it "DM7 F#m7 Bm7 GM7 infers D" $ do
+      let p = fromCadenceStates [ mkCS D [0,4,7,11], mkCS F' [0,3,7,10]
+                                , mkCS B [0,3,7,10], mkCS G [0,4,7,11] ]
+      keyPCs p `shouldBe` replicate 4 2
+
+    it "returns one centre per bar and is deterministic" $ do
+      let ks = inferKeyCentre prog8
+      length ks `shouldBe` 8
+      inferKeyCentre prog8 `shouldBe` ks
+
+  describe "dynamics-coupled register arc (walkLineDyn)" $ do
+
+    it "Nothing is byte-identical to walkLine" $ do
+      walkLineDyn Nothing fund prog8 `shouldBe` walkLine fund prog8
+
+    it "a constant dynamic vector is neutral (mean-centred bias is zero)" $ do
+      walkLineDyn (Just (replicate 8 0.9)) fund prog8
+        `shouldBe` walkLine fund prog8
+
+    it "a 0.25+ drop resets that bar's beat 1 to the lowest register instance" $ do
+      let line = walkLineDyn (Just [0.9, 0.9, 0.5, 0.5]) fund prog4
+          bars = toList (unProgression prog4)
+          pc2  = fundPCOf (bars !! 2)
+      head (line !! 2) `shouldBe` closestLowMidi pc2
+
+    it "the arc bias steers exactly-tied register choices with the dynamics" $ do
+      -- Eb-A alternation: Eb has a single register instance (39); from it
+      -- the A instances (33, 45) are equidistant, so the neutral walk takes
+      -- the lower on the tie and a quieter-than-mean bar flips it upward.
+      let progEbA = fromCadenceStates
+            [ initCadenceState 0 "Eb" [0,4,7], aMin
+            , initCadenceState 0 "Eb" [0,4,7], aMin ]
+          neutral = map head (walkLineDyn Nothing fund progEbA)
+          shaped  = map head
+            (walkLineDyn (Just [0.6, 0.4, 0.6, 0.4]) fund progEbA)
+      neutral `shouldBe` [39, 33, 39, 33]
+      shaped  `shouldBe` [39, 45, 39, 45]
+
+  describe "degenerate bars" $ do
+
+    it "a bar with no chord tones does not crash; its beat 3 falls back to \
+       \a regional-key tone" $ do
+      let progEmpty = fromCadenceStates
+            [ cMaj, initCadenceState 0 "C" [], gMaj, fMaj ]
+          line = walkLine fund progEmpty
+          keyPC = unPitchClass (inferKeyCentre progEmpty !! 1)
+          keySet = Set.fromList [ (keyPC + st) `mod` 12
+                                | st <- [0, 2, 4, 5, 7, 9, 11] ]
+      length line `shouldBe` 4
+      ((line !! 1 !! 2) `mod` 12) `shouldSatisfy` (`Set.member` keySet)
+
+  describe "walkLineP (octatripentatonic path)" $ do
+
+    it "produces nBars x 4 beats, all in register" $ do
+      let line = walkLineP fund progGenP genPChromas
+      length line `shouldBe` 8
+      mapM_ (\bar -> do
+              length bar `shouldBe` beatsPerBar
+              mapM_ (\m -> m `shouldSatisfy`
+                      (\x -> x >= lowestMidi && x <= highestMidi)) bar)
+            line
+
+    it "is deterministic" $
+      walkLineP fund progGenP genPChromas
+        `shouldBe` walkLineP fund progGenP genPChromas
+
+    it "falls back to walkLine when the chromas list length mismatches" $
+      walkLineP fund progGenP [] `shouldBe` walkLine fund progGenP
+
+    it "keeps every connector inside the bar's strata/overlap/mode pool" $ do
+      let line  = walkLineP fund progGenP genPChromas
+          bars  = toList (unProgression progGenP)
+          n     = length bars
+          chSet i = chordPCsFor (bars !! i)
+          overlapAt i = Set.unions
+            [ chSet ((i + d) `mod` n) | d <- [-1, 0, 1] ]
+          poolAt i =
+            let ChromaSources s m = genPChromas !! i
+            in s `Set.union` overlapAt i `Set.union` m
+          ok i = all (\k -> ((line !! i !! k) `mod` 12) `Set.member` poolAt i)
+                     [1, 3]
+      all ok [0 .. n - 1] `shouldBe` True
+
+    it "leading-tone parity: at least half of the bars approach the next \
+       \beat 1 within two semitones on beat 4" $ do
+      let line = walkLineP fund progGenP genPChromas
+          n    = length line
+          hit i = abs ((line !! i !! 3)
+                       - head (line !! ((i + 1) `mod` n))) `elem` [1, 2]
+          hits = length (filter hit [0 .. n - 1])
+      hits * 2 `shouldSatisfy` (>= n)
+
+-------------------------------------------------------------------------------
+-- genP fixtures (frozen from a live strata-V generation; ChromaSources
+-- reconstructed the same way LineHarmony.chromaSourcesFor does)
+-------------------------------------------------------------------------------
+
+progGenP :: Progression
+progGenP = fromCadenceStates
+  [ initCadenceState 0 "A"  [0,4,7]
+  , initCadenceState 0 "D"  [0,2,4]
+  , initCadenceState 0 "Bb" [0,8,9]
+  , initCadenceState 0 "C#" [0,3,6]
+  , initCadenceState 0 "D"  [0,2,5]
+  , initCadenceState 0 "C#" [0,3,6]
+  , initCadenceState 0 "D"  [0,2,5]
+  , initCadenceState 0 "C#" [0,3,8]
+  ]
+
+genPChromas :: [ChromaSources]
+genPChromas =
+  [ ChromaSources (absSet r sIvs) (absSet r mIvs)
+  | (r, sIvs, mIvs) <- rows ]
+  where
+    absSet r ivs = Set.fromList [ (r + i) `mod` 12 | i <- ivs ]
+    rows =
+      [ (9,  [0,4,5,7,10], [0,2,4,5,7,9,10])
+      , (2,  [0,2,4,5,9],  [0,2,4,5,7,9,11])
+      , (10, [0,3,4,8,9],  [0,1,3,4,6,8,9])
+      , (1,  [0,1,3,6,8],  [0,1,3,5,6,8,9])
+      , (2,  [0,2,4,5,9],  [0,2,4,5,7,9,11])
+      , (1,  [0,1,3,6,8],  [0,1,3,5,6,8,10])
+      , (2,  [0,2,4,5,9],  [0,2,4,5,7,9,11])
+      , (9,  [0,4,5,7,10], [0,2,4,5,7,9,10])
+      ]

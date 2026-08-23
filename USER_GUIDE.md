@@ -637,7 +637,7 @@ ___
 
 ## 16. Walking lines (`walk` / `lineHarmony`)
 
-**Why** — a walking bassline synthesised from the progression: chord tones on strong beats, passing tones on weak ones, direction maintained until the register runs out.
+**Why** — a walking bassline synthesised from the progression: consonant anchors on the strong beats (root on 1; P5/root/3rds on 3), weighted connectors on beats 2 and 4 preferring sandwich motion and approach tones, and a soft direction-persistence bias on the beat-1 contour. The walk follows the **performed** bar order — warp/rep selections resolve at eval time, repeated bars walk as neighbours (root–fifth alternation), approach tones aim at the bar that actually comes next; non-periodic selections fall back to stored order with a printed notice.
 
 **What** — [`LineHarmony.hs`](src/Harmonic/Interface/Tidal/LineHarmony.hs), [`WalkingBass.hs`](src/Harmonic/Traversal/WalkingBass.hs)
 
@@ -646,7 +646,7 @@ walk f k d = p "lineHarmony"
   $ f
     $ lineHarmony d k root [ "~"
       , "[1 2 3 4]/4"          -- full quarters
-    ] # ch 01 # legato 0.95 |* vel d
+    ] # ch 01 # legato 0.95
 
 do
   let k = iK tempo [at 0 1 1 s] (rep s 1)
@@ -656,7 +656,7 @@ do
     ]
 ```
 
-The patterns are 1-indexed **beat positions** (which beats of each bar the line sounds on), not voicing degrees. The line is fixed to the double-bass register (E1–C3); `voiceFn` (`root` or `fund`) anchors beat 1. Sparser feels compose like any Tidal pattern: `"[1 3]/4"` (two-feel), `"[1 2 ~ 4]/4"`, `"[1 [2 2] 3 4]/4"` (eighth-note fill).
+The patterns are 1-indexed **beat positions** (which beats of each bar the line sounds on), not voicing degrees. The list length N partitions the kinetics signal into N `kinPick` windows and only the window holding the current signal plays — a leading `"~"` silences the low-kinetics half. The `d` argument is applied once inside `lineHarmony`; do **not** also `|* vel d` outside (that squares the dynamic). Dynamics also steer the walk: bars quieter than the piece's own mean bias the register arc upward, louder bars downward, and a sudden drop (0.25+ between bars) resets the line to its lowest note — only eval-time-sampleable dynamics count (the `d` argument and form-node dynamics; live control signals and downstream `|* vel` are walk-neutral). The line is fixed to a 21-semitone double-bass register (E1–C3 at the default patch; the absolute octave depends on the synth via `tidalNoteOffset`); `voiceFn` (`root` or `fund`) anchors beat 1. Sparser feels compose like any Tidal pattern: `"[1 3]/4"` (two-feel), `"[1 2 ~ 4]/4"`, `"[1 [2 2] 3 4]/4"` (eighth-note fill).
 
 For octatripentatonic progressions ([§19](#19-the-three-layers-tsm--genp)) the line's connector pool automatically reweights toward the 5-PC strata set — the walk speaks the same dialect as the harmony.
 

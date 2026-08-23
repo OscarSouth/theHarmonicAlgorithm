@@ -541,7 +541,7 @@
         $ f
           $ lineHarmony d k root [ "~"
             ,"$1"
-          ] # ch 8 |+ oct 0 # legato 0.95 |* vel d
+          ] # ch 8 |+ oct 0 # legato 0.95
     '''
 
 

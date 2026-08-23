@@ -947,21 +947,45 @@ hush
 -- src/Harmonic/Traversal/WalkingBass.hs
 --
 -- GOAL: A walking bassline synthesised from the progression —
--- chord tones on strong beats, passing tones on weak ones,
--- direction maintained until the register runs out. The line is
--- fixed to the double-bass register (E1–C3) and derives its
--- character from the harmony.
+-- consonant anchors on the strong beats (root on 1; P5/root/3rds
+-- on 3), weighted connectors on 2 and 4 preferring sandwich
+-- motion and approach tones, with a soft direction-persistence
+-- bias on the beat-1 contour. The line is fixed to the
+-- double-bass register (E1–C3) and derives its character from
+-- the harmony (progression-level consonance scales strictness).
+--
+-- The walk follows the PERFORMED bar order: warp / rep
+-- selections are resolved at eval time, repeated bars walk as
+-- neighbours (root–fifth alternation), and approach tones aim
+-- at the bar that actually comes next. Non-periodic selections
+-- (`?`, euclidean, sub-bar values) fall back to stored order
+-- with a printed notice.
 --
 --   lineHarmony d k voiceFn patterns
+--     d        — dynamics: applied once inside lineHarmony (do
+--                NOT also |* vel d outside — that squares it).
+--                Dynamics also STEER the walk: bars quieter than
+--                the piece's own mean bias the register arc up,
+--                louder bars down, and a sudden drop (0.25+
+--                between bars) resets the line to its lowest
+--                note. Only eval-time-sampleable dynamics count:
+--                the d argument and form-node dynamics — live
+--                control signals and downstream |* vel are
+--                walk-neutral.
 --     voiceFn  — beat-1 anchor voicing: `root` or `fund`
 --     patterns — 1-indexed BEAT POSITIONS (1 2 3 4), not degrees:
---                which beats of each bar the line sounds on
+--                which beats of each bar the line sounds on.
+--                NOTE kinPick windowing: the list length N
+--                partitions the kinetics signal into N windows
+--                and plays ONLY the pattern whose window holds
+--                the current signal — a leading "~" makes the
+--                low-kinetics half silent.
 
 walk f k d = p "lineHarmony"
   $ f
     $ lineHarmony d k root [ "~"
       , "[1 2 3 4]/4"          -- full quarters
-    ] # ch 01 # legato 0.95 |* vel d
+    ] # ch 01 # legato 0.95
 
 s <- seek "*" $ cue start $ tonal (hcKey "0#" $ hContext) $ len 8 $ entropy 0.4 $ gen
 

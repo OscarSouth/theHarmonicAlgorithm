@@ -136,6 +136,24 @@ double bass (E1–C3). Feed it a `genP`-derived progression and it automatically
 reweights toward that bar's strata pitches and drops chromatic passing tones
 entirely, keeping the line inside the octatripentatonic set.
 
+**Performed-Sequence Walking** — The walk follows the bars the audience
+actually hears: `warp` reorderings and `rep` repeats are resolved at eval time
+and the line is synthesised over that performed order, so approach tones aim
+at the true next chord and a repeated bar walks on rather than photocopying
+itself (consecutive repeats alternate root and fifth on beat 1). Non-periodic
+selections fall back to stored order with a printed notice.
+
+**Walking-Bass Musicality Overhaul** — Strong beats are consonant anchors: an
+explicit beat-3 consonance table (P5, then root, then 3rds) replaces the old
+root-motion heuristic, scaled by a progression-level consonance measure so
+consonant material walks stricter and dissonant material earns tension
+licence. Beat-1 contour gains soft direction persistence, a register-centre
+opening anchor, and loop-aware closure; connectors gain Willis's sandwich and
+Minor-Thirds passing rules, backed by a Markov-safe regional key inference
+that never touches the generation path. Dynamics now steer the walk too:
+quieter-than-mean bars lift the register arc, louder bars settle it, and a
+sudden drop resets the line to its lowest note.
+
 ### Arrangement
 
 **Rewritten `arrange`** — V2 arrangement had two persistent problems: erratic

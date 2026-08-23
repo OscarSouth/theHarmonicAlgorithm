@@ -275,15 +275,45 @@ src/Harmonic/
     └── Utils.hs                [pattern/time utilities]
 ```
 
-Two subsystems have their own documents and are only sketched here:
+One subsystem has its own document and is only sketched here:
 
 - **Octatripentatonics** (`Scale`, `ProgressionContext`, `Strata`,
   `OctatripentatonicT`) — harmony carried in three densities at once,
   walked through a curated space of interlocking pentatonic sets.
   See [OCTATRIPENTATONICS.md](OCTATRIPENTATONICS.md).
-- **Walking bass** (`WalkingBass`, `LineHarmony`) — linearises harmony
-  into a bass line: chord tones on strong beats, constrained passing
-  motion between them, direction held until the register runs out.
+
+### Walking bass (`WalkingBass`, `LineHarmony`)
+
+Linearises harmony into a quarter-note bass line, adapted from Gary
+Willis's *Fingerboard Harmony for Bass* (the harvested source rules live
+in [notes/walking_bass_theory.md](../notes/walking_bass_theory.md)).
+`walkLine` is a pure function of `(voiceFn, progression)` in three
+passes:
+
+1. **Beat 1s** — the notated root (or `fund`) of every bar, placed by a
+   greedy nearest-to-previous chain with a soft direction-persistence
+   bias, a half-weight loop-closure pull on the final bar, and a
+   root–fifth alternation option inside runs of repeated chords. Bar 0
+   anchors at the register centre.
+2. **Beat 3s** — the chord tone minimising smoothness plus a consonance
+   table (P5 ≺ root ≺ 3rds ≺ 7ths ≺ colour tones), so strong beats stay
+   grounded anchors.
+3. **Beats 2/4** — weighted connectors from the local-scale pool (plus
+   chromatic neighbours of the target): sandwich motion preferred,
+   leading tones and root/P5 approaches rewarded on beat 4, copy and
+   repeat gates. Progression-level consonance (`progConsonance`) scales
+   strictness; derived entropy (`progressionEntropy`) drives the repeat
+   probability.
+
+`walkLineP` is the octatripentatonic variant: the connector pool becomes
+the bar's strata ∪ mode ∪ neighbour-triad overlap (closed — no chromatic
+outsiders) with three-tier preference. `LineHarmony` wraps either in the
+cached Tidal interface and resolves the **performed** bar sequence from
+the chord-selection pattern, so warped/repeated bars are walked in the
+order the audience hears them (non-periodic selections fall back to
+stored order). The register is a 21-semitone window (MIDI 28–48); its
+absolute octave at the speaker depends on the synth patch via
+`tidalNoteOffset`.
 
 ---
 

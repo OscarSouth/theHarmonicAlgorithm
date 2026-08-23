@@ -13,7 +13,8 @@ import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import Harmonic.Interface.Tidal.Form (Kinetics(..))
 import Harmonic.Interface.Tidal.Groove (fund)
 import Harmonic.Interface.Tidal.LineHarmony
-import Harmonic.Traversal.WalkingBass (closestLowMidi)
+import Harmonic.Interface.Tidal.Bridge (warp, rep)
+import Harmonic.Traversal.WalkingBass (closestLowMidi, walkLine)
 
 import qualified Data.Sequence as Seq
 import qualified Data.Map.Strict as Map
@@ -131,3 +132,58 @@ spec = do
                        [parseBP_E "[1 2 3 4]"]
           onsets   = queryOnsets result (Arc 0 1)
       all (\(t, _) -> t >= 0 && t < 1) onsets `shouldBe` True
+
+  describe "resolvePerformedSeq" $ do
+
+    it "rep s 1 resolves to sequential stored order" $ do
+      let tc = PC.fromProgression testProgression
+      resolvePerformedSeq (rep tc 1) `shouldBe` Just [1, 2, 3, 4]
+
+    it "rep s 2 duplicates each bar in place" $ do
+      let tc = PC.fromProgression testProgression
+      resolvePerformedSeq (rep tc 2) `shouldBe` Just [1, 1, 2, 2, 3, 3, 4, 4]
+
+    it "warp resolves to the written bar order" $ do
+      resolvePerformedSeq (warp "[1 2 1 3]/4") `shouldBe` Just [1, 2, 1, 3]
+
+    it "a constant selector resolves to a one-bar period" $ do
+      resolvePerformedSeq (parseBP_E "1" :: Pattern Int) `shouldBe` Just [1]
+
+    it "sub-bar selection falls back to Nothing" $ do
+      resolvePerformedSeq (warp "[1 2]/1") `shouldBe` Nothing
+
+    it "gapped selection falls back to Nothing" $ do
+      resolvePerformedSeq (warp "[1 ~]/2") `shouldBe` Nothing
+
+  describe "performed-order walking" $ do
+
+    -- One bar = 4 cycles; the beat pattern "[1 2 3 4]/4" emits one beat per
+    -- cycle, so querying 4*P cycles yields the full performed period.
+    let runWalk chordSel nBarsQ =
+          let result = lineHarmony (pure 1.0)
+                         (fullKin testProgression, chordSel) fund
+                         [parseBP_E "[1 2 3 4]/4"]
+          in onsetNotes result (Arc 0 (4 * fromIntegral (nBarsQ :: Int)))
+        shifted line = [ fromIntegral m - 48 :: Double | bar <- line, m <- bar ]
+        storedBars   = [ H.initCadenceState 0 "C" [0,4,7]
+                       , H.initCadenceState 0 "G" [0,4,7]
+                       , H.initCadenceState 0 "A" [0,3,7]
+                       , H.initCadenceState 0 "F" [0,4,7] ]
+
+    it "warp \"[1 2 1 3]/4\": the emitted line is the walk of the PERFORMED \
+       \progression (approach tones aim at performed successors)" $ do
+      let performed = P.fromCadenceStates
+            [ storedBars !! 0, storedBars !! 1, storedBars !! 0, storedBars !! 2 ]
+      runWalk (warp "[1 2 1 3]/4") 4 `shouldBe` shifted (walkLine fund performed)
+
+    it "rep s 2: adjacent duplicate bars walk as neighbours, not verbatim copies" $ do
+      let tc        = PC.fromProgression testProgression
+          performed = P.fromCadenceStates (concatMap (replicate 2) storedBars)
+          notes     = runWalk (rep tc 2) 8
+      notes `shouldBe` shifted (walkLine fund performed)
+      -- The two consecutive C-major bars differ (root-fifth beat-1 idiom).
+      take 4 notes `shouldNotBe` take 4 (drop 4 notes)
+
+    it "rep s 1 renders identically to the stored-order walk" $ do
+      let tc = PC.fromProgression testProgression
+      runWalk (rep tc 1) 4 `shouldBe` shifted (walkLine fund testProgression)
