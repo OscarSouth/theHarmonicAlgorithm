@@ -175,7 +175,7 @@ classifyMode pcs
 
 -- |Pinned-root classifier: identify a 7-PC set as a mode rooted on the
 -- given pitch class, exhaustively checking the 28 mode quality patterns.
--- Mirrors legacy 'toMode' semantics (root explicit, not inferred).
+-- Mirrors legacy @toMode@ semantics (root explicit, not inferred).
 -- Returns 'Nothing' when the set isn't 7 unique PCs or when no quality
 -- matches the shifted interval pattern.
 classifyModeAt :: Int -> [PitchClass] -> Maybe Mode
@@ -257,7 +257,7 @@ showScaleFamily HarmonicMinor  = "Harmonic Minor"
 showScaleFamily HarmonicMajor  = "Harmonic Major"
 
 -- |Legacy @toMode@ mode-quality strings from
--- @theHarmonicAlgorithmLegacy/src/MusicData.hs@. Preferred over the
+-- @theHarmonicAlgorithmLegacy\/src\/MusicData.hs@. Preferred over the
 -- derived 'Show' (which yields compact constructor names like
 -- "IonS5") for musician-facing diagnostic output.
 showModeQuality :: ModeQuality -> String
@@ -297,7 +297,7 @@ showModeQuality LocBb7     = "Loc_bb7"
 -- |Result of a triad-anchored mode classification. 'ModeOk' carries a
 -- normally classified mode; 'ModeInvalid' carries the offending
 -- pair-union pitch classes when the union doesn't have exactly 7 unique
--- PCs (only reachable under 'absStrata' overrides that violate
+-- PCs (only reachable under 'Harmonic.Framework.Builder.absStrata' overrides that violate
 -- tristrata adjacency).
 data ModeResult
   = ModeOk Mode

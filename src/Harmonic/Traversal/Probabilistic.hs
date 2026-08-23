@@ -89,7 +89,7 @@ gammaIndexScaled entropy poolSize = do
   pure $ max 0 (min idx maxIdx)
 
 -- |Like 'gammaIndexScaled' but uses an existing random generator instead of
--- creating a new one. Avoids per-call overhead of reading /dev/urandom.
+-- creating a new one. Avoids per-call overhead of reading /dev\/urandom.
 gammaIndexScaledWith :: GenIO    -- ^ Shared random generator
                      -> Double   -- ^ Entropy in [0, 1] range
                      -> Int      -- ^ Pool size (e.g., 30)

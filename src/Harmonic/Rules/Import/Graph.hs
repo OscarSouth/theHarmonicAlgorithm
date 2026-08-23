@@ -7,7 +7,23 @@
 -- Provides 'connectNeo4j' for database connection and write operations
 -- for storing cadence nodes and transition edges during data ingestion.
 
-module Harmonic.Rules.Import.Graph where
+module Harmonic.Rules.Import.Graph (
+    -- * Connection
+    connectNeo4j,
+
+    -- * Schema
+    initGraph, truncateCadenceGraph,
+
+    -- * Writing cadence transitions
+    ComposerWeights, writeCadenceEdges, buildQuery,
+
+    -- * Cypher field rendering
+    showText, movementText, chordText, dissonanceText,
+    confidenceText, weightsLiteral,
+
+    -- * Vestigial
+    queryNextCadences,
+) where
 
 import           Harmonic.Config
 import qualified Harmonic.Rules.Types.Harmony as H
@@ -20,6 +36,9 @@ import qualified Data.Map.Strict as Map
 import           Data.Map.Strict (Map)
 import qualified Data.Text as T
 
+-- | How much each composer contributes to one @NEXT@ edge. Written to the
+-- edge as a JSON literal by 'weightsLiteral', and summed into a single
+-- @confidence@ property by 'confidenceText'.
 type ComposerWeights = Map T.Text Double
 
 -- |Initialise schema. Node identity is the @show@ string (movement +
@@ -33,6 +52,9 @@ initGraph = do
   _ <- Bolt.query "CREATE CONSTRAINT IF NOT EXISTS FOR (n:Cadence) REQUIRE n.show IS UNIQUE"
   pure ()
 
+-- | Delete every @Cadence@ node and its @NEXT@ edges, batched through
+-- @apoc.periodic.iterate@ to avoid memory spikes on a full corpus. Run before
+-- a re-ingestion.
 truncateCadenceGraph :: Bolt.BoltActionT IO ()
 truncateCadenceGraph = do
   _ <- Bolt.query deleteCadences
@@ -46,6 +68,9 @@ truncateCadenceGraph = do
       , ")"
       ]
 
+-- | Write a batch of cadence transitions. Each triple merges both endpoint
+-- nodes and the @NEXT@ edge between them. Transitions with no composer weight
+-- are skipped rather than written with zero confidence.
 writeCadenceEdges :: [(H.Cadence, H.Cadence, ComposerWeights)] -> Bolt.BoltActionT IO ()
 writeCadenceEdges = mapM_ writeOne
   where
@@ -53,6 +78,8 @@ writeCadenceEdges = mapM_ writeOne
       | Map.null weights = pure ()
       | otherwise = Bolt.query (buildQuery fromCadence toCadence weights) >> pure ()
 
+-- | Build the Cypher @MERGE@ for one transition. Node identity is the @show@
+-- string; see 'initGraph' for the naming contract that governs it.
 buildQuery :: H.Cadence -> H.Cadence -> ComposerWeights -> T.Text
 buildQuery fromCadence toCadence weights =
   T.concat
@@ -67,19 +94,24 @@ buildQuery fromCadence toCadence weights =
     , ", r.weights = ", weightsLiteral weights
     ]
 
+-- | Node identity: the cadence's @show@ string, used as the @MERGE@ key.
 showText :: H.Cadence -> T.Text
 showText = T.pack . show
 
+-- | The movement half of a cadence, as a Cypher string value.
 movementText :: H.Cadence -> T.Text
 movementText cadence =
   let (movement, _) = H.deconstructCadence cadence
    in T.pack (show movement)
 
+-- | The chord half of a cadence, as a Cypher string value.
 chordText :: H.Cadence -> T.Text
 chordText cadence =
   let (_, chord) = H.deconstructCadence cadence
    in T.pack (show chord)
 
+-- | The cadence's dissonance level, as a Cypher numeric value. Computed at
+-- write time so queries can filter on it without recomputing.
 dissonanceText :: H.Cadence -> T.Text
 dissonanceText cadence =
   let (_, chord) = H.deconstructCadence cadence
@@ -87,9 +119,13 @@ dissonanceText cadence =
       (value, _) = D.dissonanceLevel ints
    in T.pack (show value)
 
+-- | Total edge weight across all composers, stored as @r.confidence@. This is
+-- what a @\"*\"@ (all-composers) query ranks on.
 confidenceText :: ComposerWeights -> T.Text
 confidenceText weights = T.pack . show $ sum (Map.elems weights)
 
+-- | Per-composer weights as a JSON literal, stored as @r.weights@. Single
+-- composer and blend queries read this rather than @r.confidence@.
 weightsLiteral :: ComposerWeights -> T.Text
 weightsLiteral weights =
   let entries = Map.toList weights
@@ -98,9 +134,14 @@ weightsLiteral weights =
   where
     formatEntry (name, value) = T.concat ["\"", name, "\":", T.pack (show value)]
 
+-- | Vestigial stub: always returns @[]@ and ignores its argument. Cadence
+-- lookup lives in "Harmonic.Evaluation.Database.Query" instead. Retained only
+-- so existing imports keep compiling; do not build on it.
 queryNextCadences :: T.Text -> Bolt.BoltActionT IO [T.Text]
 queryNextCadences _ = pure []
 
+-- | Open a Bolt connection to the local Neo4j on port 7687, using the
+-- credentials in "Harmonic.Config". Every online generation path needs one.
 connectNeo4j :: IO Bolt.Pipe
 connectNeo4j = Bolt.connect $ def
   { Bolt.user = neo4jUser

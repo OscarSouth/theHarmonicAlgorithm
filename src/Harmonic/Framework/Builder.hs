@@ -73,13 +73,13 @@
 -- The multiplicative formula spreads scores organically without artificial limits.
 -- Full 660-candidate pool (12 roots × C(11,2) pairs) ensures maximum variety.
 --
--- The database is treated as abstract/pitch-agnostic. Root notes are
+-- The database is treated as abstract\/pitch-agnostic. Root notes are
 -- computed at runtime based on movement intervals from a user-defined
 -- starting CadenceState.
 --
 -- == Filter Notation (from original README)
 --
--- === Overtones/Pitch Set Filter
+-- === Overtones\/Pitch Set Filter
 -- * Fundamental pitches (derives overtones): @"E A D G"@ (bass tuning)
 -- * Individual pitches with prime: @"E'"@ @"A'"@ @"A#'"@
 -- * Combined: @"G E' A' A#'"@ (G overtones + E, A, A# pitches)
@@ -139,7 +139,7 @@ module Harmonic.Framework.Builder
   , execGenConfig
   , execGenConfigPC
 
-    -- * Positional Generation (legacy/internal)
+    -- * Positional Generation (legacy\/internal)
   , generate
   , generateWith
   , genWith
@@ -494,7 +494,7 @@ genPrint'' start len composerStr entropy ctx = do
   putStrLn ""
   pure prog
 
--- |Per-step Verbose renderer extracted from 'genPrint''''. Emits the
+-- |Per-step Verbose renderer extracted from @genPrint'''@. Emits the
 -- verbose summary + per-step trace, terminated by the trailing ━ rule.
 -- Does NOT print the final header + grid; callers do that.
 renderVerboseSteps :: String -> GenerationDiagnostics -> IO ()
@@ -622,8 +622,8 @@ genVerbose' config start len composerStr entropy ctx = do
 
 -- |Execute a 'GenConfig', producing a progression.
 --
--- Thin wrapper that calls 'execGenConfigWithDiag' (pure compute) and then
--- emits the appropriate diagnostics + header + grid via 'emitFinalised'.
+-- Thin wrapper that calls @execGenConfigWithDiag@ (pure compute) and then
+-- emits the appropriate diagnostics + header + grid via @emitFinalised@.
 -- Single-pass callers see byte-identical output to today.
 execGenConfig :: GenConfig -> IO Prog.Progression
 execGenConfig gc = do
@@ -633,7 +633,7 @@ execGenConfig gc = do
 
 -- |Compute-only variant of 'execGenConfig'. Returns the progression and
 -- its diagnostics without printing anything. Used by 'singlePassExecPCWithDiag'
--- and by 'generateBest' inside the K-attempt loop so per-attempt output
+-- and by @generateBest@ inside the K-attempt loop so per-attempt output
 -- can be suppressed and only the winner's emitted.
 execGenConfigWithDiag :: GenConfig -> IO (Prog.Progression, GenerationDiagnostics)
 execGenConfigWithDiag gc = do
@@ -717,7 +717,7 @@ defaultGenConfig = GenConfig
   , _gcRelStrata   = Nothing
   , _gcAbsStrata   = Nothing
   -- Plan defaults: same-strata 0.90, flip-flop 0.80, same-tristrata 0.70.
-  -- Values < 1.0 multiply 'badness' down (favouring the candidate); 1.0 is
+  -- Values < 1.0 multiply @badness@ down (favouring the candidate); 1.0 is
   -- the no-op. The product caps at 0.70 * 0.80 * 0.90 ≈ 0.50, giving
   -- ≤2× favouring — overpowerable by strong graph-side confidence.
   , _gcBoostSame   = 0.90
@@ -772,7 +772,7 @@ genGrid = defaultGenConfig { _gcMode = GridMode }
 -- embedded triad, so the added tone can reinterpret the harmony and steer
 -- the next step, while every graph key stays corpus-shaped (generation
 -- stays online). A triad cue is fused once so output is uniformly 4-note;
--- a 4-note 'lead'' cue passes through untouched.
+-- a 4-note 'Harmonic.Interface.Tidal.Arranger.lead'' cue passes through untouched.
 --
 -- Composes with the usual modifier chain. Never applies to the strata
 -- family ('genP') — strata progressions stay 3-5-7.
@@ -804,7 +804,7 @@ gen4'' = quad gen''
 -- * @pcProvenance = Just _@ — strata-aware path: regenerates all three
 --   layers + provenance in lockstep, with one-step lookahead at the
 --   @e → e+1@ seam to keep the spliced bar sequence walk-graph valid
---   under 'allowedNext'.
+--   under 'Harmonic.Framework.Builder.Strata.allowedNext'.
 -- * uniform 4-note triad layer (gen4 source) — regen bars come out 4-note
 --   ('_gcQuad' set automatically).
 -- * uniform 3-note (gen source) — plain triad regen.
@@ -839,11 +839,11 @@ genFrom pc s e = defaultGenConfig
                | cs <- toList (Prog.unProgression triad) ]
     sourceIsQuad = not (null barSizes) && all (== 4) barSizes
 
--- |Standard-verbosity alias of 'genFrom'. Mirrors 'gen''/'genP''/'genI''.
+-- |Standard-verbosity alias of 'genFrom'. Mirrors @gen'@, @genP'@ and @genI'@.
 genFrom' :: PC.ProgressionContext -> Int -> Int -> GenConfig
 genFrom' pc s e = (genFrom pc s e) { _gcVerbosity = Standard }
 
--- |Verbose-verbosity alias of 'genFrom'. Mirrors 'gen'''/'genP'''/'genI'''.
+-- |Verbose-verbosity alias of 'genFrom'. Mirrors @gen''@, @genP''@ and @genI''@.
 genFrom'' :: PC.ProgressionContext -> Int -> Int -> GenConfig
 genFrom'' pc s e = (genFrom pc s e) { _gcVerbosity = Verbose }
 
@@ -865,8 +865,8 @@ len n gc = gc { _gcLen = n, _gcLenOverride = Nothing }
 
 -- |Set composer blend and execute. Terminal modifier — produces 'IO'
 -- 'PC.ProgressionContext'. For legacy 'gen'-family configs, all three layers
--- duplicate the generated triad progression and 'pcProvenance' is 'Nothing';
--- the 'genP' paradigm produces distinct strata/mode layers with 'Just'
+-- duplicate the generated triad progression and @pcProvenance@ is 'Nothing';
+-- the 'genP' paradigm produces distinct strata\/mode layers with 'Just'
 -- provenance.
 --
 -- @s <- seek "*" $ gen@
@@ -877,7 +877,7 @@ seek s gc = execGenConfigPC gc { _gcSeek = s }
 
 -- |Terminal executor producing a 'PC.ProgressionContext'.
 --
--- When @_gcMaxAttempts > 1@, dispatches through 'generateBest' for
+-- When @_gcMaxAttempts > 1@, dispatches through @generateBest@ for
 -- rank-and-select multi-attempt generation; otherwise runs a single pass.
 --
 -- The single-pass dispatch reads '_gcMode': 'StrataMode' runs the strata-
@@ -894,15 +894,15 @@ execGenConfigPC gc
 -- This is the single source of user-visible output for both the single-
 -- pass path and the multi-attempt winner.
 --
--- For strata modes ('StrataMode', 'FromProgPC') Standard/Verbose use the
+-- For strata modes ('StrataMode', 'FromProgPC') Standard\/Verbose use the
 -- 'printStrataDiagnostics' renderer (legacy 'printDiagnostics' would mis-
 -- render the strata trace). For legacy modes ('Fresh', 'GridMode',
 -- 'FromProg') Standard uses 'renderStandardSteps' and Verbose uses
 -- 'renderVerboseSteps' — matching the byte-for-byte output of the old
--- 'genPrint''/'genPrint''''' wrappers.
+-- 'genPrint''/@genPrint''''@ wrappers.
 --
 -- The header + grid always reflect the full 'PC.triadLayer pc'. For
--- 'FromProgPC' / 'FromProg' that's the spliced result (full source
+-- 'FromProgPC' \/ 'FromProg' that's the spliced result (full source
 -- progression with regen bars inserted), not the regen segment alone.
 emitFinalised :: GenConfig -> (PC.ProgressionContext, GenerationDiagnostics) -> IO ()
 emitFinalised gc (pc, diag) = do
@@ -912,7 +912,7 @@ emitFinalised gc (pc, diag) = do
   -- exactly once per user invocation (single-pass, or the attempt winner),
   -- and the emitted progression's first state IS the cue actually used —
   -- resolving _gcCue again would re-draw the random default cue. Scope:
-  -- Fresh/GridMode only; the regen modes infer their cue from existing
+  -- Fresh\/GridMode only; the regen modes infer their cue from existing
   -- material, and the strata path has its own containment check.
   case _gcMode gc of
     Fresh    -> emitCueNotice
@@ -943,7 +943,7 @@ emitFinalised gc (pc, diag) = do
 -- |Single-pass body of 'execGenConfigPC' — used directly when no multi-
 -- attempt selection is requested. Thin wrapper that performs pure
 -- generation via 'singlePassExecPCWithDiag' then emits the appropriate
--- diagnostics + header + grid via 'emitFinalised'.
+-- diagnostics + header + grid via @emitFinalised@.
 singlePassExecPC :: GenConfig -> IO PC.ProgressionContext
 singlePassExecPC gc = do
   (pc, diag) <- singlePassExecPCWithDiag gc
@@ -951,12 +951,12 @@ singlePassExecPC gc = do
   pure pc
 
 -- |Pure-compute variant of 'singlePassExecPC'. Returns the
--- 'ProgressionContext' and its 'GenerationDiagnostics' without printing
--- anything. Used by the K-attempt loop inside 'generateBest' so per-
+-- 'Harmonic.Rules.Types.ProgressionContext.ProgressionContext' and its 'GenerationDiagnostics' without printing
+-- anything. Used by the K-attempt loop inside @generateBest@ so per-
 -- attempt output is suppressed and only the winner's emitted.
 singlePassExecPCWithDiag :: GenConfig -> IO (PC.ProgressionContext, GenerationDiagnostics)
 singlePassExecPCWithDiag gc = case _gcMode gc of
-  -- Family separation: gen4 (quad) and the strata family (genP /
+  -- Family separation: gen4 (quad) and the strata family (genP \/
   -- strata-aware genFrom) never mix — strata progressions stay 3-5-7.
   StrataMode _ | _gcQuad gc ->
     error "quad/gen4 applies to the gen family only — genP (strata) stays 3-5-7"
@@ -978,7 +978,7 @@ singlePassExecPCWithDiag gc = case _gcMode gc of
 -- still returned).
 --
 -- When @_gcSeek != "none"@, scoring runs against Neo4j: one shared
--- 'Bolt.Pipe' is opened for the entire K-attempt loop and 'psCadenceFav'
+-- 'Bolt.Pipe' is opened for the entire K-attempt loop and @psCadenceFav@
 -- is populated via 'PS.scoreProgressionOnline' under the user's composer
 -- blend. The online-weighted total ('PS.defaultWeights') is then used —
 -- cadence-favourability is the dominant axis (0.4).
@@ -995,7 +995,7 @@ generateBest gc = do
   (winnerPC, winnerDiag, diags) <-
     if online then runOnline gc else runOffline gc
   -- All per-attempt printing was suppressed inside the loop (Phase 11
-  -- moved every emission into 'emitFinalised'). Emit the winner exactly
+  -- moved every emission into @emitFinalised@). Emit the winner exactly
   -- once, at the caller's verbosity.
   emitFinalised gc (winnerPC, winnerDiag)
   -- Verbose + multi-attempt: surface the full scoreboard.
@@ -1003,12 +1003,12 @@ generateBest gc = do
     printAttemptScoreboard (_gcViabilityFloor gc) diags
   pure winnerPC
 
--- |Offline arm of 'generateBest'. Pure scoring with
+-- |Offline arm of @generateBest@. Pure scoring with
 -- 'PS.defaultWeightsOffline'.
 --
 -- The loop receives the caller's 'GenConfig' as-is — per-attempt
 -- diagnostics are collected at the caller's verbosity, which the
--- winner's 'emitFinalised' then renders. No printing happens inside the
+-- winner's @emitFinalised@ then renders. No printing happens inside the
 -- loop (Phase 11 lifted every emission out of 'singlePassExecPCWithDiag').
 runOffline :: GenConfig
            -> IO (PC.ProgressionContext, GenerationDiagnostics, [AttemptDiagnostic])
@@ -1019,7 +1019,7 @@ runOffline gc = do
   scored <- offlineLoop gc maxN target floorT
   finaliseScored gc scored
 
--- |Online arm of 'generateBest'. Opens one 'Bolt.Pipe' for the entire
+-- |Online arm of @generateBest@. Opens one 'Bolt.Pipe' for the entire
 -- K-attempt loop; scores each attempt via 'PS.scoreProgressionOnline'
 -- using @_gcSeek@ as the composer blend; ranks via 'PS.defaultWeights'.
 --
@@ -1094,8 +1094,8 @@ onlineLoop seekTxt gc maxN target floorT = go 0 [] maxN
 
 -- |Shared post-loop: builds 'AttemptDiagnostic' values with index +
 -- picked flag set on the maximum-totalScore attempt, and returns the
--- picked 'ProgressionContext', its 'GenerationDiagnostics' (for the
--- caller to emit via 'emitFinalised'), and the per-attempt diagnostic
+-- picked 'Harmonic.Rules.Types.ProgressionContext.ProgressionContext', its 'GenerationDiagnostics' (for the
+-- caller to emit via @emitFinalised@), and the per-attempt diagnostic
 -- list (for the scoreboard).
 --
 -- The empty-scored defensive branch falls back to a non-silenced
@@ -1128,7 +1128,7 @@ finaliseScored gc scored = case scored of
     maximumByKey :: Ord b => (a -> b) -> [a] -> a
     maximumByKey f = foldr1 (\x y -> if f x >= f y then x else y)
 
--- |Extract a chord-name sequence from a triad-layer 'Progression' for
+-- |Extract a chord-name sequence from a triad-layer 'Harmonic.Rules.Types.Progression.Progression' for
 -- the scoreboard's diff column. Mirrors what 'Show Progression'
 -- produces per cell, but as a plain list rather than a grid string.
 chordNamesOf :: Prog.Progression -> [String]
@@ -1146,7 +1146,7 @@ entropy e gc = gc { _gcEntropy = e }
 
 -- |Run multi-attempt rank-and-select generation: produce up to @maxAttempts@
 -- candidate progressions, stop early once @viableTarget@ viable attempts
--- (all bars 'ModeOk') have been collected, then return the highest-scoring
+-- (all bars 'Harmonic.Rules.Types.Scale.ModeOk') have been collected, then return the highest-scoring
 -- one. Scoring blends root motion, voice leading, and mode validity via
 -- 'PS.defaultWeightsOffline'.
 --
@@ -1243,7 +1243,13 @@ genP' s = (genP s) { _gcVerbosity = Standard }
 genP'' :: Sc.StrataLabel -> GenConfig
 genP'' s = (genP s) { _gcVerbosity = Verbose }
 
--- 33 ergonomic aliases: one per Roman numeral × three verbosities.
+-- | Silent-verbosity 'genP' aliases, one per Roman numeral — @genI@ pins the
+-- starting tristrata to @I@, @genII@ to @II@, and so on through @genXI@.
+--
+-- @s \<- seek \"*\" $ attempt 3 12 $ entropy 0.4 $ genI@
+--
+-- Three verbosities throughout, by the usual prime convention: @genI@ silent,
+-- @genI'@ standard, @genI''@ verbose.
 genI, genII, genIII, genIV, genV, genVI, genVII, genVIII, genIX, genX, genXI :: GenConfig
 genI     = genP Sc.I
 genII    = genP Sc.II
@@ -1257,6 +1263,8 @@ genIX    = genP Sc.IX
 genX     = genP Sc.X
 genXI    = genP Sc.XI
 
+-- | Standard-verbosity Roman numeral aliases: per-step musical context plus
+-- the grid. See 'genI'.
 genI', genII', genIII', genIV', genV', genVI', genVII', genVIII', genIX', genX', genXI' :: GenConfig
 genI'    = genP' Sc.I
 genII'   = genP' Sc.II
@@ -1270,6 +1278,8 @@ genIX'   = genP' Sc.IX
 genX'    = genP' Sc.X
 genXI'   = genP' Sc.XI
 
+-- | Verbose-verbosity Roman numeral aliases: full traces, the grid, and the
+-- multi-attempt scoreboard when paired with @attempt@. See 'genI'.
 genI'', genII'', genIII'', genIV'', genV'', genVI'', genVII'', genVIII'', genIX'', genX'', genXI'' :: GenConfig
 genI''    = genP'' Sc.I
 genII''   = genP'' Sc.II
@@ -1288,19 +1298,19 @@ genXI''   = genP'' Sc.XI
 -------------------------------------------------------------------------------
 
 -- |Walk the (strata, tristrata) sequence for a 'StrataMode' run and build a
--- 'PC.ProgressionContext' with distinct triad/strata/mode layers.
+-- 'PC.ProgressionContext' with distinct triad\/strata\/mode layers.
 --
 -- The triad layer is generated by the full R→E→T pipeline: at each bar, the
 -- active context's '_hcOvertones' is narrowed to the current strata's 5-PC
--- chroma (prime-notation), 'parseContextOnce' is rerun, and 'stepChainBody'
--- is invoked with a 'pcSoftBoost' multiplier computed from strata /
+-- chroma (prime-notation), 'parseContextOnce' is rerun, and @stepChainBody@
+-- is invoked with a 'pcSoftBoost' multiplier computed from strata \/
 -- tristrata continuity against prior bars. Graph candidates (Neo4j) and
 -- consonance-fallback candidates both flow through the usual filter →
--- score → gamma-select pipeline, with the soft-boost applied to 'badness'
--- at 'computeFallbackScoreWithBoost' (fallback) and inversely to
--- confidence in 'scoreByConfidence'-output (graph). Single-strata
+-- score → gamma-select pipeline, with the soft-boost applied to @badness@
+-- at @computeFallbackScoreWithBoost@ (fallback) and inversely to
+-- confidence in @scoreByConfidence@-output (graph). Single-strata
 -- containment is guaranteed by construction: the narrowed overtone set
--- precludes any triad whose chroma escapes 's_i'.
+-- precludes any triad whose chroma escapes @s_i@.
 --
 -- Strata and mode layer bars are representative 3-PC slices of
 -- 'strataChroma s_i' and 'modeChroma m_i' respectively, rooted on the
@@ -1315,7 +1325,7 @@ runStrataGen sStart gc = do
       n        = max 1 (fromMaybe (_gcLen gc) (_gcLenOverride gc))
       (s0, t0) = Strata.initialPlacement allowed' sStart
 
-      -- relStrata / absStrata narrowing on the walk's candidate pool.
+      -- relStrata \/ absStrata narrowing on the walk's candidate pool.
       narrow :: Int -> [(Sc.StrataLabel, Sc.Tristrata)] -> [(Sc.StrataLabel, Sc.Tristrata)]
       narrow i pool =
         let pool1 = case _gcRelStrata gc of
@@ -1333,7 +1343,7 @@ runStrataGen sStart gc = do
   -- Sample one random seed per transition bar. Used by 'selectNextSeeded'
   -- to escape the pathological same-strata fixed point of the purely
   -- categorical 'selectNext'. 'n - 1' seeds cover bars 1..n-1; bar 0 is
-  -- set by 'initialPlacement'.
+  -- set by 'Harmonic.Framework.Builder.Strata.initialPlacement'.
   walkSeeds <- mapM (const (uniformRM (minBound :: Int, maxBound :: Int) rng))
                     [1 .. max 0 (n - 1)]
 
@@ -1470,7 +1480,7 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
         pure result
 
   -- Assemble ProgressionContext. The triadLayer is the R→E→T chain.
-  -- Strata & mode layers carry the full chroma (5 PCs / 7 PCs respectively)
+  -- Strata & mode layers carry the full chroma (5 PCs \/ 7 PCs respectively)
   -- expressed as intervals from the bar's harmonic root, so they transpose
   -- with the progression and can be voiced as 5- or 7-pitch sets downstream.
   let -- Triad's harmonic root PC (post-detectInversion). For inversions
@@ -1487,7 +1497,7 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
 
       -- Express a chroma set as intervals from a chosen root PC. Preserves
       -- full cardinality (no truncation). Always starts at 0 because the
-      -- root is in its own chroma by construction (every strata/mode contains
+      -- root is in its own chroma by construction (every strata\/mode contains
       -- its own root).
       chromaIntervals :: Int -> [P.PitchClass] -> [Int]
       chromaIntervals rootPC chroma =
@@ -1500,12 +1510,12 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
         | (i, cs) <- zip [0..] chain
         ]
 
-      -- Per-bar chroma stored in the mode layer. 'ModeOk' contributes the
+      -- Per-bar chroma stored in the mode layer. 'Harmonic.Rules.Types.Scale.ModeOk' contributes the
       -- 7-PC mode chroma; 'ModeInvalid' contributes its 6-PC overlap PCs
       -- as-is. No Aeolian masquerade — the layer faithfully reflects what
-      -- 'modeForTriad' produced. Natural walks always yield 'ModeOk' (proven
-      -- from 'allowedNext' adjacency); 'ModeInvalid' is reachable only via
-      -- explicit 'absStrata' / 'relStrata' overrides that violate tristrata
+      -- 'modeForTriad' produced. Natural walks always yield 'Harmonic.Rules.Types.Scale.ModeOk' (proven
+      -- from 'Harmonic.Framework.Builder.Strata.allowedNext' adjacency); 'ModeInvalid' is reachable only via
+      -- explicit 'absStrata' \/ 'relStrata' overrides that violate tristrata
       -- adjacency.
       modeChromaList :: [[P.PitchClass]]
       modeChromaList =
@@ -1516,7 +1526,7 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
         ]
 
       -- Build a CadenceState from a root and root-relative intervals,
-      -- preserving full cardinality (no initCadenceState/toCadence
+      -- preserving full cardinality (no initCadenceState\/toCadence
       -- truncation). Delegates to the exported non-truncating constructor;
       -- unlike the historical local version this also populates
       -- cadenceFunctionality, which the display seam (showHarmony) would
@@ -1525,7 +1535,7 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
       mkChromaCS root intervals = H.mkCadenceStatePCs root H.Unison intervals
 
       -- Build per-bar strata-layer + mode-layer CadenceStates rooted on
-      -- each generated triad's harmonic root, carrying the full 5 / 7 PC
+      -- each generated triad's harmonic root, carrying the full 5 \/ 7 PC
       -- chroma respectively (6 PCs for override-driven 'ModeInvalid' bars).
       mkAuxLayers :: H.CadenceState
                   -> Sc.StrataLabel
@@ -1559,8 +1569,8 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
   let starterDiag = mkStarterDiag start
       allBaseDiags = starterDiag : rawDiags
 
-  -- Attach strata/tristrata/mode/boost info. allBaseDiags has n entries
-  -- aligned with chain / barSeq / modeList / modeResults.
+  -- Attach strata\/tristrata\/mode\/boost info. allBaseDiags has n entries
+  -- aligned with chain \/ barSeq \/ modeList \/ modeResults.
   let tristrataIdxOf t =
         let tpairs = zip Sc.validTristrata [1 :: Int ..]
         in lookup t tpairs
@@ -1614,7 +1624,7 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
         }
 
   -- No inline printing; diagnostics and footer are emitted by the
-  -- top-level caller via 'emitFinalised', so that multi-attempt mode
+  -- top-level caller via @emitFinalised@, so that multi-attempt mode
   -- can suppress losing attempts and surface only the winner.
   let _ = verbArg
 
@@ -1628,7 +1638,7 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
 
 -- |Build a synthetic starter diagnostic for a 'genP' bar 0 (the cue).
 -- The cue isn't selected from a candidate pool, so 'sdSelectedFrom' =
--- "starter" signals the renderer to omit the motion/γ cells.
+-- "starter" signals the renderer to omit the motion\/γ cells.
 mkStarterDiag :: H.CadenceState -> StepDiagnostic
 mkStarterDiag cs =
   let rootPC = P.unPitchClass (P.pitchClass (H.stateCadenceRoot cs))
@@ -1673,12 +1683,12 @@ mkStarterDiag cs =
 
 -- |Regenerate a contiguous range of bars within an existing strata-aware
 -- 'PC.ProgressionContext'. Mirrors 'runStrataGen' but seeded from the
--- source context's provenance instead of via 'initialPlacement', with a
+-- source context's provenance instead of via 'Harmonic.Framework.Builder.Strata.initialPlacement', with a
 -- one-step lookahead on the final regenerated bar so the @e → e+1@ seam
 -- preserves walk-graph validity under 'Strata.allowedNext'.
 --
 -- By the Phase 1 invariant, any spliced sequence whose every edge satisfies
--- 'allowedNext' automatically produces only 'ModeOk' bars. Maintaining
+-- 'Harmonic.Framework.Builder.Strata.allowedNext' automatically produces only 'Harmonic.Rules.Types.Scale.ModeOk' bars. Maintaining
 -- adjacency at both seams (the @s-1 → s@ seam is automatic via seeding;
 -- the @e → e+1@ seam is the lookahead's job) is sufficient.
 runStrataGenFrom :: PC.ProgressionContext
@@ -1807,7 +1817,7 @@ runStrataGenFrom srcPC s e gc = do
   pure (splicedPC, regenDiag)
 
 -- |Non-fatal notice when the starting state escapes the active R context
--- (key/overtone containment, allowed roots). The cue is always honoured —
+-- (key\/overtone containment, allowed roots). The cue is always honoured —
 -- 'cue' and the random default cue are the human aberration channel by
 -- design — this only makes the escape visible. Prints nothing when the
 -- state sits inside R or when the relevant filters are wildcards. Mirrors
@@ -1840,7 +1850,7 @@ printCueEscapeNotice ctx start = do
 -- |Report an invalid starting cue for 'genP'. Prints a warning naming
 -- the cue's escape pitches alongside a grid of viable triads in the
 -- starting strata. Returns silently — the caller emits an empty
--- 'ProgressionContext' after this.
+-- 'Harmonic.Rules.Types.ProgressionContext.ProgressionContext' after this.
 printInvalidCueError :: H.CadenceState -> Sc.StrataLabel -> IO ()
 printInvalidCueError start s = do
   let rootPC       = P.unPitchClass (P.pitchClass (H.stateCadenceRoot start))

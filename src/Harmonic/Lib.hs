@@ -1,70 +1,87 @@
 -- |
 -- Module      : Harmonic.Lib
--- Description : Re-export convenience module for Phase B + Phase C types
+-- Description : The single import for live coding with theHarmonicAlgorithm
 --
 -- = Overview
 --
--- This module provides a unified interface for harmonic generation via three functions:
+-- One import gives a performance script everything it needs: the generative
+-- engine, the music-theory primitives it reasons over, and the TidalCycles
+-- bridge that turns its output into sound.
 --
--- * 'genSilent' - No diagnostic output (use for production)
--- * 'genStandard' - Standard diagnostics (use for exploration)
--- * 'genVerbose' - Verbose diagnostics with traces (use for debugging)
+-- @import Harmonic.Lib@
 --
--- All three have /identical type signatures/ and return 'IO Progression',
--- enabling seamless switching between verbosity levels without code changes.
+-- = Quick start
 --
--- = Usage Example
+-- Generation reads as a chain of modifiers applied to a generator. Each
+-- modifier narrows what the engine may choose; the generator at the end of
+-- the chain runs the walk:
 --
 -- @
--- import Harmonic.Lib
+-- tempo = 87
 --
--- let start = initCadenceState 0 "C" [0,4,7]
---     ctx = hContext
+-- ctx = invSkip 1
+--     $ hcOvertones \"E A D G\"
+--     $ hcKey \"2#\"
+--     $ hContext
 --
--- -- Silent: Just get the progression
--- prog1 <- genSilent start 8 "*" 0.5 ctx
+-- start \<- lead \"C maj\"
 --
--- -- Standard: See per-step candidates and selections
--- prog2 <- genStandard start 8 "*" 0.5 ctx
---
--- -- Verbose: Debug chord naming and voice leading
--- prog3 <- genVerbose start 8 "*" 0.5 ctx
+-- s \<- seek \"*\" $ cue start $ tonal ctx $ len 8 $ entropy 0.4 $ attempt 3 12 $ gen
 -- @
 --
--- = Unified Generation Interface
+-- 'seek' picks the corpus — @\"*\"@ for all composers, @\"bach\"@ for one,
+-- @\"bach:30 debussy:70\"@ for a weighted blend, @\"none\"@ to run offline with
+-- no Neo4j. 'attempt' generates several candidates and keeps the best.
 --
--- The three public functions share identical signatures:
+-- The result is then played by describing a form and handing it to
+-- instruments:
 --
--- > genSilent    :: CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Progression
--- > genStandard  :: CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Progression
--- > genVerbose   :: CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Progression
+-- @
+-- form = [ at 0 1.0 1.0 s ]
 --
--- [Silent mode (verbosity 0)]
---   No output. Return type is 'IO Progression'.
---   Use when you only care about the final result.
+-- do
+--   let k = iK tempo form (warp \"[1 2 3 4]\/4\")
+--   mapM_ id [ hush, setbpm tempo
+--            , p \"strings\" $ stack
+--                [ violin1    T (0,1) k voiceLines flow Soprano
+--                , cello      T (0,1) k voiceLines flow Tenor8vb
+--                , contrabass T (0,1) k voiceLines grid Bass8vb
+--                ]
+--            ]
+-- @
 --
--- [Standard mode (verbosity 1)]
---   Prints per-step candidate pools, selections, and rendered chords.
---   Return type is 'IO Progression'.
+-- = Verbosity
 --
--- [Verbose mode (verbosity 2)]
---   Prints everything from standard + detailed transform and advance traces.
---   Return type is 'IO Progression'.
---   Slower; use only for debugging.
+-- Every generator has three tiers, marked by the prime suffix — the same
+-- convention used throughout the library for tiers and variants:
 --
--- = Behind the Scenes
+-- * @gen@ — the chord grid only
+-- * @gen'@ — per-step musical context and the grid
+-- * @gen''@ — full traces, the grid, and the multi-attempt scoreboard
 --
--- Internally, all three call:
+-- The tiers have identical types, so switching verbosity never changes the
+-- surrounding code. The same holds for @genP@ \/ @genP'@ \/ @genP''@,
+-- @genFrom@ \/ @genFrom'@ \/ @genFrom''@, and the Roman numeral aliases.
 --
--- * 'generate\'' - Returns @(Progression, GenerationDiagnostics)@ tuple with standard traces
+-- = Where to go next
 --
--- Then 'printDiagnostics' extracts and formats the diagnostics based on verbosity level.
+-- * "Harmonic.Framework.Builder" — the generation engine and every modifier
+-- * "Harmonic.Interface.Tidal.Orchestra" — the 15 orchestral instruments
+-- * "Harmonic.Interface.Tidal.Arranger" — voicing strategies and rearranging
+-- * "Harmonic.Interface.Tidal.Form" — form and kinetics
 --
--- = For GHCi Exploration
+-- = Legacy positional interface
 --
--- Import this module to get all Phase B types and Phase C generation functions.
--- The module re-exports core Haskell modules and TidalCycles bridge functions.
+-- Predating the modifier chain, 'genSilent', 'genStandard' and 'genVerbose'
+-- take their arguments positionally and share one signature:
 --
+-- > genSilent :: CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Progression
+--
+-- They remain supported, but note that 'initCadenceState' silently truncates
+-- chords of more than three pitch classes to a triad; 'lead' is the
+-- better-behaved way to build a starting state.
+--
+
 -- = Academic Lineage
 --
 -- This project originated from three academic documents:
@@ -97,115 +114,133 @@
 -- * McLean, A. (2007). /Improvising with Synthesised Vocables/. — TidalCycles origins.
 
 module Harmonic.Lib (
-  -- ========== PRIMARY INTERFACE FOR LIVE CODING ==========
-  -- Modifier-based generation API:
-  --   gen   - header + grid output
-  --   gen'  - compact summary
-  --   gen'' - verbose traces
+  -- * Primary interface for live coding
+  -- | The modifier-based generation API. Each generator comes in three
+  -- verbosity tiers, marked by the prime suffix:
+  --
+  -- * @gen@ — header + grid output
+  -- * @gen'@ — compact summary
+  -- * @gen''@ — verbose traces
+  --
+  -- Modifiers compose right-to-left onto a generator:
+  --
+  -- @s \<- seek "*" $ attempt 3 12 $ entropy 0.4 $ gen@
+
+  -- ** Triadic generation
   gen, gen', gen'',
   gen4, gen4', gen4'', quad,
   genGrid, genFrom, genFrom', genFrom'',
 
-  -- ========== genP PARADIGM (strata-first) ==========
+  -- ** The genP paradigm (strata-first)
+  -- | Three-layer generation (triad \/ strata \/ mode). The roman-numeral
+  -- aliases pin the starting tristrata.
   genP, genP', genP'',
   genI,   genII,   genIII,   genIV,   genV,   genVI,   genVII,   genVIII,   genIX,   genX,   genXI,
   genI',  genII',  genIII',  genIV',  genV',  genVI',  genVII',  genVIII',  genIX',  genX',  genXI',
   genI'', genII'', genIII'', genIV'', genV'', genVI'', genVII'', genVIII'', genIX'', genX'', genXI'',
 
-  -- ========== GENERATION MODIFIERS ==========
+  -- ** Generation modifiers
   cue, len, seek, entropy, tonal,
   relStrata, absStrata,
   sameBoost, flipBoost, triBoost,
   attempt, viability,
 
-  -- ========== GENERATION TYPES ==========
+  -- ** Generation types
   GenConfig(..), GenMode(..), Verbosity(..),
   defaultGenConfig, execGenConfig, execGenConfigPC,
 
-  -- ========== POSITIONAL GENERATION (legacy) ==========
+  -- ** Positional generation (legacy)
   genSilent, genStandard, genVerbose,
   genPrint, genPrint', genPrint'',
 
-  -- ========== CONTEXT & CONFIGURATION ==========
+  -- * Context and configuration
+  -- | A 'HarmonicContext' constrains what the generator may choose. Build one
+  -- by chaining modifiers onto 'hContext':
+  --
+  -- @ctx = invSkip 1 $ hcOvertones "E A D G" $ hcPedal "E?" $ hContext@
   HarmonicContext(..), harmonicContext, hContext,
   Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, hcPedal, hcTristrata,
   GeneratorConfig(..), defaultConfig,
 
-  -- ========== PHASE B: CORE MUSIC TYPES ==========
+  -- * Core music types
   module Harmonic.Rules.Types.Pitch,
   module Harmonic.Rules.Types.Harmony,
   module Harmonic.Evaluation.Scoring.Dissonance,
   module Harmonic.Rules.Constraints.Overtone,
 
-  -- VoiceLeading (cyclic DP paradigms)
+  -- ** Voice leading (cyclic DP paradigms)
   voiceLeadingCost, totalCost, cyclicCost,
   voiceMovement, minimalMovement,
   allVoicings, initialCompact,
   solveRoot, solveFlow,
 
+  -- ** Progressions and scales
   module Harmonic.Rules.Types.Progression,
   module Harmonic.Rules.Types.Scale,
   module Harmonic.Rules.Types.ProgressionContext,
 
-  -- ========== PHASE C: INTERACTIVE BEHAVIOUR ==========
+  -- * Interactive behaviour
   module Harmonic.Traversal.Probabilistic,
 
-  -- ========== FILTER FUNCTIONS ==========
-  -- String-friendly versions for TidalCycles
+  -- * Filter functions
+  -- ** String-friendly versions for TidalCycles
   overtones, Harmonic.Rules.Constraints.Filter.key, funds, tuning, wildcard,
-  -- Text versions
+  -- ** Text versions
   parseOvertones, parseKey, parseFunds, parseTuning, isWildcard,
-  -- Overtone annotation support
+  -- ** Overtone annotation support
   parseTuningNamed,
 
-  -- ========== DATABASE INTERFACE ==========
+  -- * Database interface
   module Harmonic.Evaluation.Database.Query,
   connectNeo4j,
 
-  -- ========== INGESTION PIPELINE ==========
+  -- * Ingestion pipeline
+  -- | Corpus ingestion. Not needed to play — see "Harmonic.Rules.Import.CSV".
   module Harmonic.Rules.Import.CSV,
   module Harmonic.Rules.Import.Transform,
 
-  -- ========== TIDAL INTERFACE ==========
-  -- Pattern-level operations
+  -- * TidalCycles interface
+  -- ** Pattern-level operations
   VoiceFunction, voiceRange,
   arrange, arrange', parallel, warp, rep, lookupChordAt,
   lookupChord, lookupProgression,
   overlapF,
 
-  -- Form / Kinetics
+  -- ** Form and kinetics
   FormNode(..), FormTime(..), Transition(..), Kinetics(..), IK,
   at, at', rh, rh', iK, lK, formK,
   ki, slate, withForm,
-  -- Arranger functions (voicing paradigms)
+
+  -- ** Arranger functions (voicing paradigms)
   rotate, excerpt, insert, switch, clone, extract,
   transposeP, Harmonic.Interface.Tidal.Arranger.reverse, fuse, fuse2, interleave, expandP,
   progOverlap, progOverlapF, progOverlapB,
   grid, flow, lite, literal, root,
 
-  -- Explicit progression construction
+  -- ** Explicit progression construction
   fromChords, prog,
 
-  -- Groove interface (drums/sub bass)
+  -- ** Groove interface (drums and sub bass)
   subKick, fund, noteoff,
 
-  -- Walking-bass line interface
+  -- ** Walking-bass line interface
   lineHarmony,
 
-  -- Scale source (switch mechanism)
+  -- ** Scale source (switch mechanism)
   ScaleSource(..), melodyStateFrom,
 
-  -- Starting state construction
+  -- ** Starting state construction
   lead, lead', parseLeadTokens, LeadToken(..),
 
+  -- ** Instruments and orchestra
   module Harmonic.Interface.Tidal.Instruments,
   module Harmonic.Interface.Tidal.Orchestra,
   module Harmonic.Interface.Tidal.Utils,
   renderTristrataReport, genPReport,
   module Harmonic.Config,
 
-  -- ========== INTERNAL FUNCTIONS (advanced use only) ==========
-  -- Tuple-returning versions for manual diagnostics extraction
+  -- * Internal (advanced use only)
+  -- | Tuple-returning versions for manual diagnostics extraction.
   generate, generateWith, genWith,
   generate', genWith',
   generate'', genWith'',

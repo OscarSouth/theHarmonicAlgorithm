@@ -1,0 +1,98 @@
+name: Deploy Haddock Docs
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'src/**'
+      - 'package.yaml'
+      - 'stack.yaml'
+      - 'stack.yaml.lock'
+      - '.github/workflows/haddock.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never cancel a deploy midway; queue instead.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # stack.yaml sets `system-ghc: true`, so Stack uses whatever GHC this
+      # action installs rather than downloading its own. lts-22.44 nominally
+      # wants GHC 9.6.6; 9.6.7 is accepted because Stack's default
+      # compiler-check is `match-minor`. If you bump the resolver, bump this
+      # pin to a GHC in the same minor series or the build will refuse to start.
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.6.7'
+          enable-stack: true
+          stack-version: 'latest'
+
+      # Cache only ~/.stack (the global package/snapshot store).
+      # Deliberately NOT caching .stack-work: a stale object directory there
+      # has previously poisoned local builds, and it rebuilds cheaply anyway.
+      - name: Cache Stack snapshot store
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-stack-
+
+      - name: Build Haddock docs
+        run: stack haddock --no-haddock-deps
+
+      # Resolve the output path rather than hardcoding it: the arch/GHC segment
+      # differs between a local macOS build (aarch64-osx) and CI (x86_64-linux).
+      - name: Stage docs for Pages
+        run: |
+          set -euo pipefail
+          DOCS_PATH="$(find .stack-work -type d -path '*/doc/html/theHarmonicAlgorithm' | head -n1)"
+          if [ -z "$DOCS_PATH" ]; then
+            echo "::error::Haddock output directory not found" >&2
+            exit 1
+          fi
+          echo "Publishing from $DOCS_PATH"
+          mkdir -p _site
+          cp -r "$DOCS_PATH"/. _site/
+          test -f _site/index.html || { echo "::error::index.html missing" >&2; exit 1; }
+
+      # Haddock emits cross-package links as siblings (../base-4.18.3.0/...),
+      # which assumes the whole local doc tree is served. We publish only this
+      # package, so those ~3600 links would 404. Repoint them at Hackage, which
+      # also gives readers real click-through into dependency docs.
+      - name: Repoint dependency links at Hackage
+        run: |
+          set -euo pipefail
+          before="$(grep -rho 'href="\.\./[^"]*"' _site --include='*.html' | wc -l)"
+          find _site -name '*.html' -exec sed -i -E \
+            's|\.\./([A-Za-z0-9_-]+)-([0-9][0-9.]*)/|https://hackage.haskell.org/package/\1-\2/docs/|g' {} +
+          after="$(grep -rho 'href="\.\./[^"]*"' _site --include='*.html' | wc -l || true)"
+          echo "rewrote cross-package links: $before -> ${after:-0}"
+          if [ "${after:-0}" -ne 0 ]; then
+            echo "::warning::$after sibling links remain unrewritten"
+          fi
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

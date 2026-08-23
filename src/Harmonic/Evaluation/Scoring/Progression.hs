@@ -20,8 +20,8 @@
 -- intentionally simple placeholders — to be refined from observed
 -- distributions once multi-attempt generation is live (see the project's
 -- data-driven tuning memory). The function signatures are stable; only the
--- internal transforms inside 'scoreRootMotion' / 'scoreVoiceLeading' /
--- 'scoreModeValidity' are subject to retuning.
+-- internal transforms inside @scoreRootMotion@ \/ @scoreVoiceLeading@ \/
+-- @scoreModeValidity@ are subject to retuning.
 module Harmonic.Evaluation.Scoring.Progression
   ( -- * Score record
     ProgressionScore(..)
@@ -94,7 +94,7 @@ defaultWeights = ProgressionScoreWeights
   }
 
 -- |Offline-mode weights — cadence favourability dropped, remaining three
--- renormalised to @1/3@ each.
+-- renormalised to @1\/3@ each.
 defaultWeightsOffline :: ProgressionScoreWeights
 defaultWeightsOffline = ProgressionScoreWeights
   { wRootMotion   = 1 / 3
@@ -141,13 +141,13 @@ scoreRootMotion prog =
 -- cost @[vlLowAnchorCal, vlHighAnchorCal]@ to score @[1, 0]@.
 --
 -- Anchor calibration (2026-08-20, data-driven): 36-sample online probe —
--- gen / gen4 / genVI × len {8, 16} × entropy {0.2, 0.4, 0.6}, two runs
+-- gen \/ gen4 \/ genVI × len {8, 16} × entropy {0.2, 0.4, 0.6}, two runs
 -- each (genVI cued in-strata; its random-cue empties excluded). Observed
 -- per-edge cyclic costs: gen 2.5–5.75, gen4 3.25–12.0, genVI 3.0–7.1;
--- combined p10 ≈ 3.0, p90 ≈ 7.1. Anchors set at 3.0 (excellent) / 8.0
+-- combined p10 ≈ 3.0, p90 ≈ 7.1. Anchors set at 3.0 (excellent) \/ 8.0
 -- (poor) — p90 plus margin, so only genuinely rough runs bottom out.
--- (The previous 10/30 anchors were calibrated against the old
--- unsorted/mod-12-wrapped measurement artefact and do not transfer.)
+-- (The previous 10\/30 anchors were calibrated against the old
+-- unsorted\/mod-12-wrapped measurement artefact and do not transfer.)
 vlLowAnchorCal, vlHighAnchorCal :: Double
 vlLowAnchorCal  = 3.0
 vlHighAnchorCal = 8.0
@@ -169,7 +169,7 @@ scoreVoiceLeading prog
     -- Replaces 'Prog.literalVoicing', which returned UNSORTED,
     -- mod-12-wrapped pseudo-voicings via the toTriad reduction (an
     -- A-rooted [0,4,7] bar read as [9,1,4], so C→A root motion measured
-    -- 9 semitones instead of 3 — the old 10/30 anchors were calibrated
+    -- 9 semitones instead of 3 — the old 10\/30 anchors were calibrated
     -- against that artefact). gen4 chains now score the heard 4-note
     -- surface; mixed-cardinality bars score real alignment costs.
     honestVoicing cs =
@@ -177,16 +177,16 @@ scoreVoiceLeading prog
       in sort [ (P.unPitchClass i + r) `mod` 12
               | i <- H.cadenceIntervals (H.stateCadence cs) ]
     -- Anchors recalibrated 2026-08-20 against the honest measurement:
-    -- online probe gen/genVI/gen4 × len 8/16 × entropy {0.2,0.4,0.6},
+    -- online probe gen\/genVI\/gen4 × len 8\/16 × entropy {0.2,0.4,0.6},
     -- per-edge cyclic costs of sorted absolute-PC voicings. See the
     -- calibration values below (updated by the probe in the VL pass).
     vlLowAnchor  = vlLowAnchorCal
     vlHighAnchor = vlHighAnchorCal
 
--- |Fraction of bars whose mode-layer cardinality is 7 (i.e. 'ModeOk' shape).
+-- |Fraction of bars whose mode-layer cardinality is 7 (i.e. 'Harmonic.Rules.Types.Scale.ModeOk' shape).
 --
--- For walk-generated 'genP' contexts (pcProvenance = Just) the Phase 1
--- invariant guarantees @1.0@. For legacy 'gen' contexts (pcProvenance =
+-- For walk-generated 'Harmonic.Framework.Builder.genP' contexts (pcProvenance = Just) the Phase 1
+-- invariant guarantees @1.0@. For legacy 'Harmonic.Framework.Builder.gen' contexts (pcProvenance =
 -- Nothing) the mode layer duplicates the triad layer (3 PCs), so this
 -- check is not meaningful — returns @1.0@.
 scoreModeValidity :: PC.ProgressionContext -> Double
@@ -217,7 +217,7 @@ totalScore w ps =
 
 -- |A pre-fetched, composer-blend-resolved map from source cadence (keyed by
 -- its 'show' representation) to its outgoing transitions. Each transition
--- carries the destination 'Cadence' and the blended weight (output of
+-- carries the destination 'Harmonic.Rules.Types.Harmony.Cadence' and the blended weight (output of
 -- 'Query.applyComposerBlend').
 type TransitionMap = Map Text [(H.Cadence, Double)]
 
@@ -225,14 +225,14 @@ type TransitionMap = Map Text [(H.Cadence, Double)]
 --
 -- The progression is treated as a /cyclic/ loop: edges are
 -- @(C₀ → C₁), …, (C_{N-2} → C_{N-1}), (C_{N-1} → C₀)@. Each edge is
--- scored by 'edgeScore' (hybrid presence + share). The per-progression
+-- scored by @edgeScore@ (hybrid presence + share). The per-progression
 -- score is the mean of per-edge scores — length-independent and in
 -- @[0, 1]@.
 --
 -- Matching by 'show' (not 'Eq') matches the DB's identity convention
 -- (@MATCH (c:Cadence {show: $show})@ at @Query.hs:113-137@). The DB-side
--- 'Cadence' is reconstructed via @constructCadence (movement, chord)@,
--- which may differ from a generated 'Cadence's 'cadenceIntervals' field;
+-- 'Harmonic.Rules.Types.Harmony.Cadence' is reconstructed via @constructCadence (movement, chord)@,
+-- which may differ from a generated 'Harmonic.Rules.Types.Harmony.Cadence's @cadenceIntervals@ field;
 -- the 'show' instance projects to @(movement, functionality)@ only.
 cadenceFavFromMap :: TransitionMap -> Prog.Progression -> Double
 cadenceFavFromMap srcMap prog =
@@ -256,7 +256,7 @@ cadenceFavFromMap srcMap prog =
 --   * the source is in the corpus but the destination doesn't appear in its
 --     outgoing transitions under the active composer blend.
 --
--- Returns @0.5 + 0.5 * (w_dst / totalW)@ otherwise — i.e. the edge always
+-- Returns @0.5 + 0.5 * (w_dst \/ totalW)@ otherwise — i.e. the edge always
 -- earns @0.5@ for being /present/ in the corpus, plus up to a further
 -- @0.5@ proportional to its empirical share among the source's outgoing
 -- transitions.

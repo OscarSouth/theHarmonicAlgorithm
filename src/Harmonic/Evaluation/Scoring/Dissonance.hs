@@ -65,11 +65,11 @@ import Harmonic.Rules.Types.Pitch (PitchClass(..), mkPitchClass, unPitchClass)
 -- Based on Paul Hindemith's ranking of interval classes.
 -- 
 -- Interval class mapping:
---   Index 0 → ic 1 (minor 2nd / major 7th) → weight 16
---   Index 1 → ic 2 (major 2nd / minor 7th) → weight 8
---   Index 2 → ic 3 (minor 3rd / major 6th) → weight 4
---   Index 3 → ic 4 (major 3rd / minor 6th) → weight 2
---   Index 4 → ic 5 (perfect 4th / perfect 5th) → weight 1
+--   Index 0 → ic 1 (minor 2nd \/ major 7th) → weight 16
+--   Index 1 → ic 2 (major 2nd \/ minor 7th) → weight 8
+--   Index 2 → ic 3 (minor 3rd \/ major 6th) → weight 4
+--   Index 3 → ic 4 (major 3rd \/ minor 6th) → weight 2
+--   Index 4 → ic 5 (perfect 4th \/ perfect 5th) → weight 1
 --   Index 5 → ic 6 (tritone) → weight 24
 hindemithVector :: [Integer]
 hindemithVector = [16, 8, 4, 2, 1, 24]
@@ -79,15 +79,15 @@ hindemithVector = [16, 8, 4, 2, 1, 24]
 -- Ranks interval classes by smoothness (lower = smoother movement).
 --
 -- Interval class mapping:
---   Index 0 → ic 1 (m2/M7) → weight 3 (stepwise)
---   Index 1 → ic 2 (M2/m7) → weight 3 (stepwise)
---   Index 2 → ic 3 (m3/M6) → weight 4 (moderate leap)
---   Index 3 → ic 4 (M3/m6) → weight 4 (moderate leap)
---   Index 4 → ic 5 (P4/P5) → weight 1 (strong harmonic motion)
+--   Index 0 → ic 1 (m2\/M7) → weight 3 (stepwise)
+--   Index 1 → ic 2 (M2\/m7) → weight 3 (stepwise)
+--   Index 2 → ic 3 (m3\/M6) → weight 4 (moderate leap)
+--   Index 3 → ic 4 (M3\/m6) → weight 4 (moderate leap)
+--   Index 4 → ic 5 (P4\/P5) → weight 1 (strong harmonic motion)
 --   Index 5 → ic 6 (TT)    → weight 6 (avoid)
 --
 -- Special cases:
---   ic 0 (Unison/Pedal) → weight 2 (encourages harmonic rhythm)
+--   ic 0 (Unison\/Pedal) → weight 2 (encourages harmonic rhythm)
 rootMotionVector :: [Integer]
 rootMotionVector = [3, 3, 4, 4, 1, 6]
 {-# INLINE rootMotionVector #-}
@@ -149,7 +149,7 @@ intervalVectorPC pcs = intervalVector $ map unPitchClass pcs
 -------------------------------------------------------------------------------
 
 -- |Calculate dissonance level for a pitch set.
--- Returns (dissonance score, original pitches) for sorting/selection.
+-- Returns (dissonance score, original pitches) for sorting\/selection.
 --
 -- The calculation:
 --   1. Compute interval vector [ic1, ic2, ic3, ic4, ic5, ic6]
@@ -213,6 +213,6 @@ mostConsonant xs = snd . head . sortByFst $ map dissonanceLevel xs
 rankByConsonance :: [[Int]] -> [[Int]]
 rankByConsonance xs = map snd $ sortBy (compare `on` fst) $ map dissonanceLevel xs
 
--- |Rank and return with scores for debugging/inspection
+-- |Rank and return with scores for debugging\/inspection
 rankByConsonanceWithScores :: [[Int]] -> [(Integer, [Int])]
 rankByConsonanceWithScores xs = sortBy (compare `on` fst) $ map dissonanceLevel xs

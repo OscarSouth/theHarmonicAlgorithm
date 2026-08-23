@@ -6,30 +6,30 @@
 -- of (progression, voiceFn) via three sequential passes:
 --
 --   1. Pass 1 — beat 1s. Every bar's beat 1 is a singleton PC derived from
---      the user-supplied VoiceFunction ('fund' or 'root'). Octave placement
+--      the user-supplied VoiceFunction ('Harmonic.Interface.Tidal.Groove.fund' or 'Harmonic.Interface.Tidal.Arranger.root'). Octave placement
 --      is greedy left-to-right by smoothness to the previous beat 1, with a
 --      soft direction-persistence bias, a half-weight loop-closure pull on
 --      the final bar, and a root-fifth alternation option inside runs of
 --      consecutive identical chords. Bar 0 anchors at the register centre.
 --   2. Pass 2 — beat 3s. Per bar, choose a chord tone minimising smoothness
 --      to b1_i plus smoothness to b1_{i+1} plus consonance-to-fund cost
---      (via 'beat3ConsTable'). Unison repeats carry a dedicated penalty
+--      (via @beat3ConsTable@). Unison repeats carry a dedicated penalty
 --      so a non-repeat chord tone wins when nearby. Symmetric chords
---      (dim / aug / dim7 / whole-tone) bypass the consonance term since no
+--      (dim \/ aug \/ dim7 \/ whole-tone) bypass the consonance term since no
 --      chord tone is privileged in a rotation-invariant shape.
 --   3. Pass 3 — beats 2 and 4. Per beat, choose from a (cyclic) local-scale
 --      pool. Connector heuristics favour chord tones adjacent to the next
 --      beat 1, penalise copying the next beat 1 outright on beat 4, reward
---      chromatic approaches to the next beat 1 regardless of scale/chord
+--      chromatic approaches to the next beat 1 regardless of scale\/chord
 --      membership (so root-as-leading-tone can win), resolve static
 --      (b1==b3) bars via the chord's P5 or — on symmetric chords — any
 --      non-root chord tone, and reward root-on-b4 (full weight) or P5-on-b4
 --      (half weight) when that tone sits 1–2 semitones from the next b1.
---      If b3 already used the root / P5 at tone distance, the approach
+--      If b3 already used the root \/ P5 at tone distance, the approach
 --      bonus shifts to the chromatic in-between tone so the line avoids a
 --      b3→b4 unison. Stranded connectors (neither flank within a whole
 --      step) pay a sandwich penalty; quality-defining chord tones are
---      reserved for strong beats (only root/P5 earn the beat-4 chord-tone
+--      reserved for strong beats (only root\/P5 earn the beat-4 chord-tone
 --      bonus).
 --
 -- The entropy parameter that used to be user-facing is now derived from the
@@ -50,7 +50,7 @@ module Harmonic.Traversal.WalkingBass
   , walkLinePDyn
   , ChromaSources(..)
 
-    -- * Derived entropy (exported for tests / diagnostics)
+    -- * Derived entropy (exported for tests \/ diagnostics)
   , progressionEntropy
   , progConsonance
   , inferKeyCentre
@@ -86,6 +86,10 @@ import Harmonic.Interface.Tidal.Bridge (VoiceFunction)
 -- Constants
 -------------------------------------------------------------------------------
 
+-- | Walking-bass register and metre constants. @lowestMidi@ 28 and
+-- @highestMidi@ 48 bound the line to a double-bass register; @beatsPerBar@ is
+-- 4 (the walking idiom is quarter-note based); @registerCenter@ 38 is the pitch
+-- the line is drawn back toward when free to choose.
 lowestMidi, highestMidi, beatsPerBar, registerCenter :: Int
 lowestMidi     = 28
 highestMidi    = 48
@@ -103,7 +107,7 @@ kappaChromatic           = 8
 kappaChromaticBonus      = 5
 kappaChromaticBonusBeat4 = 10
 
--- | Pass 2 beat-3 consonance multiplier over 'beat3ConsTable'. Calibrated so
+-- | Pass 2 beat-3 consonance multiplier over @beat3ConsTable@. Calibrated so
 -- an adjacent 3rd overcomes a P5 whose combined smoothness cost is more than
 -- ~6 semitones worse, while 7ths and tension tones stay reachable only when
 -- the consonant options all demand large leaps.
@@ -111,7 +115,7 @@ kappaB3Consonance :: Int
 kappaB3Consonance = 2
 
 -- | Beat-3 anchor cost by interval above the bar's fundamental. The strong
--- beat wants the chord's most grounding tones: P5 first, then root/octave,
+-- beat wants the chord's most grounding tones: P5 first, then root\/octave,
 -- then the quality-defining 3rds; 7ths and colour tones cost enough that
 -- they surface mainly when register pressure or an imminent chord change
 -- leaves no cheap consonant option.
@@ -195,7 +199,7 @@ kappaB3Anticipate :: Int
 kappaB3Anticipate = 3
 
 -- | Pass 3 fourth-chain bonus. A connector that is a CHORD TONE a perfect
--- fourth/fifth from its left flank, and that resolves onward (by step,
+-- fourth\/fifth from its left flank, and that resolves onward (by step,
 -- chromatic, or another fourth), traces a cycle-of-fifths route to the
 -- target. Tie-breaker weight only: squared smoothness prices the fourth
 -- leap at 25+, so this decides between near-equal candidates but never
@@ -215,7 +219,7 @@ kappaPhraseMid = 6
 
 -- | Pass 2 non-chord surcharge. Beat 3's pool admits regional-key tones
 -- (the bar's stratum in the genP path) beyond the chord tones, but they
--- pay this on top of their 'beat3ConsTable' cost — surfacing only where
+-- pay this on top of their @beat3ConsTable@ cost — surfacing only where
 -- every consonant chord tone would force a leap or an anticipation.
 kappaB3NonChord :: Int
 kappaB3NonChord = 8
@@ -281,7 +285,7 @@ chordPCs cs =
       ivs = map Pt.unPitchClass (Hm.cadenceIntervals (Hm.stateCadence cs))
   in Set.fromList [ (r + iv) `mod` 12 | iv <- ivs ]
 
--- | True iff the chord contains no perfect-fourth/fifth (5 or 7 semitones)
+-- | True iff the chord contains no perfect-fourth\/fifth (5 or 7 semitones)
 -- between any pair of tones. Covers diminished triads ([0,3,6]), augmented
 -- triads ([0,4,8]), diminished sevenths ([0,3,6,9]), and whole-tone
 -- hexachords — synthetic shapes with no privileged fifth, where every chord
@@ -303,7 +307,7 @@ localScale chordPCsV i =
       next = chordPCsV V.! ((i + 1) `mod` n)
   in prev `Set.union` curr `Set.union` next
 
--- | Lowest MIDI in [lowestMidi, highestMidi] whose pitch class equals 'pc'.
+-- | Lowest MIDI in [lowestMidi, highestMidi] whose pitch class equals @pc@.
 -- Always in range: the register spans more than an octave, so the lowest
 -- PC-matching value sits at most 11 semitones above 'lowestMidi'.
 closestLowMidi :: Int -> Int
@@ -311,7 +315,7 @@ closestLowMidi pc =
   let pc' = pc `mod` 12
   in lowestMidi + ((pc' - lowestMidi) `mod` 12)
 
--- | In-register instance of 'pc' nearest 'registerCenter' (lower on tie).
+-- | In-register instance of a pitch class nearest @registerCenter@ (lower on tie).
 -- Anchoring bar 0 here gives the greedy beat-1 chain headroom in both
 -- directions and evens out the single-instance asymmetry of the PCs that
 -- occur only once in the register.
@@ -334,7 +338,7 @@ midisIn s =
 -------------------------------------------------------------------------------
 
 -- | Entropy derived from the progression's harmonic character. Calm diatonic
--- progressions land near 0; angular / tritone-heavy progressions approach 1.
+-- progressions land near 0; angular \/ tritone-heavy progressions approach 1.
 -- Deterministic: same progression always yields the same value.
 progressionEntropy :: Pr.Progression -> Double
 progressionEntropy prog
@@ -370,7 +374,7 @@ progressionEntropy prog
     jitter    = (seededUniform (hashProgEntropy prog 0) 0 - 0.5) * 0.1
 
 -- | Mean per-bar consonance of the progression in [0, 1], 1 = consonant.
--- 'dissonanceScore' grows with chord cardinality (major/minor triads score
+-- 'dissonanceScore' grows with chord cardinality (major\/minor triads score
 -- 6 while the most consonant tetrads score 19), so each bar is normalised
 -- against anchors for its own chord size before averaging — otherwise every
 -- tetrad progression would read as maximally dissonant. Consumed by the
@@ -416,7 +420,7 @@ progConsonance prog
 -- Heuristics (weights in votes): a dominant-quality chord is V of its key;
 -- a major-quality chord is I (strong) or IV (weak), plain major triads also
 -- V (weak); a minor-quality chord is ii (strong), vi, or iii (weak);
--- half-diminished is vii. Relative major/minor are treated as one pool and
+-- half-diminished is vii. Relative major\/minor are treated as one pool and
 -- reported as the major-pool pitch class. Each bar takes the key with the
 -- highest vote total over the surrounding window (cyclic, +/- 2 bars);
 -- ties resolve to the lowest pitch class.
@@ -476,7 +480,7 @@ beat1PCs voiceFn prog =
   in V.fromList [ pcAt i | i <- [0 .. n - 1] ]
 
 -- | Occurrence parity within runs of consecutive identical bars: True for
--- the 2nd, 4th, ... bar of a run of equal 'CadenceState's, False elsewhere.
+-- the 2nd, 4th, ... bar of a run of equal 'Harmonic.Rules.Types.Harmony.CadenceState's, False elsewhere.
 -- Detection is acyclic (bar 0 always starts a run) so the loop wrap never
 -- flips a line's opening beat 1.
 dupOddFlags :: V.Vector Hm.CadenceState -> V.Vector Bool
@@ -495,7 +499,7 @@ dupOddFlags barsV = V.fromList (map odd (go Nothing (V.toList barsV)))
 -- can add a half-weight pull toward bar 0's beat 1, closing the register
 -- loop instead of leaving the whole drift to the last seam. Odd occurrences
 -- within duplicate runs admit the fundamental's P5 as a soft alternative
--- (see 'kappaB1DupRepeat' / 'kappaB1P5Option').
+-- (see 'kappaB1DupRepeat' \/ 'kappaB1P5Option').
 pass1Beat1s
   :: V.Vector Double   -- mean-centred dynamic bias per bar (0 = neutral)
   -> V.Vector Bool     -- dynamic drop-reset flags per bar
@@ -549,7 +553,7 @@ pass1Beat1s biasV dropV pcs p5pcs dupOdd
       in V.fromList (b0 : go 1 b0 0)
 
 -- | Expand an optional per-bar dynamic vector into (mean-centred bias,
--- drop-reset flags), clamped and padded/truncated to n bars. 'Nothing'
+-- drop-reset flags), clamped and padded\/truncated to n bars. 'Nothing'
 -- yields all-neutral vectors — the walk is then byte-identical to the
 -- dynamics-blind behaviour.
 dynVectors :: Int -> Maybe [Double] -> (V.Vector Double, V.Vector Bool)
@@ -570,12 +574,12 @@ dynVectors n (Just ds) =
 -- | Per bar, pick the beat-3 MIDI minimising
 --   (|m - b1_i| + |b1_{i+1} - m| + consonance-to-fund + repeat-penalty).
 -- Linear (not quadratic) smoothness so moderate leaps to the P5 aren't
--- over-penalised. Consonance cost comes from 'beat3ConsTable' on the
--- interval above the fundamental, so the strong beat anchors on P5 / root /
+-- over-penalised. Consonance cost comes from @beat3ConsTable@ on the
+-- interval above the fundamental, so the strong beat anchors on P5 \/ root \/
 -- 3rds and reaches tension tones only under register pressure. The repeat
 -- penalty ('kappaPassiveRepeat') is stronger than Pass 3's connector repeat
 -- cost so a non-repeat chord tone wins when nearby. For symmetric chords
--- (dim / aug / dim7 / whole-tone) the consonance term is neutralised because
+-- (dim \/ aug \/ dim7 \/ whole-tone) the consonance term is neutralised because
 -- no chord tone is privileged over the others.
 pass2Beat3s :: Int -> V.Vector (Set Int) -> V.Vector (Set Int) -> V.Vector Int -> V.Vector Int -> V.Vector Int
 pass2Beat3s consPct keyV chordPCsV b1s fundPCs =
@@ -636,14 +640,14 @@ connectorPool scale target =
   in Set.toList (Set.fromList (scaleMidis ++ chromas))
 
 -- | Per-beat scoring. Beat 4 picks up extra bonuses (chord-tone near target,
--- stronger chromatic-leading-tone bonus, root / P5 approach) and a copy-next
+-- stronger chromatic-leading-tone bonus, root \/ P5 approach) and a copy-next
 -- penalty; both beats pick up a diatonic-approach bonus and a static-cell
 -- recovery bonus. The chromatic-approach bonus applies to any candidate at
 -- |m - r| == 1 — in-scale, in-chord, or chromatic. For symmetric chords the
 -- static-cell recovery rewards any non-root chord tone (not just the phantom
 -- P5). The approach bonus (iter 6) rewards the current bar's root on beat 4
 -- when it sits 1 or 2 semitones from next b1 (half strength for the P5); if
--- b3 already used the root / P5, the bonus shifts to the chromatic
+-- b3 already used the root \/ P5, the bonus shifts to the chromatic
 -- in-between tone so the line doesn't repeat itself into a static cell.
 scoreConnector
   :: ConnectorPos
@@ -669,7 +673,7 @@ scoreConnector pos tensionPct keySet scale chord l r isStatic isSymmetric
       diatonicAp  = if abs (m - r) == 2 && inScale
                     then -kappaDiatonicApproach else 0
       -- Wasted-tone rule: weak beats reserve the quality-defining chord
-      -- tones (3rds / 7ths) for strong beats; only root and P5 earn the
+      -- tones (3rds \/ 7ths) for strong beats; only root and P5 earn the
       -- beat-4 chord-tone approach bonus.
       chordToneB  = if pos == Beat4 && inChord && abs (m - r) `elem` [1, 2]
                        && (m `mod` 12) `elem` [rootPC, p5PC]
@@ -783,12 +787,12 @@ pass3Connectors tensionPct keySetsV localsV chordsV b1s b3s fundPCs seed e =
 
 -- | Generate a walking-bass line. Entropy is derived from the progression's
 -- harmonic character; the caller supplies only the progression and a voice
--- function ('fund' or 'root') defining each bar's beat 1.
+-- function ('Harmonic.Interface.Tidal.Groove.fund' or 'Harmonic.Interface.Tidal.Arranger.root') defining each bar's beat 1.
 walkLine :: VoiceFunction -> Pr.Progression -> [[Int]]
 walkLine = walkLineDyn Nothing
 
 -- | 'walkLine' with an optional per-bar dynamic vector coupling the beat-1
--- register arc to the piece's dynamics (see 'kappaDynArc'). 'Nothing' is
+-- register arc to the piece's dynamics (see @kappaDynArc@). 'Nothing' is
 -- byte-identical to 'walkLine'.
 walkLineDyn :: Maybe [Double] -> VoiceFunction -> Pr.Progression -> [[Int]]
 walkLineDyn mDyn voiceFn prog
@@ -869,14 +873,14 @@ walkLineDyn mDyn voiceFn prog
 -- | Per-bar chroma sources for the 'walkLineP' Pass-3 connector pool.
 -- 'csStrata' is the bar's full 5-PC strata chroma; 'csMode' is the full
 -- 7-PC mode chroma. Both are supplied by the caller (typically derived from
--- 'PC.strataLayer' / 'PC.modeLayer' of a genP-origin ProgressionContext).
+-- 'PC.strataLayer' \/ 'PC.modeLayer' of a genP-origin ProgressionContext).
 data ChromaSources = ChromaSources
   { csStrata :: !(Set Int)
   , csMode   :: !(Set Int)
   } deriving (Eq, Show)
 
 -- | Octatripentatonic-aware connector pool. Replaces the chromatic ±1
--- candidates of 'connectorPool' with strata / mode chroma — chromatic
+-- candidates of 'connectorPool' with strata \/ mode chroma — chromatic
 -- approaches that aren't independently in strata, overlap, mode, or chord
 -- are excluded entirely (no chromatic lines in genP context).
 connectorPoolP :: Set Int -> Set Int -> Set Int -> Set Int -> [Int]
@@ -887,12 +891,12 @@ connectorPoolP strata overlap mode chord =
 -- | Tier-aware scoring for the genP path. Mirrors 'scoreConnector' but:
 --   * the leading-tone bonus applies only to in-pool candidates (the pool
 --     admits no chromatic outsiders, so a semitone approach is always a
---     strata / overlap / mode tone — purity is preserved).
+--     strata \/ overlap \/ mode tone — purity is preserved).
 --   * replaces the binary 'kappaChromatic' fit penalty with a three-tier
 --     preference: strata (bonus), overlap (neutral), mode (mild penalty).
 --   * keeps every other term unchanged (smoothness, diatonic approach,
 --     chord-tone bonus on beat 4, copy-next penalty, static recovery,
---     root/P5 approach, repeat cost).
+--     root\/P5 approach, repeat cost).
 scoreConnectorP
   :: ConnectorPos
   -> Int            -- tension licence percentage (scales chromatic bonus)
@@ -929,7 +933,7 @@ scoreConnectorP pos tensionPct strata overlap mode chord l r isStatic isSymmetri
       diatonicAp  = if abs (m - r) == 2 && inAny
                     then -kappaDiatonicApproach else 0
       -- Wasted-tone rule: weak beats reserve the quality-defining chord
-      -- tones (3rds / 7ths) for strong beats; only root and P5 earn the
+      -- tones (3rds \/ 7ths) for strong beats; only root and P5 earn the
       -- beat-4 chord-tone approach bonus.
       chordToneB  = if pos == Beat4 && inChord && abs (m - r) `elem` [1, 2]
                        && (m `mod` 12) `elem` [rootPC, p5PC]
@@ -1047,7 +1051,7 @@ pass3ConnectorsP tensionPct localsV chordsV chromasV b1s b3s fundPCs seed e =
 
 -- | Octatripentatonic-aware walking-bass line. Pass 1 (beat 1s from voiceFn)
 -- and Pass 2 (beat 3s) are unchanged from 'walkLine'; Pass 3 (beats 2 & 4)
--- swaps the chromatic-±1 candidate path for tier-scored strata / overlap /
+-- swaps the chromatic-±1 candidate path for tier-scored strata \/ overlap \/
 -- mode candidates supplied per bar via 'ChromaSources'. Caller is responsible
 -- for matching @length chromas@ to @progLength prog@ (mismatch falls back to
 -- the legacy 'walkLine' path for safety).

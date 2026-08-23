@@ -76,7 +76,7 @@ voiceRange (lo, hi) = filterValues (\v -> v >= lo && v <= hi)
 -- |Force every element of a nested 'Note' list to WHNF. Used to hoist the
 -- per-bar voicing computation (which can be expensive for large mode
 -- chroma) from the audio query thread to REPL evaluation time. Returns
--- '()' so callers can compose via 'seq'.
+-- @()@ so callers can compose via 'seq'.
 forceAll :: [[Note]] -> ()
 forceAll = foldr (\xs acc -> foldr seq acc xs) ()
 
@@ -88,8 +88,8 @@ forceAll = foldr (\xs acc -> foldr seq acc xs) ()
 -- The @/N@ divisor specifies the number of bars the pattern spans.
 --
 -- @
--- let r = warp \"[1 2 3 4]/4\"   -- 4 chords over 4 bars (1 per bar)
--- let r = warp \"[1 2]/8\"       -- 2 chords over 8 bars (4 bars each)
+-- let r = warp \"[1 2 3 4]\/4\"   -- 4 chords over 4 bars (1 per bar)
+-- let r = warp \"[1 2]\/8\"       -- 2 chords over 8 bars (4 bars each)
 -- @
 warp :: String -> Pattern Int
 warp s = slow 4 $ parseBP_E s
@@ -121,15 +121,15 @@ rep pc repVal =
 -- Parameter order: context first (kinetics range, IK, MIDI range), then
 -- interactive (voice function, modifier, patterns).
 -- |Project the requested layer from a context together with its voicing
--- route. Strict-context routing: the S/M layers of a genP-provenance
--- context are THE curated 5/7-PC chroma (uniform per layer) and are
--- always voiced by 'A.strataModeFlow' — degree/"key-signature" semantics:
+-- route. Strict-context routing: the S\/M layers of a genP-provenance
+-- context are THE curated 5\/7-PC chroma (uniform per layer) and are
+-- always voiced by 'A.strataModeFlow' — degree\/"key-signature" semantics:
 -- pattern index @i@ plays the i-th scale degree of that bar's set. The T
--- layer always honours the user's 'VoiceFunction', as do S/M layers of
--- gen/gen4 contexts (ordinary-harmony duplicates of the triad layer).
+-- layer always honours the user's 'VoiceFunction', as do S\/M layers of
+-- gen\/gen4 contexts (ordinary-harmony duplicates of the triad layer).
 --
 -- Routing by provenance + layer replaces the old first-bar cardinality
--- sniff ('isOctaSM'), which mis-routed mixed-cardinality material in both
+-- sniff (@isOctaSM@), which mis-routed mixed-cardinality material in both
 -- directions (triad-first-bar chroma escaped to the DP; 4-note-first-bar
 -- harmony was captured by the chroma engine).
 layerForVoicing :: Layer -> PC.ProgressionContext -> (Bool, P.Progression)
@@ -137,6 +137,13 @@ layerForVoicing lyr ctx =
   let chroma = lyr /= T && isJust (PC.pcProvenance ctx)
   in (chroma, PC.layer lyr ctx)
 
+-- | Render scale-degree patterns into a playable 'ControlPattern', reading
+-- pitches from the progression under the given voicing strategy.
+--
+-- The workhorse of the Tidal interface: every orchestral instrument in
+-- "Harmonic.Interface.Tidal.Orchestra" is a thin wrapper around it.
+--
+-- @d1 $ arrange (0,1) k (-9,9) T flow id [\"0 1 2 3\"]@
 arrange :: (Double, Double)                     -- ^ Kinetics range
         -> IK                                    -- ^ Performance context (kinetics + chord selection)
         -> (Int, Int)                            -- ^ Degree-index trim for the input patterns (scale degrees, not MIDI; instrument-range clipping happens later via clip)
@@ -155,7 +162,7 @@ arrange (lo, hi) (kin, chordPat) register lyr voiceFunc modifier pats =
         if chroma then A.strataModeFlow p else voiceFunc p
       -- Pre-compute voicings at construction time. The 'forced' binding's
       -- WHNF requires walking every inner list spine, which in turn forces
-      -- the lazy 'strataModeFlow' / 'flow' voicing computation per bar.
+      -- the lazy 'strataModeFlow' \/ 'flow' voicing computation per bar.
       -- This hoists the work from the audio thread (where it would cause
       -- 'skip:' events on first query) to REPL evaluation time.
       allEvents = queryArc progPat (Arc 0 1000)
@@ -213,7 +220,7 @@ arrangeLookup (scales, nChords) chordPat ranged
 
 -- |Map notes through chords using squeeze, with kinetics range gating.
 --
--- Same kinetics/modifier pattern as 'arrange', but uses squeeze strategy:
+-- Same kinetics\/modifier pattern as 'arrange', but uses squeeze strategy:
 -- each chord slot gets the full input pattern compressed to fit.
 arrange' :: (Double, Double)                     -- ^ Kinetics range
          -> IK                                    -- ^ Performance context
@@ -230,7 +237,7 @@ arrange' (lo, hi) (kin, chordPat) register lyr voiceFunc modifier pats =
       effectiveVF (chroma, p) =
         if chroma then A.strataModeFlow p else voiceFunc p
       -- Pre-compute voicings at construction time. See 'arrange' for the
-      -- forced/cacheForced rationale: hoists per-bar voicing computation
+      -- forced\/cacheForced rationale: hoists per-bar voicing computation
       -- from the audio thread to REPL evaluation time.
       allEvents = queryArc progPat (Arc 0 1000)
       uniqueProgs = nub (map value allEvents)
@@ -275,7 +282,7 @@ arrangeLookup' (scales, nChords) chordPat ranged
 -- offset. Include @0@ to retain the original note; omit it to drop the root.
 --
 -- Comma = simultaneous voices, space = time-sequenced offsets (standard
--- mininotation, natively evaluated). Applied post-voicing/post-range-filter,
+-- mininotation, natively evaluated). Applied post-voicing\/post-range-filter,
 -- so offsets are not gated by the @arrange@ MIDI range.
 --
 -- @

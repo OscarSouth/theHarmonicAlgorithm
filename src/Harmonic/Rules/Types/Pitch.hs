@@ -6,7 +6,7 @@
 -- Module      : Harmonic.Rules.Types.Pitch
 -- Description : Foundational pitch-class algebra as ℤ₁₂ cyclic group
 --
--- This module defines 'PitchClass' as a proper cyclic group with modular
+-- This module defines 'Harmonic.Rules.Types.Pitch.PitchClass' as a proper cyclic group with modular
 -- arithmetic. All pitch operations automatically wrap within the octave.
 --
 -- == Academic Lineage

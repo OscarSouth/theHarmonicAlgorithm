@@ -18,7 +18,7 @@
 --
 -- == Filter Notation
 --
--- === Overtones/Pitch Set Filter
+-- === Overtones\/Pitch Set Filter
 -- Limits harmonic choices to pitches within a specified set.
 --
 -- * Fundamental pitches (derives overtones): @"E A D G"@ (bass tuning)
@@ -167,7 +167,7 @@ keyPitches :: Int -> [PitchClass]
 keyPitches fifths = sort $ nub $ map ((`mod` 12) . (+ fifths * 7)) [0, 2, 4, 5, 7, 9, 11]
 
 -------------------------------------------------------------------------------
--- Parsing: Tuning/Overtones
+-- Parsing: Tuning\/Overtones
 -------------------------------------------------------------------------------
 
 -- |Parse a tuning string into pitch class set (overtones of fundamentals).
@@ -324,7 +324,7 @@ parseNamedKey t =
        _    -> Nothing
 
 -------------------------------------------------------------------------------
--- Parsing: Fundamentals/Roots
+-- Parsing: Fundamentals\/Roots
 -------------------------------------------------------------------------------
 
 -- |Parse fundamentals (root notes) filter.
@@ -343,7 +343,7 @@ parseFunds' _ input
           excludePcs = unique $ concatMap parseFundsToken excludes
       in includePcs \\ excludePcs
 
--- |Parse a single token in fundamentals/roots context.
+-- |Parse a single token in fundamentals\/roots context.
 -- Same unified rules as key context: note name = single pitch, numbered sig = scale.
 parseFundsToken :: Text -> [PitchClass]
 parseFundsToken = parseUnifiedToken
@@ -356,7 +356,7 @@ parseFundsToken = parseUnifiedToken
 --   * Other values: Parsed via parseFunds as normal
 --
 -- Arguments:
---   * overtoneFilter: The overtones/tuning filter string
+--   * overtoneFilter: The overtones\/tuning filter string
 --   * keyFilter: The key filter string  
 --   * rootsFilter: The roots filter string (may be "key" or "tones")
 --
@@ -464,7 +464,7 @@ wildcard = isWildcard . T.pack
 -- High-Level Filtering API
 -------------------------------------------------------------------------------
 
--- |Filter a pitch class set by overtones/tuning filter
+-- |Filter a pitch class set by overtones\/tuning filter
 filterPitchSet :: Text -> [PitchClass] -> [PitchClass]
 filterPitchSet filterStr pcs
   | isWildcard filterStr = pcs
@@ -538,7 +538,7 @@ partitionTokens input =
 -------------------------------------------------------------------------------
 
 -- |Concrete direction action resolved for a single generation step.
--- When active, the bass/root at the next step is forced to the Nth note
+-- When active, the bass\/root at the next step is forced to the Nth note
 -- above (Rise) or below (Fall) in the allowed set, with mod-12 wrapping.
 -- Step size 1 = closest note, 2 = skip one, etc.
 data BassDirection = Rise !Int | Fall !Int
@@ -555,7 +555,7 @@ data BDSelector
   | BDRandomPick  -- ^ uniform random per step (comma-delimited @\<…\>@)
   deriving (Show, Eq)
 
--- |Parsed specification for a rise/fall direction token. Resolved per step
+-- |Parsed specification for a rise\/fall direction token. Resolved per step
 -- at generation time to a concrete 'BassDirection' (or 'Nothing' when the
 -- optional @?@ flag causes the direction to be skipped for that step).
 data BassDirectionSpec = BassDirectionSpec

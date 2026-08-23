@@ -4,15 +4,35 @@
 -- Module      : Harmonic.Interface.Tidal.Arranger
 -- Description : Performance-oriented progression manipulation
 -- 
--- This module provides shorthand functions for manipulating progressions
--- in a TidalCycles performance context. All functions are designed for
--- live-coding ergonomics (short names, intuitive parameter order).
+-- Shorthand for manipulating progressions in a TidalCycles performance
+-- context. All functions are designed for live-coding ergonomics: short
+-- names, intuitive parameter order, and no @IO@.
 --
--- Functions wrap the more verbose Progression module functions:
---   * rotate, excerpt, insert, switch, clone, extract
---   * transpose, reverse, fuse, expand
---   * overlap, overlapF, overlapB
---   * root, flow, lite (3 voicing paradigms via cyclic DP)
+-- Two families, both wrapping the more verbose
+-- "Harmonic.Rules.Types.Progression" functions:
+--
+-- [Rearranging] 'rotate', 'excerpt', 'insert', 'switch', 'clone', 'extract',
+-- 'transposeP', 'reverse', 'fuse', 'fuse2', 'interleave', 'expandP',
+-- 'progOverlap', 'progOverlapF', 'progOverlapB'.
+--
+-- [Voicing] five strategies that turn a progression into concrete pitches —
+-- 'grid', 'flow', 'lite', 'literal' and 'root'. 'grid' and 'flow' solve a
+-- cyclic DP for smooth voice leading; the others are literal or bass-only.
+--
+-- Rearranging composes on the progression before it reaches a voicing:
+--
+-- @
+-- s  \<- seek \"*\" $ len 8 $ entropy 0.4 $ gen
+-- s' = fuse (excerpt 0 4 s) (rotate 2 s)
+-- @
+--
+-- The voicing is then chosen per instrument at the point of play, so two
+-- lines can read the same progression differently:
+--
+-- @
+-- , cello      T (0,1) k vl flow Tenor8vb
+-- , contrabass T (0,1) k vl grid Bass8vb
+-- @
 
 module Harmonic.Interface.Tidal.Arranger
   ( -- * Position/Range Operations
@@ -83,7 +103,7 @@ import Data.Function (on)
 import Data.List (minimumBy)
 
 -------------------------------------------------------------------------------
--- Position/Range Operations
+-- Position\/Range Operations
 -------------------------------------------------------------------------------
 
 -- |Rotate a progression by n bars (positive = left, negative = right)
@@ -190,7 +210,7 @@ expandP n = liftPC (expandProgression n)
 
 -------------------------------------------------------------------------------
 -- Overlap Operations
--- These create sustain/legato effects by merging pitches from adjacent chords
+-- These create sustain\/legato effects by merging pitches from adjacent chords
 -------------------------------------------------------------------------------
 
 -- |Bidirectional overlap: merge pitches from n bars in both directions
@@ -331,7 +351,7 @@ literal = lite
 -- sorted-ascending compressed form rooted on its harmonic root, with the
 -- whole voicing octave-shifted to minimise voice movement against the bar 0
 -- anchor. Functions as a "key signature": pattern index @i@ in any bar plays
--- the i-th scale degree of that bar's strata / mode, so pattern increments
+-- the i-th scale degree of that bar's strata \/ mode, so pattern increments
 -- of 1 always ascend by one set member and decrements descend by one.
 --
 -- Bar 0: 'initialCompact' + 'normalizeByFirstRoot' anchors the harmonic
@@ -341,7 +361,7 @@ literal = lite
 -- Bar n+1: 'initialCompact' rooted on bar n+1's harmonic root produces a
 -- "natural" compressed-ascending voicing; the whole voicing is then shifted
 -- by the octave (k·12 for @k ∈ [-3..3]@) that minimises total
--- @|placed_MIDI - anchor_MIDI|@ across voices, where 'anchor' is bar 0's
+-- @|placed_MIDI - anchor_MIDI|@ across voices, where @anchor@ is bar 0's
 -- voicing. The root is allowed to migrate octaves freely if that makes the
 -- line closer to the anchor. Voicing remains sorted ascending after the
 -- shift (uniform shift preserves order), so "ascend by 1 with idx+1" holds.
@@ -369,7 +389,7 @@ strataModeFlow prog =
 
 -- |Build a bar's natural compressed-ascending voicing, then choose the
 -- uniform octave shift that minimises total absolute MIDI distance to the
--- bar 0 anchor 'v0'. Each bar is independently anchored so drift is bounded.
+-- bar 0 anchor @v0@. Each bar is independently anchored so drift is bounded.
 shiftBar :: [Int] -> CadenceState -> [Int]
 shiftBar v0 cs =
   let nextPCs    = cadencePCs cs
@@ -389,7 +409,7 @@ shiftBar v0 cs =
 
 -- |True iff any bar carries >= 6 pitch classes — scale-cluster territory
 -- (hand-built mode sets; genP chroma layers route by provenance in Bridge
--- before reaching here). The cyclic DP on 6/7-voice sets is both
+-- before reaching here). The cyclic DP on 6\/7-voice sets is both
 -- prohibitively slow live (16-bar 7-PC ≈ 107 s interpreted) and musically
 -- the wrong tool ("voice leading" between scale-clusters); such material
 -- gets the chroma engine's degree semantics as a safety fallback, not a
@@ -401,7 +421,7 @@ hasBigChroma prog =
       (toList (unProgression prog))
 
 -- |Read a CadenceState's absolute PCs in cadence-interval order (NOT sorted).
--- For genP strata/mode layers (intervals start at 0 from harmonic root), this
+-- For genP strata\/mode layers (intervals start at 0 from harmonic root), this
 -- yields [root, root+2nd, root+3rd, ...] — i.e. degree-ordered. Pattern idx 0
 -- therefore tracks the root.
 cadencePCs :: CadenceState -> [Int]
@@ -440,9 +460,9 @@ nameChord intervals
       toFunctionalityChord (map mkPitchClass intervals)
 
 -- |Construct a Progression from explicit pitch-class sets.
--- This is the main function for composing/arranging workflow (not generation).
+-- This is the main function for composing\/arranging workflow (not generation).
 -- Takes an enharmonic spelling and a list of chord pitch-class sets,
--- returns a Progression ready for 'arrange'.
+-- returns a Progression ready for 'Harmonic.Interface.Tidal.Bridge.arrange'.
 --
 -- Example:
 -- @
@@ -658,7 +678,7 @@ lead input = do
 
 -- |Construct a 'CadenceState' from an explicit list of note names —
 -- the arbitrary-cardinality counterpart to 'lead'. The first note is the
--- root/bass; the rest become root-relative intervals (any count, so
+-- root\/bass; the rest become root-relative intervals (any count, so
 -- 4-note cues for @gen4@ and beyond are first-class). Never truncates:
 -- builds via 'mkCadenceStatePCs', so all pitch content survives into the
 -- cue. Enharmonics follow the typed accidentals ("Eb" spells flat,

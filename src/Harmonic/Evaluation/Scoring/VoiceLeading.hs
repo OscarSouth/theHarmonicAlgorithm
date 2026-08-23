@@ -123,7 +123,7 @@ minimalMovement (P from) (P to) =
 --
 -- Cost components:
 --   * Base: sum of absolute MIDI movements per voice.
---   * Parallel penalty: +3 for each parallel perfect 5th / octave between
+--   * Parallel penalty: +3 for each parallel perfect 5th \/ octave between
 --     ANY voice pair (not just adjacent), when at least one voice moves.
 --   * Large leap penalty: +2 per voice moving > 4 semitones.
 --   * Register-exchange penalty: +4 per adjacent voice pair where both
@@ -175,9 +175,9 @@ voiceLeadingCost from to
     movements   = zipWith voiceMovement from to
     signedMoves = zipWith (-) to from
 
-    -- Per-voice tuples traversed once; pair scans use tails/zip rather
+    -- Per-voice tuples traversed once; pair scans use tails\/zip rather
     -- than repeated list indexing (the old `!!`-based loops made each
-    -- call effectively O(n³) — a real cost at 36–432 DP candidates/bar).
+    -- call effectively O(n³) — a real cost at 36–432 DP candidates\/bar).
     voiceData   = zip3 from to signedMoves
     pairsAll    = [ (a, b) | (a : rest) <- List.tails voiceData, b <- rest ]
     pairsAdj    = zip voiceData (drop 1 voiceData)
@@ -221,11 +221,11 @@ voiceLeadingCost from to
 -- alignment in which every voice of BOTH chords participates: each voice
 -- of the larger maps to exactly one voice of the smaller, the mapping is
 -- non-decreasing, and every smaller voice is used at least once. This is
--- the "lowest / middle / highest voices of the larger lead the smaller"
+-- the "lowest \/ middle \/ highest voices of the larger lead the smaller"
 -- intuition: a 5-note chord resolves into a triad through its outer and
 -- inner voices, and the doubled tones pay exactly their split distance.
 -- O(m·n) DP (≤ 49 cells at max cardinality 7). Symmetric in its result
--- (roles of from/to only decide which side gets padded). Equal-length
+-- (roles of from\/to only decide which side gets padded). Equal-length
 -- input is returned unchanged.
 alignVoices :: [Int] -> [Int] -> ([Int], [Int])
 alignVoices from to
@@ -269,7 +269,7 @@ totalCost chords = sum $ zipWith voiceLeadingCost chords (tail chords)
 -- This is essential for loop-aware optimization.
 --
 -- From the evaluation document:
---   "Adding wrap-around cost to the voice leading solver solves the 'drift'
+--   "Adding wrap-around cost to the voice leading solver solves the @drift@
 --    issue elegantly. It forces the algorithm to find a path that is not
 --    just locally optimal, but topologically closed."
 cyclicCost :: [[Int]] -> Int
@@ -295,14 +295,14 @@ pitchPlacements pc =
 -- count is the per-PC placement product (2^a·3^b: typically 12 for a
 -- triad, 36 for a tetrad, 72 for a 5-PC set), NOT 3^N. The key-dependent
 -- window asymmetry is a known calibration; widening it changes every
--- solved voicing globally and is deferred behind a before/after
+-- solved voicing globally and is deferred behind a before\/after
 -- listening protocol.
 -- Results are sorted low-to-high and deduplicated.
 --
 -- Historical note: this was hard-coded to 3 notes, with non-triads falling
 -- back to the single candidate @[sort pcs]@ pinned in octave [0,11] — which
 -- collapsed bars 2..n of any multi-bar 4+-note progression ~2 octaves below
--- bar 1 under 'flow'/'grid' (bar 1 goes through 'initialCompact', the rest
+-- bar 1 under 'Harmonic.Interface.Tidal.Arranger.flow'/'Harmonic.Interface.Tidal.Arranger.grid' (bar 1 goes through 'initialCompact', the rest
 -- through here, then 'normalizeByFirstRoot' applies one uniform shift).
 allVoicings :: [Int] -> [[Int]]
 allVoicings pcs

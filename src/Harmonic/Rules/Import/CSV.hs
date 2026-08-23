@@ -8,7 +8,16 @@
 -- Parses Yale Classical Archives Corpus data from CSV format into
 -- typed Haskell records for downstream transformation and graph storage.
 
-module Harmonic.Rules.Import.CSV where
+module Harmonic.Rules.Import.CSV (
+    -- * Corpus rows
+    YCACLRow(..),
+
+    -- * Nested corpus map
+    ComposerId, PieceId, YCACLData,
+
+    -- * Loading
+    loadYCACLData,
+) where
 
 import           Harmonic.Rules.Import.Types
 import qualified Data.Csv as Csv
@@ -21,13 +30,16 @@ import qualified Data.Map.Strict as Map
 import           Data.List (foldl', sortOn)
 import           Text.Read (readMaybe)
 
--- YCACL artifact rows exported via scripts/export_ycacl.R
+-- | One row of the YCACL artifact exported by @scripts\/export_ycacl.R@.
+--
+-- The CSV carries pitches as a space-separated string in a single column; the
+-- 'Csv.FromNamedRecord' instance splits and parses that into 'yrPitches'.
 data YCACLRow = YCACLRow
-  { yrComposer    :: !T.Text
-  , yrPiece       :: !T.Text
-  , yrOrder       :: !Int
-  , yrPitches     :: ![Int]
-  , yrFundamental :: !Int
+  { yrComposer    :: !T.Text   -- ^ composer name as it appears in the corpus
+  , yrPiece       :: !T.Text   -- ^ piece identifier, unique within a composer
+  , yrOrder       :: !Int      -- ^ position of this slice within the piece
+  , yrPitches     :: ![Int]    -- ^ MIDI pitches sounding at this slice
+  , yrFundamental :: !Int      -- ^ fundamental detected for the slice
   } deriving (Show, Eq)
 
 instance Csv.FromNamedRecord YCACLRow where
@@ -48,8 +60,15 @@ instance Csv.FromNamedRecord YCACLRow where
           Just n  -> pure n
           Nothing -> mzero
 
+-- | Composer name, used as the outer key of 'YCACLData'. Case is preserved
+-- here; composer /matching/ is case-insensitive and happens downstream.
 type ComposerId = T.Text
+
+-- | Piece identifier, unique within one composer.
 type PieceId = T.Text
+
+-- | The whole corpus, grouped composer then piece, with each piece reduced to
+-- its ordered list of slices.
 type YCACLData = Map.Map ComposerId (Map.Map PieceId [ChordSlice])
 
 -- |Load YCACL artifact (composer, piece, order, pitches, fundamental) into nested maps.

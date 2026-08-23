@@ -10,20 +10,46 @@
 -- are internal; the composer sees only voice assignment and kinetics range.
 
 module Harmonic.Interface.Tidal.Orchestra (
-    -- Voice lines
+    -- * Voice lines
     Voice(..), VoiceLines(..), voiceLines, vlGet, voiceOct,
-    -- Pitched instruments
+
+    -- * Pitched instruments
+    -- | Every pitched instrument shares the 'Instrument' shape and carries its
+    -- own MIDI range and channel. Ranges are given in Tidal note space
+    -- (MIDI &#8722; 60); the physical range follows in parentheses.
+    --
+    -- +------------+---------+-----------------+
+    -- | Instrument | Channel | Range           |
+    -- +============+=========+=================+
+    -- | flute      | 1       | C3-D6           |
+    -- | oboe       | 2       | Bb3-A6          |
+    -- | clarinet   | 3       | D2-Bb6          |
+    -- | bassoon    | 4       | Bb1-Eb5         |
+    -- | horn       | 5       | B1-F5           |
+    -- | trombone   | 6       | Bb1-F5          |
+    -- | basstrom   | 6       | A0-G3           |
+    -- | harp       | 7       | B1-F#7          |
+    -- | timpani    | 8       | D2-C4           |
+    -- | violin1\/2 | 16      | G3-A7           |
+    -- | viola      | 16      | C3-E6           |
+    -- | cello      | 16      | C2-C6           |
+    -- | contrabass | 16      | C1-C4           |
+    -- +------------+---------+-----------------+
     flute, oboe, clarinet, bassoon,
     horn, trombone, basstrom,
     harp, timpani,
     violin1, violin2, viola, cello, contrabass,
-    -- Unpitched percussion
+
+    -- * Unpitched percussion
     bassdrum, tamtam,
-    -- Articulations
+
+    -- * String articulations
     pizz, spicc, marc, legg, arco,
-    -- Divisi
+
+    -- * Divisi
     Instrument, divisi, divisi2, divisi3,
-    -- Internal (for testing only)
+
+    -- * Internal (for testing only)
     clip, voiceBase, voiceTier,
 ) where
 
@@ -40,11 +66,14 @@ import Harmonic.Rules.Types.ProgressionContext (Layer(..))
 -- Voice type (SATB + octave variants)
 -------------------------------------------------------------------------------
 
+-- | An SATB voice, at one of five octave transpositions and one of three
+-- divisi tiers.
+--
 -- Divisi tiers: the base 20 voices (tier 0), then the same 20 primed (tier 1,
--- read the ' fields), then double-primed (tier 2, the '' fields). Declared in
--- three identical-order blocks of 20 so 'voiceBase'/'voiceTier' derive by
--- enum arithmetic (mod/div 20). Octave rides the constructor, so e.g. Bass8vb'
--- reads the bass' field at octave −1.
+-- read the @'@ fields), then double-primed (tier 2, the @''@ fields). Declared
+-- in three identical-order blocks of 20 so 'voiceBase' \/ 'voiceTier' derive by
+-- enum arithmetic (@mod@ \/ @div@ 20). Octave rides the constructor, so e.g.
+-- @Bass8vb'@ reads the @bass'@ field at octave &#8722;1.
 data Voice
   -- tier 0 (base)
   = Soprano | Alto | Tenor | Bass                                      -- loco (normal register)
@@ -70,27 +99,33 @@ data Voice
 -- VoiceLines
 -------------------------------------------------------------------------------
 
--- Each SATB voice has three divisi tiers: base, ' , '' . All are ordinary
--- scale-degree patterns (same syntax/semantics); the primed fields only exist
--- to hold extra divisi desks. Defaults stack one/two degrees above the base so
--- an undeclared @divisi 3@ voices a chord; declared primes are whatever the
--- composer writes.
+-- | The scale-degree pattern assigned to each voice.
+--
+-- Each SATB voice has three divisi tiers: base, @'@, @''@. All are ordinary
+-- scale-degree patterns (same syntax and semantics); the primed fields only
+-- exist to hold extra divisi desks. Defaults stack one\/two degrees above the
+-- base so an undeclared @divisi 3@ voices a chord; declared primes are whatever
+-- the composer writes.
 data VoiceLines = VoiceLines
-  { _vl      :: Pattern Int     -- structural placeholder (always silence)
-  , soprano  :: Pattern Int     -- Soprano
-  , alto     :: Pattern Int     -- Alto
-  , tenor    :: Pattern Int     -- Tenor
-  , bass     :: Pattern Int     -- Bass
-  , soprano' :: Pattern Int     -- Soprano  divisi desk 2
-  , alto'    :: Pattern Int     -- Alto     divisi desk 2
-  , tenor'   :: Pattern Int     -- Tenor    divisi desk 2
-  , bass'    :: Pattern Int     -- Bass     divisi desk 2
-  , soprano'':: Pattern Int     -- Soprano  divisi desk 3
-  , alto''   :: Pattern Int     -- Alto     divisi desk 3
-  , tenor''  :: Pattern Int     -- Tenor    divisi desk 3
-  , bass''   :: Pattern Int     -- Bass     divisi desk 3
+  { _vl      :: Pattern Int     -- ^ structural placeholder (always silence)
+  , soprano  :: Pattern Int     -- ^ Soprano
+  , alto     :: Pattern Int     -- ^ Alto
+  , tenor    :: Pattern Int     -- ^ Tenor
+  , bass     :: Pattern Int     -- ^ Bass
+  , soprano' :: Pattern Int     -- ^ Soprano, divisi desk 2
+  , alto'    :: Pattern Int     -- ^ Alto, divisi desk 2
+  , tenor'   :: Pattern Int     -- ^ Tenor, divisi desk 2
+  , bass'    :: Pattern Int     -- ^ Bass, divisi desk 2
+  , soprano'':: Pattern Int     -- ^ Soprano, divisi desk 3
+  , alto''   :: Pattern Int     -- ^ Alto, divisi desk 3
+  , tenor''  :: Pattern Int     -- ^ Tenor, divisi desk 3
+  , bass''   :: Pattern Int     -- ^ Bass, divisi desk 3
   }
 
+-- | Default voice lines: root in the bass, root 8va in the soprano, inner
+-- voices on the 2nd and 3rd degrees. Override the fields you want:
+--
+-- @vl = voiceLines { soprano = \"3 4 3 2\", bass = \"0\" }@
 voiceLines :: VoiceLines
 voiceLines = VoiceLines
   { _vl      = "~"
@@ -109,19 +144,19 @@ voiceLines = VoiceLines
   }
 
 -------------------------------------------------------------------------------
--- vlGet / voiceOct
+-- vlGet \/ voiceOct
 -------------------------------------------------------------------------------
 
--- Strip the divisi prime → the tier-0 (base) voice. Relies on the three
--- identical-order Voice blocks of 20.
+-- | Strip the divisi prime, giving the tier-0 (base) voice. Relies on the
+-- three identical-order 'Voice' blocks of 20.
 voiceBase :: Voice -> Voice
 voiceBase = toEnum . (`mod` 20) . fromEnum
 
--- Divisi tier of a voice: 0 (base), 1 ('), 2 ('').
+-- | Divisi tier of a voice: 0 (base), 1 (@'@), 2 (@''@).
 voiceTier :: Voice -> Int
 voiceTier = (`div` 20) . fromEnum
 
--- SATB letter of a voice, ignoring octave and divisi tier.
+-- | SATB letter of a voice, ignoring octave and divisi tier.
 data VLetter = LtrS | LtrA | LtrT | LtrB
 
 voiceLetter :: Voice -> VLetter
@@ -131,6 +166,8 @@ voiceLetter v = case voiceBase v of
   Tenor -> LtrT; Tenor8va -> LtrT; Tenor15va -> LtrT; Tenor8vb -> LtrT; Tenor15vb -> LtrT
   _ -> LtrB   -- Bass* (voiceBase always yields a tier-0 constructor)
 
+-- | Read the scale-degree pattern a given 'Voice' should play, resolving both
+-- its SATB letter and its divisi tier.
 vlGet :: Voice -> VoiceLines -> Pattern Int
 vlGet v = case (voiceLetter v, voiceTier v) of
   (LtrS, 0) -> soprano;  (LtrS, 1) -> soprano';  (LtrS, _) -> soprano''
@@ -138,6 +175,8 @@ vlGet v = case (voiceLetter v, voiceTier v) of
   (LtrT, 0) -> tenor;    (LtrT, 1) -> tenor';    (LtrT, _) -> tenor''
   (LtrB, 0) -> bass;     (LtrB, 1) -> bass';     (LtrB, _) -> bass''
 
+-- | Octave transposition carried by a 'Voice' constructor: @0@ loco, @1@ for
+-- @8va@, @2@ for @15va@, @-1@ for @8vb@, @-2@ for @15vb@.
 voiceOct :: Voice -> Int
 voiceOct v = case voiceBase v of
   Soprano -> 0; Alto -> 0; Tenor -> 0; Bass -> 0
@@ -150,6 +189,8 @@ voiceOct v = case voiceBase v of
 -- clip (MIDI range enforcement — internal)
 -------------------------------------------------------------------------------
 
+-- | Drop any event whose note falls outside a MIDI range. Applied outermost by
+-- 'Instrument', so it filters /after/ the octave shift.
 clip :: (Int, Int) -> ControlPattern -> ControlPattern
 clip (lo, hi) = filterValues (\vm ->
     case Map.lookup "note" vm of
@@ -161,44 +202,45 @@ clip (lo, hi) = filterValues (\vm ->
 -- instrument (internal helper)
 -------------------------------------------------------------------------------
 
--- Pipeline: arrange → # ch → |+ oct → clip (outermost, filters AFTER octave shift)
+-- Pipeline: arrange -> # ch -> |+ oct -> clip (outermost, filters AFTER octave shift)
 instrument :: (Int, Int) -> Int -> Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
 instrument range channel lyr ki k vl vf v =
     clip range $ arrange ki k (-9,9) lyr vf (overlapF 0) [vlGet v vl] # ch channel |+ oct (voiceOct v)
 
 -------------------------------------------------------------------------------
 -- Pitched instruments (partial application of instrument)
+-------------------------------------------------------------------------------
+
+-- | Winds, channels 1&#8211;4.
 --
 -- Every pitched instrument takes a prepended 'Layer' argument — 'T' to voice
 -- the triad layer (default harmonic behaviour), 'S' for the strata layer,
--- 'M' for the diatonic-mode layer. Live-coding:
+-- 'M' for the diatonic-mode layer:
 --
 -- @d1 $ flute T (0,1) k voiceLines flow Soprano [\"0 1 2 3\"]@
--------------------------------------------------------------------------------
-
--- Winds (channels 1–4)
--- Ranges in Tidal note space (MIDI − 60); physical ranges noted in comments
 flute, oboe, clarinet, bassoon :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
 flute      = instrument (-12, 26) 1   -- C3–D6  (MIDI 48–86)
 oboe       = instrument ( -2, 33) 2   -- Bb3–A6 (MIDI 58–93)
 clarinet   = instrument (-22, 34) 3   -- D2–Bb6 (MIDI 38–92)
 bassoon    = instrument (-28, 15) 4   -- Bb1–Eb5 (MIDI 32–75)
 
--- Brass (channels 5–6)
+-- | Brass, channels 5&#8211;6. @basstrom@ shares channel 6 with @trombone@ at a
+-- lower range.
 horn, trombone, basstrom :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
 horn       = instrument (-29, 17) 5   -- B1–F5  (MIDI 31–77)
 trombone   = instrument (-28, 17) 6   -- Bb1–F5 (MIDI 32–77)
 basstrom   = instrument (-39, -5) 6   -- A0–G3  (MIDI 21–55)
 
--- Harp (channel 7)
+-- | Harp, channel 7. The widest range in the orchestra.
 harp :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
 harp       = instrument (-29, 42) 7   -- B1–F#7 (MIDI 31–102)
 
--- Pitched percussion (channel 8)
+-- | Timpani, channel 8. Pitched percussion; the narrowest range.
 timpani :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
 timpani    = instrument (-22,  0) 8   -- D2–C4  (MIDI 38–60)
 
--- Strings (default arco = channel 16)
+-- | Strings. All default to channel 16 (@arco@); prefix an articulation
+-- ('pizz', 'spicc', 'marc', 'legg') to route elsewhere.
 violin1, violin2, viola, cello, contrabass :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
 violin1    = instrument ( -5, 45) 16  -- G3–A7  (MIDI 55–105)
 violin2    = instrument ( -5, 45) 16  -- G3–A7  (MIDI 55–105)
@@ -210,9 +252,14 @@ contrabass = instrument (-36,  0) 16  -- C1–C4  (MIDI 24–60)
 -- Unpitched percussion (struct-based)
 -------------------------------------------------------------------------------
 
+-- | Bass drum, channel 9. Struct-based: takes a boolean pattern rather than a
+-- voice, since it is unpitched.
+--
+-- @d1 $ bassdrum \"t ~ ~ t\"@
 bassdrum :: Pattern Bool -> ControlPattern
 bassdrum pat = struct pat $ midinote 36 # ch 9 # sustain 0.05
 
+-- | Tam-tam, channel 11. Struct-based, with a long sustain.
 tamtam :: Pattern Bool -> ControlPattern
 tamtam pat = struct pat $ midinote 31 # ch 11 # sustain 0.5
 
@@ -220,6 +267,11 @@ tamtam pat = struct pat $ midinote 31 # ch 11 # sustain 0.5
 -- String articulations (channel aliases)
 -------------------------------------------------------------------------------
 
+-- | String articulations, applied as a postfix channel override:
+--
+-- @, violin1 T (0,1) k vl flow Soprano # pizz@
+--
+-- @pizz@ 12, @spicc@ 13, @marc@ 14, @legg@ 15, @arco@ 16 (the string default).
 pizz, spicc, marc, legg, arco :: ControlPattern
 pizz  = ch 12    -- pizzicato
 spicc = ch 13    -- spiccato
@@ -241,7 +293,7 @@ type Instrument =
 --
 -- Used in the space form; drop @divisi n@ and the line is a normal single voice:
 --
--- @, divisi 3 violin1 T (0,1) k vl grid Soprano@   — 3 desks: Soprano/Soprano'/Soprano''
+-- @, divisi 3 violin1 T (0,1) k vl grid Soprano@   — 3 desks: Soprano\/Soprano'/Soprano''
 -- @, violin1 T (0,1) k vl grid Soprano@            — plain
 --
 -- Octave rides the 'Voice' argument, so @divisi 2 contrabass T (0.9,1) k vl grid Bass8vb@

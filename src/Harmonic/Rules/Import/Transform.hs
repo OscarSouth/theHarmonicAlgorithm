@@ -2,7 +2,7 @@
 -- Module      : Harmonic.Rules.Import.Transform
 -- Description : YCACL data transformation into cadence structures
 --
--- Transforms raw CSV corpus records into 'Cadence' structures suitable for
+-- Transforms raw CSV corpus records into 'Harmonic.Rules.Types.Harmony.Cadence' structures suitable for
 -- Neo4j graph storage: fundamental extraction, triad generation via
 -- "Harmonic.Rules.Constraints.Overtone", and dissonance scoring.
 --
@@ -33,7 +33,13 @@
 -- Either way, verify afterwards with an online @gen'@ run: graph counts
 -- (@[nG/...]@) must stay nonzero across steps that select inversion forms.
 
-module Harmonic.Rules.Import.Transform where
+module Harmonic.Rules.Import.Transform (
+    -- * Cadence construction
+    buildCadences, buildCadencesPerPiece,
+
+    -- * Helpers
+    fundamentals,
+) where
 
 import           Harmonic.Rules.Import.Types
 import qualified Data.Vector as V
@@ -45,7 +51,8 @@ import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Evaluation.Scoring.Dissonance as D
 import qualified Harmonic.Rules.Constraints.Overtone as O
 
--- Extract fundamental bass notes (lowest pitch class in each chord)
+-- | Extract the fundamental bass note of each chord: the lowest pitch present.
+-- Empty chords yield @0@.
 fundamentals :: V.Vector [Int] -> [Int]
 fundamentals v = V.toList $ V.map fundamental v
   where
@@ -55,7 +62,7 @@ fundamentals v = V.toList $ V.map fundamental v
 
 -- |Convert a sequence of chord slices into a cadence list that reflects every
 -- reasonable triad interpretation. Instead of picking a single "best" triad, we
--- duplicate the top three options (3/2/1 copies) and cross-multiply adjacent
+-- duplicate the top three options (3\/2\/1 copies) and cross-multiply adjacent
 -- slices so the Markov model can learn from alternate paths without fractional
 -- weights.
 buildCadences :: [ChordSlice] -> [H.Cadence]
@@ -103,5 +110,8 @@ buildCadences slices =
           (diss, _) = D.dissonanceLevel pcs
        in (diss, chord)
 
+-- | Build cadences piece by piece, then concatenate. Keeping pieces separate
+-- matters: it stops a transition being invented across the boundary between
+-- the last chord of one piece and the first of the next.
 buildCadencesPerPiece :: [[ChordSlice]] -> [H.Cadence]
 buildCadencesPerPiece pieces = concatMap buildCadences pieces

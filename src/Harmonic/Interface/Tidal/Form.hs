@@ -2,9 +2,37 @@
 -- Module      : Harmonic.Interface.Tidal.Form
 -- Description : Kinetics framework for form-driven range gating
 --
--- Encodes macro-level compositional arc as programmable structure.
--- Form is defined in wall-clock seconds at a single global tempo,
--- realized as TidalCycles patterns, and loops endlessly.
+-- Encodes macro-level compositional arc as programmable structure, realised
+-- as TidalCycles patterns, looping endlessly.
+--
+-- A form is a list of nodes. Each node fixes a point in time and the two
+-- signals that drive everything downstream: /kinetics/ (how active the music
+-- is) and /dynamics/ (how loud). Instruments gate themselves on kinetics, so
+-- the arc is written once and every line follows it.
+--
+-- Nodes come in two time bases — 'at' takes wall-clock seconds, 'rh' takes
+-- bars (rehearsal marks). Primed variants ('at'', 'rh'') snap rather than
+-- interpolate, for a hard cut into a new section:
+--
+-- @
+-- form =           -- time    k     d
+--   [ rh    0      0.0   0.0   s
+--   , rh   16      0.2   0.3   s    -- elements layer in
+--   , rh'  28      0.35  0.55  s    -- riser: sparse but loud, then snap
+--   , rh   32      1.0   1.0   s    -- drop
+--   ]
+-- @
+--
+-- The form is compiled into an 'IK' — the performance context every
+-- instrument reads — by pairing it with a tempo and a chord-selection
+-- pattern:
+--
+-- @k = iK tempo form (warp \"[1 2 3 4]\/4\")@
+--
+-- The simplest useful form is a single constant node, which holds one
+-- progression at full kinetics forever:
+--
+-- @form = [ at 0 1.0 1.0 s ]@
 
 module Harmonic.Interface.Tidal.Form
   ( -- * Types
@@ -40,7 +68,7 @@ import Sound.Tidal.Context
 -- Types
 -------------------------------------------------------------------------------
 
--- |A node's position in time — wall-clock 'Secs' or musical 'Bars' (4/4).
+-- |A node's position in time — wall-clock 'Secs' or musical 'Bars' (4\/4).
 -- Resolved to Tidal cycles at realization (see 'formK'). Mix freely in one form.
 data FormTime = Secs Double | Bars Double
   deriving (Show, Eq)
@@ -71,7 +99,7 @@ data Kinetics = Kinetics
                                                --   4-char-display helper read this to drive a
                                                --   wall-clock counter that wraps every kLoopSecs.
   , kCps      :: Double                        -- ^ Cycles per second at form construction
-                                               --   (= bpm/60). Used by the display broadcaster to
+                                               --   (= bpm\/60). Used by the display broadcaster to
                                                --   convert cycle time → seconds. Stays coherent
                                                --   with Tidal's actual cps because both are
                                                --   derived from the same @bpm@ on every launcher
@@ -87,7 +115,7 @@ type IK = (Kinetics, Pattern Int)
 -------------------------------------------------------------------------------
 
 -- |Form node builders. Time unit and transition are orthogonal:
--- @at@\/@at'@ take wall-clock seconds, @rh@\/@rh'@ take bars (rehearsal marks, 4/4);
+-- @at@\/@at'@ take wall-clock seconds, @rh@\/@rh'@ take bars (rehearsal marks, 4\/4);
 -- unprimed = smooth transition, primed = snap. @at@ is unchanged from before.
 --
 -- @at  0 0 0 s@   seconds, smooth   @rh  8 0.5 0.5 s@   bars, smooth
@@ -104,7 +132,7 @@ rh' b k d pc = FormNode (Bars b) k d pc Snap
 iK :: Double -> [FormNode] -> Pattern Int -> IK
 iK bpm nodes chordPat = (formK bpm nodes, chordPat)
 
--- |Live kinetics: build IK from reactive kinetics/dynamics signals.
+-- |Live kinetics: build IK from reactive kinetics\/dynamics signals.
 -- Bypasses form interpolation — use when the envelope is driven by live
 -- input (e.g. MIDI CC) rather than a static keyframed form.
 --
@@ -120,8 +148,8 @@ lK sig dyn pc chordPat = (Kinetics sig dyn (pure pc) 0 0, chordPat)
 -- Realization
 -------------------------------------------------------------------------------
 
--- |Beats per bar for 'Bars' resolution. 4/4, matching BootTidal's @bar@ helper
--- (1 bar = 4 cycles, since @cps = bpm/60@ makes a cycle one beat).
+-- |Beats per bar for 'Bars' resolution. 4\/4, matching BootTidal's @bar@ helper
+-- (1 bar = 4 cycles, since @cps = bpm\/60@ makes a cycle one beat).
 beatsPerBar :: Double
 beatsPerBar = 4
 
@@ -131,7 +159,7 @@ nodeCycles cps n = case fnTime n of
   Secs s -> s * cps
   Bars b -> b * beatsPerBar
 
--- |Node position in wall-clock seconds (for 'kLoopSecs' / the display).
+-- |Node position in wall-clock seconds (for 'kLoopSecs' \/ the display).
 nodeSecs :: Double -> FormNode -> Double
 nodeSecs cps n = case fnTime n of
   Secs s -> s
@@ -154,7 +182,7 @@ formK bpm nodes = Kinetics
   }
   where cps = bpm / 60
 
--- |Kinetics/dynamic signal: piecewise per segment, ramped when the segment's
+-- |Kinetics\/dynamic signal: piecewise per segment, ramped when the segment's
 -- start node is 'Smooth', held (stepped) when 'Snap'. Single node: constant.
 formSignal :: Double -> [FormNode] -> (FormNode -> Double) -> Pattern Double
 formSignal _   [node] accessor = pure (realToFrac $ accessor node)
@@ -199,16 +227,16 @@ slate :: (Double, Double) -> IK -> [Pattern a] -> Pattern a
 slate range k pats = ki range k $ stack pats
 
 -- |Kinetics-windowed dispatch: partition [0,1] into N equal windows of
--- width 1/N, where N = length pats, and play only the pattern whose
+-- width 1\/N, where N = length pats, and play only the pattern whose
 -- window contains the current kSignal. Windows are derived at call time;
 -- any N >= 1 works (N=1 collapses to "always play this pattern").
 --
 -- Boundaries belong to the lower window: window i covers
--- @(i/N, (i+1)/N]@, with window 0 also including 0. So at the boundary
+-- @(i\/N, (i+1)\/N]@, with window 0 also including 0. So at the boundary
 -- between window i and window i+1, the lower window plays.
 --
---   N=2 → [0, 1/2], (1/2, 1]
---   N=3 → [0, 1/3], (1/3, 2/3], (2/3, 1]
+--   N=2 → [0, 1\/2], (1\/2, 1]
+--   N=3 → [0, 1\/3], (1\/3, 2\/3], (2\/3, 1]
 --
 -- Empty list → silence. Outside [0,1] → silence (no window matches).
 kinPick :: IK -> [Pattern a] -> Pattern a
@@ -224,7 +252,7 @@ kinPick (kin, _) pats =
         in mask (fmap inWin (kSignal kin)) p
   in stack (zipWith window [0..] pats)
 
--- |Bridge helper: apply a function taking 'ProgressionContext' to a Kinetics context.
+-- |Bridge helper: apply a function taking 'Harmonic.Rules.Types.ProgressionContext.ProgressionContext' to a Kinetics context.
 -- Uses innerJoin to reactively switch when the form changes progressions.
 withForm :: IK -> (PC.ProgressionContext -> Pattern ValueMap) -> Pattern ValueMap
 withForm (kin, _) f = innerJoin $ fmap f (kProg kin)

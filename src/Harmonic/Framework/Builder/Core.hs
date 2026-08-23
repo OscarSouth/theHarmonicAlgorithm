@@ -94,7 +94,7 @@ buildChain config gen ent context pctx composerWeights start totalSteps = do
 
 -- |Resolve a 'BassDirectionSpec' into a concrete 'BassDirection' for a
 -- single generation step. Returns 'Nothing' when no spec is active, or
--- when the spec's optional '?' flag caused the coin flip to come up tails.
+-- when the spec's optional @?@ flag caused the coin flip to come up tails.
 --
 -- Rotation (@BDRotate@) cycles through the choices by @stepNum@ (1-based).
 -- Random pick (@BDRandomPick@) samples uniformly from the choices.
@@ -123,7 +123,7 @@ resolveBassDirection gen stepNum (Just spec) = do
 
 -- |Core body for a single chain-building step (plain IO, no Bolt dependency).
 --
--- Takes pre-fetched transitions and executes the full filtering/scoring/selection logic.
+-- Takes pre-fetched transitions and executes the full filtering\/scoring\/selection logic.
 -- Used by both the online Bolt wrapper ('stepChainCore') and offline path ('stepChainOffline').
 -- When transitions is empty (offline mode), generation relies entirely on consonanceFallback.
 stepChainBody :: GeneratorConfig
@@ -141,11 +141,11 @@ stepChainBody config gen mVerbosity ent _context pctx composerWeights ((current,
   -- Walk shadow (gen4): all stage-1 machinery runs against the current
   -- state's most-consonant rooted embedded triad, so drift comparisons stay
   -- triad-vs-triad and graph keys stay corpus-shaped. Identity for every
-  -- <=3-interval state, i.e. all plain gen/genP steps.
+  -- <=3-interval state, i.e. all plain gen\/genP steps.
   let walkCur = H.walkTriadState current
 
   -- Resolve bass direction for this step (may consume randomness for
-  -- optional '?' tokens and for BDRandomPick comma-list selectors)
+  -- optional @?@ tokens and for BDRandomPick comma-list selectors)
   mDir <- resolveBassDirection gen stepNum (pcBassDirectionSpec pctx)
   let prevBassPC = P.unPitchClass (P.pitchClass (H.stateCadenceRoot current))
       bassTarget = case mDir of
@@ -161,7 +161,7 @@ stepChainBody config gen mVerbosity ent _context pctx composerWeights ((current,
   let scored = scoreByConfidence composerWeights filtered
       -- Apply per-bar soft-boost (inverted sense: graph "higher is better",
       -- so dividing a score by a sub-unit boost raises it — matching the
-      -- fallback-side effect of lowering 'badness' via the same boost).
+      -- fallback-side effect of lowering @badness@ via the same boost).
       boost = pcSoftBoost pctx
       graphCandidates
         | boost == 1.0 = scored
@@ -324,7 +324,7 @@ stepChainBody config gen mVerbosity ent _context pctx composerWeights ((current,
 
 -- |Unified single step for chain building (online, requires Neo4j).
 --
--- Fetches graph transitions via Bolt then delegates all logic to 'stepChainBody'.
+-- Fetches graph transitions via Bolt then delegates all logic to @stepChainBody@.
 -- When verbosity is Nothing, skips diagnostic construction entirely.
 -- When verbosity is Just n, collects diagnostics at level n:
 --   Just 1 = standard diagnostics (rendered chord populated)
@@ -351,7 +351,7 @@ stepChainCore config gen mVerbosity ent context pctx composerWeights acc@((curre
 
 -- |Offline single step for chain building (no Neo4j required).
 --
--- Passes empty transitions to 'stepChainBody', so generation relies entirely
+-- Passes empty transitions to @stepChainBody@, so generation relies entirely
 -- on the consonanceFallback mechanism (~660 candidates shaped by context filters).
 stepChainOffline :: GeneratorConfig
                  -> GenIO
@@ -405,7 +405,7 @@ buildChainWithDiagV config gen verbosity ent context pctx composerWeights start 
   pure (reverse revChain, reverse revDiags)
 
 -------------------------------------------------------------------------------
--- Offline Chain Building (plain IO, no Bolt/Neo4j)
+-- Offline Chain Building (plain IO, no Bolt\/Neo4j)
 -------------------------------------------------------------------------------
 
 -- |Build cadence chain offline (no Neo4j required).
@@ -469,7 +469,7 @@ buildChainOfflineWithDiagV config gen verbosity ent context pctx start totalStep
 -------------------------------------------------------------------------------
 
 -- |Like 'buildChain' but accepts a per-bar 'ParsedContext' supplier.
--- Used by 'genP' to narrow '_hcOvertones' to the active strata's 5-PC
+-- Used by 'Harmonic.Framework.Builder.genP' to narrow '_hcOvertones' to the active strata's 5-PC
 -- chroma at each bar while still running the full R→E→T pipeline
 -- (graph candidates + fallback scoring + gamma selection).
 --
@@ -532,7 +532,7 @@ scoreByConfidence blend transitions = Q.applyComposerBlend blend transitions
 --
 -- This implements the legacy "constructive generation" pattern:
 --   1. Get effective overtone palette (tuning filtered by key)
---   2. Get allowed roots (via resolveRoots which handles "key"/"tones" options)
+--   2. Get allowed roots (via resolveRoots which handles "key"\/"tones" options)
 --   3. Generate all valid triads from roots × overtones (660 structures with wildcard)
 --   4. Compute actual movement from current state to each candidate
 --   5. Score with multiplicative formula: (rootMotionDiss × structureDiss × (gammaDraw+1))
@@ -594,7 +594,7 @@ consonanceFallbackWith gen currentState context =
 -- |Like 'consonanceFallbackWith' but uses pre-parsed context for efficiency.
 --
 -- Reads 'pcSoftBoost' from the context and applies it multiplicatively to
--- 'badness' inside 'computeFallbackScoreWith'. Values < 1.0 favour the
+-- @badness@ inside 'computeFallbackScoreWith'. Values < 1.0 favour the
 -- candidates (lower badness, higher score); = 1.0 is the no-op default.
 consonanceFallbackParsed :: GenIO -> H.CadenceState -> ParsedContext -> IO [(H.Cadence, Double, Double, Double, Double)]
 consonanceFallbackParsed gen currentState pctx =
@@ -639,8 +639,8 @@ triadToCadenceFrom currentRoot pitches =
 -- Formula: badness = rootMotionDiss × structureDiss × (gammaDraw + 1)
 --          score = 10000 - badness
 --
--- Chord dissonance range: 6 (major/minor triad) to ~50 (dense cluster)
--- Root motion range: 1 (P5/P4) to 6 (tritone)
+-- Chord dissonance range: 6 (major\/minor triad) to ~50 (dense cluster)
+-- Root motion range: 1 (P5\/P4) to 6 (tritone)
 -- Gamma draw range: mostly ~0-3, occasionally larger (fixed shape=1.01,
 -- near-exponential)
 --
@@ -669,10 +669,10 @@ computeFallbackScoreWith :: GenIO -> P.PitchClass -> H.Cadence -> [Int] -> IO (D
 computeFallbackScoreWith gen currentRoot cad triad =
   computeFallbackScoreWithBoost gen currentRoot cad triad 1.0
 
--- |Variant that applies a multiplicative soft-boost to 'badness'. Values
+-- |Variant that applies a multiplicative soft-boost to @badness@. Values
 -- below 1.0 favour the candidate (lower badness → higher score); 1.0 is
--- the no-op; values above 1.0 disfavour. Used by 'genP' to bias candidates
--- toward strata/tristrata continuity via 'pcSoftBoost'.
+-- the no-op; values above 1.0 disfavour. Used by 'Harmonic.Framework.Builder.genP' to bias candidates
+-- toward strata\/tristrata continuity via 'pcSoftBoost'.
 computeFallbackScoreWithBoost :: GenIO -> P.PitchClass -> H.Cadence -> [Int] -> Double -> IO (Double, Double, Double, Double)
 computeFallbackScoreWithBoost gen _currentRoot cad triad boost = do
   -- Chord vertical dissonance (raw Hindemith score)
@@ -865,7 +865,7 @@ applyRConstraints context currentState = filter (matchesContext context currentS
 -- Filter logic (matching legacy behavior):
 --   1. Compute effective overtones: key-filtered overtone palette
 --   2. All chord pitches must be in effective overtones
---   3. Root must be in resolved roots (handles "key"/"tones" options)
+--   3. Root must be in resolved roots (handles "key"\/"tones" options)
 matchesContext :: HarmonicContext -> H.CadenceState -> H.Cadence -> Bool
 matchesContext context currentState cadence =
   let (movement, chord) = H.deconstructCadence cadence
@@ -932,7 +932,7 @@ applyRConstraintsWithTarget bassTarget pctx currentState =
 matchesContextParsed :: ParsedContext -> H.CadenceState -> H.Cadence -> Bool
 matchesContextParsed = matchesContextWithTarget Nothing
 
--- |Core filter with optional bass target override from rise/fall direction.
+-- |Core filter with optional bass target override from rise\/fall direction.
 -- When bassTarget is Just, the bass note must equal the target exactly.
 -- When Nothing, falls back to the standard set-membership check.
 matchesContextWithTarget :: Maybe Int -> ParsedContext -> H.CadenceState -> H.Cadence -> Bool
@@ -962,7 +962,7 @@ matchesContextWithTarget bassTarget pctx currentState cadence =
       -- When bass direction targets a specific note, exempt that pitch class
       -- from the overtone check — allows chromatic passing bass notes
       -- (e.g. D# in a G major context) while still constraining upper voices.
-      -- 'pcStrictContainment' (set by 'genP') disables the bass exemption so
+      -- 'pcStrictContainment' (set by 'Harmonic.Framework.Builder.genP') disables the bass exemption so
       -- the candidate's bass must also lie in the narrowed overtone set.
       pitchesToCheck
         | pcStrictContainment pctx = absolutePitches
@@ -971,7 +971,7 @@ matchesContextWithTarget bassTarget pctx currentState cadence =
             Nothing     -> absolutePitches
       overtonesMatch = all (`IntSet.member` pcEffectiveOvertones pctx) pitchesToCheck
 
-      -- Bass note check: exact target if rise/fall active, otherwise set membership
+      -- Bass note check: exact target if rise\/fall active, otherwise set membership
       bassMatch = case bassTarget of
         Just target -> bassInt == target
         Nothing     -> pcIsRootsWild pctx

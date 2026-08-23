@@ -6,22 +6,47 @@
 -- via 'oct', and time rotation operators 'pullBy'\/'pushBy' that wrap
 -- TidalCycles' early\/late operators.
 
-module Harmonic.Interface.Tidal.Utils where
+module Harmonic.Interface.Tidal.Utils (
+    -- * Transposition
+    oct,
+
+    -- * Time rotation
+    pullBy, pushBy,
+
+    -- * Humanisation
+    humanise,
+
+    -- * Onset repair
+    onset,
+
+    -- * Note-length constants
+    hemidemisemiquaver, demisemiquaver, semiquaver, quaver, crotchet, minim,
+) where
 
 import Sound.Tidal.Context
 
--- Octave transpose
+-- | Transpose by whole octaves. @oct 1@ is up an octave, @oct (-1)@ down.
+--
+-- Add onto a pattern:
+--
+-- @, cello T (0,1) k vl grid Bass |+ oct (-1)@
 oct :: Int -> Pattern ValueMap
 oct n = note (fromIntegral (12 * n))
 
--- Pull/push aliases (Time rotation operators match TidalCycles early/late)
+-- | Rotate a pattern earlier ('pullBy') or later ('pushBy') in time.
+-- Function forms of the TidalCycles @\<~@ and @~>@ operators, so they compose
+-- in a modifier chain rather than needing parentheses.
+--
+-- @, pushBy (1\/8) $ harp T (0,1) k vl flow Alto@
 pullBy :: Time -> Pattern a -> Pattern a
 pullBy t pat = (pure t) <~ pat
 
+-- | Rotate a pattern later in time. See 'pullBy'.
 pushBy :: Time -> Pattern a -> Pattern a
 pushBy t pat = (pure t) ~> pat
 
--- Humanize velocity
+-- | Random per-event velocity jitter, for a less mechanical feel. The argument
+-- scales the spread: @humanise 1@ varies @amp@ by up to &#177;0.09.
 humanise :: Double -> Pattern ValueMap
 humanise n = pF "amp" (range (pure (-0.09 * n)) (pure (0.09 * n)) rand)
 
@@ -42,7 +67,9 @@ onset pat = pat {query = q, pureValue = Nothing}
            else ev
 
 
--- Time divisions
+-- | Note-length constants, as fractions of a cycle: @1\/64@, @1\/32@, @1\/16@,
+-- @1\/8@, @1\/4@ and @1\/2@ respectively. Useful as arguments to 'pullBy' and
+-- 'pushBy', where a named length reads better than a bare fraction.
 hemidemisemiquaver, demisemiquaver, semiquaver, quaver, crotchet, minim :: Time
 hemidemisemiquaver = 1/64
 demisemiquaver = 1/32

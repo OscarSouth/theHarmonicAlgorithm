@@ -1,10 +1,10 @@
 -- |
 -- Module      : Harmonic.Framework.Builder.Strata
--- Description : Strata-first traversal helpers for the 'genP' paradigm
+-- Description : Strata-first traversal helpers for the 'Harmonic.Framework.Builder.genP' paradigm
 --
 -- Helpers that decide which (strata, tristrata) pair bar @i@ is drawn from,
 -- given the allowed tristrata list, the previous bar's assignment, and
--- optional per-bar constraints ('relStrata' / 'absStrata'). Pure functions;
+-- optional per-bar constraints ('Harmonic.Framework.Builder.relStrata' \/ 'Harmonic.Framework.Builder.absStrata'). Pure functions;
 -- no IO, no randomness.
 
 module Harmonic.Framework.Builder.Strata
@@ -78,7 +78,7 @@ initialPlacement allowed s =
                (t:_) -> (s, t)
                []    -> (s, Sc.tristrataIndex 1)  -- extreme edge case
 
--- |Bar-0 / no-prior starter rule: pick a fixed partner strata inside the
+-- |Bar-0 \/ no-prior starter rule: pick a fixed partner strata inside the
 -- given tristrata based on the current strata's position.
 --
 --   * pos 1 → ts2
@@ -103,7 +103,7 @@ positionalPartner t s = case positionOf t s of
 --      mid-run bars where the mode reflects the incoming transition).
 --   2. If no different prior bar exists (bar 0, or the entire history
 --      so far shares @s_curr@), look /forward/ for the first future
---      bar whose strata @≠ s_curr@ — the "first 'next' different" rule.
+--      bar whose strata @≠ s_curr@ — the "first @next@ different" rule.
 --      This lets bar 0's mode reflect the /outgoing/ transition to the
 --      next distinct strata, which is musically more informative than
 --      the positional fallback.
@@ -146,7 +146,7 @@ pickPartner barSeq i sCurr tCurr =
 --
 -- Returns 'ModeOk' for a normal classification; 'ModeInvalid' when the
 -- union doesn't have exactly 7 unique pitch classes (only reachable via
--- 'absStrata' overrides that violate tristrata adjacency). When the
+-- 'Harmonic.Framework.Builder.absStrata' overrides that violate tristrata adjacency). When the
 -- 7-PC union doesn't classify under any of the 28 mode patterns pinned
 -- to @triadRootPC@, returns @ModeOk (Mode Aeolian (P triadRootPC))@ as
 -- a benign fallback.
@@ -207,12 +207,12 @@ selectNext (sPrev, tPrev) pool =
 --      Among those, prefer ones sharing @tPrev@ (tristrata continuity)
 --      over those in other tristrata.
 --   2. Fall back to the self-loop only when the pool contains nothing
---      else (rare — happens under extreme @hcTristrata@ / @relStrata@
+--      else (rare — happens under extreme @hcTristrata@ \/ @relStrata@
 --      narrowing).
 --
 -- Within the preferred group, the sample index (mod group size) picks
 -- the concrete candidate. This gives run-to-run variety while
--- respecting 'genP's continuity intent (staying inside the current
+-- respecting 'Harmonic.Framework.Builder.genP's continuity intent (staying inside the current
 -- tristrata's harmonic region when possible).
 selectNextSeeded :: Int                               -- ^ rng sample (any Int)
                  -> (StrataLabel, Tristrata)          -- ^ prior bar

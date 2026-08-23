@@ -25,7 +25,7 @@
 -- The overtone series provides the "palette" of available tones, and
 -- the combinatorial generator produces all valid 3-note subsets rooted
 -- on a specified fundamental. The 'annotateOvertones' function provides
--- reverse-mapping from pitch classes back to string/overtone sources,
+-- reverse-mapping from pitch classes back to string\/overtone sources,
 -- using the thesis notation (@E3\/e1@, @G1+3@).
 
 module Harmonic.Rules.Constraints.Overtone
@@ -150,8 +150,8 @@ possibleTriadsFrom root overtones =
 rankedTriads :: (Int, [Int]) -> [[Int]]
 rankedTriads input = rankByConsonance $ possibleTriads input
 
--- |Get the top N most consonant triads from a fundamental/overtone pair.
--- Used by the multi-triad branching logic (3/2/1 weighting).
+-- |Get the top N most consonant triads from a fundamental\/overtone pair.
+-- Used by the multi-triad branching logic (3\/2\/1 weighting).
 --
 -- Returns at most n triads, or fewer if not enough valid triads exist.
 topTriads :: Int -> (Int, [Int]) -> [[Int]]
@@ -161,7 +161,7 @@ topTriads n input = take n $ rankedTriads input
 -- Utility: Count Valid Triads
 -------------------------------------------------------------------------------
 
--- |Count how many valid triads can be formed from a fundamental/overtone pair.
+-- |Count how many valid triads can be formed from a fundamental\/overtone pair.
 -- Useful for diagnostic logging.
 countPossibleTriads :: (Int, [Int]) -> Int
 countPossibleTriads = length . possibleTriads
@@ -176,7 +176,7 @@ countPossibleTriads = length . possibleTriads
 -- possibleTriads'' :: (Integral a, Num a) => (a, [a]) -> [[a]]
 -- @
 --
--- This version converts to/from Int internally to maintain type safety
+-- This version converts to\/from Int internally to maintain type safety
 -- while preserving the polymorphic signature for backward compatibility.
 possibleTriads'' :: (Integral a, Num a) => (a, [a]) -> [[a]]
 possibleTriads'' (r, ps) =
@@ -217,10 +217,10 @@ annotateOvertones tuning pitches = map annotate pitches
 -- |Format overtone annotation for a chord as a display string.
 --
 -- Uses thesis notation:
---   @"/"@ separates alternative sources from different strings
+--   @"\/"@ separates alternative sources from different strings
 --   @"+"@ connects multiple overtone numbers from the same string
 --
--- Example output: @"{B: E2/D4, G: G1, D: E5/D1}"@
+-- Example output: @"{B: E2\/D4, G: G1, D: E5\/D1}"@
 formatOvertoneAnnotation :: [(String, Int)] -> [Int] -> (Int -> String) -> String
 formatOvertoneAnnotation tuning pitches pcToName =
   let annotated = annotateOvertones tuning pitches
@@ -240,7 +240,7 @@ formatOvertoneAnnotation tuning pitches pcToName =
       in [ (name, [num | (n, num) <- sources, n == name]) | name <- names ]
 
 -- |Format overtone annotation in pipe-delimited style for inline display.
--- Produces: @"overtones=| Bb: E2 | D: G3/A4 |"@  (empty string if no annotations)
+-- Produces: @"overtones=| Bb: E2 | D: G3\/A4 |"@  (empty string if no annotations)
 formatOvertoneAnnotationPipe :: [(String, Int)] -> [Int] -> (Int -> String) -> String
 formatOvertoneAnnotationPipe tuning pitches pcToName =
   let annotated = annotateOvertones tuning pitches

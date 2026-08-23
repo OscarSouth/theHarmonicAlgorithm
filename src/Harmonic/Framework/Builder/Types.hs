@@ -83,7 +83,7 @@ import           Harmonic.Rules.Constraints.Filter (parseOvertones', parseKey, i
 -- Three-part filtering system:
 --   * overtones: Pitch candidate set (e.g., "E A D G" for bass tuning overtones)
 --   * key: Key filter applied to candidates (e.g., "C", "#", "bb" for key signature)
---   * roots: Root/bass candidate set (e.g., "E F# G" for valid root notes)
+--   * roots: Root\/bass candidate set (e.g., "E F# G" for valid root notes)
 --
 -- Filters use "*" as wildcard (match all). Format matches legacy Overtone.hs notation.
 data HarmonicContext = HarmonicContext
@@ -92,7 +92,7 @@ data HarmonicContext = HarmonicContext
   , _hcRoots            :: Text   -- ^ Filter by root notes ("*" = all)
   , _hcDrift            :: Drift  -- ^ Dissonance drift direction
   , _hcInversionSpacing :: Int    -- ^ Minimum non-inversions between inversions (default 0)
-  , _hcPedal            :: Text   -- ^ Required/preferred tones ("C G?", "" = no pedal)
+  , _hcPedal            :: Text   -- ^ Required\/preferred tones ("C G?", "" = no pedal)
   , _hcTristrata        :: Text   -- ^ Tristrata allow-list ("" = all 12; "5" = only #5; "1 2 5" = whitelist)
   } deriving (Eq)
 
@@ -123,7 +123,7 @@ instance Show HarmonicContext where
 -- Example:
 --   harmonicContext "*" "*" "*"       -- No filtering (all candidates)
 --   harmonicContext "E A D G" "C" "*" -- Bass tuning, C major key
---   harmonicContext "*" "#" "E G"     -- G major key, E/G roots only
+--   harmonicContext "*" "#" "E G"     -- G major key, E\/G roots only
 harmonicContext :: Text -> Text -> Text -> HarmonicContext
 harmonicContext o k r = HarmonicContext o k r Free 0 "" ""
 
@@ -156,8 +156,8 @@ hContext = HarmonicContext "*" "*" "*" Free 0 "" ""
 --
 -- __Advisory, not hard__: if the drift predicate would empty the pool at a
 -- step, the filter relaxes and that step proceeds unconstrained rather than
--- reaching an absorbing state ('applyDriftFilter' in Builder.Core). Note the
--- predicate is 'dissonanceScore' — an evaluation function acting as a
+-- reaching an absorbing state ('Harmonic.Framework.Builder.Core.applyDriftFilter' in Builder.Core). Note the
+-- predicate is 'Harmonic.Evaluation.Scoring.Dissonance.dissonanceScore' — an evaluation function acting as a
 -- filter, the documented E-inside-R leak (see ARCHITECTURE §2).
 data Drift = Dissonant | Consonant | Free deriving (Show, Eq)
 
@@ -173,7 +173,7 @@ hcOvertones o ctx = ctx { _hcOvertones = T.pack o }
 hcKey :: String -> HarmonicContext -> HarmonicContext
 hcKey k ctx = ctx { _hcKey = T.pack k }
 
--- |Set roots/bass filter. Default: @"*"@ (all roots).
+-- |Set roots\/bass filter. Default: @"*"@ (all roots).
 --
 -- @hcRoots "C E G" $ hContext@ — only C, E, G as bass notes
 hcRoots :: String -> HarmonicContext -> HarmonicContext
@@ -212,7 +212,7 @@ invSkip n ctx = ctx { _hcInversionSpacing = n }
 -- the candidate pool below a minimum viable size, and relaxed otherwise.
 --
 -- __Advisory at the limit__: the relaxation chain is preferred → required →
--- unfiltered ('applyPedalFilter' in Builder.Core), so even /required/ tones
+-- unfiltered (@applyPedalFilter@ in Builder.Core), so even /required/ tones
 -- are dropped as a last resort at a step where enforcing them would leave no
 -- candidates — generation never reaches an absorbing state through a pedal
 -- constraint.
@@ -223,7 +223,7 @@ invSkip n ctx = ctx { _hcInversionSpacing = n }
 hcPedal :: String -> HarmonicContext -> HarmonicContext
 hcPedal p ctx = ctx { _hcPedal = T.pack p }
 
--- |Restrict the active tristrata pool for 'genP'.
+-- |Restrict the active tristrata pool for 'Harmonic.Framework.Builder.genP'.
 --
 -- @""@ (default) — all 12 tristrata allowed.
 -- @"5"@          — lock to a single tristrata (here #5, IV-VI-X).
@@ -261,24 +261,24 @@ defaultConfig = GeneratorConfig { gcQuad = False }
 -- Computed once per generation run, avoiding repeated text parsing.
 data ParsedContext = ParsedContext
   { pcEffectiveOvertones :: !IntSet.IntSet  -- ^ Key-filtered overtone pitch classes
-  , pcAllowedBassNotes   :: !IntSet.IntSet  -- ^ Resolved root/bass pitch classes
+  , pcAllowedBassNotes   :: !IntSet.IntSet  -- ^ Resolved root\/bass pitch classes
   , pcIsRootsWild        :: !Bool           -- ^ Whether roots filter is wildcard
   , pcIsKeyWild          :: !Bool           -- ^ Whether key filter is wildcard
   , pcIsOvertonesWild    :: !Bool           -- ^ Whether overtones filter is wildcard
   , pcRawOvertones       :: ![Int]          -- ^ Raw overtone list (for fallback triad generation)
-  , pcBassDirectionSpec  :: !(Maybe BassDirectionSpec)  -- ^ Rise/fall bass direction spec (resolved per step)
+  , pcBassDirectionSpec  :: !(Maybe BassDirectionSpec)  -- ^ Rise\/fall bass direction spec (resolved per step)
   , pcDrift              :: !Drift                  -- ^ Dissonance drift direction
   , pcInversionSpacing   :: !Int                    -- ^ Minimum non-inversions between inversions
   , pcPedalRequired      :: !IntSet.IntSet  -- ^ Pitch classes that must be present in every chord
   , pcPedalPreferred     :: !IntSet.IntSet  -- ^ Preferred pitch classes (relaxed if pool too small)
-  , pcAllowedTristrata   :: ![Sc.Tristrata] -- ^ Tristrata allow-list ('genP' only; default = all 12)
-  , pcSoftBoost          :: !Double         -- ^ Multiplier applied to 'badness' at candidate-scoring time. Default 1.0 (no effect). 'genP' sets this per bar based on (s', t') continuity against the prior bar.
-  , pcStrictContainment  :: !Bool           -- ^ When 'True', every absolute PC of a candidate cadence (including the bass) must be a member of 'pcEffectiveOvertones'. Default 'False' preserves the legacy bass-exemption behaviour for 'gen'. 'runStrataGen' sets 'True' per bar to enforce single-strata containment.
-  , pcKeySpelling        :: !(Maybe H.EnharmonicSpelling) -- ^ Enharmonic side implied by the declared key signature ('Nothing' for wildcard / 0-accidental / C). When present it overrides per-bar spelling inference — a five-flat context never prints F#.
+  , pcAllowedTristrata   :: ![Sc.Tristrata] -- ^ Tristrata allow-list ('Harmonic.Framework.Builder.genP' only; default = all 12)
+  , pcSoftBoost          :: !Double         -- ^ Multiplier applied to @badness@ at candidate-scoring time. Default 1.0 (no effect). 'Harmonic.Framework.Builder.genP' sets this per bar based on (s', t') continuity against the prior bar.
+  , pcStrictContainment  :: !Bool           -- ^ When 'True', every absolute PC of a candidate cadence (including the bass) must be a member of 'pcEffectiveOvertones'. Default 'False' preserves the legacy bass-exemption behaviour for 'Harmonic.Framework.Builder.gen'. @runStrataGen@ sets 'True' per bar to enforce single-strata containment.
+  , pcKeySpelling        :: !(Maybe H.EnharmonicSpelling) -- ^ Enharmonic side implied by the declared key signature ('Nothing' for wildcard \/ 0-accidental \/ C). When present it overrides per-bar spelling inference — a five-flat context never prints F#.
   }
 
 -- |Parse pedal tone string into required and preferred IntSets.
--- Tokens ending in '?' are preferred; all others are required.
+-- Tokens ending in @?@ are preferred; all others are required.
 -- Invalid note names are silently ignored.
 parsePedalTones :: Text -> (IntSet.IntSet, IntSet.IntSet)
 parsePedalTones input
@@ -376,7 +376,7 @@ data GenMode
   | FromProg Prog.Progression !Int !Int        -- ^ Regenerate range in existing triad layer
   | FromProgPC PC.ProgressionContext !Int !Int -- ^ Regenerate range in a strata-aware context (preserves all three layers + provenance)
   | GridMode                                    -- ^ Static repetition of cue chord
-  | StrataMode Sc.StrataLabel                  -- ^ 'genP' (strata-first, produces ProgressionContext)
+  | StrataMode Sc.StrataLabel                  -- ^ 'Harmonic.Framework.Builder.genP' (strata-first, produces ProgressionContext)
 
 -- |Configuration for the modifier-based generation API.
 --
@@ -393,7 +393,7 @@ data GenConfig = GenConfig
   , _gcTonal       :: HarmonicContext     -- ^ R constraints (default: hContext)
   , _gcVerbosity   :: Verbosity           -- ^ Output level (default: Silent)
   , _gcMode        :: GenMode             -- ^ Generation mode (default: Fresh)
-  , _gcLenOverride :: Maybe Int           -- ^ Set by relStrata / absStrata; shadows _gcLen unless len called later
+  , _gcLenOverride :: Maybe Int           -- ^ Set by relStrata \/ absStrata; shadows _gcLen unless len called later
   , _gcRelStrata   :: Maybe [Int]         -- ^ Per-bar position (1..3) in active tristrata
   , _gcAbsStrata   :: Maybe [Sc.StrataLabel] -- ^ Per-bar absolute strata label
   , _gcBoostSame   :: Double              -- ^ same-strata continuity multiplier (default 0.90)
@@ -402,7 +402,7 @@ data GenConfig = GenConfig
   , _gcQuad        :: Bool                -- ^ gen4 family: fuse a 4th R-valid tone into every bar (default False)
   , _gcMaxAttempts   :: Int               -- ^ Maximum generation attempts in rank-and-select (default 1: single-pass behaviour)
   , _gcViableTarget  :: Int               -- ^ Stop early once this many viable attempts have been collected (default 1)
-  , _gcViabilityFloor :: Double           -- ^ Minimum 'totalScore' for an attempt to count as viable (default 0.5). Setting 0 recovers structural-only viability.
+  , _gcViabilityFloor :: Double           -- ^ Minimum 'Harmonic.Evaluation.Scoring.Progression.totalScore' for an attempt to count as viable (default 0.5). Setting 0 recovers structural-only viability.
   }
 
 -------------------------------------------------------------------------------
@@ -467,21 +467,21 @@ data StepDiagnostic = StepDiagnostic
   -- Verbosity 2 fields (Nothing at verbosity 0 or 1)
   , sdTransformTrace  :: Maybe TransformTrace  -- ^ Full transform trace (verbosity 2)
   , sdAdvanceTrace    :: Maybe AdvanceTrace    -- ^ Full advance trace (verbosity 2)
-  -- 'genP' fields — populated post-step by 'runStrataGen' via 'Strata.hs'.
-  -- 'Nothing' for every non-StrataMode run (legacy 'gen' paths and
+  -- 'Harmonic.Framework.Builder.genP' fields — populated post-step by @runStrataGen@ via 'Strata.hs'.
+  -- 'Nothing' for every non-StrataMode run (legacy 'Harmonic.Framework.Builder.gen' paths and
   -- diagnostic callers that don't know about strata).
   , sdTristrataIdx    :: Maybe Int               -- ^ 1-based index into 'Sc.validTristrata'
   , sdTristrata       :: Maybe Sc.Tristrata      -- ^ Active tristrata for this bar
   , sdStrataLabel     :: Maybe Sc.StrataLabel    -- ^ Selected strata for this bar
-  , sdMode            :: Maybe Sc.Mode           -- ^ Pair-union mode (strata_prev ∪ strata_curr). 'Nothing' when the bar's 'sdModeResult' is 'ModeInvalid' (override-driven 6-PC overlap that doesn't classify as a 7-PC mode).
+  , sdMode            :: Maybe Sc.Mode           -- ^ Pair-union mode (strata_prev ∪ strata_curr). 'Nothing' when the bar's 'sdModeResult' is 'Harmonic.Rules.Types.Scale.ModeInvalid' (override-driven 6-PC overlap that doesn't classify as a 7-PC mode).
   , sdStrataChroma    :: Maybe [P.PitchClass]    -- ^ 5-PC strata chroma
-  , sdModeChroma      :: Maybe [P.PitchClass]    -- ^ Mode/overlap chroma — 7 PCs for 'ModeOk', 6 PCs for override-driven 'ModeInvalid' bars.
+  , sdModeChroma      :: Maybe [P.PitchClass]    -- ^ Mode\/overlap chroma — 7 PCs for 'Harmonic.Rules.Types.Scale.ModeOk', 6 PCs for override-driven 'Harmonic.Rules.Types.Scale.ModeInvalid' bars.
   , sdSoftBoost       :: Maybe Double            -- ^ Boost product applied this bar
   , sdHarmonicRootPC  :: Maybe Int               -- ^ Triad's harmonic root PC (post-detectInversion). 'sdPosteriorRootPC' is the cadence's stored root, which for inversions is the bass — for the strata pivot we want this field instead.
   , sdParentKey       :: Maybe (P.PitchClass, Sc.ScaleFamily) -- ^ Parent key (root, family) of 'sdMode'
-  , sdModeResult      :: Maybe Sc.ModeResult     -- ^ Raw mode classification result; 'ModeInvalid' surfaces overlap PCs to the renderer
+  , sdModeResult      :: Maybe Sc.ModeResult     -- ^ Raw mode classification result; 'Harmonic.Rules.Types.Scale.ModeInvalid' surfaces overlap PCs to the renderer
   , sdBarSpelling     :: Maybe H.EnharmonicSpelling -- ^ Single enharmonic spelling for the bar, derived via 'H.inferSpelling' on the mode chroma (triad-root-first). Reused across chord name, strata chroma, mode label, mode chroma, and parent-key tag so the block renders in one coherent accidental system.
-  , sdFusion          :: Maybe FusionDiag        -- ^ gen4 only: how the 4th tone was fused into this bar ('Nothing' for plain gen/genP steps and palette-exhausted fallback bars)
+  , sdFusion          :: Maybe FusionDiag        -- ^ gen4 only: how the 4th tone was fused into this bar ('Nothing' for plain gen\/genP steps and palette-exhausted fallback bars)
   } deriving (Show, Eq)
 
 -- |Diagnostic record for one gen4 fusion (the added-tone draw that turns
@@ -505,12 +505,12 @@ data GenerationDiagnostics = GenerationDiagnostics
   } deriving (Show)
 
 -- |Per-attempt diagnostic record for the multi-attempt rank-and-select
--- ('generateBest') loop. Captured once per attempt and surfaced at
--- 'Verbose' via 'printAttemptScoreboard'. At 'Silent' / 'Standard' the
+-- (@generateBest@) loop. Captured once per attempt and surfaced at
+-- 'Verbose' via 'Harmonic.Framework.Builder.Diagnostics.printAttemptScoreboard'. At 'Silent' \/ 'Standard' the
 -- list is discarded after the winner is picked.
 data AttemptDiagnostic = AttemptDiagnostic
   { adIndex  :: !Int                   -- ^ 1-based generation order
-  , adScore  :: !PS.ProgressionScore   -- ^ Per-axis breakdown (rm/vl/cf/mv)
+  , adScore  :: !PS.ProgressionScore   -- ^ Per-axis breakdown (rm\/vl\/cf\/mv)
   , adTotal  :: !Double                -- ^ Weighted total ('PS.totalScore')
   , adViable :: !Bool                  -- ^ Passed viability check ('psModeValidity >= 1 && tot >= floor')
   , adPicked :: !Bool                  -- ^ True iff the winner ('maximumByKey adTotal')

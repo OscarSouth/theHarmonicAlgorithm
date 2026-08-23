@@ -1,14 +1,14 @@
 -- |
 -- Module      : Harmonic.Rules.Types.ProgressionContext
--- Description : Three-layer progression value (triad / strata / mode) for the genP paradigm
+-- Description : Three-layer progression value (triad \/ strata \/ mode) for the genP paradigm
 --
 -- A 'ProgressionContext' bundles three bar-aligned 'Progression' layers —
 -- triads, pentatonic strata, and diatonic modes — together with optional
 -- per-bar provenance tracking which tristrata and strata each bar was drawn
--- from. The legacy 'gen' paradigm produces contexts where all three layers
+-- from. The legacy 'Harmonic.Framework.Builder.gen' paradigm produces contexts where all three layers
 -- duplicate the same triad progression and provenance is 'Nothing'; the new
--- 'genP' paradigm (introduced by the octatripentatonic framework) produces
--- contexts with distinct strata/mode layers and 'Just' provenance.
+-- 'Harmonic.Framework.Builder.genP' paradigm (introduced by the octatripentatonic framework) produces
+-- contexts with distinct strata\/mode layers and 'Just' provenance.
 
 module Harmonic.Rules.Types.ProgressionContext
   ( Layer(..)
@@ -65,7 +65,7 @@ pcLength :: ProgressionContext -> Int
 pcLength = progLength . triadLayer
 
 -- |Wrap a single 'Progression' as a 'ProgressionContext' by duplicating it
--- into all three layers with no provenance. Used by the legacy 'gen' paradigm
+-- into all three layers with no provenance. Used by the legacy 'Harmonic.Framework.Builder.gen' paradigm
 -- and by test fixtures migrating to the widened type.
 fromProgression :: Progression -> ProgressionContext
 fromProgression p = ProgressionContext
@@ -101,7 +101,7 @@ instance Monoid ProgressionContext where
   mempty = ProgressionContext mempty mempty mempty Nothing
 
 -- |Splice a range of bars within a 'ProgressionContext', replacing the
--- triad / strata / mode layers and the 'pcProvenance' sequence in lockstep.
+-- triad \/ strata \/ mode layers and the 'pcProvenance' sequence in lockstep.
 --
 -- Range is 1-indexed and wrap-aware (mirrors 'Prog.spliceProgression'):
 --
@@ -109,8 +109,8 @@ instance Monoid ProgressionContext where
 -- * Wrapping (@start > end@): replaces @start..N@ and @1..end@.
 --
 -- The triad layer's movement seam is fixed via 'Prog.spliceProgression';
--- strata / mode layers don't carry meaningful Movement state (their
--- 'Cadence' is built with @Movement = Unison@ — see 'mkChromaCS' in
+-- strata \/ mode layers don't carry meaningful Movement state (their
+-- 'Harmonic.Rules.Types.Harmony.Cadence' is built with @Movement = Unison@ — see @mkChromaCS@ in
 -- 'Harmonic.Framework.Builder') so they use a plain sequence splice.
 --
 -- Provenance follows the same geometry. When either side has

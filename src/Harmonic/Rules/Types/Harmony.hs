@@ -213,6 +213,9 @@ spellingToPreference :: EnharmonicSpelling -> EnharmonicPreference
 spellingToPreference FlatSpelling = FlatPref
 spellingToPreference SharpSpelling = SharpPref
 
+-- | Select the spelling function for a given 'EnharmonicSpelling' — 'sharp'
+-- or 'flat'. Used to render a pitch class as a note name consistently across a
+-- progression, so a single chord grid does not mix @F#@ and @Gb@.
 enharmonicFunc :: EnharmonicSpelling -> (PitchClass -> NoteName)
 enharmonicFunc SharpSpelling = sharp
 enharmonicFunc FlatSpelling  = flat
@@ -235,8 +238,8 @@ inferSpelling pcs =
        (tryTable layer1Table <|> tryTable layer2Table)
 
 -- Layer 1: 3-set rules (bass PC → [(set of required upper PCs, spelling)])
--- Covers triads (maj/min/sus4/dim/aug) in all inversions,
--- plus maj7/min7 omit-5 and omit-3 in all inversions.
+-- Covers triads (maj\/min\/sus4\/dim\/aug) in all inversions,
+-- plus maj7\/min7 omit-5 and omit-3 in all inversions.
 layer1Table :: IM.IntMap [(IS.IntSet, EnharmonicSpelling)]
 layer1Table = IM.fromListWith (++) $ concatMap expandRoot
   --             bass offsets from root   spelling
@@ -579,7 +582,7 @@ layer2Table = IM.fromListWith (++) $ concatMap expandRoot
     rootEntry bass upper s = (bass, upper, s)
     expandRoot (bass, upper, s) = [(bass, [(IS.fromList upper, s)])]
 
--- |Detect if a NoteName carries an explicit sharp/flat preference.
+-- |Detect if a NoteName carries an explicit sharp\/flat preference.
 -- Sharp variants (C', D', F', G', A') → Just SharpSpelling
 -- Flat variants (Db, Eb, Gb, Ab, Bb) → Just FlatSpelling
 -- Natural notes (C, D, E, F, G, A, B) → Nothing (use inference)
@@ -597,8 +600,8 @@ noteNameImpliesSpelling Bb = Just FlatSpelling
 noteNameImpliesSpelling _  = Nothing
 
 -- |Patterns that are enharmonically ambiguous mid-progression.
--- Only min7o3 (root + P5 + m7) at roots where major/minor triads differ in spelling.
--- Roots 1 (Db/C#), 2 (D), 7 (G), 8 (Ab/G#), 9 (A): major 3rd → one spelling, minor 3rd → different.
+-- Only min7o3 (root + P5 + m7) at roots where major\/minor triads differ in spelling.
+-- Roots 1 (Db\/C#), 2 (D), 7 (G), 8 (Ab\/G#), 9 (A): major 3rd → one spelling, minor 3rd → different.
 -- Roots 0, 3, 4, 5, 6, 10, 11: same spelling regardless of 3rd → NOT ambiguous.
 ambiguousPatterns :: IM.IntMap [IS.IntSet]
 ambiguousPatterns = IM.fromListWith (++)
@@ -627,7 +630,7 @@ isAmbiguousPattern pcs =
 -- Functionality (Chord Quality as String)
 -------------------------------------------------------------------------------
 
--- |Chord quality/functionality as a string (e.g., "maj", "min7", "dim")
+-- |Chord quality\/functionality as a string (e.g., "maj", "min7", "dim")
 -- Preserved as String for compatibility with legacy naming conventions
 type Functionality = String
 
@@ -653,7 +656,7 @@ data Movement
   | Desc PitchClass  -- ^ Descending by n semitones (1-5)
   | Unison           -- ^ Pedal (no movement)
   | Tritone          -- ^ Movement by 6 semitones
-  | Empty            -- ^ Placeholder for invalid/missing movement
+  | Empty            -- ^ Placeholder for invalid\/missing movement
   deriving (Ord, Eq, Generic)
 
 instance Show Movement where
@@ -681,7 +684,7 @@ instance Read Movement where
     | s == "desc 1"  = [(Desc (P 1), "")]
     | otherwise      = [(Empty, "")]
 
--- |Convert two pitch classes to a Movement (bass motion direction/distance)
+-- |Convert two pitch classes to a Movement (bass motion direction\/distance)
 -- Ported from legacy MusicData.hs toMovement
 -- 
 -- Movement direction is determined by the shorter path around the pitch class circle.
@@ -985,7 +988,7 @@ initCadenceState movement note quality =
 
 -- |Build a CadenceState from a root, movement, and root-relative intervals,
 -- preserving full cardinality. The non-truncating counterpart to
--- 'initCadenceState', which routes through 'flatTriad' / 'toCadence' and
+-- 'initCadenceState', which routes through 'flatTriad' \/ 'toCadence' and
 -- silently reduces >3 PCs to a triad. Intervals are root-relative
 -- (0 = the root; inserted if missing); stored in zero form (sorted,
 -- deduped mod 12). Functionality dispatches on cardinality: <=3 uses the
@@ -1012,7 +1015,7 @@ mkCadenceStatePCs root movement intervals =
 -- |Project a Cadence onto its most consonant ROOTED embedded triad.
 -- Identity for <=3 intervals (every corpus-generated cadence). For >3:
 -- enumerates the 3-subsets that keep the root ([0,a,b] over the nonzero
--- intervals), picks the least dissonant via the Layer-B 'mostConsonant'
+-- intervals), picks the least dissonant via the Layer-B @mostConsonant@
 -- replica, and renames with the triad namer. Root, movement, and (via
 -- 'walkTriadState') spelling are preserved, so the projected cadence's
 -- 'show' is always a corpus-shaped graph key. This is gen4's walk shadow:
@@ -1147,13 +1150,13 @@ constructCadence (movementStr, chordStr) =
 -- a live corpus dump (2026-08-19,
 -- @MATCH (c:Cadence) RETURN DISTINCT c.chord, c.show@). It reflects the
 -- LEGACY naming rules the database was ingested under — including the
--- forms where the modernised 'nameFuncTriad' deliberately diverges
+-- forms where the modernised @nameFuncTriad@ deliberately diverges
 -- (@[0,2,7]@ is stored @sus4_1stInv@, modern says @sus2@; @[0,5,10]@ is
 -- stored @sus4_2ndInv@, modern says @7sus4@) — so it cannot be derived
 -- from the current namers. If the corpus is ever re-ingested, regenerate
 -- this table from the same query.
 --
--- Non-triad input (fewer/more than 3 PCs) falls back to the current
+-- Non-triad input (fewer\/more than 3 PCs) falls back to the current
 -- namers — such sets are never corpus keys.
 corpusFunctionality :: [PitchClass] -> Functionality
 corpusFunctionality pcs =
@@ -1361,7 +1364,7 @@ detectInversion enharm xs
       _ -> (rootFromOffset 0, "")
 
 -- |Check if a cadence is an inversion (1st or 2nd) based on zero-form intervals.
--- Patterns match those in 'detectInversion'.
+-- Patterns match those in @detectInversion@.
 isInversion :: Cadence -> Bool
 isInversion cad = case cadenceIntervals cad of
   [P 0, P 3, P 8]  -> True  -- 1st inversion major

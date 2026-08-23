@@ -5,12 +5,51 @@ author:              "Oscar South"
 maintainer:          "oscarsouth@gmail.com"
 copyright:           "2018-2026 Oscar South"
 synopsis:            "Real-time harmonic progression generation for TidalCycles live performance"
-description:         >
-  theHarmonicAlgorithm is a live performance instrument for generating and
-  shaping harmonic progressions in real time, trained on over 80 composers
-  from the Yale Classical Archives Corpus. It integrates with TidalCycles
-  via a form and kinetics framework, five voicing strategies, and a full
-  virtual orchestra of 15 instruments.
+description:         |
+  A live performance instrument for generating and shaping harmonic
+  progressions in real time, trained on over 80 composers from the Yale
+  Classical Archives Corpus. It integrates with TidalCycles via a form and
+  kinetics framework, five voicing strategies, and a full virtual orchestra
+  of 15 instruments.
+
+  == Start here
+
+  * "Harmonic.Lib" — the single import for live coding. Re-exports everything
+    below; a performance script needs nothing else.
+
+  == Generating
+
+  * "Harmonic.Framework.Builder" — the generative engine. Modifier-based API
+    (@gen@, @genP@, @genFrom@), composer blending, and multi-attempt
+    rank-and-select.
+  * "Harmonic.Rules.Types.ProgressionContext" — the three-layer progression
+    value (triad, strata, mode) that the @genP@ paradigm produces.
+
+  == Playing
+
+  * "Harmonic.Interface.Tidal.Bridge" — @arrange@, the bridge from a
+    progression to a playable pattern.
+  * "Harmonic.Interface.Tidal.Arranger" — voicing strategies (@grid@, @flow@,
+    @lite@, @root@) and progression manipulation.
+  * "Harmonic.Interface.Tidal.Form" — the form and kinetics framework.
+  * "Harmonic.Interface.Tidal.Orchestra" — 15 orchestral instruments with
+    built-in range clipping and divisi.
+  * "Harmonic.Interface.Tidal.Groove" — sub-bass and kick patterns.
+  * "Harmonic.Traversal.WalkingBass" — walking-bass line generation.
+
+  == Music theory primitives
+
+  * "Harmonic.Rules.Types.Pitch" — pitch-class algebra as the Z12 cyclic group.
+  * "Harmonic.Rules.Types.Harmony" — chords, cadences and their concrete states.
+  * "Harmonic.Rules.Types.Scale" — pentatonic, modal and octatripentatonic
+    vocabulary.
+  * "Harmonic.Rules.Constraints.Filter" — pitch-class set filtering.
+
+  == Internals
+
+  Corpus ingestion ("Harmonic.Rules.Import.CSV" and friends) and scoring
+  ("Harmonic.Evaluation.Scoring.Dissonance", "Harmonic.Evaluation.Scoring.VoiceLeading")
+  are not needed to generate or play music.
 category:            "Music Composition"
 homepage:            "https://github.com/OscarSouth/theHarmonicAlgorithm"
 github:              "OscarSouth/theHarmonicAlgorithm"

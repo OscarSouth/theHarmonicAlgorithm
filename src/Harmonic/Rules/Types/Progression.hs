@@ -368,17 +368,17 @@ wideVoicing prog = map toWideVoicing (literalVoicing prog)
 -- |Show a chord using the given enharmonic function.
 -- Ported from legacy MusicData.hs showTriad
 -- Maps the chord to a human-readable string representation with
--- proper enharmonic spelling (e.g., "C maj" or "F# min/A")
+-- proper enharmonic spelling (e.g., "C maj" or "F# min\/A")
 showTriad :: (PitchClass -> NoteName) -> Chord -> String
 showTriad f (Chord noteName functionality _)
     -- Root position sus4
     | "sus4" `List.isInfixOf` functionality && not (any (`List.isInfixOf` functionality) ["_1stInv", "_2ndInv"]) =
       show (f $ pitchClass noteName) ++ " " ++ functionality
-    -- 1st inversion major: C maj/E (3rd in bass = root + 4 semitones)
+    -- 1st inversion major: C maj\/E (3rd in bass = root + 4 semitones)
     | all (`List.isInfixOf` functionality) ["_1stInv", "maj"] =
       show (f $ pitchClass noteName) ++ " " ++ takeWhile Char.isAlphaNum functionality
       ++ "/" ++ show (f (pitchClass noteName + P 4))
-    -- 1st inversion minor: A min/C (3rd in bass = root + 3 semitones)
+    -- 1st inversion minor: A min\/C (3rd in bass = root + 3 semitones)
     | all (`List.isInfixOf` functionality) ["_1stInv", "min"] =
       show (f $ pitchClass noteName) ++ " " ++ takeWhile Char.isAlphaNum functionality
       ++ "/" ++ show (f (pitchClass noteName + P 3))
@@ -386,7 +386,7 @@ showTriad f (Chord noteName functionality _)
     | all (`List.isInfixOf` functionality) ["_1stInv", "dim"] =
       show (f $ pitchClass noteName) ++ " " ++ takeWhile Char.isAlphaNum functionality ++
       "/" ++ show (f (pitchClass noteName + P 3))
-    -- 2nd inversion maj/min (5th in bass = root + 7 semitones)
+    -- 2nd inversion maj\/min (5th in bass = root + 7 semitones)
     | "_2ndInv" `List.isInfixOf` functionality && any (`List.isInfixOf` functionality) ["maj", "min"] =
       show (f $ pitchClass noteName) ++ " " ++
       takeWhile Char.isAlphaNum functionality ++ "/" ++ show (f (pitchClass noteName + P 7))
@@ -400,7 +400,7 @@ showTriad f (Chord noteName functionality _)
 -- |Cardinality-dispatching display for a 'CadenceState'. The display seam
 -- for every printed chord name (grid, scoreboard, traces, cue messages):
 --
---   * <= 3 intervals — the triad path ('fromCadenceState' / 'showTriad'),
+--   * <= 3 intervals — the triad path ('fromCadenceState' \/ 'showTriad'),
 --     byte-identical to the historical behaviour, including inversion
 --     detection and slash-chord rendering. All corpus-generated cadences
 --     have exactly 3 intervals, so this arm covers all `gen`/`genP` output.
@@ -409,11 +409,11 @@ showTriad f (Chord noteName functionality _)
 --     only when the stored name is empty (legacy chroma states). No
 --     inversion vocabulary exists for extended harmonies.
 --   * 7 intervals — mode classification pinned at the state's root
---     ('classifyModeAt'), falling back to the chord namer when the set
+--     ('Harmonic.Rules.Types.Scale.classifyModeAt'), falling back to the chord namer when the set
 --     doesn't classify.
 --
 -- Never reduces pitch content: replaces the old path that forced every
--- state through 'toTriad''s most-consonant reduction before naming.
+-- state through @toTriad'@s most-consonant reduction before naming.
 showHarmony :: (PitchClass -> NoteName) -> CadenceState -> String
 showHarmony f cs@(CadenceState cad root _)
   | n <= 3 = showTriad f (fromCadenceState cs)

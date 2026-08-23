@@ -2,9 +2,17 @@
 -- Module      : Harmonic.Interface.Tidal.OctatripentatonicT
 -- Description : Live-coding helpers for the octatripentatonic framework
 --
--- Pretty-printers for inspecting the strata / tristrata state of a 'genP'-
--- generated 'ProgressionContext' at the REPL during a live session. No
+-- Pretty-printers for inspecting the strata \/ tristrata state of a 'Harmonic.Framework.Builder.genP'-
+-- generated 'Harmonic.Rules.Types.ProgressionContext.ProgressionContext' at the REPL during a live session. No
 -- semantic behaviour — purely diagnostic output for humans.
+--
+-- @
+-- s \<- seek \"*\" $ len 8 $ entropy 0.3 $ genI
+-- genPReport s
+-- @
+--
+-- Use these at the REPL between takes to see which strata and tristrata the
+-- walk actually visited, rather than re-reading the generation trace.
 
 module Harmonic.Interface.Tidal.OctatripentatonicT
   ( renderTristrataReport
@@ -18,9 +26,9 @@ import qualified Harmonic.Rules.Types.Scale as Sc
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
 
 -- |Render a multi-line report of the per-bar provenance of a
--- 'ProgressionContext': for each bar, the tristrata index, its three strata,
+-- 'Harmonic.Rules.Types.ProgressionContext.ProgressionContext': for each bar, the tristrata index, its three strata,
 -- and the selected strata for that bar. Returns 'Nothing' when the context
--- has no provenance (e.g., a legacy 'gen' result).
+-- has no provenance (e.g., a legacy 'Harmonic.Framework.Builder.gen' result).
 renderTristrataReport :: PC.ProgressionContext -> Maybe String
 renderTristrataReport pc = do
   prov <- PC.pcProvenance pc
@@ -39,7 +47,7 @@ renderTristrataReport pc = do
     indexedTristratas = zip Sc.validTristrata [1 :: Int ..]
     pad n s = s ++ replicate (max 0 (n - length s)) ' '
 
--- |Live-coding helper: execute a 'genP'-style 'IO ProgressionContext' and
+-- |Live-coding helper: execute a 'Harmonic.Framework.Builder.genP'-style 'IO ProgressionContext' and
 -- print a pretty tristrata report alongside the standard 'Show' output.
 -- Useful at the REPL for sanity-checking a strata walk.
 genPReport :: IO PC.ProgressionContext -> IO ()

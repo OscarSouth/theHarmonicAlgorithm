@@ -7,6 +7,19 @@
 -- Provides 'subKick' (sub-bass with CC64 sustain pedal) and 'fund'
 -- (fundamental bass note extraction) for rhythm-section integration
 -- with harmonically-generated progressions.
+--
+-- 'subKick' tracks the harmony: it reads the fundamental of whichever bar the
+-- form is currently on, so the sub follows a modulation without being
+-- rewritten. In a launcher it is an ordinary block:
+--
+-- @
+-- subk f k d = p \"subk\" $ f
+--   $ subKick k \"1 ~ ~ 1\" |* vel d
+-- @
+--
+-- The note is held by a CC64 sustain pedal rather than by note length, so the
+-- sub rings between onsets instead of retriggering — see 'subKick' for why
+-- the sustain value and the pedal are paired.
 
 module Harmonic.Interface.Tidal.Groove
   ( fund
@@ -43,10 +56,10 @@ fund prog =
 --   truncated tail is a rest; onsets are not moved. Pair with @# legato 1@ on
 --   sustaining instruments to hear the length. Precondition: @n > 0@.
 --
---   Bar patterns are written @\"/4\"@ (1 cycle = 1 beat, 1 bar = 4 cycles), so
+--   Bar patterns are written @\"\/4\"@ (1 cycle = 1 beat, 1 bar = 4 cycles), so
 --   e.g. @noteoff 4@ caps each hit at a quarter note (1 cycle):
 --
---   > noteoff 4 "[[1 0 0 0] [0 0 0 0] [1 0 0 0] [1 0 0 0]]/4"  ==  "[1 0 1 1]/4"
+--   > noteoff 4 "[[1 0 0 0] [0 0 0 0] [1 0 0 0] [1 0 0 0]]\/4"  ==  "[1 0 1 1]\/4"
 noteoff :: Time -> Pattern Bool -> Pattern Bool
 noteoff n p = splitQueries $ p { query = f, steps = Nothing, pureValue = Nothing }
   where
@@ -76,7 +89,7 @@ normalizeToSubRange (pc:_) = 36 + (pc `mod` 12)
 --
 -- CC64 sustain mechanism with chord selection from 'IK'.
 -- Sub on\/off patterns and kick pattern are bar-relative:
--- @\"[1]/2\"@ = one onset every 2 bars, @\"1*4\"@ = 4 kicks per bar.
+-- @\"[1]\/2\"@ = one onset every 2 bars, @\"1*4\"@ = 4 kicks per bar.
 --
 -- Chord selection uses 'innerJoin' — we WANT new note-ons when the
 -- chord changes (unlike melodic instruments where sustain across
@@ -115,7 +128,7 @@ subKick dyn k voiceFunc (maxDur, subOnStr, subOffStr, kickStr) =
        subKickCoreP (lookupCache prog) subOnPat subOffPat kickPat chordPat dyn k maxDur
      ) progPat
 
--- |Internal: subKick logic with ki gating on sub/kick groups.
+-- |Internal: subKick logic with ki gating on sub\/kick groups.
 -- LEDs are no longer emitted from here; they are derived passively by the
 -- SC-side coordinator from this channel's outgoing MIDI traffic.
 subKickCore :: (P.Progression -> [[Int]])
@@ -161,7 +174,7 @@ subKickCore voiceFunc prog subOnPat subOffPat kickPat chordPat dyn k maxDur
     kickPattern = struct kickPat $ midinote 48 # sustain 0.01 # amp 1
 
     -- Sustain pedal: CC 64 = 127 continuous background
-    -- 1/128 offset avoids timestamp collision with note-on events
+    -- 1\/128 offset avoids timestamp collision with note-on events
     sustainOn = (1/128) ~> segment 16 (midiCC 64 127)
 
     -- Auto note-off: CC 64 = 0 shifted by maxDur after each note-on
@@ -172,9 +185,9 @@ subKickCore voiceFunc prog subOnPat subOffPat kickPat chordPat dyn k maxDur
     -- Manual note-off: CC 64 = 0 at user-specified boundaries
     manualOff = struct subOffPat $ midiCC 64 0
 
-    -- Kick LED: 1/64 offset puts the CC on its own SuperDirt dispatch tick
+    -- Kick LED: 1\/64 offset puts the CC on its own SuperDirt dispatch tick
     -- so it doesn't collide with the kick note under MIDI burst load.
-    -- Pulse extended to 1/8 cycle for reliable visual response.
+    -- Pulse extended to 1\/8 cycle for reliable visual response.
     kickLedOn  = (1/64) ~> (struct kickPat $ ledCC 32 1)
     kickLedOff = (1/64) ~> (struct ((pure (1/8)) ~> kickPat) $ ledCC 32 0)
 
@@ -201,7 +214,7 @@ subKickCore voiceFunc prog subOnPat subOffPat kickPat chordPat dyn k maxDur
     nChords     = length normPitches
 
 -- |Cached subKick: takes pre-computed (normPitches, nChords) and pre-parsed patterns.
--- All CC64/sustain/timing logic identical to subKickCore. LEDs are not emitted
+-- All CC64\/sustain\/timing logic identical to subKickCore. LEDs are not emitted
 -- here — the SC-side coordinator derives them from outgoing MIDI on ch 10.
 subKickCoreP :: ([Int], Int)
              -> Pattern Bool             -- ^ Pre-parsed sub on pattern
@@ -245,7 +258,7 @@ subKickCoreP (normPitches, nChords) subOnPat subOffPat kickPat chordPat dyn k ma
     kickPattern = struct kickPat $ midinote 48 # sustain 0.01 # amp 1
 
     -- Sustain pedal: CC 64 = 127 continuous background
-    -- 1/128 offset avoids timestamp collision with note-on events
+    -- 1\/128 offset avoids timestamp collision with note-on events
     sustainOn = (1/128) ~> segment 16 (midiCC 64 127)
 
     -- Auto note-off: CC 64 = 0 shifted by maxDur after each note-on
@@ -256,9 +269,9 @@ subKickCoreP (normPitches, nChords) subOnPat subOffPat kickPat chordPat dyn k ma
     -- Manual note-off: CC 64 = 0 at user-specified boundaries
     manualOff = struct subOffPat $ midiCC 64 0
 
-    -- Kick LED: 1/64 offset puts the CC on its own SuperDirt dispatch tick
+    -- Kick LED: 1\/64 offset puts the CC on its own SuperDirt dispatch tick
     -- so it doesn't collide with the kick note under MIDI burst load.
-    -- Pulse extended to 1/8 cycle for reliable visual response.
+    -- Pulse extended to 1\/8 cycle for reliable visual response.
     kickLedOn  = (1/64) ~> (struct kickPat $ ledCC 32 1)
     kickLedOff = (1/64) ~> (struct ((pure (1/8)) ~> kickPat) $ ledCC 32 0)
 

@@ -222,7 +222,7 @@ parseCadenceFromString name posteriorRootPC =
 -- Strata Diagnostics (genP paradigm)
 -------------------------------------------------------------------------------
 
--- |Per-bar rendering for 'genP'/'genP\''/'genP\'\''. Shows the triad
+-- |Per-bar rendering for 'Harmonic.Framework.Builder.genP'/'genP\''/'genP\'\''. Shows the triad
 -- (3 notes), the strata chroma (5 notes), the mode chroma (7 notes), the
 -- active tristrata, and — at verbosity 2 — the soft-boost applied.
 --
@@ -254,7 +254,7 @@ printStrataDiagnostics verbosity diag = do
 --     mode           <Root Quality>   (<Parent Family>)           {<n1> <n2> ...}
 -- @
 --
--- For 'ModeInvalid' (only via 'absStrata' overrides that violate
+-- For 'Harmonic.Rules.Types.Scale.ModeInvalid' (only via 'Harmonic.Framework.Builder.absStrata' overrides that violate
 -- tristrata adjacency), the mode line reads
 -- @mode           invalid overlap                                 {<overlap PCs>}@.
 renderStrataStep :: Int -> StepDiagnostic -> IO ()
@@ -280,7 +280,7 @@ renderStrataStep verbosity step = do
         | isStarter = "[starter]"
         | otherwise = "[" ++ sdSelectedFrom step ++ "] γ=" ++ show (sdGammaIndex step)
 
-  -- Header row: aligned on the same four columns as strata/mode.
+  -- Header row: aligned on the same four columns as strata\/mode.
   putStrLn $ indent
              ++ pad labelWidth (show (sdStepNumber step) ++ ":")
              ++ pad identWidth motion
@@ -356,9 +356,9 @@ showPCNamesCurly enharm pivot pcs =
   in "{" ++ unwords (map renderPC ordered) ++ "}"
 
 -- |Mode label in musician-readable form using a supplied enharmonic
--- function for the root + the legacy 'toMode' mode-quality strings:
+-- function for the root + the legacy @toMode@ mode-quality strings:
 -- @"C# Aeolian"@, @"A Mixo_b6"@, @"Db Lyd_Aug_#2"@. Passing
--- @P.sharp@ / @P.flat@ / @H.enharmonicFunc spelling@ selects the root's
+-- @P.sharp@ \/ @P.flat@ \/ @H.enharmonicFunc spelling@ selects the root's
 -- accidental.
 modeLabelWith :: (P.PitchClass -> P.NoteName) -> Sc.Mode -> String
 modeLabelWith f (Sc.Mode q (P.P r)) =
@@ -372,7 +372,7 @@ pad n s = s ++ replicate (max 0 (n - length s)) ' '
 -------------------------------------------------------------------------------
 
 -- |Render the multi-attempt rank-and-select scoreboard. Called from
--- 'Harmonic.Framework.Builder.generateBest' when @_gcVerbosity == Verbose@
+-- @generateBest@ when @_gcVerbosity == Verbose@
 -- and @_gcMaxAttempts > 1@. Silent and Standard verbosity print nothing
 -- (the caller suppresses the call).
 --

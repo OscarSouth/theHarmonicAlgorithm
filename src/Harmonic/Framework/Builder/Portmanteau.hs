@@ -5,7 +5,7 @@
 -- Description : Portmanteau name generation from composer blend strings
 --
 -- Generates blended composer display names by extracting weighted
--- portions from beginning/middle/end of each composer name based
+-- portions from beginning\/middle\/end of each composer name based
 -- on their position and weight in the blend string.
 
 module Harmonic.Framework.Builder.Portmanteau
@@ -56,7 +56,7 @@ parseComposersWithOrder input
         total = sum (map snd pairs)
 
 -- | Generate portmanteau from composer string (preserving input order)
--- Takes weighted portions from beginning/middle/end based on POSITION
+-- Takes weighted portions from beginning\/middle\/end based on POSITION
 -- Returns Nothing for "*", empty input, or "none" (offline mode)
 makePortmanteau :: Text -> Maybe Text
 makePortmanteau input
@@ -80,17 +80,23 @@ extractByPosition idx total name weight
   | idx == total - 1   = takeFromEnd name weight        -- Last
   | otherwise          = takeFromMiddle name weight     -- Middle
 
+-- | Take a leading fragment of a name, sized by the composer's blend weight.
+-- Used for the first name in a blend. Always yields at least one character.
 takeFromBeginning :: Text -> Double -> Text
 takeFromBeginning name weight =
   let chars = max 1 (ceiling (fromIntegral (T.length name) * weight))
    in T.take chars name
 
+-- | Take a trailing fragment, sized by blend weight. Used for the last name
+-- in a blend, so the portmanteau ends on a real word ending.
 takeFromEnd :: Text -> Double -> Text
 takeFromEnd name weight =
   let len = T.length name
       chars = max 1 (ceiling (fromIntegral len * weight))
    in T.drop (len - chars) name
 
+-- | Take a centred fragment, sized by blend weight. Used for names between
+-- the first and last in a blend. Ties favour earlier characters.
 takeFromMiddle :: Text -> Double -> Text
 takeFromMiddle name weight =
   let len = T.length name
