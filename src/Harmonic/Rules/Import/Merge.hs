@@ -8,17 +8,13 @@
 -- to corpus keys, applying the curated allow-list, and merging
 -- per-composer transition maps into per-edge composer weight maps.
 --
--- Extracted from @app\/Main.hs@ so the functions are testable; the
--- executable now only wires them together.
---
 -- == The composer-key contract
 --
--- 'slug' is the ingester's normaliser. The allow-list it is matched
--- against was historically generated under a DIFFERENT normaliser
--- (@scripts\/export_ycacl.R@'s @normalize_composer@, which strips all
--- non-alphanumerics instead of mapping them to underscores), which
--- silently dropped 22 composers (96,133 slices). Keep the two sides on
--- one contract: any change here must be mirrored in the exporter.
+-- 'slug' is the ingester's normaliser. The exporter
+-- (@scripts\/export_ycacl.R@, @normalize_composer@) must apply the SAME
+-- rule: any curation list matched against keys produced under a
+-- different normalisation silently drops every composer whose two keys
+-- disagree. Any change here must be mirrored in the exporter.
 module Harmonic.Rules.Import.Merge (
     ComposerPieces,
     slug,
@@ -81,10 +77,9 @@ filterComposers include exclude dataset =
 -- | Merge per-composer transition probability maps into one map per
 -- edge, keyed by composer. Edges whose total weight is zero are
 -- excluded. Weights are SPARSE: a composer absent from an edge's map
--- carries implicit weight 0 (the read side,
--- 'Harmonic.Evaluation.Database.Query.resolveWeights', already treats a
--- missing key as 0 — the historical dense zero-padding produced a 928MB
--- store for no scoring benefit).
+-- carries implicit weight 0 — the read side
+-- ('Harmonic.Evaluation.Database.Query.resolveWeights') reads a missing
+-- key as 0, so dense zero-padding would only inflate the store.
 mergeComposerTransitions
   :: Map Text (Map Edge Double)
   -> [(H.Cadence, H.Cadence, ComposerWeights)]

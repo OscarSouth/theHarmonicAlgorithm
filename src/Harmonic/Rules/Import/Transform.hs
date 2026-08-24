@@ -46,7 +46,7 @@ import qualified Harmonic.Rules.Constraints.Overtone as O
 
 -- |Weighted triad interpretations of one slice, most consonant first.
 -- The top three candidates (by Hindemith dissonance, "Harmonic.Evaluation.Scoring.Dissonance")
--- carry the historical @[3,2,1]@ preference profile, NORMALISED so every
+-- carry a @[3,2,1]@ preference profile, NORMALISED so every
 -- slice's interpretation weights sum to 1 — an ambiguous 7-PC vertical
 -- contributes exactly the same total probability mass as an unambiguous
 -- triad, instead of shouting several times louder purely because it was
@@ -90,17 +90,13 @@ sliceInterpretations slice =
 -- normalised) interpretation weights, so the total mass contributed by
 -- each slice triple is exactly 1.
 --
--- This is the un-flattened form of the historical Cartesian expansion.
--- The expansion itself — every reasonable reading of an ambiguous
--- vertical informs the model, recovering movement that triad reduction
--- trims away — is preserved verbatim. What is gone is the flat zip over
--- the expanded stream, which manufactured "transitions" between
--- alternative readings of the SAME moment: 94.34% of all edges learned
--- by the previous pipeline were such artefacts, concentrating 57.7% of
--- the graph's probability mass onto self-loops that were never played.
--- Genuine corpus pedals still produce self-edges here (roughly a quarter
--- of YCACL slices repeat their predecessor) — via the same triple rule
--- as every other transition, not as an accident of flattening.
+-- Sharing the middle reading is what keeps the expansion honest: every
+-- reasonable reading of an ambiguous vertical informs the model
+-- (recovering movement that triad reduction trims away), while two
+-- alternative readings of the SAME moment can never be counted as a
+-- transition between moments. Genuine corpus pedals (roughly a quarter
+-- of YCACL slices repeat their predecessor) produce self-edges via the
+-- same triple rule as every other transition.
 --
 -- Pieces with fewer than three slices contribute no edges (no complete
 -- triple exists).

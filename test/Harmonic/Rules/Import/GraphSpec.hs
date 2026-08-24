@@ -43,8 +43,8 @@ spec = describe "edgeRow (write/read contract, no database)" $ do
     Q.parseWeightsJson w `shouldBe` weights
 
   it "a composer key needing escaping survives the parameter path intact" $ do
-    -- The old string-concatenation writer produced broken Cypher for
-    -- keys containing quotes; as a JSON parameter the value is inert.
+    -- Values travel as JSON parameters, never spliced into Cypher, so
+    -- quotes and backslashes in a key are inert.
     let spicy = Map.fromList [("o'weird \\ composer", 2.5)]
         Just (A.String w) = field (edgeRow (from, to, spicy)) "weights"
     Q.parseWeightsJson w `shouldBe` spicy

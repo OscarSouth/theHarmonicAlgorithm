@@ -281,12 +281,19 @@ a virtual orchestra: instrument catalogue, voice lines, divisi, sections,
 blends, and the subKick groove interface.
 
 **[API Reference](https://docs.theharmonicalgorithm.com/)** — generated Haddock
-documentation for all 35 modules, with worked examples on every user-facing
+documentation for all 37 modules, with worked examples on every user-facing
 entry point. Start at `Harmonic.Lib`.
 
 **[Architecture Guide](documents/ARCHITECTURE.md)** — the technical deep dive into
 how the system works: the four-layer architecture, the R→E→T pipeline,
 zero-form cadence storage, and the graph database model.
+
+**[Data Modelling](documents/DATA_MODELLING.md)** — how corpus harmony becomes
+the cadence graph: zero-form abstraction, weighted interpretation, and
+consistent-path transition counting.
+
+**[Composer Catalogue](documents/COMPOSERS.md)** — every composer key in the
+graph and the query syntax for names and blends.
 
 **[Changelog](CHANGELOG.md)** — V3 features and migration notes.
 

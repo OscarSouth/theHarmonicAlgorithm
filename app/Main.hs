@@ -32,14 +32,10 @@ import           Data.Text (Text)
 -- Empty by default — every composer in the artefact is ingested, and every
 -- exclusion is reported at run time.
 --
--- The historical 574-entry machine-generated allow-list that lived here was
--- deleted (2026-08-24): it was generated under the R exporter's normaliser
--- (strip all non-alphanumerics), so 22 composers whose 'slug' keys never
--- matched it — including both Strausses, de Falla, Nunes Garcia and three
--- Bach sons, 96,133 slices in total — were dropped silently, while 105 of
--- its entries matched nothing in the artefact at all. Curation, when it is
--- wanted, is now an explicit and reported exclusion rather than an
--- unreconciled allow-list.
+-- Curation is an explicit exclusion rather than an allow-list because an
+-- allow-list keyed on normalised names drops composers silently whenever
+-- the list and the normaliser drift out of step; an exclude list fails
+-- open and every drop it does cause is printed.
 composerExclude :: [Text]
 composerExclude = []
 
@@ -57,11 +53,9 @@ main = do
   logRawComposerStats activeComposers
 
   putStrLn "Deriving cadences and Markov transitions per composer:"
-  -- One composer at a time: build the cadence stream, log its size, fold
-  -- it into transition probabilities, and release it before moving on.
-  -- (The previous two-pass shape logged all cadence counts before any
-  -- folding, which kept every composer's expanded stream simultaneously
-  -- resident — a ~20-25 GB peak on the full artefact.)
+  -- One composer at a time, so only a single composer's counts are
+  -- resident at once — logging across the whole map first would force
+  -- every composer's data to stay live simultaneously.
   composerTransitions <- flip Map.traverseWithKey activeComposers $ \name pieces -> do
     let counts      = buildTransitionCountsPerPiece (Map.elems pieces)
         transitions = probabilitiesFromCounts counts

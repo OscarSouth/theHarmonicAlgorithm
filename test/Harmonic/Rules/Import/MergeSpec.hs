@@ -23,12 +23,12 @@ spec = do
     it "lowercases and maps spaces to underscores" $ do
       slug "Anna Amalia" `shouldBe` "anna_amalia"
       slug "Strauss II" `shouldBe` "strauss_ii"
-    it "KNOWN CONTRACT GAP: trailing space becomes trailing underscore" $
+    it "does not trim whitespace (trailing space becomes trailing underscore)" $
       slug "Hummel " `shouldBe` "hummel_"
-    it "strips punctuation BEFORE spacing (diverges from the R exporter's normaliser)" $
-      -- R's normalize_composer strips ALL non-alnums → "cpebach";
-      -- slug keeps the space → "cpe_bach". This is the mismatch that
-      -- silently dropped 22 composers against the R-generated allow-list.
+    it "keeps spaces as underscores where the R normaliser strips them" $
+      -- R's normalize_composer strips ALL non-alnums ("cpebach"); slug
+      -- maps spaces to underscores ("cpe_bach"). Curation lists must be
+      -- built against slug's output, never the R rule.
       slug "C.P.E. Bach" `shouldBe` "cpe_bach"
 
   describe "normalizeComposers" $

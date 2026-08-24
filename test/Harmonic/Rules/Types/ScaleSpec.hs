@@ -204,9 +204,8 @@ spec = do
       -- The theorem that makes modeForTriad total on walk-legal input:
       -- every union of two strata with exactly 7 unique PCs is a
       -- transposition of one of the four parent scale families, so the
-      -- 28-mode taxonomy classifies it pinned to any of its tones. The
-      -- former Aeolian fallback in Strata.modeForTriad was dead code by
-      -- this property and has been removed.
+      -- 28-mode taxonomy classifies it pinned to any of its tones — no
+      -- fallback mode is ever needed.
       let pairs = [ (s1, s2)
                   | s1 <- allStrataLabels, s2 <- allStrataLabels, s1 /= s2
                   , length (nub (strataChroma s1 ++ strataChroma s2)) == 7 ]

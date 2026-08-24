@@ -2,10 +2,10 @@
 -- Module      : Harmonic.Rules.Import.TransformSpec
 -- Description : Contracts for the un-flattened ingestion counting
 --
--- Locks the consistent-path transition counting introduced when the
--- flattened Cartesian expansion was retired: per-slice normalised
--- interpretation weights, middle-interpretation consistency, unit mass
--- per slice triple, piece isolation, and the write-side naming contract.
+-- Locks the consistent-path transition counting contracts: per-slice
+-- normalised interpretation weights, middle-interpretation consistency,
+-- unit mass per slice triple, piece isolation, and the write-side
+-- naming contract.
 module Harmonic.Rules.Import.TransformSpec (spec) where
 
 import Test.Hspec
@@ -58,9 +58,8 @@ spec = do
       w `shouldBeCloseTo` 1
 
     it "each slice triple contributes total mass 1 regardless of ambiguity" $ do
-      -- The old outer-product replication let an ambiguous vertical
-      -- inject up to 4x the mass of an unambiguous one. Normalised
-      -- per-slice weights make every moment speak at the same volume.
+      -- Normalised per-slice weights make every moment speak at the
+      -- same volume: ambiguity splits a moment's vote, never raises it.
       sum (Map.elems (buildTransitionCounts [cMaj, amb5, cMaj]))
         `shouldBeCloseTo` 1
       sum (Map.elems (buildTransitionCounts [amb5, amb5, amb5]))
@@ -91,8 +90,8 @@ spec = do
       endpoints `shouldSatisfy`
         all (\c -> H.cadenceFunctionality c
                     == H.corpusFunctionality (H.cadenceIntervals c))
-      -- the historical divergence case, pinned: [0,2,7] is the corpus's
-      -- sus4_1stInv (the modern namers would have said sus2)
+      -- a form where corpus and modern names disagree: [0,2,7] must be
+      -- the corpus's sus4_1stInv, not the modern namers' sus2
       map H.cadenceFunctionality endpoints `shouldContain` ["sus4_1stInv"]
 
     it "counting is invariant under transposition (mod-12 P5 bonus is correct)" $ do
