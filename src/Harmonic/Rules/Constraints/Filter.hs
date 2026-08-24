@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -- |
 -- Module      : Harmonic.Rules.Constraints.Filter
 -- Description : Pitch class set filtering using legacy notation

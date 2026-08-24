@@ -7,6 +7,18 @@ ________________________________________________________________________________
 The cumulative modernisation release: each block below lands as it completes;
 the version tags once the sweep is done.
 
+### Toolchain modernisation
+
+The build moved to Stackage **lts-24.56 / GHC 9.10.3** (from lts-22.44 /
+GHC 9.6.7), which carries the whole Tidal family natively — the four
+`extra-deps` pins are gone and TidalCycles upgraded to 1.10.3 along the way.
+The codebase now compiles under the **GHC2021** language edition with a
+single project-wide `OverloadedStrings` default (45 per-file pragmas
+removed), and the library builds warning-clean under **`-Wall`** — the
+burn-down deleted ten provably unreachable functions and thirty-odd
+redundant imports, and closed a latent non-exhaustive pattern over
+`Movement.Empty` in fallback scoring.
+
 ### The Data Model & corpus-v2
 
 The trained model itself got the upgrade this time. The ingestion pipeline was

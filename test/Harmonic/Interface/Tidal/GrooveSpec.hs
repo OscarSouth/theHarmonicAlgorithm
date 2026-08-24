@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 module Harmonic.Interface.Tidal.GrooveSpec (spec) where
 
 import Test.Hspec

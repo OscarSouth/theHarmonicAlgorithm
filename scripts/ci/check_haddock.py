@@ -65,7 +65,10 @@ def main():
         findings.append(f"unlinked identifier refs rose to {oos} (baseline {MAX_OUT_OF_SCOPE}) — "
                         f"a `'name'` ref that Haddock cannot resolve renders as plain text")
 
-    dangling = len(re.findall(r'^\s+- Harmonic\.', log, re.M))
+    # GHC 9.10's haddock emits (unlinkable) references to derived Generic
+    # representation types (Rep_Foo); those are compiler artefacts, not
+    # documentation targets, so they are excluded from the count.
+    dangling = len(re.findall(r'^\s+- Harmonic\.(?!\S*\.Rep_)', log, re.M))
     if dangling > MAX_DANGLING_INTERNAL:
         findings.append(f"dangling internal links rose to {dangling} "
                         f"(baseline {MAX_DANGLING_INTERNAL})")

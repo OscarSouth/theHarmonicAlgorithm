@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -- |
 -- Module      : Harmonic.Interface.Tidal.FormSpec
 -- Description : Tests for Kinetics framework (Form module)

@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -- |
 -- Module      : Harmonic.Interface.Tidal.OrchestraSpec
 -- Description : Tests for Orchestra module (Voice, VoiceLines, clip, articulations)

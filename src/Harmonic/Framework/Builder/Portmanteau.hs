@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -- |
 -- Module      : Harmonic.Framework.Builder.Portmanteau
 -- Description : Portmanteau name generation from composer blend strings

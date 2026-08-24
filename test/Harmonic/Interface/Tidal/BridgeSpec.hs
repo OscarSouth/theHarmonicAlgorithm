@@ -1,6 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 -- |
 -- Module      : Harmonic.Interface.Tidal.BridgeSpec
 -- Description : Tests for TidalCycles interface patterns

@@ -1,12 +1,6 @@
-resolver: lts-22.44
+resolver: lts-24.56
 
 packages:
 - .
-
-extra-deps:
-- tidal-1.10.1
-- hosc-0.21.1
-- tidal-core-1.10.1
-- tidal-link-1.2.0
 
 system-ghc: true

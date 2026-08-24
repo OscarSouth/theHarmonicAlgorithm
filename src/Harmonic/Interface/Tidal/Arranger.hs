@@ -1,5 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
-
 -- |
 -- Module      : Harmonic.Interface.Tidal.Arranger
 -- Description : Performance-oriented progression manipulation
@@ -80,7 +78,7 @@ module Harmonic.Interface.Tidal.Arranger
   ) where
 
 import qualified Data.Sequence as Seq
-import Data.Sequence (Seq, (><))
+import Data.Sequence ((><))
 import Data.Foldable (toList)
 import Data.List (sort, nub, sortBy)
 import Data.Maybe (listToMaybe)
@@ -92,13 +90,13 @@ import System.Random.MWC (createSystemRandom, uniformRM, GenIO)
 import Harmonic.Rules.Types.Progression
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import Harmonic.Rules.Types.ProgressionContext (ProgressionContext, liftPC)
-import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), CadenceState(..), fromCadenceState, ChordState(..), EnharmonicSpelling(..), toFunctionality, toFunctionalityChord, Movement(..), enharmonicFunc, inferSpelling, isAmbiguousPattern, initCadenceState, mkCadenceStatePCs, toMovement)
+import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), CadenceState(..), fromCadenceState, EnharmonicSpelling(..), toFunctionality, toFunctionalityChord, Movement(..), enharmonicFunc, inferSpelling, isAmbiguousPattern, initCadenceState, mkCadenceStatePCs, toMovement)
 import qualified Harmonic.Rules.Constraints.Filter as Filter
 import qualified Data.Text as T
 import Harmonic.Traversal.Probabilistic (gammaIndexScaledWith)
 import Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
 import Harmonic.Rules.Types.Pitch (PitchClass(..), NoteName(..), pitchClass, mkPitchClass, unPitchClass, flat, sharp)
-import Harmonic.Evaluation.Scoring.VoiceLeading (solveRoot, solveFlow, liteVoicing, bassVoicing, normalizeByFirstRoot, initialCompact, alignVoices)
+import Harmonic.Evaluation.Scoring.VoiceLeading (solveRoot, solveFlow, bassVoicing, normalizeByFirstRoot, initialCompact, alignVoices)
 import Data.Function (on)
 import Data.List (minimumBy)
 

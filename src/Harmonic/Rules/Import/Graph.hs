@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -- |
 -- Module      : Harmonic.Rules.Import.Graph
 -- Description : Neo4j graph database connection and cadence storage

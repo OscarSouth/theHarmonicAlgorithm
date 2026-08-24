@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -- |
 -- Module      : Harmonic.Evaluation.Database.Query
 -- Description : Read-only interface to Neo4j for cadence graph traversal
@@ -34,13 +32,11 @@ import qualified Data.Text as T
 import           Data.Text (Text)
 import qualified Data.Text.Encoding as TE
 import           Data.Maybe (fromMaybe, mapMaybe)
-import           Data.Char (isSpace, isDigit)
 import           Data.List (sortBy)
 import           Data.Ord (Down(..))
 import           Data.Function (on)
-import           Control.Monad (forM)
 import qualified Data.Aeson as Aeson
-import           Data.Aeson (FromJSON(..), Value(..), (.:))
+import           Data.Aeson (Value(..))
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KM
 import qualified Data.ByteString.Lazy as BL

@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -- |
 -- Module      : Harmonic.Framework.Builder
 -- Description : Generative engine for harmonic progressions with unified diagnostics interface
@@ -218,10 +216,10 @@ import           Harmonic.Rules.Import.Graph (connectNeo4j)
 import qualified Harmonic.Evaluation.Database.Query as Q
 import qualified Harmonic.Evaluation.Scoring.Progression as PS
 import           Control.Monad.IO.Class (liftIO)
-import           Harmonic.Rules.Constraints.Filter (parseTuningNamed, isWildcard)
-import           Harmonic.Rules.Constraints.Overtone (formatOvertoneAnnotation, formatOvertoneAnnotationPipe, possibleTriads)
+import           Harmonic.Rules.Constraints.Filter (parseTuningNamed)
+import           Harmonic.Rules.Constraints.Overtone (formatOvertoneAnnotationPipe, possibleTriads)
 import           Data.Foldable (toList)
-import           Data.List (intercalate, sort, nub)
+import           Data.List (sort, nub)
 import           Data.Maybe (fromMaybe)
 import qualified Data.IntSet as IntSet
 import qualified Data.Sequence as Seq
@@ -1625,7 +1623,6 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
 
   pure (resultPC, attachedGen)
   where
-    zip4 as bs cs ds = [ (a, b, c, d) | ((a, b), (c, d)) <- zip (zip as bs) (zip cs ds) ]
     zip6 as bs cs ds es fs =
       [ (a, b, c, d, e, f)
       | ((a, b, c), (d, e, f)) <- zip (zip3 as bs cs) (zip3 ds es fs)

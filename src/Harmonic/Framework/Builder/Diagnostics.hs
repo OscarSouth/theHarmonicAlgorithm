@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -- |
 -- Module      : Harmonic.Framework.Builder.Diagnostics
 -- Description : Diagnostic printing and chord tracing for generation

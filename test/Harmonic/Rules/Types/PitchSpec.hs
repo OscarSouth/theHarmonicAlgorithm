@@ -1,5 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-
 -- |
 -- Module      : Harmonic.Core.PitchSpec
 -- Description : QuickCheck properties for ℤ₁₂ algebraic laws

@@ -16,7 +16,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ github.event.inputs.tag || github.ref }}
@@ -34,12 +34,12 @@ jobs:
 
       - uses: haskell-actions/setup@v2
         with:
-          ghc-version: '9.6.7'
+          ghc-version: '9.10.3'
           enable-stack: true
           stack-version: 'latest'
 
       - name: Cache Stack store
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.stack
           key: ${{ runner.os }}-stack-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}

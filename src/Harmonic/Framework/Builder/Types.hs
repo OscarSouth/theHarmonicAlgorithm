@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -- |
 -- Module      : Harmonic.Framework.Builder.Types
 -- Description : Types for the harmonic generation engine

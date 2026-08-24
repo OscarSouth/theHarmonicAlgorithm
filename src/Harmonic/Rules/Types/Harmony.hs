@@ -1,6 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE InstanceSigs #-}
-
 -- |
 -- Module      : Harmonic.Rules.Types.Harmony
 -- Description : Chord, Cadence, and their Concrete State representations
@@ -920,7 +917,7 @@ sharpTriad = toTriad sharp
 -- CHORDS: preserves all pitches, uses chord-specific naming for extended harmonies
 -- Ported from legacy MusicData.hs toChord (lines 896-941)
 toChord :: (PitchClass -> NoteName) -> [Int] -> Chord
-toChord enharm ps@(fund:tones) = 
+toChord enharm (fund:tones) = 
   let chord = (+fund) <$> (sortedZeroForm $ fund : (reverse $ sort tones))
       functionality = nameFuncChord zeroFormPC (map mkPitchClass chord) ""
   in Chord (enharm $ mkPitchClass (head chord)) functionality (map fromIntegral $ map (`mod` 12) chord)

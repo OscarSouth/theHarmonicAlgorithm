@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -- |
 -- Module      : Harmonic.Core.BuilderSpec
 -- Description : Tests for the Builder generation engine

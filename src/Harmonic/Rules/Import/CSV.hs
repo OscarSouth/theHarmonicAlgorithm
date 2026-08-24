@@ -1,6 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 -- |
 -- Module      : Harmonic.Rules.Import.CSV
 -- Description : CSV parsing for YCACL corpus ingestion
@@ -27,7 +24,7 @@ import           Data.Csv ((.:))
 import           Control.Monad (mzero)
 import qualified Data.Text as T
 import qualified Data.Map.Strict as Map
-import           Data.List (foldl', sortOn)
+import           Data.List (sortOn)
 import           Text.Read (readMaybe)
 
 -- | One row of the YCACL artifact exported by @scripts\/export_ycacl.R@.

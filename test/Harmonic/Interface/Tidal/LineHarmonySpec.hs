@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -- |
 -- Module      : Harmonic.Interface.Tidal.LineHarmonySpec
 -- Description : Smoke tests for the walking-bass Tidal interface

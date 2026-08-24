@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 -- |
 -- Module      : Harmonic.Evaluation.Scoring.VoiceLeading
 -- Description : Cyclic DP voice leading optimization
@@ -64,9 +62,7 @@ import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
 import qualified Data.Set as Set
 import qualified Data.Vector as V
-import GHC.Generics (Generic)
-
-import Harmonic.Rules.Types.Pitch (PitchClass(..), mkPitchClass, unPitchClass, transpose)
+import Harmonic.Rules.Types.Pitch (PitchClass(..))
 
 -------------------------------------------------------------------------------
 -- Constants
@@ -274,7 +270,7 @@ totalCost chords = sum $ zipWith voiceLeadingCost chords (tail chords)
 --    just locally optimal, but topologically closed."
 cyclicCost :: [[Int]] -> Int
 cyclicCost [] = 0
-cyclicCost [x] = 0
+cyclicCost [_] = 0
 cyclicCost chords = totalCost chords + voiceLeadingCost (last chords) (head chords)
 
 -------------------------------------------------------------------------------

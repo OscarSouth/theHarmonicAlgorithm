@@ -1,5 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-
 -- |
 -- Module      : Harmonic.Core.ProbabilisticSpec
 -- Description : Tests for gamma distribution sampling

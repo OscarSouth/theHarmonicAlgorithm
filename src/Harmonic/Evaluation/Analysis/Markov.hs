@@ -28,7 +28,6 @@ import           Harmonic.Rules.Types.Harmony (Cadence)
 
 import qualified Data.Map.Strict as Map
 import           Data.Map.Strict (Map)
-import           Data.List (foldl')
 
 -- |Representation of a transition between cadences.
 type Edge = (Cadence, Cadence)

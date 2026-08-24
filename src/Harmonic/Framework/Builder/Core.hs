@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -- |
 -- Module      : Harmonic.Framework.Builder.Core
 -- Description : Core generation engine for harmonic progressions
@@ -45,7 +43,7 @@ import           Control.Monad.IO.Class (liftIO)
 import           Data.List (sort, sortBy)
 import           Data.Function (on)
 import           Data.Ord (Down(..))
-import           System.Random.MWC (GenIO, createSystemRandom, uniform, uniformR)
+import           System.Random.MWC (GenIO, uniform, uniformR)
 import qualified System.Random.MWC.Distributions as Dist
 
 import qualified Harmonic.Rules.Types.Harmony as H
@@ -57,8 +55,7 @@ import           Harmonic.Evaluation.Database.Query (ComposerWeights, fetchTrans
 import qualified Harmonic.Evaluation.Database.Query as Q
 import           Harmonic.Traversal.Probabilistic (gammaIndexScaledWith)
 import           Harmonic.Rules.Constraints.Filter (parseOvertones', parseKey, isWildcard, resolveRoots,
-                                                    nthAbove, nthBelow,
-                                                    BassDirectionSpec(..), BDKind(..), BDSelector(..))
+                                                    nthAbove, nthBelow)
 import           Harmonic.Rules.Constraints.Overtone (overtoneSets)
 import           Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
 import qualified Harmonic.Evaluation.Scoring.Dissonance as D
@@ -75,7 +72,7 @@ import           Harmonic.Framework.Builder.Diagnostics (computeChordTrace)
 -- Simplified algorithm:
 --   1. Start from initial CadenceState
 --   2. For each step: build candidate pool, gamma-select next
---   3. Pool = filtered graph transitions + consonanceFallback (unlimited)
+--   3. Pool = filtered graph transitions + consonance fallback (unlimited)
 buildChain :: GeneratorConfig
            -> GenIO            -- ^ Shared random generator
            -> Double           -- ^ Entropy [0,1]
@@ -126,7 +123,7 @@ resolveBassDirection gen stepNum (Just spec) = do
 --
 -- Takes pre-fetched transitions and executes the full filtering\/scoring\/selection logic.
 -- Used by both the online wrapper ('stepChainCore') and offline path ('stepChainOffline').
--- When transitions is empty (offline mode), generation relies entirely on consonanceFallback.
+-- When transitions is empty (offline mode), generation relies entirely on the consonance fallback.
 stepChainBody :: GeneratorConfig
               -> GenIO
               -> Maybe Int        -- ^ Nothing = no diagnostics, Just n = verbosity level
@@ -170,7 +167,7 @@ stepChainBody config gen mVerbosity ent _context pctx ((current, revChain, nonIn
             in sortBy (compare `on` (Down . snd)) boosted
       graphCount = length graphCandidates
 
-  -- Build candidate pool: graph candidates + consonanceFallback
+  -- Build candidate pool: graph candidates + consonance fallback
   -- NO POOL SIZE LIMIT - use full 660-candidate fallback generation
   --
   -- The fallback is computed UNCONDITIONALLY every step, by design: that is
@@ -359,7 +356,7 @@ stepChainCore config gen mVerbosity ent context pctx composerWeights acc@((curre
 -- |Offline single step for chain building (no Neo4j required).
 --
 -- Passes empty transitions to @stepChainBody@, so generation relies entirely
--- on the consonanceFallback mechanism (~660 candidates shaped by context filters).
+-- on the consonance-fallback mechanism (~660 candidates shaped by context filters).
 stepChainOffline :: GeneratorConfig
                  -> GenIO
                  -> Maybe Int
@@ -417,7 +414,7 @@ buildChainWithDiagV config gen verbosity ent context pctx composerWeights start 
 
 -- |Build cadence chain offline (no Neo4j required).
 --
--- Uses only the consonanceFallback mechanism — no graph traversal.
+-- Uses only the consonance-fallback mechanism — no graph traversal.
 -- Progressions are shaped by context filters (overtones, key, roots, drift,
 -- inversion spacing) and entropy. Fully musical without corpus-trained style.
 buildChainOffline :: GeneratorConfig
@@ -528,15 +525,14 @@ buildStrataChainOffline config gen mVerb ent ctx pctxAt start n = do
 -- Consonance Fallback
 -------------------------------------------------------------------------------
 
--- |Generate fallback candidates from HarmonicContext filters.
+-- |Generate fallback candidates from the pre-parsed context filters.
 --
 -- This implements the legacy "constructive generation" pattern:
---   1. Get effective overtone palette (tuning filtered by key)
---   2. Get allowed roots (via resolveRoots which handles "key"\/"tones" options)
---   3. Generate all valid triads from roots × overtones (660 structures with wildcard)
---   4. Compute actual movement from current state to each candidate
---   5. Score with multiplicative formula: (rootMotionDiss × structureDiss × (gammaDraw+1))
---   6. Sort by score (lower badness = higher score)
+--   1. Take the effective overtone palette (tuning filtered by key)
+--   2. Generate all valid triads from roots × overtones (660 structures with wildcard)
+--   3. Compute actual movement from current state to each candidate
+--   4. Score with multiplicative formula: (rootMotionDiss × structureDiss × (gammaDraw+1))
+--   5. Sort by score (lower badness = higher score)
 --
 -- Movement computation matches legacy getCadenceOptions which uses:
 --   toCadence (transposeCadence enharm rootPC prev, nxt)
@@ -544,58 +540,11 @@ buildStrataChainOffline config gen mVerb ent ctx pctxAt start n = do
 -- This ensures fallback cadences have real movements, enabling subsequent
 -- iterations to find graph matches and traverse freely.
 --
--- The gamma draw adds organic randomness to scoring, preventing identical
--- scores for structurally similar triads with the same movement type.
--- Returns IO [(Cadence, score, chordDiss, motionDiss, gammaDraw)]
-consonanceFallback :: H.CadenceState -> HarmonicContext -> IO [(H.Cadence, Double, Double, Double, Double)]
-consonanceFallback currentState context = do
-  rng <- createSystemRandom
-  consonanceFallbackWith rng currentState context
-
--- |Like 'consonanceFallback' but uses a shared random generator.
-consonanceFallbackWith :: GenIO -> H.CadenceState -> HarmonicContext -> IO [(H.Cadence, Double, Double, Double, Double)]
-consonanceFallbackWith gen currentState context =
-  let -- Get current root pitch class for movement computation
-      currentRoot = P.pitchClass (H.stateCadenceRoot currentState)
-
-      -- Get overtone palette (3 partials per fundamental: root, P5, M3)
-      overtones = parseOvertones' 3 (_hcOvertones context)
-
-      -- Apply key filter to overtones
-      keyPcs = parseKey (_hcKey context)
-      effectiveOvertones = if isWildcard (_hcKey context)
-                           then overtones
-                           else filter (`elem` keyPcs) overtones
-
-      -- Generate all valid triads: all ROOT+PAIR combinations
-      -- For complete coverage: generate from effectiveOvertones (key-filtered overtone palette)
-      -- Each root gets all possible 2-note pairs from the remaining pitches
-      -- This preserves inversion distinctions: [0,4,7], [4,0,7], [7,0,4] are three unique structures
-      -- NOTE: hcRoots is for BASS filtering (applied at line 1486), NOT for root generation!
-      -- Always generate from all effective overtones, let the filter handle bass note constraints
-      triads = let allRoots = effectiveOvertones
-               in concatMap (\r -> overtoneSets 3 [r] effectiveOvertones) allRoots
-
-      -- No normalization deduplication: preserve ROOT+PAIR distinction for inversions
-      -- Each triad is already distinct by its root position
-      uniqueTriads = triads
-  in do
-      -- Compute multiplicative badness score with gamma randomness for each triad
-      -- Returns IO (score, chordDiss, motionDiss, gammaDraw) for each candidate
-      results <- mapM (\t -> do
-                         let cad = triadToCadenceFrom currentRoot t
-                         (score, cd, md, gd) <- computeFallbackScoreWith gen currentRoot cad t
-                         pure (cad, score, cd, md, gd)
-                       ) uniqueTriads
-
-      -- Sort by score (highest first = lowest badness = best combination)
-      pure $ sortBy (compare `on` (\(_, s, _, _, _) -> Down s)) results
-
--- |Like 'consonanceFallbackWith' but uses pre-parsed context for efficiency.
---
 -- Reads 'pcSoftBoost' from the context and applies it multiplicatively to
--- @badness@ inside 'computeFallbackScoreWith'. Values < 1.0 favour the
+-- @badness@ inside 'computeFallbackScoreWithBoost'. Values < 1.0 favour the
 -- candidates (lower badness, higher score); = 1.0 is the no-op default.
+--
+-- Returns IO [(Cadence, score, chordDiss, motionDiss, gammaDraw)]
 consonanceFallbackParsed :: GenIO -> H.CadenceState -> ParsedContext -> IO [(H.Cadence, Double, Double, Double, Double)]
 consonanceFallbackParsed gen currentState pctx =
   let currentRoot = P.pitchClass (H.stateCadenceRoot currentState)
@@ -658,21 +607,11 @@ triadToCadenceFrom currentRoot pitches =
 --
 -- This prevents score clustering and eliminates the need for pool size limits.
 -- Returns IO (finalScore, chordDiss, motionDiss, gammaDraw)
-computeFallbackScoreWithComponents :: P.PitchClass -> H.Cadence -> [Int] -> IO (Double, Double, Double, Double)
-computeFallbackScoreWithComponents currentRoot cad triad = do
-  rng <- createSystemRandom
-  computeFallbackScoreWith rng currentRoot cad triad
-
--- |Like 'computeFallbackScoreWithComponents' but uses a shared random generator.
--- No soft-boost applied (boost = 1.0).
-computeFallbackScoreWith :: GenIO -> P.PitchClass -> H.Cadence -> [Int] -> IO (Double, Double, Double, Double)
-computeFallbackScoreWith gen currentRoot cad triad =
-  computeFallbackScoreWithBoost gen currentRoot cad triad 1.0
-
--- |Variant that applies a multiplicative soft-boost to @badness@. Values
--- below 1.0 favour the candidate (lower badness → higher score); 1.0 is
--- the no-op; values above 1.0 disfavour. Used by 'Harmonic.Framework.Builder.genP' to bias candidates
--- toward strata\/tristrata continuity via 'pcSoftBoost'.
+--
+-- @boost@ is a multiplicative soft-boost on @badness@: values below 1.0
+-- favour the candidate (lower badness → higher score); 1.0 is the no-op;
+-- values above 1.0 disfavour. Used by 'Harmonic.Framework.Builder.genP' to
+-- bias candidates toward strata\/tristrata continuity via 'pcSoftBoost'.
 computeFallbackScoreWithBoost :: GenIO -> P.PitchClass -> H.Cadence -> [Int] -> Double -> IO (Double, Double, Double, Double)
 computeFallbackScoreWithBoost gen _currentRoot cad triad boost = do
   -- Chord vertical dissonance (raw Hindemith score)
@@ -694,12 +633,6 @@ computeFallbackScoreWithBoost gen _currentRoot cad triad boost = do
 
   pure (finalScore, chordDiss, motionDiss, gammaDraw)
 
--- Convenience wrapper returning only the score (now in IO)
-computeFallbackScore :: P.PitchClass -> H.Cadence -> [Int] -> IO Double
-computeFallbackScore root cad triad = do
-  (score, _, _, _) <- computeFallbackScoreWithComponents root cad triad
-  pure score
-
 -- |Extract interval class (0-6) from Movement type.
 -- Maps Movement to interval class for rootMotionScore input.
 -- Interval class folds intervals larger than tritone to their complement.
@@ -709,6 +642,8 @@ extractMovementInterval movement = case movement of
   H.Desc pc  -> intervalClassFromPC (P.unPitchClass pc)
   H.Unison   -> 0
   H.Tritone  -> 6
+  -- Empty is the missing-movement placeholder; no motion to score.
+  H.Empty    -> 0
   where
     intervalClassFromPC semitones =
       let m = semitones `mod` 12
@@ -964,11 +899,6 @@ matchesContextWithTarget bassTarget pctx currentState cadence =
 -------------------------------------------------------------------------------
 -- State Advancement
 -------------------------------------------------------------------------------
-
--- |Advance the CadenceState based on movement to a new cadence
-advanceState :: H.CadenceState -> H.Cadence -> H.CadenceState
-advanceState currentState newCadence =
-  fst $ advanceStateTraced Nothing currentState newCadence
 
 -- |Advance the CadenceState with full trace of intermediate values
 -- Used for maximum verbosity diagnostics (gen'')

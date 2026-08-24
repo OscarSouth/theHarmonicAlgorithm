@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -- |
 -- Module      : Main
 -- Description : YCACL corpus ingestion — CSV artefact to Neo4j cadence graph

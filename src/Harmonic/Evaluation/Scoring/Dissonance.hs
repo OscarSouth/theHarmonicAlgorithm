@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 -- |
 -- Module      : Harmonic.Evaluation.Scoring.Dissonance
 -- Description : Hindemith-based dissonance evaluation
@@ -51,11 +49,8 @@ module Harmonic.Evaluation.Scoring.Dissonance
   , rankByConsonance
   ) where
 
-import GHC.Generics (Generic)
 import Data.Function (on)
 import Data.List (sortBy, sort, nub)
-
-import Harmonic.Rules.Types.Pitch (PitchClass(..), mkPitchClass, unPitchClass)
 
 -------------------------------------------------------------------------------
 -- Hindemith Dissonance Model (VERBATIM from legacy MusicData.hs)
@@ -140,10 +135,6 @@ intervalVector xs = [toInteger (vectCounts ic) | ic <- [1..6]]
     -- Count occurrences of each interval class
     vectCounts ic = length $ filter (== ic) intervals
 
--- |Alternative interval vector from pitch classes directly
-intervalVectorPC :: [PitchClass] -> [Integer]
-intervalVectorPC pcs = intervalVector $ map unPitchClass pcs
-
 -------------------------------------------------------------------------------
 -- Dissonance Calculation (VERBATIM PRINCIPLE from legacy MusicData.hs)
 -------------------------------------------------------------------------------
@@ -212,7 +203,3 @@ mostConsonant xs = snd . head . sortByFst $ map dissonanceLevel xs
 -- |Rank a list of pitch sets by consonance (most consonant first)
 rankByConsonance :: [[Int]] -> [[Int]]
 rankByConsonance xs = map snd $ sortBy (compare `on` fst) $ map dissonanceLevel xs
-
--- |Rank and return with scores for debugging\/inspection
-rankByConsonanceWithScores :: [[Int]] -> [(Integer, [Int])]
-rankByConsonanceWithScores xs = sortBy (compare `on` fst) $ map dissonanceLevel xs

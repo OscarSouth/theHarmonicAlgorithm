@@ -1,6 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE FlexibleContexts #-}
-
 -- |
 -- Module      : Harmonic.Interface.Tidal.Instruments
 -- Description : MIDI channel routing and instrument shorthand for TidalCycles
