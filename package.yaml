@@ -1,5 +1,5 @@
 name:                theHarmonicAlgorithm
-version:             3.0.0
+version:             3.1.0
 license:             BSD3
 author:              "Oscar South"
 maintainer:          "oscarsouth@gmail.com"
@@ -8,7 +8,7 @@ synopsis:            "Real-time harmonic progression generation for TidalCycles 
 description:         |
   A live performance instrument for generating and shaping harmonic
   progressions in real time while patterning musical data within them, trained
-  on over 80 composers from the Yale Classical Archives Corpus. It integrates
+  on over 460 composers from the Yale Classical Archives Corpus. It integrates
   with TidalCycles via a kinetics framework handling form, five voicing
   strategies, a launcher paradigm \'conducting\' the musical abstracts
   reactively, and a preconfigured virtual orchestra mapping based on
@@ -103,6 +103,7 @@ library:
     - Harmonic.Rules.Import.Types
     - Harmonic.Rules.Import.Transform
     - Harmonic.Rules.Import.Graph
+    - Harmonic.Rules.Import.Merge
     # Evaluation (E Component + Layer C)
     - Harmonic.Evaluation.Scoring.Dissonance
     - Harmonic.Evaluation.Scoring.VoiceLeading

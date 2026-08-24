@@ -16,6 +16,7 @@ module Harmonic.Evaluation.Database.Query
     ComposerWeights
   , parseComposerWeights
   , normalizeWeights
+  , parseWeightsJson
   
     -- * Graph Queries
   , fetchTransitions

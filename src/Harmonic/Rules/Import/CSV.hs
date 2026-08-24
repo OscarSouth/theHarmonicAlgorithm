@@ -38,7 +38,7 @@ data YCACLRow = YCACLRow
   { yrComposer    :: !T.Text   -- ^ composer name as it appears in the corpus
   , yrPiece       :: !T.Text   -- ^ piece identifier, unique within a composer
   , yrOrder       :: !Int      -- ^ position of this slice within the piece
-  , yrPitches     :: ![Int]    -- ^ MIDI pitches sounding at this slice
+  , yrPitches     :: ![Int]    -- ^ pitch classes (0-11) sounding at this slice
   , yrFundamental :: !Int      -- ^ fundamental detected for the slice
   } deriving (Show, Eq)
 

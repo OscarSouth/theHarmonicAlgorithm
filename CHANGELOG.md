@@ -2,12 +2,41 @@
 
 __________________________________________________________________________________
 
+## Version 3.1.0 — in progress (2026)
+
+The cumulative modernisation release: each block below lands as it completes;
+the version tags once the sweep is done.
+
+### The Data Model & corpus-v2
+
+The trained model itself got the upgrade this time. The ingestion pipeline was
+rebuilt end-to-end and the graph re-trained as **corpus-v2**.
+
+**Corpus-v2** — Transition counting is now consistent-path: every plausible
+reading of a musical moment still informs the model, but alternative readings
+of the *same* moment are never mistaken for movement. In corpus-v1 that
+artefact concentrated 57.7% of all probability mass onto self-loops; in
+corpus-v2 self-loops carry 2.3% — the genuine pedals — and the strongest
+learned patterns are real harmonic rhetoric (arrive by fifth, then hold).
+487 composers now carry weight (22 were silently lost to a normaliser
+mismatch), and ambiguous verticals no longer shout louder than plain triads.
+
+**The rebuild pipeline** — now something you can actually run:
+`stack run` streams per composer (minutes, not tens of GB), writes in
+transactional parameterised batches, reports every refusal instead of
+dropping data silently, and reproduces the live keyspace exactly (write-side
+naming is routed through the same 55-form corpus table the read side uses,
+locked by tests). The whole analytic chain is documented in
+`documents/DATA_MODELLING.md`.
+
+__________________________________________________________________________________
+
 ## Version 3.0.0 is here! (2026)
 
 Version 3.0.0 is a complete rebuild. The Harmonic Algorithm has grown into a
 live performance instrument built around three interlocking systems: **The
 Harmonic Algorithm** — the R→E→T generation engine, now capable of channelling
-and blending the harmonic sensibilities of over 80 composers from the Yale
+and blending the harmonic sensibilities of over 460 composers from the Yale
 Classical Archives Corpus; **The Spectral Narrative** — a form and kinetics
 framework that programs macro-level compositional arc as data, in wall-clock
 seconds; and **Algorithmic Orchestration** — a full virtual orchestra of 15

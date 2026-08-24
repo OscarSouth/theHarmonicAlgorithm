@@ -21,8 +21,7 @@
 module Harmonic.Evaluation.Analysis.Markov
   ( Edge
   , TransitionCounts
-  , transitionCounts
-  , transitionProbabilities
+  , probabilitiesFromCounts
   ) where
 
 import           Harmonic.Rules.Types.Harmony (Cadence)
@@ -34,27 +33,20 @@ import           Data.List (foldl')
 -- |Representation of a transition between cadences.
 type Edge = (Cadence, Cadence)
 
--- | Raw observed counts per edge, before normalisation.
+-- | Raw observed (possibly fractional) counts per edge, before
+-- normalisation. Produced by
+-- 'Harmonic.Rules.Import.Transform.buildTransitionCounts'.
 type TransitionCounts = Map Edge Double
 
 -- | Total outgoing weight per source cadence, the denominator used when
 -- normalising counts into probabilities.
 type Totals = Map Cadence Double
 
--- | Count each adjacent pair in a cadence sequence. Ingestion-only: the live
--- generator reads edge weights from Neo4j rather than recomputing these.
-transitionCounts :: [Cadence] -> TransitionCounts
-transitionCounts cadences =
-  foldl' insertEdge Map.empty (zip cadences (drop 1 cadences))
-  where
-    insertEdge acc edge = Map.insertWith (+) edge 1 acc
-
--- | Normalise 'transitionCounts' into per-source transition probabilities, so
+-- | Normalise edge counts into per-source transition probabilities, so
 -- the outgoing edges of each cadence sum to 1.
-transitionProbabilities :: [Cadence] -> Map Edge Double
-transitionProbabilities cadences =
-  let counts = transitionCounts cadences
-      totals = buildTotals counts
+probabilitiesFromCounts :: TransitionCounts -> Map Edge Double
+probabilitiesFromCounts counts =
+  let totals = buildTotals counts
    in Map.mapWithKey (normalise totals) counts
   where
     buildTotals :: TransitionCounts -> Totals

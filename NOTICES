@@ -60,7 +60,19 @@ All Haskell package dependencies are listed in package.yaml. The majority are
 licensed under BSD-2-Clause or BSD-3-Clause. Notable exceptions:
 
   tidal, hosc, tidal-core, tidal-link — GPL-3.0 (see section 2)
-  hasbolt — Apache-2.0 (Neo4j Bolt driver)
 
 Full license texts are available via each package on Hackage:
 https://hackage.haskell.org
+
+-------------------------------------------------------------------------------
+6. Pocket Operations Drum Patterns
+-------------------------------------------------------------------------------
+
+The drum pattern library (live/drumpats/) adapts patterns from Pocket
+Operations by Paul Wenzel (Shittyrecording Studio):
+
+  Wenzel, P. Pocket Operations — a collection of classic drum machine
+  patterns. https://shittyrecording.studio
+
+Used and adapted with the author's explicit personal permission to the
+composer (granted directly by Paul Wenzel).

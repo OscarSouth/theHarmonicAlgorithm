@@ -10,7 +10,7 @@ This system outputs MIDI on TidalCycles channels 1–16 (`d01`–`d16`). **Every
 
 ### The graph
 
-Generation draws on a Neo4j graph of harmonic transitions learned from 80+ composers (the Yale Classical Archives Corpus). Start it before you begin:
+Generation draws on a Neo4j graph of harmonic transitions learned from 460+ composers (the Yale Classical Archives Corpus). Start it before you begin:
 
 ```bash
 docker compose up -d neo4j

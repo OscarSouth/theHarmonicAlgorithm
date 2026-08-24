@@ -7,6 +7,12 @@
 -- Write operations for storing cadence nodes and transition edges during
 -- data ingestion, plus a re-export of 'connectNeo4j' (the connection itself
 -- lives in "Harmonic.Database").
+--
+-- Writes are BATCHED and PARAMETERISED: edges travel as a @$rows@ JSON
+-- parameter into one @UNWIND@ + @MERGE@ statement per batch, so a full
+-- corpus write is a few hundred transactional round trips rather than one
+-- auto-committing request per edge, and no value is ever spliced into
+-- Cypher text.
 
 module Harmonic.Rules.Import.Graph (
     -- * Connection
@@ -16,116 +22,105 @@ module Harmonic.Rules.Import.Graph (
     initGraph, truncateCadenceGraph,
 
     -- * Writing cadence transitions
-    ComposerWeights, writeCadenceEdges, buildQuery,
-
-    -- * Cypher field rendering
-    showText, movementText, chordText, dissonanceText,
-    confidenceText, weightsLiteral,
+    ComposerWeights, writeCadenceEdges, edgeRow, batchCypher,
 ) where
 
-import           Harmonic.Database (DbActionT, connectNeo4j, runQuery)
+import           Harmonic.Database (DbActionT, connectNeo4j, runQuery, runQueryP)
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as P
 import qualified Harmonic.Evaluation.Scoring.Dissonance as D
 
+import qualified Data.Aeson as A
+import           Data.Aeson ((.=))
+import qualified Data.ByteString.Lazy as BL
 import qualified Data.Map.Strict as Map
 import           Data.Map.Strict (Map)
 import qualified Data.Text as T
+import qualified Data.Text.Encoding as TE
 
--- | How much each composer contributes to one @NEXT@ edge. Written to the
--- edge as a JSON literal by 'weightsLiteral', and summed into a single
--- @confidence@ property by 'confidenceText'.
+-- | How much each composer contributes to one @NEXT@ edge. Serialised to a
+-- JSON object string on the edge's @weights@ property (sparse: absent
+-- composer = weight 0), and summed into a single @confidence@ property.
 type ComposerWeights = Map T.Text Double
 
--- |Initialise schema. Node identity is the @show@ string (movement +
--- functionality) — the functionality half of every key follows the naming
--- contract documented at the head of "Harmonic.Rules.Import.Transform"
--- (the live DB carries legacy names; read the warning there BEFORE any
--- re-ingestion).
+-- |Initialise schema: the uniqueness constraint on the @show@ node key.
+-- Idempotent (@IF NOT EXISTS@) and non-destructive — it touches nothing
+-- else in the database. Node identity is the @show@ string (movement +
+-- functionality); the functionality half of every key follows the naming
+-- contract documented at the head of "Harmonic.Rules.Import.Transform".
 initGraph :: DbActionT ()
 initGraph = do
-  _ <- runQuery "CALL apoc.schema.assert({}, {})"
   _ <- runQuery "CREATE CONSTRAINT IF NOT EXISTS FOR (n:Cadence) REQUIRE n.show IS UNIQUE"
   pure ()
 
--- | Delete every @Cadence@ node and its @NEXT@ edges, batched through
--- @apoc.periodic.iterate@ to avoid memory spikes on a full corpus. Run before
--- a re-ingestion.
+-- | Delete every @Cadence@ node and its @NEXT@ edges. Run before a
+-- re-ingestion. The cadence graph is small by construction (at most
+-- 55 zero-forms x 12 movements = 660 nodes), so a plain @DETACH DELETE@
+-- suffices — no batching machinery required.
 truncateCadenceGraph :: DbActionT ()
 truncateCadenceGraph = do
-  _ <- runQuery deleteCadences
+  _ <- runQuery "MATCH (n:Cadence) DETACH DELETE n"
   pure ()
-  where
-    deleteCadences = T.unlines
-      [ "CALL apoc.periodic.iterate("
-      , "  \"MATCH (n:Cadence) RETURN n\"," -- batch MATCH avoids memory spikes
-      , "  \"DETACH DELETE n\"," -- deletes cadences plus NEXT edges
-      , "  {batchSize: 5000, parallel: true}"
-      , ")"
-      ]
 
--- | Write a batch of cadence transitions. Each triple merges both endpoint
--- nodes and the @NEXT@ edge between them. Transitions with no composer weight
--- are skipped rather than written with zero confidence.
+-- | Write cadence transitions in parameterised batches of 1000 rows.
+-- Each batch is one transactional @UNWIND@ round trip; @MERGE@ keeps every
+-- row idempotent, so a failed run can simply be re-run. Node properties
+-- are set only @ON CREATE@ (they are pure functions of the node key, so
+-- re-setting them per edge would be redundant writes). Transitions with
+-- no composer weight are skipped rather than written with zero confidence.
 writeCadenceEdges :: [(H.Cadence, H.Cadence, ComposerWeights)] -> DbActionT ()
-writeCadenceEdges = mapM_ writeOne
+writeCadenceEdges edges =
+  mapM_ writeBatch (filter (not . null) (chunksOf 1000 (filter hasWeight edges)))
   where
-    writeOne (fromCadence, toCadence, weights)
-      | Map.null weights = pure ()
-      | otherwise = runQuery (buildQuery fromCadence toCadence weights) >> pure ()
+    hasWeight (_, _, weights) = not (Map.null weights)
+    writeBatch batch = do
+      let rows = A.toJSON (map edgeRow batch)
+      _ <- runQueryP batchCypher (Map.singleton "rows" rows)
+      pure ()
+    chunksOf n xs = case splitAt n xs of
+      (chunk, [])   -> [chunk]
+      (chunk, rest) -> chunk : chunksOf n rest
 
--- | Build the Cypher @MERGE@ for one transition. Node identity is the @show@
--- string; see 'initGraph' for the naming contract that governs it.
-buildQuery :: H.Cadence -> H.Cadence -> ComposerWeights -> T.Text
-buildQuery fromCadence toCadence weights =
-  T.concat
-    [ "MERGE (from:Cadence {show: '", showText fromCadence, "'}) "
-    , "SET from.movement = '", movementText fromCadence, "', from.chord = '", chordText fromCadence
-    , "', from.dissonance = ", dissonanceText fromCadence, " "
-    , "MERGE (to:Cadence {show: '", showText toCadence, "'}) "
-    , "SET to.movement = '", movementText toCadence, "', to.chord = '", chordText toCadence
-    , "', to.dissonance = ", dissonanceText toCadence, " "
-    , "MERGE (from)-[r:NEXT]->(to) "
-    , "SET r.confidence = ", confidenceText weights
-    , ", r.weights = ", weightsLiteral weights
-    ]
+-- | The one write statement: unwind the batch, merge both endpoint nodes
+-- and the @NEXT@ edge, stamp the edge's confidence and per-composer
+-- weights.
+batchCypher :: T.Text
+batchCypher = T.unlines
+  [ "UNWIND $rows AS row"
+  , "MERGE (from:Cadence {show: row.fromShow})"
+  , "  ON CREATE SET from.movement = row.fromMovement,"
+  , "                from.chord = row.fromChord,"
+  , "                from.dissonance = row.fromDissonance"
+  , "MERGE (to:Cadence {show: row.toShow})"
+  , "  ON CREATE SET to.movement = row.toMovement,"
+  , "                to.chord = row.toChord,"
+  , "                to.dissonance = row.toDissonance"
+  , "MERGE (from)-[r:NEXT]->(to)"
+  , "SET r.confidence = row.confidence, r.weights = row.weights"
+  ]
 
--- | Node identity: the cadence's @show@ string, used as the @MERGE@ key.
-showText :: H.Cadence -> T.Text
-showText = T.pack . show
-
--- | The movement half of a cadence, as a Cypher string value.
-movementText :: H.Cadence -> T.Text
-movementText cadence =
-  let (movement, _) = H.deconstructCadence cadence
-   in T.pack (show movement)
-
--- | The chord half of a cadence, as a Cypher string value.
-chordText :: H.Cadence -> T.Text
-chordText cadence =
-  let (_, chord) = H.deconstructCadence cadence
-   in T.pack (show chord)
-
--- | The cadence's dissonance level, as a Cypher numeric value. Computed at
--- write time so queries can filter on it without recomputing.
-dissonanceText :: H.Cadence -> T.Text
-dissonanceText cadence =
-  let (_, chord) = H.deconstructCadence cadence
-      ints = fmap P.unPitchClass chord
-      (value, _) = D.dissonanceLevel ints
-   in T.pack (show value)
-
--- | Total edge weight across all composers, stored as @r.confidence@. This is
--- what a @\"*\"@ (all-composers) query ranks on.
-confidenceText :: ComposerWeights -> T.Text
-confidenceText weights = T.pack . show $ sum (Map.elems weights)
-
--- | Per-composer weights as a JSON literal, stored as @r.weights@. Single
--- composer and blend queries read this rather than @r.confidence@.
-weightsLiteral :: ComposerWeights -> T.Text
-weightsLiteral weights =
-  let entries = Map.toList weights
-      pieces = map formatEntry entries
-   in T.concat ["'", "{", T.intercalate "," pieces, "}", "'"]
+-- | One edge as a @$rows@ element. Node fields are pure functions of the
+-- cadence (the @show@ key, its movement and chord halves, and the
+-- dissonance level computed at write time so queries can filter on it).
+-- @weights@ is the JSON object string the read side
+-- ('Harmonic.Evaluation.Database.Query.parseWeightsJson') parses back;
+-- @confidence@ is the sum of all composer weights (what a @"*"@ query
+-- ranks on).
+edgeRow :: (H.Cadence, H.Cadence, ComposerWeights) -> A.Value
+edgeRow (fromCadence, toCadence, weights) = A.object
+  [ "fromShow"       .= show fromCadence
+  , "fromMovement"   .= show (fst (H.deconstructCadence fromCadence))
+  , "fromChord"      .= show (snd (H.deconstructCadence fromCadence))
+  , "fromDissonance" .= dissonanceOf fromCadence
+  , "toShow"         .= show toCadence
+  , "toMovement"     .= show (fst (H.deconstructCadence toCadence))
+  , "toChord"        .= show (snd (H.deconstructCadence toCadence))
+  , "toDissonance"   .= dissonanceOf toCadence
+  , "confidence"     .= sum (Map.elems weights)
+  , "weights"        .= TE.decodeUtf8 (BL.toStrict (A.encode weights))
+  ]
   where
-    formatEntry (name, value) = T.concat ["\"", name, "\":", T.pack (show value)]
+    dissonanceOf cadence =
+      let (_, chord) = H.deconstructCadence cadence
+          (value, _) = D.dissonanceLevel (fmap P.unPitchClass chord)
+       in value

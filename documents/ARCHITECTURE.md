@@ -479,10 +479,14 @@ across the corpus, a name selects one, `"bach:30 debussy:70"` mixes with
 those coefficients.
 
 **Corpus**: Yale Classical Archives Corpus, 460+ composers. Ingestion
-extracts the fundamental of each slice, generates the most consonant
-triad interpretations, weights them, and cross-multiplies adjacent
-slices into transitions. `Analysis/Markov.hs` normalises counts into
-transition probabilities before the graph write.
+extracts the fundamental of each slice and ranks its most consonant
+triad interpretations with per-slice normalised weights. Transitions
+are counted over slice TRIPLES — the cadence `a -> b` followed by
+`b -> c` with the middle reading shared — so every consistent
+interpretation path informs the model and alternative readings of one
+moment are never mistaken for movement. `Analysis/Markov.hs` normalises
+the counts into per-source transition probabilities before the graph
+write.
 
 ---
 

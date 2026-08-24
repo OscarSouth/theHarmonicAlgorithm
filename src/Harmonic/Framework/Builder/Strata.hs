@@ -24,11 +24,10 @@ import Data.Maybe (listToMaybe)
 
 import qualified Harmonic.Rules.Types.Scale as Sc
 import Harmonic.Rules.Types.Scale
-  ( StrataLabel, Tristrata(..), Mode(..), ModeQuality(..), ModeResult(..)
+  ( StrataLabel, Tristrata(..), ModeResult(..)
   , tristrataStrataAt, tristrataOf, tristrataDissonance
   , strataDissonance, strataChroma, classifyModeAt
   )
-import Harmonic.Rules.Types.Pitch (PitchClass(..), mkPitchClass)
 
 -- |Position of a strata inside a tristrata (1, 2, or 3); 'Nothing' if the
 -- strata is not a member of that tristrata.
@@ -144,12 +143,16 @@ pickPartner barSeq i sCurr tCurr =
 -- @barSeq[i].tristrata@. Unions @strataChroma sCurr@ with the partner's
 -- chroma, then classifies via 'classifyModeAt' pinned to @triadRootPC@.
 --
--- Returns 'ModeOk' for a normal classification; 'ModeInvalid' when the
--- union doesn't have exactly 7 unique pitch classes (only reachable via
--- 'Harmonic.Framework.Builder.absStrata' overrides that violate tristrata adjacency). When the
--- 7-PC union doesn't classify under any of the 28 mode patterns pinned
--- to @triadRootPC@, returns @ModeOk (Mode Aeolian (P triadRootPC))@ as
--- a benign fallback.
+-- Returns 'ModeOk' for a normal classification; 'ModeInvalid' otherwise —
+-- either the union doesn't have exactly 7 unique pitch classes, or the
+-- 7-PC union doesn't classify under any of the 28 mode patterns pinned to
+-- @triadRootPC@. Neither case is reachable from walk-legal input: every
+-- 7-PC union of two strata is a transposition of one of the four parent
+-- scale families and classifies at all 7 of its tones (locked exhaustively
+-- by ScaleSpec), and walk triads are contained in their strata, so
+-- @triadRootPC@ is always in the union. 'ModeInvalid' is reachable only
+-- via 'Harmonic.Framework.Builder.absStrata' \/ relStrata overrides that
+-- violate tristrata adjacency, and stores the offending PCs faithfully.
 modeForTriad :: [(StrataLabel, Tristrata)]
              -> Int
              -> Int                          -- ^ triad's harmonic root PC (0..11)
@@ -164,7 +167,7 @@ modeForTriad barSeq i triadRootPC
            then ModeInvalid unionPCs
            else case classifyModeAt triadRootPC unionPCs of
                   Just m  -> ModeOk m
-                  Nothing -> ModeOk (Mode Aeolian (mkPitchClass triadRootPC))
+                  Nothing -> ModeInvalid unionPCs
 
 -- |Select the next @(s', t')@ from a candidate pool using the tie-break rule:
 --

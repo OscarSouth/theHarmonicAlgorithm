@@ -200,6 +200,23 @@ spec = do
       -- pinned to 0
       classifyModeAt 0 (map P [0,2,4,6,8,10,1]) `shouldBe` Nothing
 
+    it "classifies every 7-PC strata-pair union at all 7 of its tones" $ do
+      -- The theorem that makes modeForTriad total on walk-legal input:
+      -- every union of two strata with exactly 7 unique PCs is a
+      -- transposition of one of the four parent scale families, so the
+      -- 28-mode taxonomy classifies it pinned to any of its tones — no
+      -- fallback mode is ever needed.
+      let pairs = [ (s1, s2)
+                  | s1 <- allStrataLabels, s2 <- allStrataLabels, s1 /= s2
+                  , length (nub (strataChroma s1 ++ strataChroma s2)) == 7 ]
+          failures = [ (s1, s2, r)
+                     | (s1, s2) <- pairs
+                     , let u = nub (strataChroma s1 ++ strataChroma s2)
+                     , r <- map unPitchClass u
+                     , not (isJust (classifyModeAt r u)) ]
+      length pairs `shouldBe` 64
+      failures `shouldBe` []
+
   describe "modeFamily (28-mode partition)" $ do
     it "Aeolian → Major" $        modeFamily Aeolian   `shouldBe` Major
     it "Locrian → Major" $        modeFamily Locrian   `shouldBe` Major
