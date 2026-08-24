@@ -2,7 +2,7 @@ name: Deploy Haddock Docs
 
 on:
   push:
-    branches: [master]
+    branches: [main]
     paths:
       - 'src/**'
       - 'package.yaml'
