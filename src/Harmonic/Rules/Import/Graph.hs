@@ -22,7 +22,6 @@ module Harmonic.Rules.Import.Graph (
     confidenceText, weightsLiteral,
 
     -- * Vestigial
-    queryNextCadences,
 ) where
 
 import           Harmonic.Config
@@ -133,12 +132,6 @@ weightsLiteral weights =
    in T.concat ["'", "{", T.intercalate "," pieces, "}", "'"]
   where
     formatEntry (name, value) = T.concat ["\"", name, "\":", T.pack (show value)]
-
--- | Vestigial stub: always returns @[]@ and ignores its argument. Cadence
--- lookup lives in "Harmonic.Evaluation.Database.Query" instead. Retained only
--- so existing imports keep compiling; do not build on it.
-queryNextCadences :: T.Text -> Bolt.BoltActionT IO [T.Text]
-queryNextCadences _ = pure []
 
 -- | Open a Bolt connection to the local Neo4j on port 7687, using the
 -- credentials in "Harmonic.Config". Every online generation path needs one.

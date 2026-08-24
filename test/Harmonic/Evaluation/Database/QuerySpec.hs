@@ -153,6 +153,14 @@ spec = do
         Map.lookup "bach" result `shouldBe` Just 1.0
         Map.size result `shouldBe` 1
 
+    describe "wildcard" $ do
+
+      it "\"*\" parses to the empty blend (aggregate mode)" $
+        parseComposerWeights "*" `shouldSatisfy` Map.null
+
+      it "\" * \" (padded wildcard) parses to the empty blend" $
+        parseComposerWeights " * " `shouldSatisfy` Map.null
+
   describe "normalizeWeights" $ do
     
     it "normalizes weights to sum 1.0" $ do
@@ -210,6 +218,32 @@ spec = do
           result = resolveWeights userBlend candidates
       map snd result `shouldBe` [15.0, 10.0, 5.0]
 
+    describe "empty blend (wildcard aggregate branch)" $ do
+
+      it "scores each candidate as the sum of its edge weights" $ do
+        let candidates = [ (testCadence 1, Map.fromList [("bach", 10.0), ("debussy", 5.0)])
+                         , (testCadence 2, Map.fromList [("bach", 2.0)])
+                         ]
+            result = resolveWeights Map.empty candidates
+        map snd result `shouldBe` [15.0, 2.0]
+
+      it "sorts by aggregate score descending" $ do
+        let candidates = [ (testCadence 1, Map.fromList [("a", 1.0)])
+                         , (testCadence 2, Map.fromList [("a", 3.0)])
+                         , (testCadence 3, Map.fromList [("a", 2.0)])
+                         ]
+            result = resolveWeights Map.empty candidates
+        map snd result `shouldBe` [3.0, 2.0, 1.0]
+
+      it "zero entries do not change the aggregate (sparse == dense)" $ do
+        -- The invariant the sparse corpus and fetchTransitionsAggregate
+        -- both rely on: dropping zero-valued composer entries leaves every
+        -- wildcard score unchanged.
+        let dense  = [(testCadence 1, Map.fromList [("a", 4.0), ("b", 0.0), ("c", 0.0)])]
+            sparse = [(testCadence 1, Map.fromList [("a", 4.0)])]
+        map snd (resolveWeights Map.empty dense) `shouldBe`
+          map snd (resolveWeights Map.empty sparse)
+
     describe "Case-insensitive lookup (Phase 8)" $ do
       it "user blend {\"Bach\"} matches lowercase corpus edge weights" $ do
         -- Direct map (bypasses parseComposerWeights) to prove the lookup
@@ -239,7 +273,17 @@ spec = do
         snd (head result) `shouldBe` 8.0
 
   describe "applyComposerBlend" $ do
-    
+
+    it "empty blend keeps positives, drops zero-sum, sorted descending" $ do
+      -- The exact contract fetchTransitionsAggregate reproduces from
+      -- r.confidence without parsing r.weights.
+      let candidates = [ (testCadence 1, Map.fromList [("a", 1.0)])
+                       , (testCadence 2, Map.empty)              -- zero-sum: dropped
+                       , (testCadence 3, Map.fromList [("a", 6.0)])
+                       ]
+          result = applyComposerBlend Map.empty candidates
+      map snd result `shouldBe` [6.0, 1.0]
+
     it "filters out zero-score candidates" $ do
       let userBlend = Map.fromList [("bach", 1.0)]
           candidates = [ (testCadence 1, Map.fromList [("bach", 10.0)])

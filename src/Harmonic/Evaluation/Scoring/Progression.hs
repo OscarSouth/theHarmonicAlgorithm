@@ -318,9 +318,14 @@ computeCadenceFav seekStr prog = do
   let cads      = map (H.walkTriadCadence . H.stateCadence) (toList (Prog.unProgression prog))
       srcKeys   = nub (map (T.pack . show) cads)
       blend     = Q.parseComposerWeights seekStr
+  -- Wildcard blend: project the pre-aggregated r.confidence (identical to
+  -- resolveWeights over the full weights map, by the ingestion invariant)
+  -- instead of parsing every edge's weights JSON. edgeScore is
+  -- share-of-total, so ordering is immaterial either way.
   pairs <- forM srcKeys $ \k -> do
-    raw <- Q.fetchTransitions k
-    let resolved = Q.resolveWeights blend raw   -- [(Cadence, Double)]
+    resolved <- if Map.null blend
+                  then Q.fetchTransitionsAggregate k
+                  else Q.resolveWeights blend <$> Q.fetchTransitions k
     pure (k, resolved)
   let srcMap = Map.fromList pairs
   pure (cadenceFavFromMap srcMap prog)
