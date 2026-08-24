@@ -234,8 +234,8 @@ Neo4j, then load the pre-built database published with the
 
 ```bash
 # download the graph (14MB) and its checksum
-curl -LO https://github.com/OscarSouth/theHarmonicAlgorithm/releases/download/corpus-v1/ycacl-graph.dump
-curl -L https://github.com/OscarSouth/theHarmonicAlgorithm/releases/download/corpus-v1/SHA256SUMS | shasum -a 256 -c
+curl -LO https://github.com/OscarSouth/theHarmonicAlgorithm/releases/download/corpus-v2/ycacl-graph.dump
+curl -L https://github.com/OscarSouth/theHarmonicAlgorithm/releases/download/corpus-v2/SHA256SUMS | shasum -a 256 -c
 
 # load it (the database must be offline), then start Neo4j
 docker compose stop neo4j

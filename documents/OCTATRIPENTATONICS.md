@@ -329,8 +329,10 @@ are musically valid under their respective contexts.
    the same tristrata, which the walk ensures).
 3. Classify the union exhaustively against the 28-mode taxonomy
    (`classifyModeAt`), pinning the root to the triad's harmonic root
-   PC. Fall back to `Aeolian` rooted on the triad if no quality
-   matches.
+   PC. This always succeeds for walk-legal input: every 7-PC union of
+   two strata is a transposition of one of the four parent scale
+   families and classifies at all seven of its tones (verified
+   exhaustively), and the triad root is always in the union.
 4. Annotate the parent key by inverting `modeDegree` over the matched
    `ModeQuality` to recover the parent root and family.
 

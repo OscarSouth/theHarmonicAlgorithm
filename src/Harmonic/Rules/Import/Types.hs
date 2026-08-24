@@ -16,9 +16,10 @@ module Harmonic.Rules.Import.Types (
 -- | A single YCACL slice: every pitch sounding at one vertical moment,
 -- together with the fundamental detected for it by the corpus export.
 --
--- Pitches are raw MIDI numbers, not pitch classes — reduction to Z12 happens
--- downstream in "Harmonic.Rules.Import.Transform".
+-- Pitches are pitch classes 0-11: the R exporter
+-- (@scripts\/export_ycacl.R@) already reduces to Z12 before writing the
+-- artefact.
 data ChordSlice = ChordSlice
-  { slicePitches     :: [Int]   -- ^ every pitch in the slice, as MIDI numbers
+  { slicePitches     :: [Int]   -- ^ every pitch in the slice, as pitch classes 0-11
   , sliceFundamental :: Int     -- ^ fundamental detected for the slice
   } deriving (Show, Eq)

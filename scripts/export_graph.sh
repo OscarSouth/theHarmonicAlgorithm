@@ -3,10 +3,10 @@
 # Export the composer graph as a single-file archive for publication.
 #
 # The dump is produced by hand, not by CI: it needs a populated Neo4j. Upload the
-# result to the dedicated `corpus-v1` release so one stable URL serves every code
-# release. (The published artefact is normally built by scripts/sparsify_graph.sh,
-# which also drops zero-valued composer entries; this script is the plain
-# "dump whatever the live graph holds" tool.)
+# result to the dedicated corpus release (currently `corpus-v2`) so one stable
+# URL serves every code release. Since corpus-v2 the graph is sparse at source,
+# so this plain "dump whatever the live graph holds" tool IS the artefact
+# builder; the historical sparsify step is no longer part of the flow.
 #
 # NOTE ON SYNTAX: this stack runs Neo4j 5.26, which uses `neo4j-admin database dump`
 # / `neo4j-admin database load`. The bare `neo4j-admin dump` form is 4.x and will NOT
@@ -73,14 +73,14 @@ cat <<EOF
 
 1. Upload as a single stable asset, decoupled from code releases:
 
-     gh release create corpus-v1 \\
-       --title "Composer graph (YCACL)" \\
-       --notes "Neo4j 5.26 dump of the harmonic transition graph." \\
+     gh release create corpus-v2 \\
+       --title "Composer graph (YCACL, corpus-v2)" \\
+       --notes "Neo4j 5.26 dump of the harmonic transition graph (consistent-path counting)." \\
        "$OUT_ABS/$DUMP_NAME" "$OUT_ABS/SHA256SUMS"
 
    To replace it later WITHOUT breaking links, keep the tag and filename identical:
 
-     gh release upload corpus-v1 "$OUT_ABS/$DUMP_NAME" --clobber
+     gh release upload corpus-v2 "$OUT_ABS/$DUMP_NAME" --clobber
 
 2. Users load it with (note: 5.x syntax, and neo4j must be stopped):
 

@@ -32,6 +32,9 @@ import qualified Harmonic.Rules.Types.ProgressionSpec as ProgressionSpec
 import qualified Harmonic.Rules.Types.ProgressionContextSpec as ProgressionContextSpec
 import qualified Harmonic.Rules.Types.ScaleSpec as ScaleSpec
 import qualified Harmonic.Rules.Constraints.FilterSpec as FilterSpec
+import qualified Harmonic.Rules.Import.TransformSpec as TransformSpec
+import qualified Harmonic.Rules.Import.MergeSpec as MergeSpec
+import qualified Harmonic.Rules.Import.GraphSpec as GraphSpec
 import qualified Harmonic.Evaluation.Scoring.DissonanceSpec as DissonanceSpec
 
 -- Phase C: Interactive Behaviour
@@ -59,6 +62,9 @@ main = hspec $ do
   describe "Harmonic.Core.ProgressionContext" ProgressionContextSpec.spec
   describe "Harmonic.Core.Scale" ScaleSpec.spec
   describe "Harmonic.Core.Filter" FilterSpec.spec
+  describe "Harmonic.Rules.Import.Transform" TransformSpec.spec
+  describe "Harmonic.Rules.Import.Merge" MergeSpec.spec
+  describe "Harmonic.Rules.Import.Graph" GraphSpec.spec
   describe "Harmonic.Core.Dissonance" DissonanceSpec.spec
   -- Phase C
   describe "Harmonic.Database.Query" QuerySpec.spec

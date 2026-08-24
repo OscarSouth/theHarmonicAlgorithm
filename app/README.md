@@ -1,11 +1,30 @@
 # app
 
-`Main.hs` orchestrates the ingestion pipeline:
+`Main.hs` is the run-once ingestion executable (`stack run`): it rebuilds the
+`(:Cadence)-[:NEXT]->(:Cadence)` graph from the YCACL artefact.
 
-1. Loads `data/artefacts/ycacl_sequences.csv` via `Harmonic.Ingestion.CSV`, producing a map of composers → pieces → `ChordSlice`s.
-2. Logs coverage metrics so long exports can be monitored without inspecting Neo4j manually.
-3. Builds duplicated cadence streams per composer (top triads replicated 3/2/1) by calling `Harmonic.Ingestion.Transform`.
-4. Computes Markov transitions, merges them per `(:Cadence)-[:NEXT]->(:Cadence)` edge, and attaches per-composer weight maps.
-5. Runs `truncateCadenceGraph` (APOC batched delete) followed by `initGraph` to keep the graph deterministic before writing the latest transitions.
+1. Loads `data/artefacts/ycacl_sequences.csv` via `Harmonic.Rules.Import.CSV`,
+   producing composers → pieces → `ChordSlice`s (pitch classes 0-11, exporter
+   fundamentals).
+2. Normalises composer names to graph keys (`slug`) and applies curation via
+   `Harmonic.Rules.Import.Merge` — every excluded composer is REPORTED, never
+   dropped silently.
+3. Per composer, folds each piece's slices into Markov transition counts with
+   `Harmonic.Rules.Import.Transform.buildTransitionCountsPerPiece`: every
+   consistent triad-interpretation path over each slice triple contributes
+   weighted counts (per-slice weights normalised to 1). Node keys are stamped
+   through `corpusFunctionality`, so the keyspace matches the live graph and
+   the read side exactly.
+4. Normalises counts into per-source probabilities
+   (`Harmonic.Evaluation.Analysis.Markov`) and merges them into one sparse
+   composer-weight map per edge.
+5. Truncates the cadence subgraph, applies the schema constraint
+   (idempotent, non-destructive), and writes the edges in parameterised
+   `UNWIND` batches (`Harmonic.Rules.Import.Graph`).
 
-When editing `Main.hs`, keep in mind that the file is the user-facing log surface—add descriptive `putStrLn`s any time new long-running work is introduced.
+The write targets whatever `HA_NEO4J_URL` points at (default
+`http://localhost:7474`) — rebuild into a scratch container and compare
+before promoting to the live database.
+
+`Main.hs` is also the user-facing log surface: add descriptive `putStrLn`s
+whenever new long-running work is introduced.
