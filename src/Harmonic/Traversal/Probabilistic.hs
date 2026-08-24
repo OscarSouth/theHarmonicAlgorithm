@@ -1,5 +1,3 @@
-{-# LANGUAGE BangPatterns #-}
-
 -- |
 -- Module      : Harmonic.Traversal.Probabilistic
 -- Description : Gamma distribution sampling for weighted selection
@@ -33,11 +31,9 @@ module Harmonic.Traversal.Probabilistic
   , withRandomGen
   ) where
 
-import System.Random (randomRIO, randomIO, StdGen, mkStdGen, Random(..))
-import System.Random.MWC (GenIO, createSystemRandom, uniformRM)
+import System.Random (randomRIO, StdGen, mkStdGen)
+import System.Random.MWC (GenIO, createSystemRandom)
 import qualified System.Random.MWC.Distributions as Dist
-import Statistics.Distribution (quantile)
-import Statistics.Distribution.Gamma (gammaDistr)
 import Data.List (sortBy)
 import Data.Ord (Down(..))
 import Control.Monad (replicateM)

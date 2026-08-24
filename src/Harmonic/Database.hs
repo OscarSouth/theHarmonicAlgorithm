@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -- |
 -- Module      : Harmonic.Database
 -- Description : Neo4j connection and query transport over the HTTP Query API

@@ -1,6 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-
 -- |
 -- Module      : Harmonic.Database.QuerySpec
 -- Description : Tests for composer weight parsing and resolution

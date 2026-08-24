@@ -1,5 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-
 -- |
 -- Module      : Harmonic.Rules.Constraints.Overtone
 -- Description : Constructive generation of valid triads from overtone sets
@@ -49,12 +47,10 @@ module Harmonic.Rules.Constraints.Overtone
   , formatOvertoneAnnotationPipe
   ) where
 
-import GHC.Generics (Generic)
-import Data.List (sort, nub, sortBy, intercalate)
-import Data.Function (on)
+import Data.List (sort, nub, intercalate)
 
 import Harmonic.Rules.Types.Pitch (PitchClass(..), mkPitchClass, unPitchClass)
-import Harmonic.Evaluation.Scoring.Dissonance (dissonanceLevel, mostConsonant, rankByConsonance)
+import Harmonic.Evaluation.Scoring.Dissonance (rankByConsonance)
 
 -------------------------------------------------------------------------------
 -- Combination Generator (nCr)
@@ -156,15 +152,6 @@ rankedTriads input = rankByConsonance $ possibleTriads input
 -- Returns at most n triads, or fewer if not enough valid triads exist.
 topTriads :: Int -> (Int, [Int]) -> [[Int]]
 topTriads n input = take n $ rankedTriads input
-
--------------------------------------------------------------------------------
--- Utility: Count Valid Triads
--------------------------------------------------------------------------------
-
--- |Count how many valid triads can be formed from a fundamental\/overtone pair.
--- Useful for diagnostic logging.
-countPossibleTriads :: (Int, [Int]) -> Int
-countPossibleTriads = length . possibleTriads
 
 -------------------------------------------------------------------------------
 -- Legacy Compatibility Aliases

@@ -1,6 +1,3 @@
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE InstanceSigs #-}
-
 -- |
 -- Module      : Harmonic.Rules.Types.Progression
 -- Description : Progression type with Monoid structure and manipulation functions
@@ -65,14 +62,13 @@ import Data.List (sort)
 import Data.Sequence (Seq, (><))
 import qualified Data.Sequence as Seq
 import Data.Foldable (toList)
-import Data.Maybe (fromMaybe)
 import Data.List.Split (chunksOf)
 import qualified Data.List as List
 import qualified Data.Char as Char
 
-import Harmonic.Rules.Types.Pitch (PitchClass(..), mkPitchClass, unPitchClass, transpose, NoteName(..), pitchClass)
+import Harmonic.Rules.Types.Pitch (PitchClass(..), mkPitchClass, unPitchClass, NoteName(..), pitchClass)
 -- |Import zeroFormPC for zero-form normalization in toCadenceStateFromPair to match DB convention
-import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), ChordState(..), CadenceState(..), fromCadenceState, Movement(..), fromMovement, toMovement, EnharmonicSpelling(..), zeroFormPC, enharmonicFunc, inferSpelling, toFunctionalityChord)
+import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), ChordState(..), CadenceState(..), fromCadenceState, Movement(..), toMovement, zeroFormPC, enharmonicFunc, inferSpelling, toFunctionalityChord)
 import qualified Harmonic.Rules.Types.Scale as Sc
 
 -------------------------------------------------------------------------------
@@ -154,8 +150,7 @@ fromChordStates states =
 -- Enharmonic spelling is inferred from the chord's absolute pitch content.
 toCadenceStateFromPair :: (ChordState, ChordState) -> CadenceState
 toCadenceStateFromPair (from, to) =
-  let fromChord = stateChord from
-      toChord = stateChord to
+  let toChord = stateChord to
       -- Calculate movement
       fromRoot = pitchClass (stateRoot from)
       toRoot = pitchClass (stateRoot to)

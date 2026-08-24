@@ -1,5 +1,3 @@
-{-# LANGUAGE FlexibleContexts #-}
-
 -- |
 -- Module      : Harmonic.Interface.Tidal.Bridge
 -- Description : TidalCycles interface for harmonic progressions
@@ -59,7 +57,6 @@ import Harmonic.Interface.Tidal.Form (Kinetics(..), IK)
 
 import Data.List (nub)
 import Data.Maybe (isJust)
-import Data.Foldable (toList)
 import Sound.Tidal.Context hiding (voice)
 
 -------------------------------------------------------------------------------

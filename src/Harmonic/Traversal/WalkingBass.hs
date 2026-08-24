@@ -68,7 +68,7 @@ module Harmonic.Traversal.WalkingBass
 import qualified Data.Vector as V
 import qualified Data.Set as Set
 import Data.Set (Set)
-import Data.List (foldl', minimumBy)
+import Data.List (minimumBy)
 import Data.Function (on)
 import Data.Bits (xor)
 import Data.Foldable (toList)

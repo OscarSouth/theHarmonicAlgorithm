@@ -201,6 +201,10 @@ makes sound straight away; the second adds the composer corpus.
 ### Dependencies
 
 1. [Haskell Stack](https://docs.haskellstack.org/en/latest/install_and_upgrade/)
+   with **GHC 9.10.3** installed and set as default (e.g. via
+   [ghcup](https://www.haskell.org/ghcup/)) — `stack.yaml` sets
+   `system-ghc: true`, so Stack uses your system GHC rather than
+   downloading its own
 2. [TidalCycles](https://tidalcycles.org/) with SuperCollider + SuperDirt
 3. [Docker](https://www.docker.com/) — only for the composer graph (second path)
 

@@ -1,4 +1,3 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 -- |
 -- Module      : Harmonic.Evaluation.Scoring.VoiceLeadingSpec
 -- Description : Voice leading cost function validation

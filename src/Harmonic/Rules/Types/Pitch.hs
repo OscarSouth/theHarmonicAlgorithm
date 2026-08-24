@@ -1,7 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE InstanceSigs #-}
-
 -- |
 -- Module      : Harmonic.Rules.Types.Pitch
 -- Description : Foundational pitch-class algebra as ℤ₁₂ cyclic group
@@ -56,7 +52,7 @@ module Harmonic.Rules.Types.Pitch
 
 import GHC.Generics (Generic)
 import Data.List (nub, sort)
-import GHC.Base (modInt, quotInt, remInt)
+import GHC.Base (quotInt, remInt)
 import GHC.Real ((%))
 
 -------------------------------------------------------------------------------

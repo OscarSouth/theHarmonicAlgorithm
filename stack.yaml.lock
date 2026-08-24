@@ -3,38 +3,10 @@
 # For more information, please see the documentation at:
 #   https://docs.haskellstack.org/en/stable/topics/lock_files
 
-packages:
-- completed:
-    hackage: tidal-1.10.1@sha256:78341c01002163364c4ff9e808c993d686405b0b43f16c0f5063a90389133e7a,3692
-    pantry-tree:
-      sha256: 22b5594c189c98255a9a9a08ff8d28c5f825383f8cc4e940f0d538049e515077
-      size: 2152
-  original:
-    hackage: tidal-1.10.1
-- completed:
-    hackage: hosc-0.21.1@sha256:95f06be1daa2a668f569d2f8b5e53887ef39c6e886e7c84ea574f85127d0abbf,2111
-    pantry-tree:
-      sha256: 0e6c1cd35b902465626c83517cb08abfa46b2e486985fb361b62086b89701759
-      size: 1769
-  original:
-    hackage: hosc-0.21.1
-- completed:
-    hackage: tidal-core-1.10.1@sha256:8300662a368613cff926acd21a52de79138871430a3e12ca7bbc945ba05a009d,2002
-    pantry-tree:
-      sha256: 23675e2ba493940010006c4711b441788793115fbd2c9137965ac6c849c62ff6
-      size: 2006
-  original:
-    hackage: tidal-core-1.10.1
-- completed:
-    hackage: tidal-link-1.2.0@sha256:56543c7b7bf6032c166ad7e9ba429ab9c4c053b80d39b62d6cfc69738f43be47,2017
-    pantry-tree:
-      sha256: f13e8498c8da8ff11dffd2a716bcd265ecb7cdbf78fd7566b2af155abcd3587e
-      size: 92860
-  original:
-    hackage: tidal-link-1.2.0
+packages: []
 snapshots:
 - completed:
-    sha256: 238fa745b64f91184f9aa518fe04bdde6552533d169b0da5256670df83a0f1a9
-    size: 721141
-    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/22/44.yaml
-  original: lts-22.44
+    sha256: 121a2b65e6842f67819409330694d068e6276f64df87faaf2a66c0016ddf277b
+    size: 732456
+    url: https://raw.githubusercontent.com/commercialhaskell/stackage-snapshots/master/lts/24/56.yaml
+  original: lts-24.56

@@ -20,7 +20,6 @@ module Harmonic.Interface.Tidal.OctatripentatonicT
   ) where
 
 import Data.Foldable (toList)
-import Data.List (intercalate)
 
 import qualified Harmonic.Rules.Types.Scale as Sc
 import qualified Harmonic.Rules.Types.ProgressionContext as PC

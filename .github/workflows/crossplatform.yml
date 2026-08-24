@@ -4,8 +4,8 @@ name: Cross-platform build
 # prone to toolchain flakiness; making it a required check would stall ordinary work
 # for reasons that have nothing to do with the change under review.
 #
-# This is the automated form of the "cross-platform clone verification" item in
-# notes/v3-checklist.md — continuously, rather than once by hand.
+# Continuous, automated form of the release-time "fresh clone builds on every
+# platform" verification.
 on:
   schedule:
     - cron: '0 5 * * 1'      # Mondays, 05:00 UTC
@@ -23,16 +23,16 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: haskell-actions/setup@v2
         with:
-          ghc-version: '9.6.7'
+          ghc-version: '9.10.3'
           enable-stack: true
           stack-version: 'latest'
 
       - name: Cache Stack store
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.stack
           key: ${{ runner.os }}-stack-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}

@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -- |
 -- Module      : Harmonic.Config
 -- Description : Connection constants and file paths for Neo4j and corpus data

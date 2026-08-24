@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 -- |
 -- Module      : Harmonic.Rules.Import.MergeSpec
 -- Description : Composer normalisation and transition-merge contracts

@@ -1,5 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
-
 -- |
 -- Module      : Harmonic.Core.FilterSpec
 -- Description : Tests for the Filter parsing and matching module

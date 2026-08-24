@@ -50,7 +50,7 @@ module Harmonic.Rules.Types.Scale
   ) where
 
 import Data.List (nub, sort, find)
-import Data.Maybe (listToMaybe, mapMaybe, fromMaybe)
+import Data.Maybe (listToMaybe, mapMaybe)
 import Data.Char (toUpper)
 
 import Harmonic.Rules.Types.Pitch (PitchClass(..), mkPitchClass, unPitchClass)

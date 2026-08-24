@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedStrings #-}
 -- |
 -- Module      : Harmonic.Rules.Import.GraphSpec
 -- Description : Write/read contract for the batched edge writer (offline)

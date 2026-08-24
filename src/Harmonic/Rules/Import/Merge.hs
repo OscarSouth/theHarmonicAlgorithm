@@ -28,7 +28,6 @@ import           Data.Map.Strict (Map)
 import qualified Data.Text as T
 import           Data.Text (Text)
 import           Data.Char (isAlphaNum)
-import           Data.List (foldl')
 
 import           Harmonic.Rules.Import.CSV (YCACLData)
 import           Harmonic.Rules.Import.Types (ChordSlice)
