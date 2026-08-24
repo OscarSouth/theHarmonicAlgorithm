@@ -75,8 +75,11 @@ find "$SITE" -name '*.html' -exec perl -0pi -e \
 #
 # The label is camel-cased (theHarmonicAlgorithm.com) to match how the project writes
 # its own name; the href stays lowercase, which is what the report grep below counts.
+#
+# A funding link rides along in the same menu. Kept to lowercase prose with no badge or
+# emoji: this is a reference document, and the site link beside it sets the register.
 find "$SITE" -name '*.html' -exec perl -0pi -e \
-	's#(<ul class="links" id="page-menu">.*?)</ul>#$1<li><a href="https://theharmonicalgorithm.com/">theHarmonicAlgorithm.com</a></li></ul>#gs' {} +
+	's#(<ul class="links" id="page-menu">.*?)</ul>#$1<li><a href="https://theharmonicalgorithm.com/">theHarmonicAlgorithm.com</a></li><li><a href="https://buymeacoffee.com/oscarsouth">buy me a coffee</a></li></ul>#gs' {} +
 
 # --- 6. the ASCII wordmark, front page only --------------------------------
 # The site's banner, byte-identical to src/components/Header.astro. Front page
