@@ -1,0 +1,100 @@
+
+/* ==========================================================================
+   theharmonicalgorithm.com — syntax theme for Haddock's hyperlinked source
+   pages. Appended to src/style.css by .github/haddock-theme/brand.sh.
+
+   Haddock ships a solarized-LIGHT syntax theme here (cream #fdf6e3 ground),
+   which is the one surface that would still flash white mid-browse if only the
+   doc chrome were themed.
+
+   The palette is a port of `vantablack-syntax`, the Pulsar theme used for live
+   coding (~/.pulsar/packages/vantablack-syntax/styles/), so the source view
+   reads like the editor the code is written in. Its LESS lighten() calls
+   resolved to:
+     @purple  lighten(purple, 60%)  #FFB3FF     @green  lighten(green, 60%)  #B3FFB3
+     @orange  lighten(orange, 25%)  #FFD280     @blue   lighten(blue,  35%)  #B2B2FF
+     @cyan    lighten(cyan,   35%)  #B2FFFF     @red    lighten(red,   25%)  #FF8080
+     @light-orange lighten(yellow, 30%) #FFFF99
+     @syntax-text-color #888888   @light-gray #555555
+
+   Two deliberate deviations from the editor theme:
+     - ground is the site's #0b0b0b, not pure black, so the docs are one surface
+     - comments are #6b6b6b, not #555: at Haddock's browser font size #555 sits
+       at ~2.4:1 contrast, which is fine in a 20px editor and not in a doc page
+   ========================================================================== */
+
+body {
+	background-color: #0b0b0b;
+	color: #888888;
+	font-family: 'Geist Mono', 'Courier New', Courier, monospace;
+}
+
+/* identifiers / punctuation — @syntax-text-color */
+.hs-identifier,
+.hs-operator,
+.hs-glyph,
+.hs-special {
+	color: #888888;
+}
+
+/* entity.name.type — @light-orange */
+.hs-identifier.hs-type {
+	color: #FFFF99;
+}
+
+/* keyword, storage — @purple */
+.hs-keyword {
+	color: #FFB3FF;
+}
+
+/* string — @green */
+.hs-string,
+.hs-char {
+	color: #B3FFB3;
+}
+
+/* constant.numeric — @orange */
+.hs-number {
+	color: #FFD280;
+}
+
+/* meta / preprocessor — @blue */
+.hs-pragma,
+.hs-cpp {
+	color: #B2B2FF;
+}
+
+/* comment — @light-gray, lifted for browser-size legibility */
+.hs-comment {
+	color: #6b6b6b;
+}
+
+/* Links between source tokens: the default paints a solarized block on hover. */
+a:link,
+a:visited {
+	text-decoration: none;
+	border-bottom: 1px solid #353535;
+	color: inherit;
+}
+
+a:hover,
+a.hover-highlight {
+	background-color: rgba(255, 255, 255, 0.14);
+	border-bottom-color: #ffffff;
+}
+
+/* Type-annotation tooltips (the yellow sticky notes). */
+span.annot {
+	color: inherit;
+}
+
+span.annot:hover {
+	background-color: rgba(255, 255, 255, 0.14);
+}
+
+span.annot span.annottext {
+	background: #0b0b0b;
+	border: 1px solid #353535;
+	color: #ffffff;
+	box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}

@@ -9,6 +9,7 @@ on:
       - 'stack.yaml'
       - 'stack.yaml.lock'
       - '.github/workflows/haddock.yml'
+      - '.github/haddock-theme/**'
   workflow_dispatch:
 
 permissions:
@@ -82,6 +83,15 @@ jobs:
           if [ "${after:-0}" -ne 0 ]; then
             echo "::warning::$after sibling links remain unrewritten"
           fi
+
+      # Restyle the generated HTML as theharmonicalgorithm.com: dark terminal
+      # palette, self-hosted Geist, the ASCII wordmark on the front page, a link
+      # back to the site, and the CNAME for the custom domain. Kept in a script
+      # so the exact same code can be run locally against a copy of the Haddock
+      # output to preview the theme without pushing — see the header of
+      # .github/haddock-theme/brand.sh.
+      - name: Brand the docs as theharmonicalgorithm.com
+        run: .github/haddock-theme/brand.sh _site
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

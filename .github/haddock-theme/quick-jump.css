@@ -1,0 +1,102 @@
+
+/* ==========================================================================
+   theharmonicalgorithm.com — dark theme for Haddock's quick-jump overlay
+   (the search box bound to the "s" key). Appended to quick-jump.css by
+   .github/haddock-theme/brand.sh. Same palette as chrome.css.
+   ========================================================================== */
+
+#search {
+	color: #ffffff;
+}
+
+#search-form input {
+	background: #0b0b0b;
+	color: #ffffff;
+	border: 1px solid #353535;
+	font-family: 'Geist Mono', 'Courier New', Courier, monospace;
+}
+
+#search input:focus {
+	border-color: #ffffff;
+	outline: none;
+}
+
+#search p.error {
+	color: #ff8080;
+}
+
+#search-results,
+#search-form input + #search-results {
+	background: #0b0b0b;
+	border: 1px solid #353535;
+	color: #ffffff;
+}
+
+.search-module h4 {
+	color: #c7c7c7;
+	background: transparent;
+	border-bottom: 1px solid #353535;
+}
+
+.search-module > ul > li > a[href] {
+	color: #ffffff;
+	border-bottom: none;
+}
+
+/* The selected row: was a pale blue fill, now the site's raised surface. */
+.search-module > ul > li > a[href].active-link {
+	background: rgba(255, 255, 255, 0.14);
+	color: #ffffff;
+}
+
+.search-module a[href]:hover {
+	background: rgba(255, 255, 255, 0.07);
+	color: #ffffff;
+}
+
+.search-result a a {
+	color: #c7c7c7;
+}
+
+.search-result ul.subs li {
+	color: #c7c7c7;
+}
+
+.more-results {
+	color: #c7c7c7;
+}
+
+.keyboard-shortcuts,
+.keyboard-shortcuts th {
+	color: #c7c7c7;
+	border-color: #353535;
+}
+
+.key {
+	background: rgba(255, 255, 255, 0.07);
+	border: 1px solid #353535;
+	color: #ffffff;
+	font-family: 'Geist Mono', 'Courier New', Courier, monospace;
+}
+
+.dropdown-menu {
+	background: #0b0b0b;
+	border: 1px solid #353535;
+}
+
+.dropdown-menu button {
+	background: #0b0b0b;
+	color: #c7c7c7;
+	border: none;
+	font-family: 'Geist Mono', 'Courier New', Courier, monospace;
+}
+
+.dropdown-menu button:hover {
+	background: rgba(255, 255, 255, 0.07);
+	color: #ffffff;
+}
+
+.dropdown-menu button:active {
+	background: rgba(255, 255, 255, 0.14);
+	color: #ffffff;
+}

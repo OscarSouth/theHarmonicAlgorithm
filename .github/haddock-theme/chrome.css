@@ -1,0 +1,368 @@
+
+/* ==========================================================================
+   theharmonicalgorithm.com — dark terminal theme for Haddock's doc chrome.
+
+   Appended to linuwial.css by .github/haddock-theme/brand.sh at deploy time;
+   the generated file is never committed. Appending (rather than adding a
+   second <link>) keeps us inside the same stylesheet, so equal-specificity
+   rules win by source order, and it sidesteps linuwial's title="Linuwial"
+   attribute — a titled sheet is a *preferred* stylesheet, and a second titled
+   sheet can be disabled by the browser.
+
+   Linuwial has no CSS custom properties and no prefers-color-scheme block, so
+   this overrides concrete selectors. Only colour, and font-family, are touched:
+   every size, weight, line-height and layout metric is Haddock's own, which is
+   where the real breakage risk lives.
+
+   Palette mirrors src/styles/global.css in the site repo:
+     --bg #0b0b0b   --fg #ffffff   --muted #c7c7c7   --border #353535
+   ========================================================================== */
+
+@font-face {
+	font-family: 'Geist';
+	src: url('fonts/Geist.woff2') format('woff2');
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+@font-face {
+	font-family: 'Geist Mono';
+	src: url('fonts/GeistMono.woff2') format('woff2');
+	font-weight: 100 900;
+	font-style: normal;
+	font-display: swap;
+}
+
+:root {
+	--ha-bg: #0b0b0b;
+	--ha-fg: #ffffff;
+	--ha-muted: #c7c7c7;
+	--ha-border: #353535;
+	--ha-raised: rgba(255, 255, 255, 0.07);
+	--ha-sans: 'Geist', Arial, Helvetica, sans-serif;
+	--ha-mono: 'Geist Mono', 'Courier New', Courier, monospace;
+}
+
+/* --- ground ---------------------------------------------------------------- */
+
+html {
+	background-color: var(--ha-bg);
+	color-scheme: dark;
+}
+
+body {
+	background: var(--ha-bg);
+	color: var(--ha-fg);
+	font-family: var(--ha-sans);
+	-webkit-font-smoothing: antialiased;
+}
+
+#content {
+	background: var(--ha-bg);
+}
+
+/* Mono for headings and code — the site's terminal signal. */
+pre, code, kbd, samp, tt, .src,
+.caption, h1, h2, h3, h4, h5, h6, summary {
+	font-family: var(--ha-mono);
+}
+
+/* --- links ----------------------------------------------------------------- */
+/* Mirrors global.css: no underline, a hairline rule that lights up on hover. */
+
+a[href]:link,
+a[href]:visited {
+	color: var(--ha-fg);
+	border-bottom: 1px solid var(--ha-border);
+	transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+a[href]:hover {
+	color: var(--ha-fg);
+	border-bottom-color: var(--ha-fg);
+	text-decoration: none;
+}
+
+a[href].def:link,
+a[href].def:visited {
+	color: var(--ha-fg);
+	border-bottom: none;
+}
+
+a[href].def:hover {
+	color: var(--ha-fg);
+}
+
+/* Structural links carry no rule — only prose links do. */
+#package-header a[href],
+#module-header a[href],
+#table-of-contents a[href],
+#contents-list a[href],
+#synopsis a[href],
+#module-list a[href],
+ul.links a[href],
+#interface .src a[href],
+#index a[href],
+#alphabet a[href] {
+	border-bottom: none;
+}
+
+#package-header a[href]:hover,
+#module-header a[href]:hover,
+#table-of-contents a[href]:hover,
+#contents-list a[href]:hover,
+#synopsis a[href]:hover,
+#module-list a[href]:hover,
+ul.links a[href]:hover,
+#interface .src a[href]:hover,
+#index a[href]:hover,
+#alphabet a[href]:hover {
+	color: var(--ha-fg);
+	text-decoration: underline;
+}
+
+/* --- package header -------------------------------------------------------- */
+/* The purple bar becomes the site's hairline-ruled black. */
+
+#package-header {
+	background: var(--ha-bg);
+	border-bottom: 1px solid var(--ha-border);
+	color: var(--ha-muted);
+}
+
+#package-header .caption {
+	color: var(--ha-fg);
+}
+
+#package-header #page-menu a:link,
+#package-header #page-menu a:visited {
+	color: var(--ha-muted);
+}
+
+#package-header #page-menu a:hover {
+	color: var(--ha-fg);
+}
+
+/* --- the ASCII wordmark (front page only; injected by brand.sh) ------------- */
+
+#ha-banner-link {
+	display: block;
+	border-bottom: none;
+	margin: 0 0 1.5em;
+}
+
+#ha-banner-link:hover {
+	border-bottom: none;
+}
+
+/* Wide ASCII scrolls in its own box rather than breaking the page. Setting only
+   overflow-x makes overflow-y compute to `auto` (per spec, `visible` cannot pair
+   with a scrolling axis), and sub-pixel line-height rounding then leaves the art
+   1px taller than its box — enough for a stray vertical scrollbar. */
+#ha-banner-scroll {
+	width: 100%;
+	overflow-x: auto;
+	overflow-y: hidden;
+}
+
+#ha-banner {
+	margin: 0;
+	padding: 0;
+	border: none;
+	background: none;
+	border-radius: 0;
+	/* linuwial sets `pre { overflow: auto }`, which puts a scrollbar on the art. */
+	overflow: visible;
+	font-family: var(--ha-mono);
+	/* Caps at the largest size that still fits 46 mono columns in the column. */
+	font-size: clamp(0.5rem, 2.1vw, 1.1rem);
+	line-height: 1.2;
+	white-space: pre;
+	color: var(--ha-muted);
+}
+
+#ha-banner-link:hover #ha-banner {
+	color: var(--ha-fg);
+}
+
+/* --- headings, captions, prose --------------------------------------------- */
+
+.caption, h1, h2, h3, h4, h5, h6, summary {
+	color: var(--ha-fg);
+}
+
+#module-header .caption {
+	border-bottom: 1px solid var(--ha-border);
+}
+
+.info {
+	color: var(--ha-muted);
+}
+
+table.info {
+	border: 1px solid var(--ha-border);
+	color: var(--ha-muted);
+	background-color: var(--ha-bg);
+}
+
+/* --- code blocks ----------------------------------------------------------- */
+
+pre {
+	background-color: var(--ha-raised);
+	border: 1px solid var(--ha-border);
+	color: var(--ha-fg);
+}
+
+.src {
+	background: var(--ha-raised);
+}
+
+blockquote {
+	border-left: 2px solid var(--ha-border);
+	background-color: transparent;
+	color: var(--ha-muted);
+}
+
+/* --- expanders / collapsers ------------------------------------------------ */
+
+.collapser:before,
+.expander:before,
+.noexpander:before {
+	color: var(--ha-muted);
+}
+
+/* Haddock ships light-on-transparent PNG sprites for the synopsis toggle. */
+#synopsis summary,
+#synopsis details[open] > summary {
+	filter: invert(1);
+}
+
+/* --- contents / synopsis panels -------------------------------------------- */
+
+#contents-list {
+	background: var(--ha-bg);
+	border: 1px solid var(--ha-border);
+}
+
+/* linuwial groups these two, so overriding only li.src leaves the panel cream:
+     #synopsis ul, #synopsis ul li.src { background-color: rgb(250,247,224) } */
+#synopsis ul {
+	background-color: var(--ha-bg);
+}
+
+#synopsis ul li.src {
+	background-color: var(--ha-raised);
+	color: var(--ha-fg);
+}
+
+#synopsis details {
+	background: var(--ha-bg);
+	border: 1px solid var(--ha-border);
+}
+
+/* --- interface ------------------------------------------------------------- */
+
+#interface td.src {
+	background: var(--ha-raised);
+}
+
+#interface .src .link {
+	color: var(--ha-muted);
+}
+
+#interface span.fixity {
+	color: var(--ha-muted);
+	border-left: 1px solid var(--ha-border);
+}
+
+#interface span.rightedge {
+	border-left: 1px solid var(--ha-border);
+}
+
+.top p.src {
+	border-bottom: 1px solid var(--ha-border);
+}
+
+.subs, .top > .doc, .subs > .doc {
+	border-left: 1px solid var(--ha-border);
+}
+
+.subs .subs .src + .src,
+.subs .subs p.src {
+	background-color: var(--ha-raised);
+	border: none;
+}
+
+.methods, .constructors {
+	background: var(--ha-raised);
+	border: 1px solid var(--ha-border);
+}
+
+.doc td {
+	border: 1px solid var(--ha-border);
+}
+
+.doc th {
+	background-color: var(--ha-raised);
+	border: 1px solid var(--ha-border);
+}
+
+.warning {
+	color: #ff8080;
+}
+
+/* --- index ----------------------------------------------------------------- */
+
+#index .alt {
+	background-color: var(--ha-raised);
+}
+
+#module-list .package {
+	color: var(--ha-muted);
+}
+
+/* --- anchor target highlight ----------------------------------------------- */
+/* The default is a yellow highlighter swipe; monochrome band instead. */
+
+:target {
+	background: linear-gradient(
+		to bottom,
+		transparent 0%,
+		transparent 65%,
+		rgba(255, 255, 255, 0.14) 60%,
+		rgba(255, 255, 255, 0.14) 100%
+	);
+}
+
+:target:hover {
+	background: rgba(255, 255, 255, 0.14);
+}
+
+/* --- footer ---------------------------------------------------------------- */
+
+#footer {
+	background: var(--ha-bg);
+	border-top: 1px solid var(--ha-border);
+	color: var(--ha-muted);
+}
+
+#footer a[href] {
+	color: var(--ha-muted);
+	border-bottom: none;
+}
+
+#footer a[href]:hover {
+	color: var(--ha-fg);
+}
+
+/* --- preferences / style menus --------------------------------------------- */
+
+#preferences-menu,
+#style-menu {
+	background: var(--ha-bg);
+	border: 1px solid var(--ha-border);
+}
+
+#style-menu li {
+	border-style: none;
+}
