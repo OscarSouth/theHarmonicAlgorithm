@@ -1,0 +1,88 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing tag to build a release for (e.g. v3.0.0)'
+        required: true
+
+permissions:
+  contents: write        # needed to create the release
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - name: Resolve version
+        id: v
+        run: |
+          set -euo pipefail
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
+          echo "tag=$TAG"                     >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}"             >> "$GITHUB_OUTPUT"
+          # anything with a suffix (-rc1, -beta) ships as a prerelease
+          if [[ "$TAG" == *-* ]]; then echo "prerelease=true" >> "$GITHUB_OUTPUT";
+          else echo "prerelease=false" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: '9.6.7'
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache Stack store
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
+          restore-keys: ${{ runner.os }}-stack-
+
+      # A release should not be cut from a tree that does not build.
+      - name: Build and test
+        run: stack build --test
+
+      - name: Build API documentation
+        run: stack haddock --no-haddock-deps
+
+      - name: Package the documentation
+        run: |
+          set -euo pipefail
+          DOCS_PATH="$(find .stack-work -type d -path '*/doc/html/theHarmonicAlgorithm' | head -n1)"
+          test -n "$DOCS_PATH" || { echo "::error::haddock output not found"; exit 1; }
+          # Same Hackage rewrite as the docs deploy: sibling ../pkg-ver/ links assume the
+          # whole local doc tree is present, and would 404 in a standalone zip.
+          find "$DOCS_PATH" -name '*.html' -exec sed -i -E \
+            's|\.\./([A-Za-z0-9_-]+)-([0-9][0-9.]*)/|https://hackage.haskell.org/package/\1-\2/docs/|g' {} +
+          ( cd "$(dirname "$DOCS_PATH")" && zip -qr "$GITHUB_WORKSPACE/haddock-${{ steps.v.outputs.version }}.zip" theHarmonicAlgorithm )
+          ls -lh "haddock-${{ steps.v.outputs.version }}.zip"
+
+      - name: Compose release notes
+        run: |
+          set -euo pipefail
+          python3 scripts/ci/changelog_slice.py "${{ steps.v.outputs.version }}" > notes.md
+          cat scripts/ci/release_notes_appendix.md >> notes.md
+          echo "--- notes preview ---"; head -20 notes.md
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          FLAGS=(--title "theHarmonicAlgorithm ${{ steps.v.outputs.tag }}" --notes-file notes.md)
+          if [ "${{ steps.v.outputs.prerelease }}" = "true" ]; then FLAGS+=(--prerelease); fi
+          if gh release view "${{ steps.v.outputs.tag }}" >/dev/null 2>&1; then
+            gh release edit "${{ steps.v.outputs.tag }}" "${FLAGS[@]}"
+            gh release upload "${{ steps.v.outputs.tag }}" \
+              "haddock-${{ steps.v.outputs.version }}.zip" --clobber
+          else
+            gh release create "${{ steps.v.outputs.tag }}" "${FLAGS[@]}" \
+              "haddock-${{ steps.v.outputs.version }}.zip"
+          fi

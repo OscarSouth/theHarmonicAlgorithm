@@ -57,7 +57,7 @@ hush
 -- the graph — before anything musical.
 
 -- 1. MIDI: you should hear one middle C on the piano channel.
-once $ d01 $ note "0" # ch 01 # legato 0.9
+once $ note "0" # ch 01 # legato 0.9
 
 -- 2. Library: the boot banner said "theHarmonicAlgorithm V3 boot
 --    complete." If not, re-boot with live/BootTidal.hs.

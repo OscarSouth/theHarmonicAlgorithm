@@ -1,0 +1,162 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+# A newer push to the same branch supersedes an in-flight run.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # stack.yaml sets `system-ghc: true`, so Stack uses the GHC this action installs.
+  # lts-22.44 nominally wants 9.6.6; 9.6.7 is accepted because Stack's default
+  # compiler-check is `match-minor`. Bumping the resolver means bumping this to a GHC
+  # in the same minor series, or the build refuses to start.
+  GHC_VERSION: '9.6.7'
+
+jobs:
+  # ── GATING ──────────────────────────────────────────────────────────────────
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: ${{ env.GHC_VERSION }}
+          enable-stack: true
+          stack-version: 'latest'
+
+      # Only ~/.stack. Deliberately NOT .stack-work: a stale object directory there
+      # has previously poisoned builds on this project.
+      - name: Cache Stack store
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
+          restore-keys: ${{ runner.os }}-stack-
+
+      - name: Build
+        run: stack build --test --no-run-tests
+
+      - name: Test
+        run: stack test 2>&1 | tee test.log
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "### Test suite"
+            echo '```'
+            grep -E 'examples,|failures' test.log | tail -2 || echo "(no summary line found)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ── GATING ──────────────────────────────────────────────────────────────────
+  # The user guide is this project's real API surface. Nothing else catches a
+  # renamed function or a changed signature breaking it.
+  guide:
+    name: guide
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: ${{ env.GHC_VERSION }}
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache Stack store
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
+          restore-keys: ${{ runner.os }}-stack-
+
+      - name: Build library
+        run: stack build
+
+      # Tidal boots headlessly: `midi = s "thru"` is an OSC control name, not a
+      # hardware binding, and cEnableLink is False. No SuperCollider, no MIDI device.
+      # This TYPE-CHECKS the guide; it does not execute it (the guide is graph-first
+      # and running it would need Neo4j — see notes/CI_SHELVED_IDEAS.md item 8).
+      - name: Type-check live/USER_GUIDE.tidal
+        run: python3 scripts/ci/check_guide.py | tee guide.log
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "### User guide type-check"
+            echo '```'
+            cat guide.log 2>/dev/null || echo "(no output)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # ── REPORTING ONLY ──────────────────────────────────────────────────────────
+  # Documentation drift warns. It never blocks work.
+  docs:
+    name: docs (advisory)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: haskell-actions/setup@v2
+        with:
+          ghc-version: ${{ env.GHC_VERSION }}
+          enable-stack: true
+          stack-version: 'latest'
+
+      - name: Cache Stack store
+        uses: actions/cache@v4
+        with:
+          path: ~/.stack
+          key: ${{ runner.os }}-stack-${{ hashFiles('stack.yaml.lock', 'package.yaml') }}
+          restore-keys: ${{ runner.os }}-stack-
+
+      - name: Guide lockstep
+        id: lockstep
+        continue-on-error: true
+        run: python3 scripts/ci/check_lockstep.py | tee -a docs.log
+
+      - name: Snippet index
+        id: snippets
+        continue-on-error: true
+        run: python3 scripts/ci/check_snippets.py | tee -a docs.log
+
+      - name: Doc links
+        id: links
+        continue-on-error: true
+        run: python3 scripts/ci/check_links.py | tee -a docs.log
+
+      - name: Haddock quality
+        id: haddock
+        continue-on-error: true
+        run: python3 scripts/ci/check_haddock.py | tee -a docs.log
+
+      - name: Summarise
+        if: always()
+        run: |
+          {
+            echo "### Documentation checks (advisory)"
+            echo ""
+            echo "| check | result |"
+            echo "|---|---|"
+            echo "| lockstep | ${{ steps.lockstep.outcome }} |"
+            echo "| snippets | ${{ steps.snippets.outcome }} |"
+            echo "| links | ${{ steps.links.outcome }} |"
+            echo "| haddock | ${{ steps.haddock.outcome }} |"
+            echo ""
+            echo '```'
+            cat docs.log 2>/dev/null || echo "(no output)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

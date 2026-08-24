@@ -1,0 +1,29 @@
+# Normalise line endings so a Windows checkout does not corrupt pattern strings or the
+# boot file. Without this, CRLF can break multi-line TidalCycles patterns and GHCi
+# `:script` handling of live/BootTidal.hs.
+* text=auto
+
+# Source and config: always LF in the working tree, on every platform.
+*.hs    text eol=lf
+*.tidal text eol=lf
+*.scd   text eol=lf
+*.cson  text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.cabal text eol=lf
+*.R     text eol=lf
+*.sh    text eol=lf
+*.py    text eol=lf
+*.md    text eol=lf
+*.moz   text eol=lf
+
+# Binary assets: never touched.
+*.png   binary
+*.gif   binary
+*.pdf   binary
+*.woff2 binary
+*.dump  binary
+
+# Keep generated/derived files out of language statistics and diffs.
+*.cabal        linguist-generated=true
+documents/*.pdf linguist-documentation=true
