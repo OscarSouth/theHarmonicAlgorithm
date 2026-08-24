@@ -47,7 +47,7 @@ import qualified Data.Text as T
 import           Data.Text (Text)
 import           Data.List (nub, sort)
 
-import qualified Database.Bolt as Bolt
+import           Harmonic.Database (DbActionT)
 
 import qualified Harmonic.Rules.Types.Progression as Prog
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
@@ -291,12 +291,12 @@ edgeScore srcMap (src, dst) =
 -- version exactly; 'psCadenceFav' is populated from Neo4j edge weights
 -- under the composer blend parsed from the supplied seek string.
 --
--- Runs inside 'Bolt.BoltActionT IO' so the caller controls connection
+-- Runs inside 'DbActionT' so the caller controls connection
 -- lifecycle (typically a single shared pipe across a multi-attempt loop).
 scoreProgressionOnline
   :: Text                          -- ^ Seek string (composer blend; same format as @_gcSeek@).
   -> PC.ProgressionContext
-  -> Bolt.BoltActionT IO ProgressionScore
+  -> DbActionT ProgressionScore
 scoreProgressionOnline seekStr pc = do
   let basePure = scoreProgression pc
   cf <- computeCadenceFav seekStr (PC.triadLayer pc)
@@ -312,7 +312,7 @@ scoreProgressionOnline seekStr pc = do
 computeCadenceFav
   :: Text
   -> Prog.Progression
-  -> Bolt.BoltActionT IO Double
+  -> DbActionT Double
 computeCadenceFav seekStr prog = do
   -- Walk-shadow projection: see 'cadenceFavFromMap'.
   let cads      = map (H.walkTriadCadence . H.stateCadence) (toList (Prog.unProgression prog))

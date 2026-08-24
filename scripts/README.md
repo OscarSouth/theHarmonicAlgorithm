@@ -43,10 +43,15 @@ scripts/export_graph.sh [output-dir]     # default: out/ (gitignored)
 Prints the size, a SHA256, the `gh release` upload command, and the matching `load`
 command for users.
 
-**Syntax note:** this stack runs neo4j 4.4.13, which uses `neo4j-admin dump` /
-`neo4j-admin load`. The `neo4j-admin database dump` form is Neo4j 5+ and does not work
-here. 4.4 also cannot dump a running database, so the script stops the container and
-restarts it via a trap.
+**Syntax note:** this stack runs Neo4j 5.26, which uses `neo4j-admin database dump` /
+`neo4j-admin database load` (the bare `neo4j-admin dump` form is 4.x). The database must
+be offline for a dump, so the script stops the container and restarts it via a trap.
+
+There is also `scripts/sparsify_graph.sh` — the tool that built the published artefact:
+it drops the zero-valued composer entries (99% of the dense store), rebuilds the store
+compactly on Neo4j 5.26, and runs structural equivalence checks at every step. Its
+`dump-dense`/`scratch-a` stages speak 4.4 syntax on purpose: they consume the historical
+4.4 store this project migrated from.
 
 ---
 

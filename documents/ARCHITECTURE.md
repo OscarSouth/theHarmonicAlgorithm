@@ -451,7 +451,7 @@ fundamental to its playable set (root, fifth, third).
 
 ## 6. Database Schema
 
-**Connection**: `bolt://localhost:7687`, credentials `neo4j/password`
+**Connection**: HTTP Query API at `http://localhost:7474` (`POST /db/neo4j/query/v2`), credentials `neo4j/password`
 (local development defaults, see `Config.hs` and `docker-compose.yml`).
 
 **Node** — one per distinct zero-form cadence, uniquely keyed by its

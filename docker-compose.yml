@@ -1,20 +1,22 @@
 services:
   neo4j:
-    image: neo4j:4.4.13
+    image: neo4j:5.26
     container_name: theHarmonicAlgorithm-neo4j
     restart: unless-stopped
     ports:
-      - "7474:7474"
-      - "7687:7687"
+      # Bound to localhost only: the default credentials below are docker-local
+      # defaults, not secrets, and must not be reachable from the LAN.
+      - "127.0.0.1:7474:7474"
+      - "127.0.0.1:7687:7687"
     volumes:
       - ./neo4j/data:/data
       - ./neo4j/logs:/logs
       - ./neo4j/plugins:/plugins
     environment:
       - NEO4J_AUTH=neo4j/password  # local development default — not a secret
-      - NEO4JLABS_PLUGINS=["apoc"]
+      - NEO4J_PLUGINS=["apoc"]
       - NEO4J_dbms_security_procedures_allowlist=apoc.coll.*,apoc.load.*,apoc.*
       - NEO4J_dbms_security_procedures_unrestricted=apoc.coll.*,apoc.load.*,apoc.*
-      - NEO4J_dbms_memory_pagecache_size=1G
-      - NEO4J_dbms_memory_heap_initial__size=1G
-      - NEO4J_dbms_memory_heap_max__size=1G
+      - NEO4J_server_memory_pagecache_size=1G
+      - NEO4J_server_memory_heap_initial__size=1G
+      - NEO4J_server_memory_heap_max__size=1G

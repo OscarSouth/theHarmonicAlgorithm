@@ -4,8 +4,9 @@
 -- Module      : Harmonic.Rules.Import.Graph
 -- Description : Neo4j graph database connection and cadence storage
 --
--- Provides 'connectNeo4j' for database connection and write operations
--- for storing cadence nodes and transition edges during data ingestion.
+-- Write operations for storing cadence nodes and transition edges during
+-- data ingestion, plus a re-export of 'connectNeo4j' (the connection itself
+-- lives in "Harmonic.Database").
 
 module Harmonic.Rules.Import.Graph (
     -- * Connection
@@ -20,17 +21,13 @@ module Harmonic.Rules.Import.Graph (
     -- * Cypher field rendering
     showText, movementText, chordText, dissonanceText,
     confidenceText, weightsLiteral,
-
-    -- * Vestigial
 ) where
 
-import           Harmonic.Config
+import           Harmonic.Database (DbActionT, connectNeo4j, runQuery)
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as P
 import qualified Harmonic.Evaluation.Scoring.Dissonance as D
 
-import qualified Database.Bolt as Bolt
-import           Data.Default (def)
 import qualified Data.Map.Strict as Map
 import           Data.Map.Strict (Map)
 import qualified Data.Text as T
@@ -45,18 +42,18 @@ type ComposerWeights = Map T.Text Double
 -- contract documented at the head of "Harmonic.Rules.Import.Transform"
 -- (the live DB carries legacy names; read the warning there BEFORE any
 -- re-ingestion).
-initGraph :: Bolt.BoltActionT IO ()
+initGraph :: DbActionT ()
 initGraph = do
-  _ <- Bolt.query "CALL apoc.schema.assert({}, {})"
-  _ <- Bolt.query "CREATE CONSTRAINT IF NOT EXISTS FOR (n:Cadence) REQUIRE n.show IS UNIQUE"
+  _ <- runQuery "CALL apoc.schema.assert({}, {})"
+  _ <- runQuery "CREATE CONSTRAINT IF NOT EXISTS FOR (n:Cadence) REQUIRE n.show IS UNIQUE"
   pure ()
 
 -- | Delete every @Cadence@ node and its @NEXT@ edges, batched through
 -- @apoc.periodic.iterate@ to avoid memory spikes on a full corpus. Run before
 -- a re-ingestion.
-truncateCadenceGraph :: Bolt.BoltActionT IO ()
+truncateCadenceGraph :: DbActionT ()
 truncateCadenceGraph = do
-  _ <- Bolt.query deleteCadences
+  _ <- runQuery deleteCadences
   pure ()
   where
     deleteCadences = T.unlines
@@ -70,12 +67,12 @@ truncateCadenceGraph = do
 -- | Write a batch of cadence transitions. Each triple merges both endpoint
 -- nodes and the @NEXT@ edge between them. Transitions with no composer weight
 -- are skipped rather than written with zero confidence.
-writeCadenceEdges :: [(H.Cadence, H.Cadence, ComposerWeights)] -> Bolt.BoltActionT IO ()
+writeCadenceEdges :: [(H.Cadence, H.Cadence, ComposerWeights)] -> DbActionT ()
 writeCadenceEdges = mapM_ writeOne
   where
     writeOne (fromCadence, toCadence, weights)
       | Map.null weights = pure ()
-      | otherwise = Bolt.query (buildQuery fromCadence toCadence weights) >> pure ()
+      | otherwise = runQuery (buildQuery fromCadence toCadence weights) >> pure ()
 
 -- | Build the Cypher @MERGE@ for one transition. Node identity is the @show@
 -- string; see 'initGraph' for the naming contract that governs it.
@@ -132,13 +129,3 @@ weightsLiteral weights =
    in T.concat ["'", "{", T.intercalate "," pieces, "}", "'"]
   where
     formatEntry (name, value) = T.concat ["\"", name, "\":", T.pack (show value)]
-
--- | Open a Bolt connection to the local Neo4j on port 7687, using the
--- credentials in "Harmonic.Config". Every online generation path needs one.
-connectNeo4j :: IO Bolt.Pipe
-connectNeo4j = Bolt.connect $ def
-  { Bolt.user = neo4jUser
-  , Bolt.password = neo4jPassword
-  , Bolt.host = "localhost"
-  , Bolt.port = 7687
-  }

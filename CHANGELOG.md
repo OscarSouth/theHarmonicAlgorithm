@@ -339,6 +339,28 @@ rewritten: voicings are pre-computed once at pattern construction time rather
 than solved per frame. With 16+ stacked instrument calls, voice leading work
 drops from ~800 solver calls per second to 2–3.
 
+**~30× Faster Online Generation** — Wildcard (`"*"`) generation now reads each
+edge's pre-aggregated corpus score directly instead of parsing the full
+per-composer weights payload: ~115× less allocation and ~30× less time per
+step, with byte-identical musical output. This is the default seek mode, so
+every online session feels it — especially multi-attempt searches
+(`attempt N K`).
+
+### Infrastructure
+
+**Neo4j 5.26 + HTTP Query API** — The database moved from the end-of-life
+Neo4j 4.4 to the 5.26 LTS, and the Haskell side moved from the Bolt binary
+protocol (whose last maintained Haskell driver spoke a protocol modern servers
+no longer accept) to Neo4j's supported HTTP Query API. Same credentials, same
+`docker compose up -d neo4j`, one fewer protocol to care about — and the
+database ports now bind to localhost only.
+
+**A 14MB Composer Graph** — The published corpus artefact shrank from a
+projected ~350MB to 14MB: 99% of the stored weight entries were zeros (every
+edge carried every composer), and dropping them is provably score-neutral —
+verified end-to-end with zero drift across every composer blend tested. Fetch
+the pre-built graph from the `corpus-v1` release and load it with one command.
+
 ### Testing
 
 **Comprehensive Test Suite** — V3 ships with a 13-module HSpec and QuickCheck

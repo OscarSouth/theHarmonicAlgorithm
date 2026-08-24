@@ -201,7 +201,7 @@ module Harmonic.Framework.Builder
   , printHeader
   ) where
 
-import qualified Database.Bolt as Bolt
+import           Harmonic.Database (DbActionT, runDb)
 import qualified Data.Text as T
 import           Data.Text (Text)
 import           Control.Monad (forM_, when)
@@ -315,8 +315,7 @@ generateWith config start len composerStr entropy context = do
     else do
       let composerWeights = Q.parseComposerWeights composerStr
       pipe <- connectNeo4j
-      result <- Bolt.run pipe $ buildChain config rng entropy context pctx composerWeights start (len - 1)
-      Bolt.close pipe
+      result <- runDb pipe $ buildChain config rng entropy context pctx composerWeights start (len - 1)
       pure result
   pure $ chainToProgression chain
 
@@ -448,8 +447,7 @@ genWith' config start len composerStr entropy context = do
     else do
       let composerWeights = Q.parseComposerWeights (T.pack composerStr)
       pipe <- connectNeo4j
-      result <- Bolt.run pipe $ buildChainWithDiag config rng entropy context pctx composerWeights start (len - 1)
-      Bolt.close pipe
+      result <- runDb pipe $ buildChainWithDiag config rng entropy context pctx composerWeights start (len - 1)
       pure result
   let prog = chainToProgression chain
       diag = GenerationDiagnostics
@@ -557,8 +555,7 @@ genWith'' config start len composerStr entropy context = do
     else do
       let composerWeights = Q.parseComposerWeights (T.pack composerStr)
       pipe <- connectNeo4j
-      result <- Bolt.run pipe $ buildChainWithDiagV config rng 2 entropy context pctx composerWeights start (len - 1)
-      Bolt.close pipe
+      result <- runDb pipe $ buildChainWithDiagV config rng 2 entropy context pctx composerWeights start (len - 1)
       pure result
   let prog = chainToProgression chain
       diag = GenerationDiagnostics
@@ -978,7 +975,7 @@ singlePassExecPCWithDiag gc = case _gcMode gc of
 -- still returned).
 --
 -- When @_gcSeek != "none"@, scoring runs against Neo4j: one shared
--- 'Bolt.Pipe' is opened for the entire K-attempt loop and @psCadenceFav@
+-- database connection is opened for the entire K-attempt loop and @psCadenceFav@
 -- is populated via 'PS.scoreProgressionOnline' under the user's composer
 -- blend. The online-weighted total ('PS.defaultWeights') is then used —
 -- cadence-favourability is the dominant axis (0.4).
@@ -1019,7 +1016,7 @@ runOffline gc = do
   scored <- offlineLoop gc maxN target floorT
   finaliseScored gc scored
 
--- |Online arm of @generateBest@. Opens one 'Bolt.Pipe' for the entire
+-- |Online arm of @generateBest@. Opens one database connection for the entire
 -- K-attempt loop; scores each attempt via 'PS.scoreProgressionOnline'
 -- using @_gcSeek@ as the composer blend; ranks via 'PS.defaultWeights'.
 --
@@ -1035,8 +1032,7 @@ runOnline gc = do
       floorT  = _gcViabilityFloor gc
       seekTxt = T.pack (_gcSeek gc)
   pipe <- connectNeo4j
-  scored <- Bolt.run pipe (onlineLoop seekTxt gc maxN target floorT)
-  Bolt.close pipe
+  scored <- runDb pipe (onlineLoop seekTxt gc maxN target floorT)
   finaliseScored gc scored
 
 -- |Inner-loop record: per-attempt (progression, score, totalScore,
@@ -1070,14 +1066,14 @@ offlineLoop gc maxN target floorT = go 0 [] maxN
               viable' = if isOk then viableSoFar + 1 else viableSoFar
           go viable' acc' (remaining - 1)
 
--- |Inner loop for the online arm, run under 'Bolt.run pipe'.
+-- |Inner loop for the online arm, run under 'runDb'.
 onlineLoop
   :: T.Text               -- ^ seek string (composer blend)
   -> GenConfig            -- ^ caller's config (printing already lifted out)
   -> Int                  -- ^ maxAttempts
   -> Int                  -- ^ viableTarget
   -> Double               -- ^ viabilityFloor
-  -> Bolt.BoltActionT IO [ScoredAttempt]
+  -> DbActionT [ScoredAttempt]
 onlineLoop seekTxt gc maxN target floorT = go 0 [] maxN
   where
     go _ acc 0 = pure (reverse acc)
@@ -1474,9 +1470,8 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
       else do
         let composerWeights = Q.parseComposerWeights (T.pack (_gcSeek gc))
         pipe <- connectNeo4j
-        result <- Bolt.run pipe $ buildStrataChain defaultConfig rng verbArg
+        result <- runDb pipe $ buildStrataChain defaultConfig rng verbArg
                    (_gcEntropy gc) (_gcTonal gc) pctxAtStep composerWeights start (max 0 (n - 1))
-        Bolt.close pipe
         pure result
 
   -- Assemble ProgressionContext. The triadLayer is the R→E→T chain.

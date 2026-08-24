@@ -12,7 +12,7 @@ import re, subprocess, sys, pathlib, glob
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
-EXPECT_MODULES        = 35
+EXPECT_MODULES        = 36
 MAX_OUT_OF_SCOPE      = 2    # residue: 'gen'/'genP' resolved via Lib re-export
 MAX_DANGLING_INTERNAL = 2    # residue: Filter's local `type PitchClass = Int`
 

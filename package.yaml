@@ -66,18 +66,16 @@ dependencies:
   - mtl
   - stm
   - cassava
-  - data-default
   - statistics
   - split
-  - hasbolt
   - tidal
   - hosc
   - tidal-core
   - tidal-link
-  - connection
-  - tls
   # Phase C: Interactive Behaviour
-  - aeson           # JSON parsing for r.weights from Neo4j
+  - aeson           # JSON: r.weights parsing and the Neo4j HTTP Query API
+  - scientific      # aeson's number type, unwrapped in query results
+  - http-client     # Neo4j HTTP Query API transport
   - random          # Base randomness for weighted selection
   - mwc-random      # High-quality gamma distribution sampling
 
@@ -85,6 +83,7 @@ library:
   exposed-modules:
     - Harmonic.Lib
     - Harmonic.Config
+    - Harmonic.Database
     # Framework (R→E→T Orchestration)
     - Harmonic.Framework.Builder
     - Harmonic.Framework.Builder.Types
@@ -140,7 +139,6 @@ executables:
       - text
       - cassava
       - statistics
-      - hasbolt
       - containers
 tests:
   theHarmonicAlgorithm-test:
