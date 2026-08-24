@@ -56,14 +56,18 @@ cat "$THEME/source.css"     >> "$SITE/src/style.css"
 # --- 4. drop the Google Fonts request --------------------------------------
 # Every page pulls PT Sans from fonts.googleapis.com. Geist replaces it, so the
 # request is now both redundant and a third-party call from a static docs site.
+# Delimit the substitutions with # rather than {}: GNU find (Linux CI) rejects
+# `-exec ... +` when `{}` occurs more than once anywhere in the argument list,
+# and an empty {}-delimited replacement is itself a literal `{}`. BSD find
+# (macOS) does not check, so this only ever fails in CI.
 find "$SITE" -name '*.html' -exec perl -0pi -e \
-	's{<link rel="stylesheet" type="text/css" href="https://fonts\.googleapis\.com[^"]*"\s*/?>}{}g' {} +
+	's#<link rel="stylesheet" type="text/css" href="https://fonts\.googleapis\.com[^"]*"\s*/?>##g' {} +
 
 # --- 5. link the docs back to the site -------------------------------------
 # Haddock's #page-menu carries "Contents | Index". Prepend the site so the docs
 # are navigable back to where they are linked from.
 find "$SITE" -name '*.html' -exec perl -0pi -e \
-	's{(<ul class="links" id="page-menu">)}{$1<li><a href="https://theharmonicalgorithm.com/">theharmonicalgorithm.com</a></li>}g' {} +
+	's#(<ul class="links" id="page-menu">)#$1<li><a href="https://theharmonicalgorithm.com/">theharmonicalgorithm.com</a></li>#g' {} +
 
 # --- 6. the ASCII wordmark, front page only --------------------------------
 # The site's banner, byte-identical to src/components/Header.astro. Front page
