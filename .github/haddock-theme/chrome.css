@@ -36,11 +36,34 @@
 :root {
 	--ha-bg: #0b0b0b;
 	--ha-fg: #ffffff;
-	--ha-muted: #c7c7c7;
 	--ha-border: #353535;
 	--ha-raised: rgba(255, 255, 255, 0.07);
 	--ha-sans: 'Geist', Arial, Helvetica, sans-serif;
 	--ha-mono: 'Geist Mono', 'Courier New', Courier, monospace;
+
+	/* The `vantablack-syntax` palette used for live coding in Pulsar
+	   (~/.pulsar/packages/vantablack-syntax/styles/), so these pages read like the
+	   editor the code is written in — this surface appears in video. Values are the
+	   theme's LESS lighten() calls resolved out; contrast is against --ha-bg.
+
+	     @purple       keyword, storage            12.32:1
+	     @light-orange entity.name.type            18.76:1
+	     @blue         entity.name.function        10.03:1
+	     @orange       meta.link, constant         13.86:1
+	     @green        string                      16.75:1
+	     @text         default editor text          5.55:1
+	     @comment      lifted off the editor's #555 (2.4:1, unreadable here)  3.69:1 */
+	--va-purple: #FFB3FF;
+	--va-light-orange: #FFFF99;
+	--va-blue: #B2B2FF;
+	--va-orange: #FFD280;
+	--va-green: #B3FFB3;
+	--va-text: #888888;
+	--va-comment: #6b6b6b;
+
+	/* Haddock's own package-header purple, kept deliberately: it is the one piece of
+	   Hackage identity on the page and bridges to the wider Haskell docs ecosystem. */
+	--hackage-purple: #5E5184;
 }
 
 /* --- ground ---------------------------------------------------------------- */
@@ -52,7 +75,9 @@ html {
 
 body {
 	background: var(--ha-bg);
-	color: var(--ha-fg);
+	/* Editor default text, not white: headings stay --ha-fg, so structure still reads
+	   above prose, and descriptions drop again to --va-comment below. */
+	color: var(--va-text);
 	font-family: var(--ha-sans);
 	-webkit-font-smoothing: antialiased;
 }
@@ -67,33 +92,94 @@ pre, code, kbd, samp, tt, .src,
 	font-family: var(--ha-mono);
 }
 
-/* --- links ----------------------------------------------------------------- */
-/* Mirrors global.css: no underline, a hairline rule that lights up on hover. */
+/* --- links: coloured by what they refer to ---------------------------------- */
+/*
+   Haddock encodes the KIND of every reference in the anchor — `#t:` for types,
+   `#v:` for values — and marks the defined name with class="def" carrying the same
+   prefix in its id. That lets the docs use the editor's own scope colours rather
+   than one flat link colour: a type reads as a type and a function as a function,
+   exactly as in the source view.
 
+     <span class="keyword">newtype</span>
+     <a id="t:PitchClass" class="def">PitchClass</a>
+     <a href="...#v:minBound">minBound</a>
+     <a class="link">Source</a>  <a class="selflink">#</a>
+
+   Verified across the build: Harmonic.Lib alone carries 1489 `#t:` and 696 `#v:`
+   references, 287 `def[id^=v:]` and 18 `def[id^=t:]`.
+*/
+
+/* Default: a reference to a type or module — the commonest link on the page. */
 a[href]:link,
 a[href]:visited {
-	color: var(--ha-fg);
+	color: var(--va-light-orange);
 	border-bottom: 1px solid var(--ha-border);
 	transition: border-color 0.15s ease, color 0.15s ease;
 }
 
-a[href]:hover {
+/* Values and functions. */
+a[href*="#v:"]:link,
+a[href*="#v:"]:visited,
+a.def[id^="v:"] {
+	color: var(--va-blue);
+}
+
+/* Types, explicitly (and the type being defined). */
+a[href*="#t:"]:link,
+a[href*="#t:"]:visited,
+a.def[id^="t:"] {
+	color: var(--va-light-orange);
+}
+
+/* Section anchors (`#g:1`) in the contents panel and the module header are
+   navigation, not types — `entity.name.section` is @blue in the editor. Keeping
+   them out of light-orange also stops the contents panel reading as a wall of
+   type names. */
+a[href^="#g:"]:link,
+a[href^="#g:"]:visited,
+#table-of-contents a[href]:link,
+#table-of-contents a[href]:visited,
+#contents-list a[href]:link,
+#contents-list a[href]:visited {
+	color: var(--va-blue);
+}
+
+/* Off-site — dependency docs on Hackage. `meta.link` in the editor. */
+a[href^="http"]:link,
+a[href^="http"]:visited {
+	color: var(--va-orange);
+}
+
+/* Haskell keywords in a signature: newtype, data, class, instance. */
+.keyword {
+	color: var(--va-purple);
+}
+
+/* The defined name is not a link, so it needs the colour directly. */
+a.def:link,
+a.def:visited {
+	border-bottom: none;
+}
+
+/* Supplementary affordances — "Source" and the "#" self-link — stay chrome. */
+.link,
+.selflink,
+#interface .src .link,
+#interface .src .selflink {
+	color: var(--va-comment);
+}
+
+a[href]:hover,
+a.def:hover,
+.link:hover,
+.selflink:hover {
 	color: var(--ha-fg);
 	border-bottom-color: var(--ha-fg);
 	text-decoration: none;
 }
 
-a[href].def:link,
-a[href].def:visited {
-	color: var(--ha-fg);
-	border-bottom: none;
-}
-
-a[href].def:hover {
-	color: var(--ha-fg);
-}
-
-/* Structural links carry no rule — only prose links do. */
+/* Structural links carry no rule — colour alone marks them. Prose links keep the
+   hairline underline so they are still obvious inside a paragraph. */
 #package-header a[href],
 #module-header a[href],
 #table-of-contents a[href],
@@ -121,26 +207,37 @@ ul.links a[href]:hover,
 	text-decoration: underline;
 }
 
-/* --- package header -------------------------------------------------------- */
-/* The purple bar becomes the site's hairline-ruled black. */
+/* --- package header: the classic Hackage bar ------------------------------- */
+/*
+   Kept in Haddock's own purple rather than flattened to the site ground — it is the
+   one piece of Hackage identity on the page. The palette above MUST NOT reach inside
+   it: light-orange or orange on #5E5184 is unreadable, so every link in the bar is
+   forced back to white (7.03:1 on the purple).
+*/
 
 #package-header {
-	background: var(--ha-bg);
-	border-bottom: 1px solid var(--ha-border);
-	color: var(--ha-muted);
+	background: var(--hackage-purple);
+	border-bottom: 5px solid rgba(69, 59, 97, 0.5);
+	color: #dddddd;
 }
 
 #package-header .caption {
 	color: var(--ha-fg);
 }
 
+#package-header a[href]:link,
+#package-header a[href]:visited,
 #package-header #page-menu a:link,
-#package-header #page-menu a:visited {
-	color: var(--ha-muted);
+#package-header #page-menu a:visited,
+#package-header ul.links a[href] {
+	color: #dddddd;
+	border-bottom: none;
 }
 
+#package-header a[href]:hover,
 #package-header #page-menu a:hover {
 	color: var(--ha-fg);
+	text-decoration: underline;
 }
 
 /* --- the ASCII wordmark (front page only; injected by brand.sh) ------------- */
@@ -174,11 +271,14 @@ ul.links a[href]:hover,
 	/* linuwial sets `pre { overflow: auto }`, which puts a scrollbar on the art. */
 	overflow: visible;
 	font-family: var(--ha-mono);
-	/* Caps at the largest size that still fits 46 mono columns in the column. */
-	font-size: clamp(0.5rem, 2.1vw, 1.1rem);
+	/* Identical to the site's header (src/components/Header.astro), so the wordmark
+	   is the same size here as on the front page. #content is 63vw/max 1450px above
+	   1280px, comparable to the site's 940px column, so this transfers without
+	   overflow; #ha-banner-scroll handles narrow widths. */
+	font-size: clamp(0.75rem, 3.6vw, 1.95rem);
 	line-height: 1.2;
 	white-space: pre;
-	color: var(--ha-muted);
+	color: var(--va-text);
 }
 
 #ha-banner-link:hover #ha-banner {
@@ -196,12 +296,12 @@ ul.links a[href]:hover,
 }
 
 .info {
-	color: var(--ha-muted);
+	color: var(--va-comment);
 }
 
 table.info {
 	border: 1px solid var(--ha-border);
-	color: var(--ha-muted);
+	color: var(--va-comment);
 	background-color: var(--ha-bg);
 }
 
@@ -210,17 +310,20 @@ table.info {
 pre {
 	background-color: var(--ha-raised);
 	border: 1px solid var(--ha-border);
-	color: var(--ha-fg);
+	color: var(--va-text);
 }
 
 .src {
 	background: var(--ha-raised);
+	/* Bare text in a signature is punctuation and operators — `::`, `->`, `=>` —
+	   which the editor renders in its default text colour, not white. */
+	color: var(--va-text);
 }
 
 blockquote {
 	border-left: 2px solid var(--ha-border);
 	background-color: transparent;
-	color: var(--ha-muted);
+	color: var(--va-comment);
 }
 
 /* --- expanders / collapsers ------------------------------------------------ */
@@ -228,7 +331,7 @@ blockquote {
 .collapser:before,
 .expander:before,
 .noexpander:before {
-	color: var(--ha-muted);
+	color: var(--va-text);
 }
 
 /* Haddock ships light-on-transparent PNG sprites for the synopsis toggle. */
@@ -252,7 +355,7 @@ blockquote {
 
 #synopsis ul li.src {
 	background-color: var(--ha-raised);
-	color: var(--ha-fg);
+	color: var(--va-text);
 }
 
 #synopsis details {
@@ -264,14 +367,17 @@ blockquote {
 
 #interface td.src {
 	background: var(--ha-raised);
+	/* Bare text in a signature is punctuation and operators — `::`, `->`, `=>` —
+	   which the editor renders in its default text colour, not white. */
+	color: var(--va-text);
 }
 
 #interface .src .link {
-	color: var(--ha-muted);
+	color: var(--va-comment);
 }
 
 #interface span.fixity {
-	color: var(--ha-muted);
+	color: var(--va-comment);
 	border-left: 1px solid var(--ha-border);
 }
 
@@ -318,7 +424,22 @@ blockquote {
 }
 
 #module-list .package {
-	color: var(--ha-muted);
+	color: var(--va-comment);
+}
+
+/* Each entry is `<a>Module.Name</a> description text`. The description is a Haddock
+   comment in the source, so it takes the comment colour and steps back behind the
+   coloured module link. */
+#module-list li,
+#module-list .module {
+	color: var(--va-comment);
+}
+
+/* Constructor/field/instance sub-blocks and their docs. */
+.subs,
+.subs .doc,
+#interface td.doc {
+	color: var(--va-text);
 }
 
 /* --- anchor target highlight ----------------------------------------------- */
@@ -343,11 +464,11 @@ blockquote {
 #footer {
 	background: var(--ha-bg);
 	border-top: 1px solid var(--ha-border);
-	color: var(--ha-muted);
+	color: var(--va-comment);
 }
 
 #footer a[href] {
-	color: var(--ha-muted);
+	color: var(--va-comment);
 	border-bottom: none;
 }
 

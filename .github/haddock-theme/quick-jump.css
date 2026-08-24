@@ -6,7 +6,7 @@
    ========================================================================== */
 
 #search {
-	color: #ffffff;
+	color: #888888;
 }
 
 #search-form input {
@@ -32,14 +32,16 @@
 	color: #ffffff;
 }
 
+/* Result groups are module names — same scope colour as a type reference in the
+   doc chrome (vantablack @light-orange / entity.name.type). */
 .search-module h4 {
-	color: #c7c7c7;
+	color: #FFFF99;
 	background: transparent;
 	border-bottom: 1px solid #353535;
 }
 
 .search-module > ul > li > a[href] {
-	color: #ffffff;
+	color: #B2B2FF;
 	border-bottom: none;
 }
 
@@ -55,20 +57,20 @@
 }
 
 .search-result a a {
-	color: #c7c7c7;
+	color: #888888;
 }
 
 .search-result ul.subs li {
-	color: #c7c7c7;
+	color: #888888;
 }
 
 .more-results {
-	color: #c7c7c7;
+	color: #6b6b6b;
 }
 
 .keyboard-shortcuts,
 .keyboard-shortcuts th {
-	color: #c7c7c7;
+	color: #6b6b6b;
 	border-color: #353535;
 }
 
@@ -86,7 +88,7 @@
 
 .dropdown-menu button {
 	background: #0b0b0b;
-	color: #c7c7c7;
+	color: #888888;
 	border: none;
 	font-family: 'Geist Mono', 'Courier New', Courier, monospace;
 }

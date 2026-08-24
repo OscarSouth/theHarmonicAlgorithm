@@ -64,10 +64,19 @@ find "$SITE" -name '*.html' -exec perl -0pi -e \
 	's#<link rel="stylesheet" type="text/css" href="https://fonts\.googleapis\.com[^"]*"\s*/?>##g' {} +
 
 # --- 5. link the docs back to the site -------------------------------------
-# Haddock's #page-menu carries "Contents | Index". Prepend the site so the docs
-# are navigable back to where they are linked from.
+# Haddock's #page-menu carries "Contents | Index". Append the site so the docs are
+# navigable back to where they are linked from.
+#
+# Append, not prepend: haddock-bundle.min.js adds "Quick Jump" and "Instances" at
+# runtime with insertBefore(li, menu.firstChild), so anything injected at the front
+# ends up stranded mid-menu. Going in before </ul> puts the site last, at the far
+# right. `ul.links li` is display:inline and `ul.links > li + li:before` generates
+# the separator, so the leading dot comes for free.
+#
+# The label is camel-cased (theHarmonicAlgorithm.com) to match how the project writes
+# its own name; the href stays lowercase, which is what the report grep below counts.
 find "$SITE" -name '*.html' -exec perl -0pi -e \
-	's#(<ul class="links" id="page-menu">)#$1<li><a href="https://theharmonicalgorithm.com/">theharmonicalgorithm.com</a></li>#g' {} +
+	's#(<ul class="links" id="page-menu">.*?)</ul>#$1<li><a href="https://theharmonicalgorithm.com/">theHarmonicAlgorithm.com</a></li></ul>#gs' {} +
 
 # --- 6. the ASCII wordmark, front page only --------------------------------
 # The site's banner, byte-identical to src/components/Header.astro. Front page
