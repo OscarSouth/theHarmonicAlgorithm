@@ -6,7 +6,7 @@
 --
 -- Internal chain building, candidate pool construction, R-constraint filtering,
 -- consonance fallback generation, state advancement, and progression conversion.
--- These functions run inside the Bolt action monad for Neo4j access.
+-- Online chain functions run inside 'DbActionT' for Neo4j access.
 
 module Harmonic.Framework.Builder.Core
   ( -- * Chain Building (online, requires Neo4j)
@@ -38,7 +38,6 @@ module Harmonic.Framework.Builder.Core
   , applyDriftFilter
   ) where
 
-import qualified Database.Bolt as Bolt
 import qualified Data.Text as T
 import qualified Data.IntSet as IntSet
 import           Control.Monad (foldM)
@@ -53,6 +52,7 @@ import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as P
 import qualified Harmonic.Rules.Types.Progression as Prog
 import qualified Data.Map.Strict as Map
+import           Harmonic.Database (DbActionT)
 import           Harmonic.Evaluation.Database.Query (ComposerWeights, fetchTransitions)
 import qualified Harmonic.Evaluation.Database.Query as Q
 import           Harmonic.Traversal.Probabilistic (gammaIndexScaledWith)
@@ -67,7 +67,7 @@ import           Harmonic.Framework.Builder.Types
 import           Harmonic.Framework.Builder.Diagnostics (computeChordTrace)
 
 -------------------------------------------------------------------------------
--- Chain Building (Inside Bolt Action)
+-- Chain Building (Inside DbActionT)
 -------------------------------------------------------------------------------
 
 -- |Build the cadence chain step by step.
@@ -84,7 +84,7 @@ buildChain :: GeneratorConfig
            -> ComposerWeights  -- ^ Composer blend weights
            -> H.CadenceState   -- ^ Starting state
            -> Int              -- ^ Number of steps to generate
-           -> Bolt.BoltActionT IO [H.CadenceState]
+           -> DbActionT [H.CadenceState]
 buildChain config gen ent context pctx composerWeights start totalSteps = do
   let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
   ((_current, revChain, _counter), _noDiags) <-
@@ -122,10 +122,10 @@ resolveBassDirection gen stepNum (Just spec) = do
         RiseK -> Rise n
         FallK -> Fall n
 
--- |Core body for a single chain-building step (plain IO, no Bolt dependency).
+-- |Core body for a single chain-building step (plain IO, no database dependency).
 --
 -- Takes pre-fetched transitions and executes the full filtering\/scoring\/selection logic.
--- Used by both the online Bolt wrapper ('stepChainCore') and offline path ('stepChainOffline').
+-- Used by both the online wrapper ('stepChainCore') and offline path ('stepChainOffline').
 -- When transitions is empty (offline mode), generation relies entirely on consonanceFallback.
 stepChainBody :: GeneratorConfig
               -> GenIO
@@ -324,7 +324,7 @@ stepChainBody config gen mVerbosity ent _context pctx ((current, revChain, nonIn
 
 -- |Unified single step for chain building (online, requires Neo4j).
 --
--- Fetches graph transitions via Bolt then delegates all logic to @stepChainBody@.
+-- Fetches graph transitions from Neo4j then delegates all logic to @stepChainBody@.
 -- When verbosity is Nothing, skips diagnostic construction entirely.
 -- When verbosity is Just n, collects diagnostics at level n:
 --   Just 1 = standard diagnostics (rendered chord populated)
@@ -338,7 +338,7 @@ stepChainCore :: GeneratorConfig
               -> ComposerWeights
               -> ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
               -> Int
-              -> Bolt.BoltActionT IO ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
+              -> DbActionT ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
 stepChainCore config gen mVerbosity ent context pctx composerWeights acc@((current, _, _), _) stepNum = do
   -- Fetch key via the walk projection: identity for triads (all corpus
   -- states); for 4-note states (gen4 chain, or a 4-note lead' cue under
@@ -385,7 +385,7 @@ buildChainWithDiag :: GeneratorConfig
                    -> ComposerWeights  -- ^ Composer blend weights
                    -> H.CadenceState   -- ^ Starting state
                    -> Int              -- ^ Number of steps to generate
-                   -> Bolt.BoltActionT IO ([H.CadenceState], [StepDiagnostic])
+                   -> DbActionT ([H.CadenceState], [StepDiagnostic])
 buildChainWithDiag config gen ent context pctx composerWeights start totalSteps =
   buildChainWithDiagV config gen 1 ent context pctx composerWeights start totalSteps
 
@@ -402,7 +402,7 @@ buildChainWithDiagV :: GeneratorConfig
                     -> ComposerWeights -- ^ Composer blend weights
                     -> H.CadenceState  -- ^ Starting state
                     -> Int             -- ^ Number of steps to generate
-                    -> Bolt.BoltActionT IO ([H.CadenceState], [StepDiagnostic])
+                    -> DbActionT ([H.CadenceState], [StepDiagnostic])
 buildChainWithDiagV config gen verbosity ent context pctx composerWeights start totalSteps = do
   let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
   ((_current, revChain, _counter), revDiags) <-
@@ -412,7 +412,7 @@ buildChainWithDiagV config gen verbosity ent context pctx composerWeights start 
   pure (reverse revChain, reverse revDiags)
 
 -------------------------------------------------------------------------------
--- Offline Chain Building (plain IO, no Bolt\/Neo4j)
+-- Offline Chain Building (plain IO, no Neo4j)
 -------------------------------------------------------------------------------
 
 -- |Build cadence chain offline (no Neo4j required).
@@ -493,7 +493,7 @@ buildStrataChain :: GeneratorConfig
                  -> ComposerWeights
                  -> H.CadenceState  -- ^ starting state
                  -> Int             -- ^ number of steps
-                 -> Bolt.BoltActionT IO ([H.CadenceState], [StepDiagnostic])
+                 -> DbActionT ([H.CadenceState], [StepDiagnostic])
 buildStrataChain config gen mVerb ent ctx pctxAt weights start n = do
   let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
   ((_, revChain, _), revDiags) <-
@@ -904,7 +904,7 @@ matchesContext context currentState cadence =
 
   in overtonesMatch && bassMatch
 
--- |Like 'applyRConstraintsParsed' but with an optional bass target override.
+-- |Apply R constraints, with an optional bass target override.
 -- When bassTarget is Just, only candidates whose bass matches the target pass.
 applyRConstraintsWithTarget :: Maybe Int
                             -> ParsedContext

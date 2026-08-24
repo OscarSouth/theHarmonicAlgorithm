@@ -233,8 +233,15 @@ Neo4j, then load the pre-built database published with the
 [latest release](https://github.com/OscarSouth/theHarmonicAlgorithm/releases):
 
 ```bash
+# download the graph (14MB) and its checksum
+curl -LO https://github.com/OscarSouth/theHarmonicAlgorithm/releases/download/corpus-v1/ycacl-graph.dump
+curl -L https://github.com/OscarSouth/theHarmonicAlgorithm/releases/download/corpus-v1/SHA256SUMS | shasum -a 256 -c
+
+# load it (the database must be offline), then start Neo4j
+docker compose stop neo4j
+docker run --rm -i -v "$PWD/neo4j/data:/data" neo4j:5.26 \
+  neo4j-admin database load neo4j --from-stdin --overwrite-destination < ycacl-graph.dump
 docker compose up -d neo4j
-# load the release dump — see the release notes for the current command
 ```
 
 Every `seek` string then works: `"bach"`, `"debussy"`,

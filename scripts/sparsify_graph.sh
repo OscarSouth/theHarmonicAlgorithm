@@ -2,6 +2,11 @@
 #
 # Build the sparse, modern-format corpus artefact from the live dense graph.
 #
+# HISTORICAL NOTE: this performed the one-time 4.4 -> 5.26 migration on 2026-08-24
+# (GATE 1 and GATE 2 both passed with zero score drift). The dump-dense and scratch-a
+# stages deliberately speak Neo4j 4.4 CLI syntax because they consume the pre-migration
+# store; they are only useful again if migrating another 4.4-era graph.
+#
 # Why: 99% of the dense graph's 928MB string store is zero-valued composer
 # entries (every edge carries every composer; avg 6 of 469 are non-zero).
 # Dropping zeros is score-neutral by construction — resolveWeights reads a

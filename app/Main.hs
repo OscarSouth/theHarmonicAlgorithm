@@ -10,7 +10,7 @@ import           Harmonic.Rules.Import.Types
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as P
 
-import qualified Database.Bolt as Bolt
+import           Harmonic.Database (runDb)
 import           Control.Monad (forM_)
 import qualified Data.Map.Strict as Map
 import           Data.Map.Strict (Map)
@@ -633,10 +633,10 @@ main = do
   -- Truncate the cadence subgraph each run so composer-specific MERGEs remain
   -- deterministic; APOC handles the heavy lifting in 5k batches.
   putStrLn "Clearing existing cadences from Neo4j (batched via APOC)..."
-  Bolt.run pipe truncateCadenceGraph
-  Bolt.run pipe initGraph
+  runDb pipe truncateCadenceGraph
+  runDb pipe initGraph
   putStrLn $ "Writing " ++ show (length edges) ++ " transitions into Neo4j..."
-  Bolt.run pipe (writeCadenceEdges edges)
+  runDb pipe (writeCadenceEdges edges)
   putStrLn $ "Wrote " ++ show (length edges) ++ " transitions"
 
 normalizeComposers :: YCACLData -> ComposerPieces

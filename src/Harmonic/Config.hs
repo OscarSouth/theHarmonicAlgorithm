@@ -22,9 +22,11 @@ module Harmonic.Config (
 
 import Data.Text (Text)
 
--- | Neo4j bolt URI. Matches the docker-compose service on localhost.
+-- | Neo4j HTTP base URI (the Query API lives under it). Matches the
+-- docker-compose service on localhost. Override per-process with the
+-- @HA_NEO4J_URL@ environment variable.
 neo4jUri :: Text
-neo4jUri = "bolt://localhost:7687"
+neo4jUri = "http://localhost:7474"
 
 -- | Neo4j username. Matches @NEO4J_AUTH@ in docker-compose.yml.
 neo4jUser :: Text

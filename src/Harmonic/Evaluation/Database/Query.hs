@@ -26,8 +26,7 @@ module Harmonic.Evaluation.Database.Query
   , applyComposerBlend
   ) where
 
-import qualified Database.Bolt as Bolt
-import           Data.Default (def)
+import qualified Data.Aeson as A
 import qualified Data.Map.Strict as Map
 import           Data.Map.Strict (Map)
 import qualified Data.Text as T
@@ -44,7 +43,9 @@ import           Data.Aeson (FromJSON(..), Value(..), (.:))
 import qualified Data.Aeson.Key as Key
 import qualified Data.Aeson.KeyMap as KM
 import qualified Data.ByteString.Lazy as BL
+import           Data.Scientific (toRealFloat)
 
+import           Harmonic.Database (DbActionT, runQueryP)
 import qualified Harmonic.Rules.Types.Harmony as H
 
 -- | Map from composer name to weight (e.g., "bach" -> 0.7)
@@ -117,18 +118,18 @@ normalizeWeights weights
 --
 -- Query: MATCH (c:Cadence {show: $show})-[r:NEXT]->(n:Cadence) 
 --        RETURN n.movement, n.chord, r.weights
-fetchTransitions :: Text -> Bolt.BoltActionT IO [(H.Cadence, ComposerWeights)]
+fetchTransitions :: Text -> DbActionT [(H.Cadence, ComposerWeights)]
 fetchTransitions cadenceShow = do
   let query = T.unlines
         [ "MATCH (c:Cadence {show: $show})-[r:NEXT]->(n:Cadence)"
         , "RETURN n.movement AS movement, n.chord AS chord, r.weights AS weights"
         ]
-      params = Map.fromList [("show", Bolt.T cadenceShow)]
-  
-  records <- Bolt.queryP query params
+      params = Map.fromList [("show", A.String cadenceShow)]
+
+  records <- runQueryP query params
   pure $ mapMaybe parseRecord records
   where
-    parseRecord :: Bolt.Record -> Maybe (H.Cadence, ComposerWeights)
+    parseRecord :: Map Text A.Value -> Maybe (H.Cadence, ComposerWeights)
     parseRecord record = do
       mvmtVal <- Map.lookup "movement" record
       chordVal <- Map.lookup "chord" record
@@ -159,20 +160,20 @@ fetchTransitions cadenceShow = do
 --
 -- Query: MATCH (c:Cadence {show: $show})-[r:NEXT]->(n:Cadence)
 --        RETURN n.movement, n.chord, r.confidence
-fetchTransitionsAggregate :: Text -> Bolt.BoltActionT IO [(H.Cadence, Double)]
+fetchTransitionsAggregate :: Text -> DbActionT [(H.Cadence, Double)]
 fetchTransitionsAggregate cadenceShow = do
   let query = T.unlines
         [ "MATCH (c:Cadence {show: $show})-[r:NEXT]->(n:Cadence)"
         , "RETURN n.movement AS movement, n.chord AS chord, r.confidence AS confidence"
         ]
-      params = Map.fromList [("show", Bolt.T cadenceShow)]
+      params = Map.fromList [("show", A.String cadenceShow)]
 
-  records <- Bolt.queryP query params
+  records <- runQueryP query params
   pure $ sortBy (compare `on` (Down . snd))
        $ filter ((> 0) . snd)
        $ mapMaybe parseRecord records
   where
-    parseRecord :: Bolt.Record -> Maybe (H.Cadence, Double)
+    parseRecord :: Map Text A.Value -> Maybe (H.Cadence, Double)
     parseRecord record = do
       mvmtVal <- Map.lookup "movement" record
       chordVal <- Map.lookup "chord" record
@@ -250,14 +251,15 @@ parseWeightsJson jsonStr =
 -- (Aeson uses Key type for object keys in newer versions)
 
 -------------------------------------------------------------------------------
--- Bolt Value Extractors
+-- Result Value Extractors
 -------------------------------------------------------------------------------
 
-extractText :: Bolt.Value -> Maybe Text
-extractText (Bolt.T t) = Just t
-extractText _          = Nothing
+extractText :: A.Value -> Maybe Text
+extractText (A.String t) = Just t
+extractText _            = Nothing
 
-extractDouble :: Bolt.Value -> Maybe Double
-extractDouble (Bolt.F d) = Just d
-extractDouble (Bolt.I i) = Just (fromIntegral i)
-extractDouble _          = Nothing
+-- | JSON numbers carry both stored FLOATs and INTEGERs, so this covers an
+-- integral-stored confidence from any past ingestion as well.
+extractDouble :: A.Value -> Maybe Double
+extractDouble (A.Number n) = Just (toRealFloat n)
+extractDouble _            = Nothing

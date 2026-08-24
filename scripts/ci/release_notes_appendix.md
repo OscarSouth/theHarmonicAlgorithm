@@ -5,7 +5,7 @@
 
 The corpus graph is published separately, as a single stable asset shared by every release:
 
-- **[ycacl-graph.dump](https://github.com/OscarSouth/theHarmonicAlgorithm/releases/download/corpus-v1/ycacl-graph.dump)** — load it with `neo4j-admin load` (Neo4j 4.4); see README *Installation → 2. Add the composer graph*.
+- **[ycacl-graph.dump](https://github.com/OscarSouth/theHarmonicAlgorithm/releases/download/corpus-v1/ycacl-graph.dump)** — load it with `neo4j-admin database load` (Neo4j 5.26+); see README *Installation → 2. Add the composer graph*.
 
 The library runs without it: pass `seek "none"` to generate offline from the built-in consonance fallback.
 

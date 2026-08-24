@@ -32,27 +32,6 @@ packages:
       size: 92860
   original:
     hackage: tidal-link-1.2.0
-- completed:
-    hackage: hasbolt-0.1.7.0@sha256:48e523eddb921972d58a6ecaa228af27e216b6015442faffb6e5404b12cff21f,4254
-    pantry-tree:
-      sha256: 398a2694abfa196402ac85237d1bc03833af64cefa772541b220b368cb2021ea
-      size: 1332
-  original:
-    hackage: hasbolt-0.1.7.0
-- completed:
-    hackage: connection-0.3.1@sha256:3dcbf2f10d1677d339267d6dacb38a24913622edf42b05f75a73f381610ddbfc,1563
-    pantry-tree:
-      sha256: ddf462f50f0fc53404c6dead419c7241faf26da0e67c32accd0d9dc0d6e4da87
-      size: 386
-  original:
-    hackage: connection-0.3.1
-- completed:
-    hackage: tls-1.6.0@sha256:7ae39373fd2de27fb80e90f76d22aeeb9a074a0ddd120cbd02c9c52f516a9e55,6987
-    pantry-tree:
-      sha256: a64b0c6cdfc37b48ebb7c0e30fe23a0e1a172baf3819ff6d0ca281ae4a56041a
-      size: 4897
-  original:
-    hackage: tls-1.6.0
 snapshots:
 - completed:
     sha256: 238fa745b64f91184f9aa518fe04bdde6552533d169b0da5256670df83a0f1a9
