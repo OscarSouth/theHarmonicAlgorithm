@@ -268,6 +268,10 @@ strata, tristrata, and the three-layer harmony system, in full.
 a virtual orchestra: instrument catalogue, voice lines, divisi, sections,
 blends, and the subKick groove interface.
 
+**[API Reference](https://docs.theharmonicalgorithm.com/)** — generated Haddock
+documentation for all 35 modules, with worked examples on every user-facing
+entry point. Start at `Harmonic.Lib`.
+
 **[Architecture Guide](documents/ARCHITECTURE.md)** — the technical deep dive into
 how the system works: the four-layer architecture, the R→E→T pipeline,
 zero-form cadence storage, and the graph database model.

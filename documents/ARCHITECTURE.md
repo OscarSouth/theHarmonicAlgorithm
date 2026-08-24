@@ -285,8 +285,7 @@ One subsystem has its own document and is only sketched here:
 ### Walking bass (`WalkingBass`, `LineHarmony`)
 
 Linearises harmony into a quarter-note bass line, adapted from Gary
-Willis's *Fingerboard Harmony for Bass* (the harvested source rules live
-in [notes/walking_bass_theory.md](../notes/walking_bass_theory.md)).
+Willis's *Fingerboard Harmony for Bass*.
 `walkLine` is a pure function of `(voiceFn, progression)` in three
 passes:
 

@@ -49,7 +49,7 @@ ___
 **What** —
 
 ```haskell
-once $ d01 $ note "0" # ch 01 # legato 0.9   -- one middle C
+once $ note "0" # ch 01 # legato 0.9   -- one middle C
 
 tempo = 90
 start <- lead "C maj"
