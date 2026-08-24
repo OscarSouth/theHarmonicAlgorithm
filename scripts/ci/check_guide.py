@@ -15,7 +15,7 @@ binding, so no SuperCollider, MIDI device or audio hardware is involved.
 Exit 0 = clean, 1 = type errors (reported at their real USER_GUIDE.tidal line), 2 = the
 harness itself failed to run.
 """
-import re, subprocess, sys, pathlib, tempfile, argparse
+import re, subprocess, sys, pathlib, tempfile, shutil, argparse
 
 ROOT  = pathlib.Path(__file__).resolve().parents[2]
 GUIDE = "live/USER_GUIDE.tidal"
@@ -51,6 +51,15 @@ def main():
 
     here = pathlib.Path(__file__).parent
     tmp  = pathlib.Path(tempfile.mkdtemp(prefix="guide-typecheck-"))
+    try:
+        return _run(here, tmp, a)
+    finally:
+        if a.keep:
+            print(f"  payload kept in {tmp}")
+        else:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+def _run(here, tmp, a):
     payload, linemap = tmp / "payload.ghci", tmp / "payload.map"
 
     gen = subprocess.run(
@@ -112,8 +121,6 @@ def main():
         print(f"    {head}")
         for d in detail:
             print(f"    {d.strip()}")
-    if a.keep:
-        print(f"\n  payload kept at {payload}")
     return 1
 
 if __name__ == "__main__":
