@@ -52,6 +52,7 @@ import qualified System.Random.MWC.Distributions as Dist
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as P
 import qualified Harmonic.Rules.Types.Progression as Prog
+import qualified Data.Map.Strict as Map
 import           Harmonic.Evaluation.Database.Query (ComposerWeights, fetchTransitions)
 import qualified Harmonic.Evaluation.Database.Query as Q
 import           Harmonic.Traversal.Probabilistic (gammaIndexScaledWith)
@@ -132,12 +133,11 @@ stepChainBody :: GeneratorConfig
               -> Double           -- ^ Entropy [0,1]
               -> HarmonicContext
               -> ParsedContext
-              -> ComposerWeights
               -> ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
               -> Int
-              -> [(H.Cadence, ComposerWeights)]   -- ^ Pre-fetched transitions (empty for offline)
+              -> [(H.Cadence, Double)]   -- ^ Pre-scored transitions, sorted desc (empty for offline)
               -> IO ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
-stepChainBody config gen mVerbosity ent _context pctx composerWeights ((current, revChain, nonInvCount), revDiags) stepNum transitions = do
+stepChainBody config gen mVerbosity ent _context pctx ((current, revChain, nonInvCount), revDiags) stepNum transitions = do
   -- Walk shadow (gen4): all stage-1 machinery runs against the current
   -- state's most-consonant rooted embedded triad, so drift comparisons stay
   -- triad-vs-triad and graph keys stay corpus-shaped. Identity for every
@@ -156,17 +156,17 @@ stepChainBody config gen mVerbosity ent _context pctx composerWeights ((current,
   -- Apply R constraints (pure filter by ParsedContext)
   let filtered = applyRConstraintsWithTarget bassTarget pctx walkCur transitions
 
-  -- Score by composer blend
-  -- Filter to confidence > 0 and sort highest first
-  let scored = scoreByConfidence composerWeights filtered
-      -- Apply per-bar soft-boost (inverted sense: graph "higher is better",
+  -- Transitions arrive pre-scored by the caller (composer blend or the
+  -- r.confidence aggregate), positive and sorted highest first; the R-filter
+  -- above preserves that order.
+  let -- Apply per-bar soft-boost (inverted sense: graph "higher is better",
       -- so dividing a score by a sub-unit boost raises it — matching the
       -- fallback-side effect of lowering @badness@ via the same boost).
       boost = pcSoftBoost pctx
       graphCandidates
-        | boost == 1.0 = scored
+        | boost == 1.0 = filtered
         | otherwise    =
-            let boosted = [(c, s / boost) | (c, s) <- scored]
+            let boosted = [(c, s / boost) | (c, s) <- filtered]
             in sortBy (compare `on` (Down . snd)) boosted
       graphCount = length graphCandidates
 
@@ -346,8 +346,15 @@ stepChainCore config gen mVerbosity ent context pctx composerWeights acc@((curre
   -- always exists in the corpus keyspace — the walk never silently goes
   -- offline on cardinality.
   let currentShow = T.pack $ show (extractCadence (H.walkTriadState current))
-  transitions <- fetchTransitions currentShow
-  liftIO $ stepChainBody config gen mVerbosity ent context pctx composerWeights acc stepNum transitions
+  -- Wildcard blend (empty map): project the pre-aggregated r.confidence
+  -- instead of parsing the full r.weights JSON — identical scores by the
+  -- ingestion invariant, ~30x faster per step. Blended seeks keep the full
+  -- weights fetch. Both arrive positive and sorted highest first, matching
+  -- what scoreByConfidence used to produce here.
+  scored <- if Map.null composerWeights
+              then Q.fetchTransitionsAggregate currentShow
+              else Q.applyComposerBlend composerWeights <$> fetchTransitions currentShow
+  liftIO $ stepChainBody config gen mVerbosity ent context pctx acc stepNum scored
 
 -- |Offline single step for chain building (no Neo4j required).
 --
@@ -363,7 +370,7 @@ stepChainOffline :: GeneratorConfig
                  -> Int
                  -> IO ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
 stepChainOffline config gen mVerbosity ent context pctx acc stepNum =
-  stepChainBody config gen mVerbosity ent context pctx mempty acc stepNum []
+  stepChainBody config gen mVerbosity ent context pctx acc stepNum []
 
 -------------------------------------------------------------------------------
 -- Chain Building with Diagnostics
@@ -516,13 +523,6 @@ buildStrataChainOffline config gen mVerb ent ctx pctxAt start n = do
 -------------------------------------------------------------------------------
 -- Scoring and Selection
 -------------------------------------------------------------------------------
-
--- |Score transitions by applying composer blend to edge weights.
--- Filters to confidence > 0 and sorts highest first.
--- Uses resolveWeights internally to multiply user blend by edge weights,
--- then filters out zero-score candidates.
-scoreByConfidence :: ComposerWeights -> [(H.Cadence, ComposerWeights)] -> [(H.Cadence, Double)]
-scoreByConfidence blend transitions = Q.applyComposerBlend blend transitions
 
 -------------------------------------------------------------------------------
 -- Consonance Fallback
@@ -853,13 +853,6 @@ minPedalPool = 10
 -- R Constraint Filtering
 -------------------------------------------------------------------------------
 
--- |Apply R constraints to filter transitions
-applyRConstraints :: HarmonicContext
-                  -> H.CadenceState
-                  -> [(H.Cadence, ComposerWeights)]
-                  -> [(H.Cadence, ComposerWeights)]
-applyRConstraints context currentState = filter (matchesContext context currentState . fst)
-
 -- |Check if a cadence matches the harmonic context filters.
 --
 -- Filter logic (matching legacy behavior):
@@ -911,26 +904,15 @@ matchesContext context currentState cadence =
 
   in overtonesMatch && bassMatch
 
--- |Like 'applyRConstraints' but uses pre-parsed context for O(1) lookups.
-applyRConstraintsParsed :: ParsedContext
-                        -> H.CadenceState
-                        -> [(H.Cadence, ComposerWeights)]
-                        -> [(H.Cadence, ComposerWeights)]
-applyRConstraintsParsed pctx currentState = filter (matchesContextParsed pctx currentState . fst)
-
 -- |Like 'applyRConstraintsParsed' but with an optional bass target override.
 -- When bassTarget is Just, only candidates whose bass matches the target pass.
 applyRConstraintsWithTarget :: Maybe Int
                             -> ParsedContext
                             -> H.CadenceState
-                            -> [(H.Cadence, ComposerWeights)]
-                            -> [(H.Cadence, ComposerWeights)]
+                            -> [(H.Cadence, a)]
+                            -> [(H.Cadence, a)]
 applyRConstraintsWithTarget bassTarget pctx currentState =
   filter (matchesContextWithTarget bassTarget pctx currentState . fst)
-
--- |Like 'matchesContext' but uses pre-parsed IntSet lookups instead of reparsing text.
-matchesContextParsed :: ParsedContext -> H.CadenceState -> H.Cadence -> Bool
-matchesContextParsed = matchesContextWithTarget Nothing
 
 -- |Core filter with optional bass target override from rise\/fall direction.
 -- When bassTarget is Just, the bass note must equal the target exactly.
