@@ -32,10 +32,10 @@
 	color: #ffffff;
 }
 
-/* Result groups are module names — same scope colour as a type reference in the
-   doc chrome (vantablack @light-orange / entity.name.type). */
+/* Result groups are module names — the same "noun" colour the doc chrome gives a
+   type or module reference (vantablack @green). */
 .search-module h4 {
-	color: #FFFF99;
+	color: #B3FFB3;
 	background: transparent;
 	border-bottom: 1px solid #353535;
 }

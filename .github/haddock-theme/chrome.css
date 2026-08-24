@@ -46,18 +46,26 @@
 	   editor the code is written in — this surface appears in video. Values are the
 	   theme's LESS lighten() calls resolved out; contrast is against --ha-bg.
 
-	     @purple       keyword, storage            12.32:1
-	     @light-orange entity.name.type            18.76:1
-	     @blue         entity.name.function        10.03:1
-	     @orange       meta.link, constant         13.86:1
-	     @green        string                      16.75:1
-	     @text         default editor text          5.55:1
-	     @comment      lifted off the editor's #555 (2.4:1, unreadable here)  3.69:1 */
+	   What matters here is PRESENCE, not scope-for-scope fidelity. In the editor,
+	   orange/yellow appears on numbers and almost nothing else, while purple, blue and
+	   green carry the page. So the docs follow the same distribution:
+
+	     @purple  #FFB3FF  12.32:1  keywords — newtype, data, class, instance
+	     @green   #B3FFB3  16.75:1  nouns    — types and modules (the commonest link)
+	     @blue    #B2B2FF  10.03:1  verbs    — functions, values, section anchors
+	     @cyan    #B2FFFF  17.47:1  off-site — dependency docs on Hackage
+	     @orange  #FFD280  13.86:1  NUMBERS ONLY, and only in the source view
+	     @text    #888888   5.55:1  prose, operators, punctuation
+	     @comment #6b6b6b   3.69:1  descriptions; lifted off the editor's #555,
+	                                which is 2.4:1 here and unreadable
+
+	   @light-orange #FFFF99 is deliberately absent: using it for every type and module
+	   link made yellow the dominant colour on the page, the opposite of the editor. */
 	--va-purple: #FFB3FF;
-	--va-light-orange: #FFFF99;
-	--va-blue: #B2B2FF;
-	--va-orange: #FFD280;
 	--va-green: #B3FFB3;
+	--va-blue: #B2B2FF;
+	--va-cyan: #B2FFFF;
+	--va-orange: #FFD280;
 	--va-text: #888888;
 	--va-comment: #6b6b6b;
 
@@ -112,9 +120,20 @@ pre, code, kbd, samp, tt, .src,
 /* Default: a reference to a type or module — the commonest link on the page. */
 a[href]:link,
 a[href]:visited {
-	color: var(--va-light-orange);
+	color: var(--va-green);
 	border-bottom: 1px solid var(--ha-border);
 	transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+/* Off-site — dependency docs on Hackage. Cyan keeps orange free for numbers.
+   Deliberately placed BEFORE the kind rules below: these selectors have equal
+   specificity, so source order decides, and kind must win over host. `Int` lives on
+   Hackage but is a type, and has to match `GenConfig` sitting beside it in the same
+   signature. What stays cyan is an off-site link that is neither — a bare module page
+   or a URL in prose. */
+a[href^="http"]:link,
+a[href^="http"]:visited {
+	color: var(--va-cyan);
 }
 
 /* Values and functions. */
@@ -128,12 +147,12 @@ a.def[id^="v:"] {
 a[href*="#t:"]:link,
 a[href*="#t:"]:visited,
 a.def[id^="t:"] {
-	color: var(--va-light-orange);
+	color: var(--va-green);
 }
 
 /* Section anchors (`#g:1`) in the contents panel and the module header are
    navigation, not types — `entity.name.section` is @blue in the editor. Keeping
-   them out of light-orange also stops the contents panel reading as a wall of
+   them out of the noun colour also stops the contents panel reading as a wall of
    type names. */
 a[href^="#g:"]:link,
 a[href^="#g:"]:visited,
@@ -142,12 +161,6 @@ a[href^="#g:"]:visited,
 #contents-list a[href]:link,
 #contents-list a[href]:visited {
 	color: var(--va-blue);
-}
-
-/* Off-site — dependency docs on Hackage. `meta.link` in the editor. */
-a[href^="http"]:link,
-a[href^="http"]:visited {
-	color: var(--va-orange);
 }
 
 /* Haskell keywords in a signature: newtype, data, class, instance. */
