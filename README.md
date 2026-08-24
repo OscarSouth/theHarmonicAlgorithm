@@ -5,6 +5,11 @@
 
 ![Header](img/header.png)
 
+[![CI](https://github.com/OscarSouth/theHarmonicAlgorithm/actions/workflows/ci.yml/badge.svg)](https://github.com/OscarSouth/theHarmonicAlgorithm/actions/workflows/ci.yml)
+[![Docs](https://img.shields.io/badge/docs-docs.theharmonicalgorithm.com-6272a4)](https://docs.theharmonicalgorithm.com/)
+[![License](https://img.shields.io/badge/license-BSD--3--Clause-blue)](LICENSE)
+[![Buy Me a Coffee](https://img.shields.io/badge/buy%20me%20a%20coffee-ffdd00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/oscarsouth)
+
 ___
 ### Welcome to The Harmonic Algorithm :)
 ###### this is an expression of my musical mind — it feels kind of like an 'LLM' (but there's no AI here, just old school counting and music theory) for navigating through and interacting with musical harmonic state in real time, while experiencing it.
@@ -305,6 +310,10 @@ feel free to get in touch through this repository's
 Alternatively, come hang out or contact me through the forum 
 for my main performance project UDAGAN:
 https://forum.UDAGAN.uk/
+
+If the project is useful to you and you'd like to help keep the research going,
+you can [buy me a coffee](https://buymeacoffee.com/oscarsouth) — or use the
+**Sponsor** button at the top of this page. A star is free and helps just as much.
 
 Oscar
 
