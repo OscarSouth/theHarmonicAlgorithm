@@ -1131,8 +1131,9 @@ chordNamesOf prog =
       enharms = map (H.enharmonicFunc . H.stateSpelling) cads
   in zipWith Prog.showHarmony enharms cads
 
--- |Set entropy in [0, 1] — mapped affinely to the gamma sampler's shape
--- (@shape = 1 + entropy * 9@). Higher values = more unusual choices.
+-- |Set entropy (>= 0) — the gamma sampler targets rank @entropy * 10@
+-- in the scored pool, so 0 usually takes the top candidate, 0.5 wanders
+-- around the 5th, 1 around the 10th; values above 1 reach deeper still.
 --
 -- @s <- seek "*" $ entropy 0.5 $ gen@
 entropy :: Double -> GenConfig -> GenConfig

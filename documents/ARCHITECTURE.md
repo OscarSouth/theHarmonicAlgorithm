@@ -598,7 +598,7 @@ line.
 | **Chord** | An absolute sonority: root plus intervals |
 | **Confidence** | Per-edge weight stored on `:NEXT`, derived from corpus transition counts |
 | **Drift** | Constraint on dissonance direction across a progression (`consonant`/`dissonant`) |
-| **Entropy** | Dial in [0, 1] mapped affinely to the gamma sampler's shape (`1 + entropy·9`); how far down the ranking traversal reaches |
+| **Entropy** | Dial (≥ 0) targeting rank `entropy·10` in the scored pool (gamma shape `entropy·10 + 0.5`, capped at pool size); how far down the ranking traversal reaches |
 | **Form node** | A timed point carrying kinetics, dynamics and a progression |
 | **Kinetics** | Continuous 0–1 intensity signal driving range-gated arrangement |
 | **Layer (T/S/M)** | Triad, strata or mode density of one progression context |

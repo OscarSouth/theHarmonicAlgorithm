@@ -616,7 +616,7 @@ parseLeadTokens = map classifyToken . words
 -- Pick a variant from a sorted list, biased toward the most consonant
 pickVariant :: GenIO -> String -> [[Int]] -> IO (String, [Int])
 pickVariant gen label variants = do
-  idx <- gammaIndexScaledWith gen 0.1 (length variants)
+  idx <- gammaIndexScaledWith gen 0.05 (length variants)
   pure (label, variants !! idx)
 
 -- Resolve a quality string to (label, intervals), or fall through to random

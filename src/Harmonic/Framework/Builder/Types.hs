@@ -387,7 +387,7 @@ data GenConfig = GenConfig
   { _gcCue         :: IO H.CadenceState  -- ^ Starting state (default: random)
   , _gcLen         :: Int                 -- ^ Number of chords (default: 4)
   , _gcSeek        :: String              -- ^ Composer blend string (default: "*")
-  , _gcEntropy     :: Double              -- ^ Entropy in [0,1]; gamma shape = 1 + e*9 (default: 0.2)
+  , _gcEntropy     :: Double              -- ^ Entropy >= 0; targets rank ~e*10 in the pool (default: 0.2)
   , _gcTonal       :: HarmonicContext     -- ^ R constraints (default: hContext)
   , _gcVerbosity   :: Verbosity           -- ^ Output level (default: Silent)
   , _gcMode        :: GenMode             -- ^ Generation mode (default: Fresh)

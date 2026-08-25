@@ -19,6 +19,18 @@ burn-down deleted ten provably unreachable functions and thirty-odd
 redundant imports, and closed a latent non-exhaustive pattern over
 `Movement.Empty` in fallback scoring.
 
+### Entropy dial recalibration
+
+The entropy dial now means what it says: **`entropy * 10` is the rank the
+sampler targets** in the scored candidate pool. `entropy 0` usually (not
+always) takes the top-ranked candidate, `entropy 0.5` wanders around the
+5th, `entropy 1` around the 10th — and the dial is now **unbounded above**,
+so `entropy 2` reaches around rank 20 with proportionally wide variance.
+Previously the mapping rejected the top pick 37% of the time at entropy 0,
+and on small pools (chord-quality variants, gen4 added tones) high entropy
+collapsed onto the *worst-ranked* candidate almost deterministically; small
+pools are now explored across their whole range instead.
+
 ### The Data Model & corpus-v2
 
 The trained model itself got the upgrade this time. The ingestion pipeline was

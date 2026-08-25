@@ -282,10 +282,10 @@ The Form/Kinetics system (`FormNode`, `Kinetics`, `at`, `formK`) enables multi-s
 
 ### 5.7 Entropy as Creativity Parameter (Gamma Distribution)
 
-The generation engine uses a **gamma distribution** to sample candidate indices from a scored pool. The `entropy` parameter in [0, 1] is an affine input to the distribution's shape --- `shape = 1.0 + entropy * 9.0` (`Traversal/Probabilistic.hs`) --- so the sampler runs from Gamma(1, 1) to Gamma(10, 1):
+The generation engine uses a **gamma distribution** to sample candidate indices from a scored pool. The `entropy` parameter (≥ 0) is a rank target: the shape mapping `shape = entropy * 10 + 0.5` (`Traversal/Probabilistic.hs`) makes the median drawn index track `entropy * 10`, with the distribution's right skew supplying wide variance around it.
 
 - **Low entropy** (0.1--0.3): the distribution peaks at the top of the ranked pool, producing conventional, predictable progressions.
-- **High entropy** (0.5--1.0): the distribution's mode *relocates down the ranking* --- at entropy 1.0 it peaks around index 9 and the top-ranked candidate becomes very unlikely. High entropy is not "more uniform": the sampler stays committed, but to mid-ranked candidates, systematically declining what E rates highest.
+- **High entropy** (0.5--1.0+): the distribution's mode *relocates down the ranking* --- at entropy 1.0 it targets rank 10 and the top-ranked candidate becomes very unlikely; entropy 2 targets rank 20, and so on, unbounded. High entropy is not "more uniform": the sampler stays committed, but to mid-ranked candidates, systematically declining what E rates highest. On a pool smaller than the target the shape is capped at the pool's last index and overshoot is re-drawn, so a small pool is explored across its whole range rather than pinned to its worst member.
 
 This parameter maps directly to the T component of the Creative Systems Framework---it controls *how* the system traverses the conceptual space defined by R. The relocation point matters for the CSF reading: turning entropy up is not neutral extra exploration but a deliberate re-weighting away from the evaluation's preference, which is what makes it musically interesting and why it is a performance dial rather than a set-and-forget constant.
 
