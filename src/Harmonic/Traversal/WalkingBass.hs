@@ -11,10 +11,13 @@
 --      soft direction-persistence bias, a half-weight loop-closure pull on
 --      the final bar, and a root-fifth alternation option inside runs of
 --      consecutive identical chords. Bar 0 anchors at the register centre.
---   2. Pass 2 — beat 3s. Per bar, choose a chord tone minimising smoothness
---      to b1_i plus smoothness to b1_{i+1} plus consonance-to-fund cost
---      (via @beat3ConsTable@). Unison repeats carry a dedicated penalty
---      so a non-repeat chord tone wins when nearby. Symmetric chords
+--   2. Pass 2 — beat 3s. Per bar, choose from a tiered pool minimising
+--      smoothness to b1_i plus smoothness to b1_{i+1} plus consonance-to-
+--      fund cost (via @beat3ConsTable@) plus a tier surcharge: a target
+--      tone is free, a non-target anchor, a favourable passing tone and a
+--      bare palette tone cost progressively more, and avoid tones are not
+--      in the pool at all. Unison repeats carry a dedicated penalty so a
+--      non-repeat chord tone wins when nearby. Symmetric chords
 --      (dim \/ aug \/ dim7 \/ whole-tone) bypass the consonance term since no
 --      chord tone is privileged in a rotation-invariant shape.
 --   3. Pass 3 — beats 2 and 4. Per beat, choose from a (cyclic) local-scale
@@ -40,14 +43,28 @@
 -- scales strong-beat strictness and connector tension licence. Pure-function
 -- guarantees are preserved: same progression and voiceFn always produce the
 -- same line.
+--
+-- Three family variants share these passes, differing only in what they
+-- feed them: 'walkLine' walks the plain per-bar tone sets at whatever
+-- cardinality each bar carries ('Harmonic.Framework.Builder.gen' and
+-- 'Harmonic.Framework.Builder.genE'), 'walkLineP' narrows the pools to the
+-- octatripentatonic strata ('Harmonic.Framework.Builder.genP'), and
+-- 'walkLineJ' reads each bar through a
+-- 'Harmonic.Rules.Import.Jazz.BassVocab' derived from its chord symbol
+-- ('Harmonic.Framework.Builder.genJ'). Each has a @Dyn@ twin taking a
+-- per-bar dynamics vector. Callers normally reach them through
+-- 'Harmonic.Interface.Tidal.LineHarmony.lineHarmony', which dispatches on
+-- the progression's family.
 
 {-# LANGUAGE MultiWayIf #-}
 module Harmonic.Traversal.WalkingBass
   ( -- * Main entry
     walkLine
   , walkLineP
+  , walkLineJ
   , walkLineDyn
   , walkLinePDyn
+  , walkLineJDyn
   , ChromaSources(..)
 
     -- * Derived entropy (exported for tests \/ diagnostics)
@@ -74,13 +91,14 @@ import Data.Bits (xor)
 import Data.Foldable (toList)
 import Data.Word (Word64)
 import GHC.Float (castDoubleToWord64)
-import System.Random (mkStdGen, randoms)
+import System.Random (StdGen, mkStdGen, random)
 
 import qualified Harmonic.Rules.Types.Pitch as Pt
 import qualified Harmonic.Rules.Types.Harmony as Hm
 import qualified Harmonic.Rules.Types.Progression as Pr
 import Harmonic.Evaluation.Scoring.Dissonance (rootMotionScore, dissonanceScore)
 import Harmonic.Interface.Tidal.Bridge (VoiceFunction)
+import qualified Harmonic.Rules.Import.Jazz as J
 
 -------------------------------------------------------------------------------
 -- Constants
@@ -217,6 +235,20 @@ kappaFourthChain = 4
 kappaPhraseMid :: Int
 kappaPhraseMid = 6
 
+-- | Pass 2 passing-tone surcharge: the middle beat-3 tier for tones a
+-- quality's bass vocabulary marks as favourable passing material (the 9,
+-- the 11 over minor and 13th chords) — cheaper than a bare regional-key
+-- tone, dearer than a strong anchor.
+kappaB3Passing :: Int
+kappaB3Passing = 4
+
+-- | Pass 2 non-target surcharge: a chord's seventh (or sixth) is legal on
+-- a strong beat but is not what a line aims AT — the triadic core is.
+-- Small, so it breaks ties toward the triad without overriding the
+-- interval-quality ranking of 'beat3ConsTable'.
+kappaB3NonTarget :: Int
+kappaB3NonTarget = 2
+
 -- | Pass 2 non-chord surcharge. Beat 3's pool admits regional-key tones
 -- (the bar's stratum in the genP path) beyond the chord tones, but they
 -- pay this on top of their @beat3ConsTable@ cost — surfacing only where
@@ -296,6 +328,28 @@ isSymmetricChord s =
   all (\(a, b) -> let d = abs (a - b) `mod` 12
                   in d /= 5 && d /= 7)
       [ (a, b) | a <- Set.toList s, b <- Set.toList s, a < b ]
+
+-- | The fifth a bar actually walks, as an absolute pitch class.
+--
+-- Every fifth-driven term — the beat-1 alternation inside duplicate-chord
+-- runs, the static-cell recovery, the half-weight approach bonus, the
+-- beat-3 role pricing — needs the fifth the CHORD has, not the fifth its
+-- root would imply. A diminished bar's fifth is its b5, an augmented
+-- bar's its #5; reaching for the natural fifth there sounds a semitone
+-- against a tone the chord is sounding. 'J.bassVocabFor' reads that from
+-- the tone set (and restores a natural fifth where a quality implies one
+-- its voicing omits), so the three walk variants share one rule.
+chordFifthPC :: Hm.CadenceState -> Int
+chordFifthPC cs =
+  let absPCs = Set.toList (chordPCs cs)
+      -- Read the quality from ROOT POSITION: 'fromCadenceState' runs
+      -- inversion detection, so a first-inversion major triad is asked
+      -- about as a major triad rather than as a #5 chord built on its
+      -- own third.
+      hRoot  = Pt.unPitchClass
+                 (Pt.pitchClass (Hm.chordNoteName (Hm.fromCadenceState cs)))
+      ivs    = map (\pc -> (pc - hRoot) `mod` 12) absPCs
+  in (hRoot + J.bvFifth (J.bassVocabFor ivs)) `mod` 12
 
 -- | Cyclic union of the previous, current, and next bar's chord-PC sets.
 -- Loop-closure consistent: bar 0's prev is bar n-1; bar n-1's next is bar 0.
@@ -396,11 +450,17 @@ progConsonance prog
                   [ Pt.unPitchClass iv `mod` 12
                   | iv <- Hm.cadenceIntervals (Hm.stateCadence c) ])
           d   = fromIntegral (dissonanceScore pcs) :: Double
+      -- Anchors per cardinality from observed landmarks: triads 6..32,
+      -- tetrads 19..55; 5-6 tone sets calibrated on the jazz corpus
+      -- census (frequency-weighted dissonanceScore over the quality
+      -- table: mellowest pentads 37, weighted mean ~72, crunch ~122) so
+      -- everyday extended harmony spreads across the whole band instead
+      -- of saturating.
       in case length pcs of
            n | n <= 2    -> 1.0
              | n == 3    -> clamp01 (1 - (d - 6)  / 26)
              | n == 4    -> clamp01 (1 - (d - 19) / 36)
-             | otherwise -> clamp01 (1 - (d - 30) / 60)
+             | otherwise -> clamp01 (1 - (d - 37) / 85)
     clamp01 = max 0 . min 1
 
 -------------------------------------------------------------------------------
@@ -424,6 +484,14 @@ progConsonance prog
 -- reported as the major-pool pitch class. Each bar takes the key with the
 -- highest vote total over the surrounding window (cyclic, +/- 2 bars);
 -- ties resolve to the lowest pitch class.
+--
+-- Triadic tones state a chord's identity; the tones ABOVE the triad state
+-- which key it belongs to. A bare triad is genuinely ambiguous and votes
+-- widely and weakly; a seventh narrows the reading; the upper extensions
+-- narrow it further and can redirect it outright — an altered dominant
+-- points at a MINOR tonic, not the major key a fourth above, and a #11
+-- over a major seventh rules out the subdominant reading. So extension
+-- evidence is read before the plain seventh-and-triad cases.
 inferKeyCentre :: Pr.Progression -> [Pt.PitchClass]
 inferKeyCentre prog =
   [ Pt.mkPitchClass (bestFor i) | i <- [0 .. n - 1] ]
@@ -438,12 +506,27 @@ inferKeyCentre prog =
                   [ Pt.unPitchClass iv `mod` 12
                   | iv <- Hm.cadenceIntervals (Hm.stateCadence cs) ]
           has = (`Set.member` ivs)
+          -- Upper-extension evidence, read on a dominant shell (3 + b7).
+          altered   = has 1 || has 8 || (has 3 && has 4)  -- b9 / b13-#5 / #9
+          unaltered = has 2 || has 9                      -- natural 9 / 13
           offsets
+            -- Altered dominant: V of a MINOR tonic. Reported in the
+            -- major pool, so the vote lands on the relative major
+            -- (root + 8), not the parallel major a fourth up.
+            | has 4 && has 10 && altered = [(8, 6), (5, 2)]
+            -- Unaltered extended dominant: mixolydian confirmed. A #11
+            -- disqualifies it — that is the lydian-dominant / tritone-sub
+            -- colour, the one extension arguing AGAINST a plain V-of-a-
+            -- fourth-up reading, so those fall through to the plain V7
+            -- vote below rather than the strongest one in the function.
+            | has 4 && has 10 && unaltered && not (has 6) = [(5, 7)]
             | has 4 && has 10            = [(5, 6)]                    -- V7
+            -- #11 over a major seventh is lydian colour: the chord is
+            -- the tonic of its own key, never the subdominant.
+            | has 4 && has 11 && has 6 && has 7 = [(0, 5)]
             | has 4 && has 11            = [(0, 4), (7, 2)]            -- Imaj7 / IVmaj7
-            | has 3 && has 6             = [(1, 4)]                    -- vii (half-dim pool)
-            | has 3 && has 10            = [(10, 4), (3, 3), (8, 2)]   -- ii / vi / iii
-            | has 3                      = [(10, 4), (3, 3), (8, 2)]   -- minor triad
+            | has 3 && has 6 && not (has 4) = [(1, 4)]                 -- vii (half-dim pool)
+            | has 3                      = [(10, 4), (3, 3), (8, 2)]   -- ii / vi / iii, minor triad
             | has 4                      = [(0, 4), (7, 2), (5, 2)]    -- major triad: I / IV / V
             | otherwise                  = []
       in [ ((r + off) `mod` 12, w) | (off, w) <- offsets ]
@@ -457,7 +540,7 @@ inferKeyCentre prog =
     bestFor i =
       let votes     = windowVotes i
           total key = sum [ w | (k, w) <- votes, k == key ]
-      in snd (minimum [ (negate (total key), key) | key <- [0 .. 11 :: Int] ])
+      in snd (minimum [ (negate (total key) :: Integer, key) | key <- [0 .. 11 :: Int] ])
 
 -------------------------------------------------------------------------------
 -- Pass 1 — Beat 1s (skeleton)
@@ -484,7 +567,7 @@ beat1PCs voiceFn prog =
 -- Detection is acyclic (bar 0 always starts a run) so the loop wrap never
 -- flips a line's opening beat 1.
 dupOddFlags :: V.Vector Hm.CadenceState -> V.Vector Bool
-dupOddFlags barsV = V.fromList (map odd (go Nothing (V.toList barsV)))
+dupOddFlags barsV = V.fromList (map odd (go Nothing (V.toList barsV) :: [Integer]))
   where
     go _ [] = []
     go mPrev (c:cs') =
@@ -571,6 +654,18 @@ dynVectors n (Just ds) =
 -- Pass 2 — Beat 3s (re-anchor)
 -------------------------------------------------------------------------------
 
+-- | Per-bar beat-3 tiering. The vectors are structurally identical, so
+-- they travel as a record rather than six positional arguments the
+-- compiler cannot tell apart.
+data B3Tiers = B3Tiers
+  { b3Target  :: V.Vector (Set Int)  -- ^ landing tones (no surcharge)
+  , b3Strong  :: V.Vector (Set Int)  -- ^ legal anchors ('kappaB3NonTarget')
+  , b3Passing :: V.Vector (Set Int)  -- ^ favourable passing ('kappaB3Passing')
+  , b3Avoid   :: V.Vector (Set Int)  -- ^ excluded from the pool entirely
+  , b3Palette :: V.Vector (Set Int)  -- ^ regional palette ('kappaB3NonChord')
+  , b3Fifth   :: V.Vector Int        -- ^ THE fifth's PC per bar, priced as a fifth
+  }
+
 -- | Per bar, pick the beat-3 MIDI minimising
 --   (|m - b1_i| + |b1_{i+1} - m| + consonance-to-fund + repeat-penalty).
 -- Linear (not quadratic) smoothness so moderate leaps to the P5 aren't
@@ -581,25 +676,53 @@ dynVectors n (Just ds) =
 -- cost so a non-repeat chord tone wins when nearby. For symmetric chords
 -- (dim \/ aug \/ dim7 \/ whole-tone) the consonance term is neutralised because
 -- no chord tone is privileged over the others.
-pass2Beat3s :: Int -> V.Vector (Set Int) -> V.Vector (Set Int) -> V.Vector Int -> V.Vector Int -> V.Vector Int
-pass2Beat3s consPct keyV chordPCsV b1s fundPCs =
+-- Four surcharge tiers, cheapest first: a target lands free, a non-target
+-- anchor pays 'kappaB3NonTarget', a favourable passing tone
+-- 'kappaB3Passing', anything else 'kappaB3NonChord'. Avoid tones are not
+-- a tier — they are removed from the pool. Legacy callers pass
+-- target == strong with empty passing and avoid sets, collapsing this to
+-- the original two tiers exactly.
+pass2Beat3s
+  :: Int                  -- consonance strictness percentage
+  -> V.Vector Bool        -- per-bar symmetric-chord flags (raw chord sets)
+  -> B3Tiers
+  -> V.Vector Int -> V.Vector Int -> V.Vector Int
+pass2Beat3s consPct symFlagV tiers b1s fundPCs =
   let n = V.length b1s
       pick i =
-        let chord  = chordPCsV V.! i
-            sym    = isSymmetricChord chord
-            pool   = V.toList (midisIn (chord `Set.union` (keyV V.! i)))
+        let target = b3Target  tiers V.! i
+            strong = b3Strong  tiers V.! i
+            passes = b3Passing tiers V.! i
+            avoid  = b3Avoid   tiers V.! i
+            p5PC   = b3Fifth   tiers V.! i
+            sym    = symFlagV V.! i
+            -- Avoid tones are removed outright, not merely surcharged:
+            -- the guarantee is that a notated colour alteration never
+            -- lands on a strong beat. They stay reachable as weak-beat
+            -- tension through the connector pools.
+            pool   = V.toList (midisIn
+                       ((strong `Set.union` passes `Set.union` (b3Palette tiers V.! i))
+                          `Set.difference` avoid))
             b1L    = b1s V.! i
             b1R    = b1s V.! ((i + 1) `mod` n)
             fundPC = fundPCs V.! i
             score m =
               let smL  = abs (m - b1L)
                   smR  = abs (b1R - m)
+                  -- Role pricing: whatever semitone the quality's own
+                  -- fifth occupies (b5, natural, #5) is priced AS a
+                  -- fifth. Legacy callers pass fund+7, so this is the
+                  -- identity for them.
+                  iv   = (m - fundPC) `mod` 12
+                  iv'  = if (m `mod` 12) == p5PC then 7 else iv
                   cons = if sym then 0
                          else (consPct * kappaB3Consonance
-                               * beat3ConsTable ((m - fundPC) `mod` 12))
+                               * beat3ConsTable iv')
                               `div` 100
-                  nchP = if (m `mod` 12) `Set.member` chord then 0
-                         else kappaB3NonChord
+                  nchP | (m `mod` 12) `Set.member` target = 0
+                       | (m `mod` 12) `Set.member` strong = kappaB3NonTarget
+                       | (m `mod` 12) `Set.member` passes = kappaB3Passing
+                       | otherwise                        = kappaB3NonChord
                   repP = if m == b1L then kappaPassiveRepeat else 0
                   antP = if m == b1R then kappaB3Anticipate else 0
               in smL + smR + cons + nchP + repP + antP
@@ -617,7 +740,7 @@ data ConnectorPos = Beat2 | Beat4 deriving (Eq, Show)
 -- | Deterministic Double in [0, 1) from (seed, position).
 seededUniform :: Int -> Int -> Double
 seededUniform seed pos =
-  head (randoms (mkStdGen (seed `xor` (pos * 2654435761))) :: [Double])
+  fst (random (mkStdGen (seed `xor` (pos * 2654435761))) :: (Double, StdGen))
 
 -- | Repeat-rate probability: 0.20 at e=0, 0.05 at e=1 (clamped to [0,1]).
 pRepeat :: Double -> Double
@@ -654,7 +777,8 @@ scoreConnector
   -> Int            -- tension licence percentage (scales chromatic bonus)
   -> Set Int        -- regional-key major-scale PCs (Minor Thirds Rule)
   -> Set Int        -- localScale_i (cyclic)
-  -> Set Int        -- chordPCs_i
+  -> Set Int        -- chord-tone gate (bass vocabulary: strong + passing)
+  -> Set Int        -- strong-tier PCs (full beat-2 preference)
   -> Int -> Int     -- L, R
   -> Bool           -- isStatic (b1 == b3 for this bar)
   -> Bool           -- isSymmetric (this bar's chord is rotation-invariant)
@@ -662,7 +786,7 @@ scoreConnector
   -> Int            -- p5PC of this bar
   -> Int            -- b3 MIDI of this bar
   -> Int -> Double -> Int -> Int -> Int
-scoreConnector pos tensionPct keySet scale chord l r isStatic isSymmetric
+scoreConnector pos tensionPct keySet scale chord anchors l r isStatic isSymmetric
                rootPC p5PC b3 posIdx e seed m =
   let smooth      = (m - l) * (m - l) + (r - m) * (r - m)
       inScale     = (m `mod` 12) `Set.member` scale
@@ -678,8 +802,17 @@ scoreConnector pos tensionPct keySet scale chord l r isStatic isSymmetric
       chordToneB  = if pos == Beat4 && inChord && abs (m - r) `elem` [1, 2]
                        && (m `mod` 12) `elem` [rootPC, p5PC]
                     then -kappaChordToneBonus else 0
-      b2ChordB    = if pos == Beat2 && inChord && m /= l
-                    then -kappaB2ChordTone else 0
+      -- Beat 2 reads the bar in tiers: the chord's own tones (triad plus
+      -- the defining seventh) take the full preference, its favourable
+      -- passing extensions half — so the minor 3rd outranks the 11th in
+      -- that slot, while the seventh still outranks a mere scale tone.
+      -- Legacy paths pass one set for both tiers, preserving their
+      -- behaviour exactly.
+      b2ChordB
+        | pos /= Beat2 || m == l            = 0
+        | (m `mod` 12) `Set.member` anchors = -kappaB2ChordTone
+        | inChord                           = -(kappaB2ChordTone `div` 2)
+        | otherwise                         = 0
       sandwichPen = if not inChord && abs (m - l) > 2 && abs (m - r) > 2
                     then kappaSandwich else 0
       copyPen     = if pos == Beat4 && m == r
@@ -740,26 +873,29 @@ pass3Connectors
   :: Int                  -- tension licence percentage
   -> V.Vector (Set Int)   -- regional-key major-scale PCs per bar
   -> V.Vector (Set Int)   -- local scales
-  -> V.Vector (Set Int)   -- chord PCs
+  -> V.Vector Bool        -- per-bar symmetric-chord flags (raw chord sets)
+  -> V.Vector (Set Int)   -- chord-tone gate PCs (bass vocabulary per bar)
+  -> V.Vector (Set Int)   -- strong-tier PCs per bar (full beat-2 tier)
+  -> V.Vector Int         -- THE fifth's PC per bar (vocabulary-corrected)
   -> V.Vector Int         -- b1s
   -> V.Vector Int         -- b3s
   -> V.Vector Int         -- fund PCs (for P5 recovery)
   -> Int -> Double
   -> (V.Vector Int, V.Vector Int)
-pass3Connectors tensionPct keySetsV localsV chordsV b1s b3s fundPCs seed e =
+pass3Connectors tensionPct keySetsV localsV symV gatesV anchorsV p5PCsV b1s b3s fundPCs seed e =
   let n = V.length b1s
       isStaticAt i = b1s V.! i == b3s V.! i
-      isSymAt i    = isSymmetricChord (chordsV V.! i)
+      isSymAt i    = symV V.! i
       rootPCAt i   = fundPCs V.! i
-      p5PCAt i     = (fundPCs V.! i + 7) `mod` 12
+      p5PCAt i     = p5PCsV V.! i
       b3At i       = b3s V.! i
       chooseBeat2 i =
         let scale = localsV V.! i
-            chord = chordsV V.! i
+            chord = gatesV V.! i
             l     = b1s V.! i
             r     = b3s V.! i
             pool  = connectorPool scale r
-            sc    = scoreConnector Beat2 tensionPct (keySetsV V.! i) scale chord l r
+            sc    = scoreConnector Beat2 tensionPct (keySetsV V.! i) scale chord (anchorsV V.! i) l r
                                    (isStaticAt i) (isSymAt i)
                                    (rootPCAt i) (p5PCAt i) (b3At i)
                                    (2 * i) e seed
@@ -768,11 +904,11 @@ pass3Connectors tensionPct keySetsV localsV chordsV b1s b3s fundPCs seed e =
              _  -> minimumBy (compare `on` sc) pool
       chooseBeat4 i =
         let scale = localsV V.! i
-            chord = chordsV V.! i
+            chord = gatesV V.! i
             l     = b3s V.! i
             r     = b1s V.! ((i + 1) `mod` n)
             pool  = connectorPool scale r
-            sc    = scoreConnector Beat4 tensionPct (keySetsV V.! i) scale chord l r
+            sc    = scoreConnector Beat4 tensionPct (keySetsV V.! i) scale chord (anchorsV V.! i) l r
                                    (isStaticAt i) (isSymAt i)
                                    (rootPCAt i) (p5PCAt i) (b3At i)
                                    (2 * i + 1) e seed
@@ -822,22 +958,34 @@ walkLineDyn mDyn voiceFn prog
     fundPCs   = V.map rootPCInt barsV
 
     pcs1      = beat1PCs voiceFn prog
-    p5PCs     = V.map (\r -> (r + 7) `mod` 12) fundPCs
+    p5PCs     = V.map chordFifthPC barsV
     dupOdd    = dupOddFlags barsV
     (biasV, dropV) = dynVectors nBars mDyn
     b1s       = pass1Beat1s biasV dropV pcs1 p5PCs dupOdd
-    -- Per-bar tonal palette (derived, walk-internal). Minor-turnaround
-    -- bars modulate internally, so chord QUALITY overrides the regional
-    -- key: a half-diminished bar takes the harmonic minor of the tonic a
-    -- whole step below (ii of minor); an altered dominant (b9/#9) takes
-    -- its altered scale (melodic minor a semitone up); a plain dominant
-    -- resolving up a fourth to a minor chord takes the target's harmonic
-    -- minor. All other bars take the major scale of the regional centre
-    -- from 'inferKeyCentre'. Purely local and deterministic — the Markov
-    -- boundary of 'inferKeyCentre' applies to the palettes too.
-    keySetsV  = V.fromList
-      [ barPalette i k
-      | (i, k) <- zip [0 ..] (inferKeyCentre prog) ]
+    keySetsV  = paletteSetsFor prog
+
+    symV      = V.map isSymmetricChord chordPCsV
+    emptyV    = V.replicate nBars Set.empty
+    -- target == strong, no passing, no avoid: the original two tiers.
+    tiers     = B3Tiers chordPCsV chordPCsV emptyV emptyV keySetsV p5PCs
+    b3s       = pass2Beat3s consPct symV tiers b1s fundPCs
+    (b2s, b4s) = pass3Connectors tensionPct keySetsV localsV symV chordPCsV chordPCsV p5PCs b1s b3s fundPCs seed e
+
+-- | Per-bar tonal palette (derived, walk-internal). Minor-turnaround
+-- bars modulate internally, so chord QUALITY overrides the regional
+-- key: a half-diminished bar takes the harmonic minor of the tonic a
+-- whole step below (ii of minor); an altered dominant (b9/#9) takes
+-- its altered scale (melodic minor a semitone up); a plain dominant
+-- resolving up a fourth to a minor chord takes the target's harmonic
+-- minor. All other bars take the major scale of the regional centre
+-- from 'inferKeyCentre'. Purely local and deterministic — the Markov
+-- boundary of 'inferKeyCentre' applies to the palettes too.
+paletteSetsFor :: Pr.Progression -> V.Vector (Set Int)
+paletteSetsFor prog =
+  V.fromList [ barPalette i k | (i, k) <- zip [0 ..] (inferKeyCentre prog) ]
+  where
+    barsV = V.fromList (toList (Pr.unProgression prog))
+    nBars = V.length barsV
     barPalette i k =
       let cs      = barsV V.! i
           r       = rootPCInt cs
@@ -856,15 +1004,15 @@ walkLineDyn mDyn voiceFn prog
           domToMinor  = has 4 && has 10
                         && (nextR - r) `mod` 12 == 5
                         && 3 `Set.member` nextIvs
-      in if | has 3 && has 6            -> harmMinor ((r - 2) `mod` 12)
+      -- The half-diminished branch requires the absence of a major 3rd:
+      -- altered dominants that carry both #9 and #11 (3 and 6) belong to
+      -- the altered branch, not the minor-ii family.
+      in if | has 3 && has 6 && not (has 4) -> harmMinor ((r - 2) `mod` 12)
             | has 4 && has 10
-                && (has 1 || has 3)     -> altered
-            | domToMinor                -> harmMinor ((r + 5) `mod` 12)
-            | otherwise                 -> scaleAt (Pt.unPitchClass k)
-                                             [0, 2, 4, 5, 7, 9, 11]
-
-    b3s       = pass2Beat3s consPct keySetsV chordPCsV b1s fundPCs
-    (b2s, b4s) = pass3Connectors tensionPct keySetsV localsV chordPCsV b1s b3s fundPCs seed e
+                && (has 1 || has 3)         -> altered
+            | domToMinor                    -> harmMinor ((r + 5) `mod` 12)
+            | otherwise                     -> scaleAt (Pt.unPitchClass k)
+                                                 [0, 2, 4, 5, 7, 9, 11]
 
 -------------------------------------------------------------------------------
 -- Octatripentatonic-aware variant
@@ -1086,10 +1234,101 @@ walkLinePDyn mDyn voiceFn prog chromas
     fundPCs   = V.map rootPCInt barsV
 
     pcs1      = beat1PCs voiceFn prog
-    p5PCs     = V.map (\r -> (r + 7) `mod` 12) fundPCs
+    -- The octatripentatonic contract admits no tone outside the bar's
+    -- chroma, and the generator enforces it for the bass too
+    -- ('pcStrictContainment' disables the usual bass exemption). So the
+    -- fifth offered on beat 1 must itself be chroma-resident: where the
+    -- chroma has no fifth to give — a diminished bar whose natural fifth
+    -- is not even in the octatripentatonic universe — the bar holds its
+    -- root and a repeat displaces by octave instead.
+    p5PCs     = V.generate nBars $ \i ->
+      let fifth = chordFifthPC (barsV V.! i)
+          ChromaSources st md = chromasV V.! i
+      in if fifth `Set.member` (st `Set.union` md)
+           then fifth
+           else fundPCs V.! i
     dupOdd    = dupOddFlags barsV
     (biasV, dropV) = dynVectors nBars mDyn
     b1s       = pass1Beat1s biasV dropV pcs1 p5PCs dupOdd
     strataV   = V.map csStrata chromasV
-    b3s       = pass2Beat3s consPct strataV chordPCsV b1s fundPCs
+    symV      = V.map isSymmetricChord chordPCsV
+    emptyV    = V.replicate nBars Set.empty
+    tiers     = B3Tiers chordPCsV chordPCsV emptyV emptyV strataV p5PCs
+    b3s       = pass2Beat3s consPct symV tiers b1s fundPCs
     (b2s, b4s) = pass3ConnectorsP tensionPct localsV chordPCsV chromasV b1s b3s fundPCs seed e
+
+-------------------------------------------------------------------------------
+-- Jazz-vocabulary variant
+-------------------------------------------------------------------------------
+
+-- | Jazz-aware walking-bass line: 'walkLineJDyn' with no dynamics vector.
+walkLineJ :: VoiceFunction -> Pr.Progression -> [J.BassVocab] -> [[Int]]
+walkLineJ = walkLineJDyn Nothing
+
+-- | Walking-bass line over a jazz-corpus progression, guided by per-bar
+-- 'J.BassVocab' (typically @bassVocabFor . cadenceIntervals@ per bar, as
+-- LineHarmony derives for FJazz contexts). Corpus tone sets describe
+-- working voicings, not bass vocabulary: 13th chords omit the 5th and
+-- 11th, altered qualities replace the 5th, and notated colour tones
+-- (b9 \/ #9 \/ #11 \/ b13) must not land on strong beats. The vocabulary
+-- restores THE fifth for every fifth-driven term, anchors strong beats on
+-- 'J.bvStrong', prices 'J.bvPassing' at a middle beat-3 tier, and gates
+-- the connector chord-tone bonuses on strong-plus-passing membership —
+-- while the raw notated set still shapes the connector pools, so colour
+-- tones remain reachable as weak-beat tension. Caller matches
+-- @length vocabs@ to the progression (mismatch falls back to
+-- 'walkLineDyn').
+walkLineJDyn :: Maybe [Double] -> VoiceFunction -> Pr.Progression -> [J.BassVocab] -> [[Int]]
+walkLineJDyn mDyn voiceFn prog vocabs
+  | nBars == 0              = []
+  | length vocabs /= nBars  = walkLineDyn mDyn voiceFn prog
+  | otherwise =
+      [ [b1s V.! i, b2s V.! i, b3s V.! i, b4s V.! i]
+      | i <- [0 .. nBars - 1] ]
+  where
+    e         = progressionEntropy prog
+    seed      = hashProgEntropy prog e
+
+    consPct    = 70 + round (60 * progConsonance prog) :: Int
+    tensionPct = 200 - consPct
+
+    barsV     = V.fromList (toList (Pr.unProgression prog))
+    nBars     = V.length barsV
+    vocabV    = V.fromList vocabs
+
+    chordPCsV = V.map chordPCs barsV
+    localsV   = V.generate nBars (localScale chordPCsV)
+    fundPCs   = V.map rootPCInt barsV
+
+    absSet i xs = Set.fromList [ ((fundPCs V.! i) + x) `mod` 12 | x <- xs ]
+    -- The triadic core is what a line aims AT; sevenths and extensions are
+    -- colour that shapes the route. Targets drive the beat-2 anchor
+    -- preference, strong tones stay legal on strong beats, and the bar's
+    -- own extensions widen the palette that feeds passing selection.
+    targetV   = V.generate nBars (\i -> absSet i (J.bvTarget  (vocabV V.! i)))
+    strongV   = V.generate nBars (\i -> absSet i (J.bvStrong  (vocabV V.! i)))
+    passV     = V.generate nBars (\i -> absSet i (J.bvPassing (vocabV V.! i)))
+    avoidV    = V.generate nBars (\i -> absSet i (J.bvAvoid   (vocabV V.! i)))
+    gatesV    = V.zipWith Set.union strongV passV
+    p5PCs     = V.generate nBars
+                  (\i -> ((fundPCs V.! i) + J.bvFifth (vocabV V.! i)) `mod` 12)
+    -- Symmetry is a property of the sounding set, not the vocabulary.
+    symV      = V.map isSymmetricChord chordPCsV
+
+    pcs1      = beat1PCs voiceFn prog
+    dupOdd    = dupOddFlags barsV
+    (biasV, dropV) = dynVectors nBars mDyn
+    b1s       = pass1Beat1s biasV dropV pcs1 p5PCs dupOdd
+    -- Two palettes, deliberately different widths. The WIDE one feeds the
+    -- beat-3 pool: the bar's own extensions join the inferred scale so a
+    -- colour tone stays reachable even when the scale would exclude it
+    -- (avoid tones are subtracted inside pass2Beat3s). The NARROW one is
+    -- the inferred key itself, and is what Pass 3's minor-thirds rule
+    -- must see — that rule pays full price only for the regional-diatonic
+    -- fill, so feeding it the widened set would let a b9 or #11 collect a
+    -- bonus meant for a scale tone.
+    keyNarrowV = paletteSetsFor prog
+    keyWideV   = V.zipWith Set.union keyNarrowV chordPCsV
+    tiers     = B3Tiers targetV strongV passV avoidV keyWideV p5PCs
+    b3s       = pass2Beat3s consPct symV tiers b1s fundPCs
+    (b2s, b4s) = pass3Connectors tensionPct keyNarrowV localsV symV gatesV strongV p5PCs b1s b3s fundPCs seed e

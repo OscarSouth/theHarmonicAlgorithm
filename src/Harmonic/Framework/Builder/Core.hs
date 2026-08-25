@@ -26,7 +26,6 @@ module Harmonic.Framework.Builder.Core
   , extractCadence
 
     -- * Filtering (exposed for testing)
-  , matchesContext
   , matchesContextWithTarget
   , applyDriftFilter
   ) where
@@ -44,12 +43,13 @@ import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as P
 import qualified Harmonic.Rules.Types.Progression as Prog
 import qualified Data.Map.Strict as Map
+import           Data.IORef (IORef, newIORef, readIORef, writeIORef)
+import qualified Data.Set as Set
 import           Harmonic.Database (DbConn, runDb, connectNeo4j)
 import           Harmonic.Evaluation.Database.Query (ComposerWeights)
 import qualified Harmonic.Evaluation.Database.Query as Q
 import           Harmonic.Traversal.Probabilistic (gammaIndexScaledWith)
-import           Harmonic.Rules.Constraints.Filter (parseOvertones', parseKey, isWildcard, resolveRoots,
-                                                    nthAbove, nthBelow)
+import           Harmonic.Rules.Constraints.Filter (nthAbove, nthBelow)
 import           Harmonic.Rules.Constraints.Overtone (overtoneSets)
 import           Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
 import qualified Harmonic.Evaluation.Scoring.Dissonance as D
@@ -83,12 +83,52 @@ classicalSource conn weights key
 -- |Resolve a seek string to its 'TransitionSource': @"none"@ (case-
 -- insensitive) is 'offlineSource'; anything else opens the database and
 -- blends per 'Q.parseComposerWeights'.
+--
+-- A named blend is additionally spell-checked against the graph as the
+-- walk runs: a name that has not appeared on any fetched edge after a
+-- few steps is reported once (a typo'd composer otherwise zeroes its
+-- share silently and the walk quietly degrades toward fallback).
 sourceFor :: T.Text -> IO TransitionSource
 sourceFor seekStr
   | T.toLower (T.strip seekStr) == "none" = pure offlineSource
   | otherwise = do
       conn <- connectNeo4j
-      pure (classicalSource conn (Q.parseComposerWeights seekStr))
+      let blend = Q.parseComposerWeights seekStr
+      if Map.null blend
+        then pure (classicalSource conn blend)
+        else do
+          ref <- newIORef (Map.keysSet blend, 0 :: Int)
+          pure (spellcheckedSource ref conn blend)
+
+-- Wraps 'classicalSource' with the unseen-name tracker: each fetch
+-- crosses off blend names present on any returned edge; after
+-- 'spellcheckFetches' fetches, survivors are reported once (weights are
+-- sparse per edge, so a single node proves nothing — a few steps of
+-- absence is strong evidence of a typo, and the message says which).
+spellcheckedSource :: IORef (Set.Set T.Text, Int) -> DbConn -> ComposerWeights -> TransitionSource
+spellcheckedSource ref conn blend key = do
+  rows <- runDb conn (Q.fetchTransitions key)
+  (unseen, n) <- readIORef ref
+  if Set.null unseen
+    then pure ()
+    else do
+      let seen    = Set.unions [ Map.keysSet w | (_, w) <- rows ]
+          unseen' = unseen `Set.difference` seen
+          n'      = n + 1
+      if n' >= spellcheckFetches && not (Set.null unseen')
+        then do
+          putStrLn $ "⚠ seek: " ++ show (map T.unpack (Set.toList unseen'))
+                   ++ " matched no composer on any edge of the first "
+                   ++ show n' ++ " steps — check the spelling against"
+                   ++ " documents/COMPOSERS.md (walk continues; their"
+                   ++ " share contributes nothing)"
+          writeIORef ref (Set.empty, n')
+        else writeIORef ref (unseen', n')
+  pure (Q.applyComposerBlend blend rows)
+
+-- Fetches to observe before calling a never-seen blend name a typo.
+spellcheckFetches :: Int
+spellcheckFetches = 3
 
 -- |Build the cadence chain step by step against any 'TransitionSource'.
 --
@@ -158,7 +198,9 @@ resolveBassDirection gen stepNum (Just spec) = do
     else do
       let cs = bdsChoices spec
       n <- case bdsSelector spec of
-        BDFixed      -> pure (head cs)
+        -- bdsChoices is non-empty by parser construction; 1 = the bare
+        -- rise/fall default, unreachable here.
+        BDFixed      -> pure (case cs of { (c : _) -> c; [] -> 1 })
         BDRotate     -> pure (cs !! ((stepNum - 1) `mod` length cs))
         BDRandomPick -> do
           i <- uniformR (0, length cs - 1) gen
@@ -423,7 +465,7 @@ consonanceFallbackParsed gen currentState pctx =
 -- We must use the first element as root, not the minimum!
 triadToCadenceFrom :: P.PitchClass -> [Int] -> H.Cadence
 triadToCadenceFrom currentRoot pitches =
-  let triadRoot = P.mkPitchClass (head pitches)  -- First element from overtoneSets is the root
+  let triadRoot = P.mkPitchClass (case pitches of { (p : _) -> p; [] -> 0 })  -- First element from overtoneSets is the root
       movement = H.toMovement currentRoot triadRoot
       -- Zero-form normalization: [P 4,P 7,P 11] → [P 0,P 3,P 7]
       -- zeroFormPC subtracts first element and sorts, so don't pre-sort!
@@ -639,57 +681,6 @@ minPedalPool = 10
 -- R Constraint Filtering
 -------------------------------------------------------------------------------
 
--- |Check if a cadence matches the harmonic context filters.
---
--- Filter logic (matching legacy behavior):
---   1. Compute effective overtones: key-filtered overtone palette
---   2. All chord pitches must be in effective overtones
---   3. Root must be in resolved roots (handles "key"\/"tones" options)
-matchesContext :: HarmonicContext -> H.CadenceState -> H.Cadence -> Bool
-matchesContext context currentState cadence =
-  let (movement, chord) = H.deconstructCadence cadence
-
-      -- Get effective overtone palette (key-filtered)
-      rawOvertones = parseOvertones' 3 (_hcOvertones context)
-      keyPcs = parseKey (_hcKey context)
-      effectiveOvertones = if isWildcard (_hcKey context)
-                           then rawOvertones
-                           else filter (`elem` keyPcs) rawOvertones
-
-      -- Get allowed bass notes (the "roots" parameter actually filters bass notes, not harmonic roots)
-      allowedBassNotes = resolveRoots (_hcOvertones context) (_hcKey context) (_hcRoots context)
-
-      -- Compute current root from previous state + movement
-      prevRoot = P.pitchClass (H.stateCadenceRoot currentState)
-      currentRoot = case movement of
-        H.Unison -> prevRoot
-        H.Tritone -> P.transpose 6 prevRoot
-        H.Asc pc -> P.transpose (P.unPitchClass pc) prevRoot
-        H.Desc pc -> P.transpose (negate $ P.unPitchClass pc) prevRoot
-        H.Empty -> prevRoot
-
-      -- Convert chord intervals to Int for transposition
-      chordInts = map (fromIntegral . P.unPitchClass) chord
-      currentRootInt = fromIntegral (P.unPitchClass currentRoot)
-
-      -- Transpose relative intervals (zero-form) to absolute pitches
-      -- Example: [0,4,7] + root 4 (E) = [4,8,11] mod 12
-      absolutePitches = map (\interval -> (interval + currentRootInt) `mod` 12) chordInts
-
-      -- Bass note is the FIRST interval (fundamental), not minimum!
-      -- This matches how bassNotes and toTriad compute bass.
-      bassInt = if null absolutePitches then 0 else head absolutePitches
-
-      -- All absolute chord pitches must be in effective overtones
-      -- (effectiveOvertones already handles wildcard cases correctly)
-      overtonesMatch = all (`elem` effectiveOvertones) absolutePitches
-
-      -- Bass note must be in allowed bass notes (or wildcard)
-      bassMatch = isWildcard (_hcRoots context)
-                  || bassInt `elem` allowedBassNotes
-
-  in overtonesMatch && bassMatch
-
 -- |Apply R constraints, with an optional bass target override.
 -- When bassTarget is Just, only candidates whose bass matches the target pass.
 applyRConstraintsWithTarget :: Maybe Int
@@ -724,7 +715,7 @@ matchesContextWithTarget bassTarget pctx currentState cadence =
       absolutePitches = map (\interval -> (interval + currentRootInt) `mod` 12) chordInts
 
       -- Bass note is the FIRST interval (fundamental), not minimum!
-      bassInt = if null absolutePitches then 0 else head absolutePitches
+      bassInt = case absolutePitches of { [] -> 0; (p : _) -> p }
 
       -- All absolute chord pitches must be in effective overtones (IntSet lookup).
       -- When bass direction targets a specific note, exempt that pitch class

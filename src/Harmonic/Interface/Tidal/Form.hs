@@ -149,7 +149,7 @@ lK :: Pattern Double          -- ^ Kinetics signal (0-1, live)
    -> PC.ProgressionContext   -- ^ Active 3-layer progression
    -> Pattern Int             -- ^ Chord-selection pattern
    -> IK
-lK sig dyn pc chordPat = (Kinetics sig dyn (pure pc) [pc] 0 0, chordPat)
+lK sigP dyn pc chordPat = (Kinetics sigP dyn (pure pc) [pc] 0 0, chordPat)
 
 -------------------------------------------------------------------------------
 -- Realization
@@ -162,48 +162,66 @@ beatsPerBar = 4
 
 -- |Resolve a node's position to Tidal cycles from form start.
 nodeCycles :: Double -> FormNode -> Double
-nodeCycles cps n = case fnTime n of
-  Secs s -> s * cps
-  Bars b -> b * beatsPerBar
+nodeCycles cpsV nd = case fnTime nd of
+  Secs secs -> secs * cpsV
+  Bars b    -> b * beatsPerBar
 
 -- |Node position in wall-clock seconds (for 'kLoopSecs' \/ the display).
 nodeSecs :: Double -> FormNode -> Double
-nodeSecs cps n = case fnTime n of
-  Secs s -> s
-  Bars b -> b * beatsPerBar / cps
+nodeSecs cpsV nd = case fnTime nd of
+  Secs secs -> secs
+  Bars b    -> b * beatsPerBar / cpsV
 
 -- |Realize a form definition into Kinetics signals at a given BPM.
 -- Single-node forms produce constant signals (global state).
 -- Multi-node forms produce per-segment signals — smooth (ramp) or snap (step)
 -- per each node's 'fnTrans' — and a step-function progression, looping at the
 -- form's total duration. Time is resolved from each node's 'FormTime'.
+--
+-- Contract details:
+--
+-- * The LAST node is the loop terminator, not a playable section: segments
+--   run between consecutive node pairs, and the final node's time sets
+--   'kLoopSecs'. Its kinetics\/dynamic values only shape the ramp INTO it.
+-- * Nodes are sorted by resolved time before use, so a moved rehearsal
+--   mark cannot produce negative-width segments. Nodes sharing a time
+--   yield a zero-width segment (the earlier one is inaudible).
+-- * @formK bpm []@ yields silence on every signal — safe to evaluate
+--   mid-edit; nothing sounds until a node exists.
+-- * Smooth ramps render at 16 steps per SEGMENT regardless of length
+--   (see @formSignal@) — a long segment crosses kinetics thresholds on a
+--   correspondingly coarse grid.
 formK :: Double -> [FormNode] -> Kinetics
 formK bpm nodes0 = Kinetics
-  { kSignal   = formSignal cps nodes fnKinetics
-  , kDynamic  = formSignal cps nodes fnDynamic
-  , kProg     = formStep   cps nodes fnProg
+  { kSignal   = formSignal cpsV nodes fnKinetics
+  , kDynamic  = formSignal cpsV nodes fnDynamic
+  , kProg     = formStep   cpsV nodes fnProg
   , kProgs    = nub (map fnProg nodes)
   , kLoopSecs = case nodes of
-                  (_:_:_) -> nodeSecs cps (last nodes)   -- multi-node: form duration (seconds)
+                  (_:_:_) -> nodeSecs cpsV (last nodes)   -- multi-node: form duration (seconds)
                   _       -> 0                           -- single-node or empty: atemporal
-  , kCps      = cps
+  , kCps      = cpsV
   }
   where
-    cps = bpm / 60
+    cpsV = bpm / 60
     -- Nodes sorted by resolved time: an out-of-order form (a rehearsal
     -- mark moved without reordering the list) previously produced
     -- negative-width timecat segments with no diagnostic.
-    nodes = sortOn (nodeCycles cps) nodes0
+    nodes = sortOn (nodeCycles cpsV) nodes0
 
 -- |Kinetics\/dynamic signal: piecewise per segment, ramped when the segment's
 -- start node is 'Smooth', held (stepped) when 'Snap'. Single node: constant.
+-- Ramp resolution is a fixed 16 steps per segment (a 148-second segment
+-- moves in ~9-second stairs) — deliberate coarseness so instrument
+-- activation bands switch on a musically legible grid rather than
+-- per-event.
 formSignal :: Double -> [FormNode] -> (FormNode -> Double) -> Pattern Double
 formSignal _   []     _        = silence
 formSignal _   [node] accessor = pure (realToFrac $ accessor node)
-formSignal cps nodes  accessor =
-  let totalCycles = realToFrac (nodeCycles cps (last nodes)) :: Time
-      pairs       = zip nodes (tail nodes)
-      segments    = [ ( realToFrac (nodeCycles cps n2 - nodeCycles cps n1)
+formSignal cpsV nodes  accessor =
+  let totalCycles = realToFrac (nodeCycles cpsV (last nodes)) :: Time
+      pairs       = zip nodes (drop 1 nodes)
+      segments    = [ ( realToFrac (nodeCycles cpsV n2 - nodeCycles cpsV n1)
                       , case fnTrans n1 of
                           Snap   -> pure (realToFrac $ accessor n1)
                           Smooth -> segment 16 $ range (realToFrac $ accessor n1)
@@ -218,10 +236,10 @@ formSignal cps nodes  accessor =
 formStep :: Double -> [FormNode] -> (FormNode -> a) -> Pattern a
 formStep _   []     _        = silence
 formStep _   [node] accessor = pure (accessor node)
-formStep cps nodes  accessor =
-  let totalCycles = realToFrac (nodeCycles cps (last nodes)) :: Time
-      pairs       = zip nodes (tail nodes)
-      segments    = [ ( realToFrac (nodeCycles cps n2 - nodeCycles cps n1)
+formStep cpsV nodes  accessor =
+  let totalCycles = realToFrac (nodeCycles cpsV (last nodes)) :: Time
+      pairs       = zip nodes (drop 1 nodes)
+      segments    = [ ( realToFrac (nodeCycles cpsV n2 - nodeCycles cpsV n1)
                       , pure (accessor n1)
                       )
                     | (n1, n2) <- pairs
@@ -239,7 +257,7 @@ ki (lo, hi) (kin, _) = mask (fmap (\x -> x >= lo && x <= hi) (kSignal kin))
 
 -- |Gated stack: stack patterns and gate by kinetics range.
 slate :: (Double, Double) -> IK -> [Pattern a] -> Pattern a
-slate range k pats = ki range k $ stack pats
+slate band k pats = ki band k $ stack pats
 
 -- |Kinetics-windowed dispatch: partition [0,1] into N equal windows of
 -- width 1\/N, where N = length pats, and play only the pattern whose
@@ -257,15 +275,15 @@ slate range k pats = ki range k $ stack pats
 kinPick :: IK -> [Pattern a] -> Pattern a
 kinPick _ [] = silence
 kinPick (kin, _) pats =
-  let n      = length pats
-      step   = 1 / fromIntegral n
+  let nPats  = length pats
+      step   = 1 / fromIntegral nPats
       window i p =
         let lo = fromIntegral i       * step
             hi = fromIntegral (i + 1) * step
             inWin x | i == 0    = x >= lo && x <= hi
                     | otherwise = x >  lo && x <= hi
         in mask (fmap inWin (kSignal kin)) p
-  in stack (zipWith window [0..] pats)
+  in stack (zipWith window [0 :: Int ..] pats)
 
 -- |Bridge helper: apply a function taking 'Harmonic.Rules.Types.ProgressionContext.ProgressionContext' to a Kinetics context.
 -- Uses innerJoin to reactively switch when the form changes progressions.

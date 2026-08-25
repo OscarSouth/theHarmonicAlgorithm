@@ -31,8 +31,12 @@
 --
 -- @
 -- walk f k d = p \"walk\" $ f
---   $ lineHarmony k [\"1 2 3 4\"] |* vel d
+--   $ lineHarmony d k fund [\"1 2 3 4\"]
 -- @
+--
+-- (dynamics scalar, context, beat-1 voicing, then the beat-position
+-- patterns; the scalar multiplies the form's 'kDynamic' internally — do
+-- not also apply @|* vel d@.)
 --
 -- Because each integer picks a beat position, the pattern controls /which/
 -- beats of the generated line sound — @\"1 ~ 3 ~\"@ plays a half-time
@@ -49,7 +53,8 @@ import qualified Harmonic.Rules.Types.Pitch as Pt
 import Harmonic.Interface.Tidal.Form (Kinetics(..), IK, kinPick)
 import Harmonic.Interface.Tidal.Bridge (VoiceFunction, lookupChordAt, forceAll)
 import Harmonic.Traversal.WalkingBass
-  ( walkLineDyn, walkLinePDyn, ChromaSources(..), beatsPerBar )
+  ( walkLineDyn, walkLinePDyn, walkLineJDyn, ChromaSources(..), beatsPerBar )
+import qualified Harmonic.Rules.Import.Jazz as J
 
 import Data.List (nub)
 import Data.Maybe (isJust, listToMaybe)
@@ -72,11 +77,18 @@ tidalNoteOffset = 48
 -- compensation needed. Runtime register shifts via @|+ oct n@ \/ @|- oct n@
 -- on the launcher side still compose normally.
 --
+-- The walk adapts to the generation family of the context it is given.
 -- For octatripentatonic progressions (@pcProvenance@ = 'Just'), the Pass-3
 -- connector pool is reweighted: strata pitches (5 PCs) are most preferred,
 -- overlap (cyclic union of adjacent chord-PCs) is neutral, mode pitches
 -- (7 PCs) are admissible with a mild penalty, and chromatic ±1 approaches
--- outside any of those sets are removed entirely. For 'Harmonic.Framework.Builder.gen' (legacy)
+-- outside any of those sets are removed entirely. For jazz progressions
+-- (@pcFamily@ = 'Harmonic.Rules.Types.ProgressionContext.FJazz') each bar
+-- carries a 'Harmonic.Rules.Import.Jazz.BassVocab' derived from its chord
+-- symbol, so the line reads the harmony as a bass player does — the fifth
+-- a 13th chord omits is restored, an altered dominant's \#5 replaces the
+-- natural 5, and notated colour alterations stay off strong beats. For
+-- 'Harmonic.Framework.Builder.gen' and 'Harmonic.Framework.Builder.genE'
 -- progressions the line is byte-identical to the previous behaviour.
 --
 -- Entropy is derived internally from the progression's harmonic character.
@@ -132,8 +144,8 @@ lineHarmony dyn (kin, chordPat) voiceFn pats =
 -- a dynamic signal with no such period leaves the chord period unchanged
 -- and the walk dynamics-blind.
 resolveDynTiers :: Pattern Double -> Maybe [Int] -> (Maybe [Int], Maybe [Int])
-resolveDynTiers _   Nothing     = (Nothing, Nothing)
-resolveDynTiers sig (Just vals) =
+resolveDynTiers _    Nothing     = (Nothing, Nothing)
+resolveDynTiers sigP (Just vals) =
   case mTiers of
     Nothing    -> (Just vals, Nothing)
     Just tiers ->
@@ -141,21 +153,21 @@ resolveDynTiers sig (Just vals) =
           pairs  = zip (cycle vals) tiers
           maxP   = 64
           exts   = [ k * p | k <- [1 ..], k * p <= maxP ]
-          fits n = and [ pairs !! i == pairs !! (i + n)
-                       | i <- [0 .. length pairs - n - 1] ]
+          fits m = and [ pairs !! i == pairs !! (i + m)
+                       | i <- [0 .. length pairs - m - 1] ]
       in case filter fits exts of
-           (n:_) -> ( Just (take n (cycle vals))
-                    , Just (take n tiers) )
+           (m:_) -> ( Just (take m (cycle vals))
+                    , Just (take m tiers) )
            []    -> (Just vals, Nothing)
   where
     horizon = 128
     barTier k =
-      let pointVal t = case queryArc sig (Arc t t) of
+      let pointVal t = case queryArc sigP (Arc t t) of
                          [ev] -> Just (value ev)
                          _    -> Nothing
-          samples = [ pointVal (4 * fromIntegral k + off)
-                    | off <- [0.5, 1.5, 2.5, 3.5 :: Time] ]
-      in case sequence samples of
+          beatVals = [ pointVal (4 * fromIntegral k + beatOff)
+                     | beatOff <- [0.5, 1.5, 2.5, 3.5 :: Time] ]
+      in case sequence beatVals of
            Just vs -> Just (round (8 * sum vs / 4) :: Int)
            Nothing -> Nothing
     mTiers = traverse barTier [0 .. horizon - 1 :: Int]
@@ -181,9 +193,9 @@ resolvePerformedSeq pat =
       let pointVal t = case queryArc pat (Arc t t) of
                          [ev] -> Just (value ev)
                          _    -> Nothing
-          samples = [ pointVal (4 * fromIntegral k + off)
-                    | off <- [0.5, 1.5, 2.5, 3.5 :: Time] ]
-      in case sequence samples of
+          beatVals = [ pointVal (4 * fromIntegral k + beatOff)
+                     | beatOff <- [0.5, 1.5, 2.5, 3.5 :: Time] ]
+      in case sequence beatVals of
            Just (v:vs) | all (== v) vs -> Just v
            _                           -> Nothing
     mVals = traverse barVal [0 .. horizon - 1 :: Int]
@@ -198,11 +210,19 @@ resolvePerformedSeq pat =
 -- octatripentatonic ProgressionContext, the per-bar 'ChromaSources' that
 -- drive 'Harmonic.Traversal.WalkingBass.walkLineP'. Two contexts with identical triads but different
 -- strata walks produce different lines; without the 'ChromaSources' in
--- the key the cache would silently collide. The third component is the
+-- the key the cache would silently collide. The third is the per-bar
+-- jazz bass vocabulary, which distinguishes an FJazz context from an
+-- FTriad one carrying a byte-identical triad layer. The fourth is the
 -- resolved performed sequence (raw selector values), so two launches
--- differing only in warp\/rep never collide either; the fourth is the
+-- differing only in warp\/rep never collide either; the fifth is the
 -- per-bar dynamic tier vector steering the register arc.
-type WalkKey = (P.Progression, Maybe [ChromaSources], Maybe [Int], Maybe [Int])
+type WalkKey =
+  ( P.Progression
+  , Maybe [ChromaSources]   -- genP strata/mode chroma
+  , Maybe [J.BassVocab]     -- genJ per-bar bass vocabulary
+  , Maybe [Int]             -- performed sequence
+  , Maybe [Int]             -- dynamic tiers
+  )
 
 -- | Project a 'Harmonic.Rules.Types.ProgressionContext.ProgressionContext' into the cache key. For 'Harmonic.Framework.Builder.gen'
 -- (no provenance) the second component is 'Nothing' — legacy 'Harmonic.Traversal.WalkingBass.walkLine'
@@ -215,9 +235,24 @@ walkKey performedVals dynTiers ctx =
   , case PC.pcProvenance ctx of
       Nothing -> Nothing
       Just _  -> Just (chromaSourcesFor ctx)
+  , jazzVocabFor ctx
   , performedVals
   , dynTiers
   )
+
+-- | Per-bar walking-bass vocabulary for jazz-family contexts: corpus tone
+-- sets are working voicings (13th chords omit the 5th and 11th; altered
+-- qualities replace the 5th; notated colours are not strong-beat targets),
+-- so FJazz bars walk from 'J.bassVocabFor' over their stored intervals
+-- rather than the raw shapes. Other families return 'Nothing' and walk
+-- exactly as before.
+jazzVocabFor :: PC.ProgressionContext -> Maybe [J.BassVocab]
+jazzVocabFor ctx
+  | PC.pcFamily ctx /= PC.FJazz = Nothing
+  | otherwise = Just
+      [ J.bassVocabFor
+          (map Pt.unPitchClass (H.cadenceIntervals (H.stateCadence cs)))
+      | cs <- toList (P.unProgression (PC.triadLayer ctx)) ]
 
 -- | Read per-bar (strata, mode) absolute-PC sets from the strata \/ mode
 -- auxiliary layers. After the Builder fix these carry 5 \/ 7 PCs as
@@ -231,8 +266,8 @@ chromaSourcesFor ctx =
         let r = Pt.unPitchClass (Pt.pitchClass (H.stateCadenceRoot cs))
             ints = map Pt.unPitchClass (H.cadenceIntervals (H.stateCadence cs))
         in Set.fromList [ (i + r) `mod` 12 | i <- ints ]
-  in [ ChromaSources (pcsAbs s) (pcsAbs m)
-     | (s, m) <- zip strataCSs modeCSs ]
+  in [ ChromaSources (pcsAbs sc) (pcsAbs mc)
+     | (sc, mc) <- zip strataCSs modeCSs ]
 
 -- | Pre-compute walking line for a single cache key; convert to 'Note',
 -- shifted by @tidalNoteOffset@ so absolute MIDI from 'Harmonic.Traversal.WalkingBass.walkLine' aligns with
@@ -240,23 +275,29 @@ chromaSourcesFor ctx =
 -- the stored bars (and ChromaSources, for genP) are reordered\/duplicated
 -- into performed order first and the walk runs over THAT progression —
 -- the cached line is then indexed by performed ordinal in 'renderWalk'.
--- Dispatches on the 'ChromaSources' presence:
--- 'Just' → 'Harmonic.Traversal.WalkingBass.walkLineP'; 'Nothing' → legacy 'Harmonic.Traversal.WalkingBass.walkLine'.
+-- Dispatches on the two family side-channels, chroma first: strata
+-- chroma → 'Harmonic.Traversal.WalkingBass.walkLineP'; jazz vocabulary →
+-- 'Harmonic.Traversal.WalkingBass.walkLineJ'; neither → legacy
+-- 'Harmonic.Traversal.WalkingBass.walkLine'. The two are mutually
+-- exclusive in practice — genP carries provenance and genJ does not — so
+-- the order only fixes a case that cannot currently arise.
 buildCacheKey :: VoiceFunction -> WalkKey -> ([[Note]], Int)
-buildCacheKey voiceFn (prog, mChromas, mVals, mTiers) =
+buildCacheKey voiceFn (prog, mChromas, mVocab, mVals, mTiers) =
   let barsL = toList (P.unProgression prog)
-      n     = length barsL
+      nBars = length barsL
       mIdxs = case mVals of
-                Just vals | n > 0 -> Just [ (v - 1) `mod` n | v <- vals ]
+                Just vals | nBars > 0 -> Just [ (v - 1) `mod` nBars | v <- vals ]
                 _                 -> Nothing
-      (prog', mChromas') = case mIdxs of
-        Nothing -> (prog, mChromas)
+      (prog', mChromas', mVocab') = case mIdxs of
+        Nothing -> (prog, mChromas, mVocab)
         Just is -> ( P.fromCadenceStates [ barsL !! i | i <- is ]
-                   , fmap (\chs -> [ chs !! i | i <- is ]) mChromas )
+                   , fmap (\chs -> [ chs !! i | i <- is ]) mChromas
+                   , fmap (\vs  -> [ vs  !! i | i <- is ]) mVocab )
       mDyn = fmap (map (\t -> fromIntegral t / 8)) mTiers
-      line = case mChromas' of
-               Nothing      -> walkLineDyn  mDyn voiceFn prog'
-               Just chromas -> walkLinePDyn mDyn voiceFn prog' chromas
+      line = case (mChromas', mVocab') of
+               (Just chromas, _) -> walkLinePDyn mDyn voiceFn prog' chromas
+               (_, Just vocabs)  -> walkLineJDyn mDyn voiceFn prog' vocabs
+               _                 -> walkLineDyn  mDyn voiceFn prog'
   in (map (map (\m -> fromIntegral (m - tidalNoteOffset))) line, length line)
 
 -- | Map stacked beat-position events through the cached walking line.
@@ -288,8 +329,8 @@ renderWalk (bars, nBars) chordPat stacked performed
                        noteVal = value nEv
                        vShift  = noteVal - 1            -- 1-indexed → 0-indexed
                        idx     = vShift `mod` beatsPerBar
-                       octave  = vShift `div` beatsPerBar
-                   in [nEv { value = (bar !! idx) + fromIntegral (octave * 12) }]
+                       octv    = vShift `div` beatsPerBar
+                   in [nEv { value = (bar !! idx) + fromIntegral (octv * 12) }]
                ) noteEvs
             ) Nothing Nothing
       in note mapped

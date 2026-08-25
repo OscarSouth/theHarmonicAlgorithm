@@ -57,6 +57,7 @@ module Harmonic.Rules.Types.Harmony
   
     -- * Triad Construction (exactly 3 pitches, with reduction)
   , toTriad
+  , mostConsonant
   , flatTriad
   , sharpTriad
   
@@ -98,7 +99,7 @@ module Harmonic.Rules.Types.Harmony
 
 import GHC.Generics (Generic)
 import Data.Function (on)
-import Data.List (sort, sortBy)
+import Data.List (sort)
 import qualified Data.List as List
 import Data.Maybe (fromMaybe, listToMaybe)
 import Control.Applicative ((<|>))
@@ -224,9 +225,9 @@ enharmonicFunc FlatSpelling  = flat
 --   Layer 3: Root fallback — defaultEnharm on bass PC
 inferSpelling :: [Int] -> EnharmonicSpelling
 inferSpelling [] = FlatSpelling
-inferSpelling pcs =
-  let bassNorm = head pcs `mod` 12
-      restSet = IS.fromList (map (`mod` 12) (tail pcs))
+inferSpelling (pc0 : rest) =
+  let bassNorm = pc0 `mod` 12
+      restSet = IS.fromList (map (`mod` 12) rest)
       -- Most specific chord wins (largest matching upper-set); ties break
       -- toward the FIRST declared entry. fromListWith (++) prepends, so
       -- the raw bucket is reverse-declaration-order — without the reverse
@@ -624,9 +625,9 @@ ambiguousPatterns = IM.fromListWith (++)
 -- |Check if a chord's absolute pitches match an ambiguous pattern.
 isAmbiguousPattern :: [Int] -> Bool
 isAmbiguousPattern [] = False
-isAmbiguousPattern pcs =
-  let bassNorm = head pcs `mod` 12
-      restSet = IS.fromList (map (`mod` 12) (tail pcs))
+isAmbiguousPattern (pc0 : rest) =
+  let bassNorm = pc0 `mod` 12
+      restSet = IS.fromList (map (`mod` 12) rest)
   in case IM.lookup bassNorm ambiguousPatterns of
        Nothing -> False
        Just patterns -> any (`IS.isSubsetOf` restSet) patterns
@@ -721,7 +722,11 @@ fromMovement Empty    = P 0
 -------------------------------------------------------------------------------
 
 -- |A Chord is an abstract pitch structure: root note name, functionality, 
--- and intervals from root (bass first, as integers for register info).
+-- and pitch content as integers, bass first (register-capable). NOTE:
+-- @toTriad@'s base case stores ABSOLUTE pitch classes here, not
+-- root-relative intervals (F major reads back as [5, 9, 0] — pinned by
+-- BridgeSpec); treat the field as \"pitches as constructed\", never
+-- assume root-relative.
 data Chord = Chord 
   { chordNoteName     :: NoteName
   , chordFunctionality :: Functionality
@@ -730,7 +735,7 @@ data Chord = Chord
 
 instance Show Chord where
   show (Chord noteName functionality _)
-    | functionality == "N/A" = show "N/A"
+    | functionality == "N/A" = show ("N/A" :: String)
     | otherwise              = show noteName ++ "_" ++ functionality
 
 -- |A Cadence is a movement type combined with a target chord quality.
@@ -877,14 +882,14 @@ nameFuncChord f xs =
 -- TRIADS: exactly 3 pitch classes. If >3 input, reduces to best triad.
 -- Uses elaborate inversion detection from legacy MusicData.hs
 toTriad :: (PitchClass -> NoteName) -> [Int] -> Chord
-toTriad enharm ps@(fund:_)
-  | length (pcSetInts ps) > 3 = toTriad enharm $ mostConsonant $ possibleTriadsSimple enharm fund (tail ps)
+toTriad enharm ps@(fund:psRest)
+  | length (pcSetInts ps) > 3 = toTriad enharm $ mostConsonant $ possibleTriadsSimple enharm fund psRest
   | otherwise = 
     let normalizedPs = normalizeWithFund fund ps
         pcs = map mkPitchClass normalizedPs
-        bass = mkPitchClass (head normalizedPs)
+        bass = mkPitchClass (firstOr fund normalizedPs)
         invs = inversions pcs
-        headInv = head invs
+        headInv = firstOr [] invs
         -- Get root offset from inversion pattern
         rootOffset = case headInv of
           [P 0, P 4, P 7] -> 0   -- Root position major
@@ -928,7 +933,7 @@ toChord :: (PitchClass -> NoteName) -> [Int] -> Chord
 toChord enharm (fund:tones) = 
   let chord = (+fund) <$> (sortedZeroForm $ fund : (reverse $ sort tones))
       functionality = nameFuncChord zeroFormPC (map mkPitchClass chord) ""
-  in Chord (enharm $ mkPitchClass (head chord)) functionality (map fromIntegral $ map (`mod` 12) chord)
+  in Chord (enharm $ mkPitchClass (firstOr fund chord)) functionality (map fromIntegral $ map (`mod` 12) chord)
   where
     sortedZeroForm xs = 
       let m = minimum xs 
@@ -1082,12 +1087,12 @@ fromCadenceStateTraced (CadenceState cadence root spelling) =
       pitches = map (\t -> unPitchClass (t + rootPC)) tones
       
       -- Trace toTriad internals (matching toTriad logic for correct functionality)
-      fund = head pitches
+      fund = firstOr 0 pitches
       normalizedPs = normalizeWithFund fund pitches
       pcs = map mkPitchClass normalizedPs
-      bass = mkPitchClass (head normalizedPs)
+      bass = mkPitchClass (firstOr fund normalizedPs)
       invs = inversions pcs
-      headInv = head invs
+      headInv = firstOr [] invs
       -- Get root offset from inversion pattern (same as toTriad lines 452-465)
       rootOffset = case headInv of
         [P 0, P 4, P 7] -> 0   -- Root position major
@@ -1103,7 +1108,7 @@ fromCadenceStateTraced (CadenceState cadence root spelling) =
       rootPC_computed = bass + P rootOffset
       -- Compute root-relative intervals for naming (same as toTriad line 468)
       rootRelativePCs = sort $ map (\p -> p - rootPC_computed) pcs
-      zeroForm = map unPitchClass $ zeroFormPC pcs
+      zfInts = map unPitchClass $ zeroFormPC pcs
       invResult = detectInversion enharm normalizedPs
       functionality = nameFuncTriad zeroFormPC rootRelativePCs ""
       finalChord = Chord (fst invResult) (functionality ++ snd invResult) (map fromIntegral pitches)
@@ -1122,7 +1127,7 @@ fromCadenceStateTraced (CadenceState cadence root spelling) =
         , tttTones = tonesInts
         , tttTransposedPitches = pitches
         , tttNormalizedPs = normalizedPs
-        , tttZeroForm = zeroForm
+        , tttZeroForm = zfInts
         , tttDetectedRoot = show (fst invResult)
         , tttFunctionality = functionality
         , tttFinalChord = show (fst invResult) ++ " " ++ functionality ++ snd invResult
@@ -1227,16 +1232,17 @@ inversions :: [PitchClass] -> [[PitchClass]]
 inversions ps = map (zeroFormPC . map (P . fromIntegral)) $ simpleRotations (map unPitchClass ps)
   where
     simpleRotations xs = take (length xs) $ iterate rotate xs
-    rotate ys = tail ys ++ [head ys]
+    rotate []       = []
+    rotate (y : ys) = ys ++ [y]
 
 -- |Normalize a pitch set to its most compact form
 -- Ported from legacy MusicData.hs normalForm
 normalForm :: [PitchClass] -> [PitchClass]
 normalForm xs
   | length pitches == 1 = [P 0]
-  | length pitches == 2 = head $ filterByLast $ invs
-  | length pitches == 3 = head $ filterBySecondLast $ filterByLast invs
-  | otherwise           = head $ filterBySecondLast $ filterByLast invs
+  | length pitches == 2 = firstOr [P 0] $ filterByLast $ invs
+  | length pitches == 3 = firstOr [P 0] $ filterBySecondLast $ filterByLast invs
+  | otherwise           = firstOr [P 0] $ filterBySecondLast $ filterByLast invs
   where
     pitches = List.nub xs
     invs = inversions pitches
@@ -1258,7 +1264,7 @@ primeForm xs = map P $ primeInts
     inverted = map (\n -> (12 - n) `mod` 12) cmpt
     invCmpt = map unPitchClass $ normalForm (map P inverted)
     -- Pick the one with smaller sum
-    primeInts = head $ sortBy (compare `on` sum) [cmpt, invCmpt]
+    primeInts = if sum cmpt <= sum invCmpt then cmpt else invCmpt
 
 -------------------------------------------------------------------------------
 -- Internal Helpers
@@ -1314,12 +1320,20 @@ possibleTriadsSimple _ fund ps =
       pairs = [[a, b] | a <- otherPCs, b <- otherPCs, a < b]
   in map (fundPC :) pairs
 
+-- Total head for lists that are non-empty by construction at sites the
+-- type cannot express; the default is unreachable on real paths.
+firstOr :: a -> [a] -> a
+firstOr d []      = d
+firstOr _ (x : _) = x
+
 -- |Select most consonant option from a list of pitch sets.
 -- Inline replica of Dissonance.mostConsonant (Layer B cannot import Layer C).
 -- Includes perfect fifth bonus (-1) and degenerate set penalty (27).
+-- Exported ONLY so DissonanceSpec can pin the two copies to identical
+-- behaviour (standing ruling); production callers use the Layer-C one.
 mostConsonant :: [[Int]] -> [Int]
 mostConsonant [] = [0, 4, 7]  -- Default to major triad
-mostConsonant xs = snd . head . sortBy (compare `on` fst) $ map dissonanceLevel xs
+mostConsonant xs = snd $ List.minimumBy (compare `on` fst) $ map dissonanceLevel xs
   where
     dissonanceLevel ys
       | countElem iVect 0 == 5 = (27 :: Int, ys)
@@ -1342,12 +1356,12 @@ mostConsonant xs = snd . head . sortBy (compare `on` fst) $ map dissonanceLevel 
 detectInversion :: (PitchClass -> NoteName) -> [Int] -> (NoteName, String)
 detectInversion enharm xs
   | null xs = (enharm (P 0), "")
-  | length xs < 3 = (enharm (mkPitchClass (head xs)), "")
+  | length xs < 3 = (enharm (mkPitchClass (firstOr 0 xs)), "")
   | otherwise =
     let pcs = map mkPitchClass xs
-        bass = mkPitchClass (head xs)
+        bass = mkPitchClass (firstOr 0 xs)
         invs = inversions pcs
-        headInv = head invs
+        headInv = firstOr [] invs
         -- Compute root from bass + interval offset based on pattern
         rootFromOffset offset = enharm (bass + P offset)
     in case headInv of

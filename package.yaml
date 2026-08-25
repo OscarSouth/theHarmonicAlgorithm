@@ -135,13 +135,6 @@ library:
   source-dirs: src
   ghc-options:
     - -Wall
-    # Deferred warning classes, each queued for its own burn-down pass:
-    # shadowing is pervasive idiom here, x-partial covers ~34 head/tail
-    # sites needing case-by-case totality work, type-defaults is noise
-    # from numeric literals in scoring code.
-    - -Wno-name-shadowing
-    - -Wno-x-partial
-    - -Wno-type-defaults
 
 executables:
   theHarmonicAlgorithm-exe:

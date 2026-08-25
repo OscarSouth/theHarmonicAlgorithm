@@ -267,7 +267,7 @@ pcSet = sort . nub . map mkPitchClass
 -- Ported from legacy MusicData.hs
 zeroForm :: [Int] -> [PitchClass]
 zeroForm [] = []
-zeroForm xs = 
-  let sorted = sort $ map (`mod` 12) xs
-      minVal = head sorted
-  in map (\x -> mkPitchClass (x - minVal)) sorted
+zeroForm xs =
+  let mapped = map (`mod` 12) xs
+      minVal = minimum mapped
+  in map (\x -> mkPitchClass (x - minVal)) (sort mapped)

@@ -44,8 +44,12 @@ data Layer = T | S | M
 -- |Generation family a progression belongs to. Families never mix:
 -- regeneration ('Harmonic.Framework.Builder.genFrom') always reproduces
 -- the source's family, and @fuse@ of differing families downgrades to
--- 'FTriad' (the walk then re-reads cardinality bar by bar, matching the
--- historical hand-mixed behaviour).
+-- 'FTriad'. Family drives dispatch in @genFrom@ and in the walking-bass
+-- interface: 'FJazz' contexts walk with a per-bar bass vocabulary
+-- (restored fifths, passing extensions, avoid-tone protection), 'FStrata'
+-- walks via provenance chroma, and everything else — including
+-- downgraded mixes — walks the plain per-bar tone sets at whatever
+-- cardinality each bar carries.
 --
 -- * 'FTriad'    — plain triadic walk ('Harmonic.Framework.Builder.gen').
 -- * 'FExtended' — uniform 4-note fusion family ('Harmonic.Framework.Builder.genE').
@@ -57,7 +61,7 @@ data Family = FTriad | FExtended | FStrata | FJazz
 -- |Three bar-aligned progression layers with optional per-bar provenance.
 --
 -- Invariant: @progLength triadLayer == progLength strataLayer == progLength modeLayer@,
--- and when @pcProvenance = Just seq@, @Seq.length seq == progLength triadLayer@.
+-- and when @pcProvenance = Just sq@, @Seq.length sq == progLength triadLayer@.
 data ProgressionContext = ProgressionContext
   { triadLayer   :: Progression
   , strataLayer  :: Progression
@@ -170,16 +174,16 @@ pcSplice src start end ins =
 -- geometry of 'Prog.spliceProgression' but without movement-fix
 -- (used for non-cadence layers and the provenance sequence).
 spliceSeq :: Seq a -> Int -> Int -> Seq a -> Seq a
-spliceSeq seq start end ins =
-  let n = Seq.length seq
+spliceSeq sq start end ins =
+  let n = Seq.length sq
   in if start <= end then
        -- Non-wrapping
-       let prefix = Seq.take (start - 1) seq
-           suffix = Seq.drop end seq
+       let prefix = Seq.take (start - 1) sq
+           suffix = Seq.drop end sq
        in prefix >< ins >< suffix
      else
        -- Wrapping: replaced = [start..N] ++ [1..end], kept = [end+1..start-1]
-       let kept       = Seq.take (start - end - 1) (Seq.drop end seq)
+       let kept       = Seq.take (start - end - 1) (Seq.drop end sq)
            headCount  = n - start + 1
            newAtEnd   = Seq.take headCount ins
            newAtStart = Seq.drop headCount ins
