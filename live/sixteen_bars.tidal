@@ -19,7 +19,7 @@ tempo = 72
 -- THE RECIPE (stochastic — every run writes a NEW sixteen bars)
 -- ══════════════════════════════════════════════════════════
 -- Three gestures:
---   A: gen4 in Bb major (key 2b), low entropy — cadence-hungry,
+--   A: genE in Bb major (key 2b), low entropy — cadence-hungry,
 --      falling-fifth-loving, every bar a true 4-note sonority.
 --   B: cued on a HAND-DECLARED Ab7 (lead' — the aberration
 --      channel), generated inside Db major (key 5b). The pivot
@@ -29,10 +29,10 @@ tempo = 72
 --      something dominant-shaped pointing at Bb.
 
 startA <- lead "Bb maj"
-sA <- seek "*" $ cue startA $ tonal (hcKey "2b" $ hContext) $ len 8 $ entropy 0.25 $ attempt 3 8 $ gen4
+sA <- seek "*" $ cue startA $ tonal (hcKey "2b" $ hContext) $ len 8 $ entropy 0.25 $ attempt 3 8 $ genE
 
 startB <- lead' "Ab C Eb Gb"
-sB <- seek "*" $ cue startB $ tonal (hcKey "5b" $ hContext) $ len 8 $ entropy 0.3 $ attempt 3 8 $ gen4
+sB <- seek "*" $ cue startB $ tonal (hcKey "5b" $ hContext) $ len 8 $ entropy 0.3 $ attempt 3 8 $ genE
 
 sAB = fuse [sA, sB]
 

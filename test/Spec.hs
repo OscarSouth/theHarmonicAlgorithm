@@ -35,6 +35,7 @@ import qualified Harmonic.Rules.Constraints.FilterSpec as FilterSpec
 import qualified Harmonic.Rules.Import.TransformSpec as TransformSpec
 import qualified Harmonic.Rules.Import.MergeSpec as MergeSpec
 import qualified Harmonic.Rules.Import.GraphSpec as GraphSpec
+import qualified Harmonic.Rules.Import.JazzSpec as JazzSpec
 import qualified Harmonic.Evaluation.Scoring.DissonanceSpec as DissonanceSpec
 
 -- Phase C: Interactive Behaviour
@@ -65,6 +66,7 @@ main = hspec $ do
   describe "Harmonic.Rules.Import.Transform" TransformSpec.spec
   describe "Harmonic.Rules.Import.Merge" MergeSpec.spec
   describe "Harmonic.Rules.Import.Graph" GraphSpec.spec
+  describe "Harmonic.Rules.Import.Jazz" JazzSpec.spec
   describe "Harmonic.Core.Dissonance" DissonanceSpec.spec
   -- Phase C
   describe "Harmonic.Database.Query" QuerySpec.spec

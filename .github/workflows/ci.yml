@@ -90,7 +90,9 @@ jobs:
       # This TYPE-CHECKS the guide; it does not execute it — the guide is
       # graph-first and running it would need a populated Neo4j.
       - name: Type-check live/USER_GUIDE.tidal
-        run: python3 scripts/ci/check_guide.py | tee guide.log
+        run: |
+          set -o pipefail
+          python3 scripts/ci/check_guide.py | tee guide.log
 
       - name: Summarise
         if: always()

@@ -19,6 +19,47 @@ burn-down deleted ten provably unreachable functions and thirty-odd
 redundant imports, and closed a latent non-exhaustive pattern over
 `Movement.Empty` in fallback scoring.
 
+### The genE rename and one chain builder
+
+The four-note fusion family is now `genE` (extended) — `genE`/`genE'`/
+`genE''` replace `gen4`/`gen4'`/`gen4''` throughout, completing the family
+naming scheme (`gen`, `genE`, `genP`, `genJ`). Generation families are
+first-class: every `ProgressionContext` carries its `pcFamily`, and
+`genFrom` dispatches on it. Under the hood, the eight online/offline chain
+builders collapsed into one `buildChainWith` running against a
+`TransitionSource` — online vs offline is now an argument, not a code path.
+
+### Jazz corpus parser and the `:Change` graph
+
+The Bunks Jazz-Chord-Progressions-Corpus (2,612 tunes of leadsheet harmony,
+ISMIR 2023) now ingests into a jazz transition graph living alongside the
+classical one: same database, disjoint `:Change` label, one published dump.
+A curated table maps all 123 corpus chord qualities to canonical tone sets;
+symbols parse to variable-arity pitch-class sets (2–6 tones) honouring the
+notation exactly — slash basses are unioned in and become the anchor for
+zero-form and movement. Node names come from a specialised jazz namer:
+direct set lookup with corpus-preferred spelling, or rotation-derived slash
+names (`maj/5`, `m7/b7`) — the whole corpus names with zero refusals.
+Beatwise cadence extraction (sustained beats self-loop, `NC` bridges,
+per-composer edge weights) feeds the same batched idempotent write machinery
+as the classical ingest, via `stack run -- jazz`.
+
+`genJ` generates from it — the same modifier chain as every family
+(`seek "*" $ cue start $ len 8 $ entropy 0.3 $ genJ`, with `genJ'`/`genJ''`
+traces), walking the jazz graph with no consonance fallback (measured
+unnecessary: zero dead ends, ~219-candidate typical pools). One seek spec
+drives both corpora: jazz names blend by corpus weights (substring-matched,
+`"monk:60 coltrane:40"`), classical names steer — each step boosts jazz
+candidates containing the triads that composer would most plausibly move to —
+and the two combine freely. Output is an ordinary `ProgressionContext`:
+`flow`/`grid` voice the 3–6-tone chords and `arrange` plays them unchanged.
+The full modifier surface applies: `tonal` constraints filter jazz candidates
+through the same R machinery as every family, `steer` dials the classical
+boost, `genFrom` regenerates ranges of jazz progressions in place (families
+are now first-class — `pcFamily` on every `ProgressionContext`), and
+`attempt N K` ranks candidates against the jazz graph's own cadence
+favourability.
+
 ### Entropy dial recalibration
 
 The entropy dial now means what it says: **`entropy * 10` is the rank the
@@ -27,7 +68,7 @@ always) takes the top-ranked candidate, `entropy 0.5` wanders around the
 5th, `entropy 1` around the 10th — and the dial is now **unbounded above**,
 so `entropy 2` reaches around rank 20 with proportionally wide variance.
 Previously the mapping rejected the top pick 37% of the time at entropy 0,
-and on small pools (chord-quality variants, gen4 added tones) high entropy
+and on small pools (chord-quality variants, genE added tones) high entropy
 collapsed onto the *worst-ranked* candidate almost deterministically; small
 pools are now explored across their whole range instead.
 

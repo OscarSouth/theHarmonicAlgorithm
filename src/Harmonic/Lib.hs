@@ -128,7 +128,7 @@ module Harmonic.Lib (
 
   -- ** Triadic generation
   gen, gen', gen'',
-  gen4, gen4', gen4'', quad,
+  genE, genE', genE'', quad,
   genGrid, genFrom, genFrom', genFrom'',
 
   -- ** The genP paradigm (strata-first)
@@ -264,7 +264,7 @@ import Harmonic.Traversal.Probabilistic
 import Harmonic.Framework.Builder (
     -- Modifier-based API
     gen, gen', gen'',
-    gen4, gen4', gen4'', quad,
+    genE, genE', genE'', quad,
     genGrid, genFrom, genFrom', genFrom'',
     -- genP paradigm (strata-first)
     genP, genP', genP'',

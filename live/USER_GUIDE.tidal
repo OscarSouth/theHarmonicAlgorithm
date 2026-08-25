@@ -1250,9 +1250,9 @@ hush
 
 
 -- ══════════════════════════════════════════════════════════
--- SECTION 20 — Four-note generation (gen4)
+-- SECTION 20 — Four-note generation (genE)
 -- ══════════════════════════════════════════════════════════
--- src/Harmonic/Framework/Builder.hs        (quad, gen4 family)
+-- src/Harmonic/Framework/Builder.hs        (quad, genE family)
 -- src/Harmonic/Framework/Builder/Core.hs   (fuseState)
 --
 -- GOAL: Seventh-chord density with the same corpus-trained walk.
@@ -1271,7 +1271,7 @@ start <- lead "C maj"
 --   fused: +Ab → F m7  [rank 2/9]
 -- (which tone was added, the fused name, where the draw landed
 -- in the consonant-first ranking).
-pc20 <- seek "*" $ cue start $ len 8 $ entropy 0.3 $ gen4'
+pc20 <- seek "*" $ cue start $ len 8 $ entropy 0.3 $ genE'
 
 -- Play it. Degree 3 in the pattern is now a real fourth chord
 -- tone, not the octave wrap.
@@ -1289,11 +1289,11 @@ p20
 -- accidentals drive the spelling (Eb → flat, D# → sharp);
 -- optional (N) fixes the approach movement, like lead.
 start' <- lead' "Eb Gb Bb Db"        -- Eb m7, used as-is (no fuse)
-pc20' <- seek "*" $ cue start' $ len 8 $ entropy 0.3 $ gen4'
+pc20' <- seek "*" $ cue start' $ len 8 $ entropy 0.3 $ genE'
 
 -- ── COMPOSES LIKE EVERYTHING ELSE ──
--- quad is the underlying modifier (gen4 = quad gen):
-pc20'' <- seek "*" $ cue start $ len 8 $ attempt 3 12 $ entropy 0.4 $ gen4''
+-- quad is the underlying modifier (genE = quad gen):
+pc20'' <- seek "*" $ cue start $ len 8 $ attempt 3 12 $ entropy 0.4 $ genE''
 
 -- Regeneration is family-aware: a uniform 4-note source regenerates
 -- 4-note bars automatically (families never mix; quad is inferred):
@@ -1303,13 +1303,13 @@ pc20r <- seek "*" $ entropy 0.3 $ genFrom pc20 3 5
 -- the active palette (tonal / hcKey), the bass never moves, and
 -- consonant/dissonant drift governs BOTH the triad skeleton and
 -- the fused surface:
-pc20k <- seek "*" $ cue start $ len 8 $ tonal (hcKey "0#" $ consonant hContext) $ gen4'
+pc20k <- seek "*" $ cue start $ len 8 $ tonal (hcKey "0#" $ consonant hContext) $ genE'
 
--- One boundary: gen4 and genP never mix — strata progressions
+-- One boundary: genE and genP never mix — strata progressions
 -- stay 3-5-7 by design. quad on a strata source fails fast.
 
 -- ── TRY THIS ──
--- Generate the same cue with gen' then gen4' and compare grids:
+-- Generate the same cue with gen' then genE' and compare grids:
 -- same walk character, thicker sonorities. Then play pc20 with
 -- lite instead of flow and listen to the register difference.
 

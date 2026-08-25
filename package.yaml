@@ -96,6 +96,7 @@ library:
     - Harmonic.Framework.Builder.Diagnostics
     - Harmonic.Framework.Builder.Portmanteau
     - Harmonic.Framework.Builder.Strata
+    - Harmonic.Framework.Builder.JazzGen
     # Rules (R Component + Layer A)
     - Harmonic.Rules.Types.Pitch
     - Harmonic.Rules.Types.Harmony
@@ -108,6 +109,7 @@ library:
     - Harmonic.Rules.Import.Types
     - Harmonic.Rules.Import.Transform
     - Harmonic.Rules.Import.Graph
+    - Harmonic.Rules.Import.Jazz
     - Harmonic.Rules.Import.Merge
     # Evaluation (E Component + Layer C)
     - Harmonic.Evaluation.Scoring.Dissonance
@@ -153,6 +155,8 @@ executables:
       - cassava
       - statistics
       - containers
+      - directory
+      - filepath
 tests:
   theHarmonicAlgorithm-test:
     main:                Spec.hs

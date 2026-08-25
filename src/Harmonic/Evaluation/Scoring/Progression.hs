@@ -36,10 +36,13 @@ module Harmonic.Evaluation.Scoring.Progression
   , TransitionMap
   , cadenceFavFromMap
   , scoreProgressionOnline
+  , scoreProgressionJazz
+  , cadenceFavFromKeys
   , computeCadenceFav
   ) where
 
 import           Control.Monad (forM)
+import           Data.Bifunctor (first)
 import           Data.Foldable (toList)
 import qualified Data.Map.Strict as Map
 import           Data.Map.Strict (Map)
@@ -141,9 +144,9 @@ scoreRootMotion prog =
 -- cost @[vlLowAnchorCal, vlHighAnchorCal]@ to score @[1, 0]@.
 --
 -- Anchor calibration (2026-08-20, data-driven): 36-sample online probe —
--- gen \/ gen4 \/ genVI × len {8, 16} × entropy {0.2, 0.4, 0.6}, two runs
+-- gen \/ genE \/ genVI × len {8, 16} × entropy {0.2, 0.4, 0.6}, two runs
 -- each (genVI cued in-strata; its random-cue empties excluded). Observed
--- per-edge cyclic costs: gen 2.5–5.75, gen4 3.25–12.0, genVI 3.0–7.1;
+-- per-edge cyclic costs: gen 2.5–5.75, genE 3.25–12.0, genVI 3.0–7.1;
 -- combined p10 ≈ 3.0, p90 ≈ 7.1. Anchors set at 3.0 (excellent) \/ 8.0
 -- (poor) — p90 plus margin, so only genuinely rough runs bottom out.
 -- (The previous 10\/30 anchors were calibrated against the old
@@ -170,14 +173,14 @@ scoreVoiceLeading prog
     -- mod-12-wrapped pseudo-voicings via the toTriad reduction (an
     -- A-rooted [0,4,7] bar read as [9,1,4], so C→A root motion measured
     -- 9 semitones instead of 3 — the old 10\/30 anchors were calibrated
-    -- against that artefact). gen4 chains now score the heard 4-note
+    -- against that artefact). genE chains now score the heard 4-note
     -- surface; mixed-cardinality bars score real alignment costs.
     honestVoicing cs =
       let r = P.unPitchClass (P.pitchClass (H.stateCadenceRoot cs))
       in sort [ (P.unPitchClass i + r) `mod` 12
               | i <- H.cadenceIntervals (H.stateCadence cs) ]
     -- Anchors recalibrated 2026-08-20 against the honest measurement:
-    -- online probe gen\/genVI\/gen4 × len 8\/16 × entropy {0.2,0.4,0.6},
+    -- online probe gen\/genVI\/genE × len 8\/16 × entropy {0.2,0.4,0.6},
     -- per-edge cyclic costs of sorted absolute-PC voicings. See the
     -- calibration values below (updated by the probe in the VL pass).
     vlLowAnchor  = vlLowAnchorCal
@@ -219,7 +222,7 @@ totalScore w ps =
 -- its 'show' representation) to its outgoing transitions. Each transition
 -- carries the destination 'Harmonic.Rules.Types.Harmony.Cadence' and the blended weight (output of
 -- 'Query.applyComposerBlend').
-type TransitionMap = Map Text [(H.Cadence, Double)]
+type TransitionMap = Map Text [(Text, Double)]
 
 -- |Compute 'psCadenceFav' from a pre-fetched transition map. Pure — no IO.
 --
@@ -236,16 +239,24 @@ type TransitionMap = Map Text [(H.Cadence, Double)]
 -- the 'show' instance projects to @(movement, functionality)@ only.
 cadenceFavFromMap :: TransitionMap -> Prog.Progression -> Double
 cadenceFavFromMap srcMap prog =
-  -- Project each bar through the gen4 walk shadow ('walkTriadCadence',
+  -- Project each bar through the genE walk shadow ('walkTriadCadence',
   -- identity for triads) so 4-note chains score the same corpus edges the
   -- walk actually followed; without this a fused chain's keys miss the
   -- map entirely and psCadenceFav collapses to 0.
-  let cads = map (H.walkTriadCadence . H.stateCadence)
-                 (toList (Prog.unProgression prog))
-      n = length cads
+  cadenceFavFromKeys srcMap
+    (map (T.pack . show . H.walkTriadCadence . H.stateCadence)
+         (toList (Prog.unProgression prog)))
+
+-- |Key-level core of 'cadenceFavFromMap': cyclic per-edge mean over an
+-- arbitrary node-key sequence. The jazz scorer passes jazz node keys
+-- (whose 'show' identity is the @Change@ graph's) through the same
+-- arithmetic.
+cadenceFavFromKeys :: TransitionMap -> [Text] -> Double
+cadenceFavFromKeys srcMap keys =
+  let n = length keys
   in if n < 2 then 0
      else
-       let edges = zip cads (drop 1 cads ++ [head cads])
+       let edges = zip keys (drop 1 keys ++ [head keys])
            perEdge = map (edgeScore srcMap) edges
        in sum perEdge / fromIntegral (length perEdge)
 
@@ -269,16 +280,13 @@ cadenceFavFromMap srcMap prog =
 -- becomes vanishingly small. The hybrid rewards /presence/ (the
 -- progression follows a path the corpus has actually walked under the
 -- chosen blend) plus a smaller share-of-source signal for commonness.
-edgeScore :: TransitionMap -> (H.Cadence, H.Cadence) -> Double
-edgeScore srcMap (src, dst) =
-  let srcKey = T.pack (show src)
-      dstKey = T.pack (show dst)
-  in case Map.lookup srcKey srcMap of
+edgeScore :: TransitionMap -> (Text, Text) -> Double
+edgeScore srcMap (srcKey, dstKey) =
+  case Map.lookup srcKey srcMap of
        Nothing           -> 0
        Just transitions  ->
          let totalW   = sum (map snd transitions)
-             matched  = sum [ w | (c, w) <- transitions
-                                , T.pack (show c) == dstKey ]
+             matched  = sum [ w | (k, w) <- transitions, k == dstKey ]
          in if totalW <= 0 || matched <= 0
               then 0
               else 0.5 + 0.5 * (matched / totalW)
@@ -326,9 +334,41 @@ computeCadenceFav seekStr prog = do
     resolved <- if Map.null blend
                   then Q.fetchTransitionsAggregate k
                   else Q.resolveWeights blend <$> Q.fetchTransitions k
-    pure (k, resolved)
+    pure (k, [ (T.pack (show c), w) | (c, w) <- resolved ])
   let srcMap = Map.fromList pairs
   pure (cadenceFavFromMap srcMap prog)
+
+-- |Jazz-family variant of 'scoreProgressionOnline': pure components are
+-- identical (they are arity-agnostic); 'psCadenceFav' is computed against
+-- the @Change@ graph under the seek spec's JAZZ half — the spec is split
+-- by 'Q.splitSeekByCorpus' exactly as the genJ walk splits it, so an
+-- attempt loop ranks by the same musical priorities the walk sampled
+-- under. Node keys are the bars' own 'show' identities (jazz names) —
+-- no triad projection.
+scoreProgressionJazz
+  :: Text                          -- ^ Seek string (same format as @_gcSeek@).
+  -> PC.ProgressionContext
+  -> DbActionT ProgressionScore
+scoreProgressionJazz seekStr pc = do
+  let basePure = scoreProgression pc
+      prog     = PC.triadLayer pc
+      keys     = map (T.pack . show . H.stateCadence)
+                     (toList (Prog.unProgression prog))
+      blend    = Q.parseComposerWeights seekStr
+  jazzBlend <-
+    if Map.null blend
+      then pure Map.empty
+      else do
+        jazzKeys <- Q.fetchJazzComposers
+        pure (fst (Q.splitSeekByCorpus jazzKeys blend))
+  pairs <- forM (nub keys) $ \k -> do
+    resolved <- if Map.null jazzBlend
+                  then map (first Q.ccShow) <$> Q.fetchChangeAggregate k
+                  else map (first Q.ccShow) . Q.resolveWeights jazzBlend
+                         <$> Q.fetchChangeTransitions k
+    pure (k, resolved)
+  let cf = cadenceFavFromKeys (Map.fromList pairs) keys
+  pure basePure { psCadenceFav = cf }
 
 -------------------------------------------------------------------------------
 -- Internal helpers

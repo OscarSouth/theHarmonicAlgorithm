@@ -99,9 +99,9 @@ module Harmonic.Framework.Builder
   , gen'
   , gen''
   , genGrid
-  , gen4
-  , gen4'
-  , gen4''
+  , genE
+  , genE'
+  , genE''
   , quad
   , genFrom
   , genFrom'
@@ -136,6 +136,8 @@ module Harmonic.Framework.Builder
   , defaultGenConfig
   , execGenConfig
   , execGenConfigPC
+  , genJ, genJ', genJ''
+  , steer
 
     -- * Positional Generation (legacy\/internal)
   , generate
@@ -213,7 +215,6 @@ import qualified Harmonic.Rules.Types.Progression as Prog
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import qualified Harmonic.Rules.Types.Scale as Sc
 import           Harmonic.Rules.Import.Graph (connectNeo4j)
-import qualified Harmonic.Evaluation.Database.Query as Q
 import qualified Harmonic.Evaluation.Scoring.Progression as PS
 import           Control.Monad.IO.Class (liftIO)
 import           Harmonic.Rules.Constraints.Filter (parseTuningNamed)
@@ -230,6 +231,7 @@ import           Harmonic.Framework.Builder.Portmanteau
 import           Harmonic.Framework.Builder.Diagnostics
 import           Harmonic.Framework.Builder.Core
 import qualified Harmonic.Framework.Builder.Strata as Strata
+import           Harmonic.Framework.Builder.JazzGen (runJazzGen, runJazzGenFrom)
 
 -------------------------------------------------------------------------------
 -- Mode Display
@@ -308,13 +310,8 @@ generateWith :: GeneratorConfig
 generateWith config start len composerStr entropy context = do
   let pctx = parseContextOnce context
   rng <- createSystemRandom
-  chain <- if map toLower (T.unpack composerStr) == "none"
-    then buildChainOffline config rng entropy context pctx start (len - 1)
-    else do
-      let composerWeights = Q.parseComposerWeights composerStr
-      pipe <- connectNeo4j
-      result <- runDb pipe $ buildChain config rng entropy context pctx composerWeights start (len - 1)
-      pure result
+  source <- sourceFor composerStr
+  (chain, _) <- buildChainWith source config rng Nothing entropy context (const pctx) start (len - 1)
   pure $ chainToProgression chain
 
 -------------------------------------------------------------------------------
@@ -417,7 +414,7 @@ renderStandardSteps composerStr ctx diag = do
           candStr = intercalate " | " candNames
       putStrLn $ "     Candidates: " ++ candStr
 
-    -- gen4: one additive line describing the added-tone draw. The
+    -- genE: one additive line describing the added-tone draw. The
     -- Candidates line above stays triad-stage only (final-pool members).
     case sdFusion step of
       Just fd -> do
@@ -440,13 +437,8 @@ genWith' :: GeneratorConfig -> H.CadenceState -> Int -> String -> Double -> Harm
 genWith' config start len composerStr entropy context = do
   let pctx = parseContextOnce context
   rng <- createSystemRandom
-  (chain, stepDiags) <- if map toLower composerStr == "none"
-    then buildChainOfflineWithDiag config rng entropy context pctx start (len - 1)
-    else do
-      let composerWeights = Q.parseComposerWeights (T.pack composerStr)
-      pipe <- connectNeo4j
-      result <- runDb pipe $ buildChainWithDiag config rng entropy context pctx composerWeights start (len - 1)
-      pure result
+  source <- sourceFor (T.pack composerStr)
+  (chain, stepDiags) <- buildChainWith source config rng (Just 1) entropy context (const pctx) start (len - 1)
   let prog = chainToProgression chain
       diag = GenerationDiagnostics
         { gdStartCadence = show (extractCadence start)
@@ -548,13 +540,8 @@ genWith'' :: GeneratorConfig -> H.CadenceState -> Int -> String -> Double -> Har
 genWith'' config start len composerStr entropy context = do
   let pctx = parseContextOnce context
   rng <- createSystemRandom
-  (chain, stepDiags) <- if map toLower composerStr == "none"
-    then buildChainOfflineWithDiagV config rng 2 entropy context pctx start (len - 1)
-    else do
-      let composerWeights = Q.parseComposerWeights (T.pack composerStr)
-      pipe <- connectNeo4j
-      result <- runDb pipe $ buildChainWithDiagV config rng 2 entropy context pctx composerWeights start (len - 1)
-      pure result
+  source <- sourceFor (T.pack composerStr)
+  (chain, stepDiags) <- buildChainWith source config rng (Just 2) entropy context (const pctx) start (len - 1)
   let prog = chainToProgression chain
       diag = GenerationDiagnostics
         { gdStartCadence = show (extractCadence start)
@@ -633,7 +620,7 @@ execGenConfig gc = do
 execGenConfigWithDiag :: GenConfig -> IO (Prog.Progression, GenerationDiagnostics)
 execGenConfigWithDiag gc = do
   start0 <- _gcCue gc
-  -- gen4: fuse a triad cue once so the output is uniformly 4-note from
+  -- genE: fuse a triad cue once so the output is uniformly 4-note from
   -- bar 1 (user decision 2026-08-19). A 4-note lead' cue passes through
   -- untouched; sub-triad cues are left alone.
   start <- if _gcQuad gc
@@ -646,6 +633,9 @@ execGenConfigWithDiag gc = do
              else pure start0
   let cfg = defaultConfig { gcQuad = _gcQuad gc }
   case _gcMode gc of
+    JazzMode -> error "unreachable: JazzMode dispatches to runJazzGen before this case"
+    FromProgJ {} -> error "unreachable: FromProgJ dispatches to runJazzGenFrom before this case"
+
     Fresh -> case _gcVerbosity gc of
       Silent   -> genWith'  cfg start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
       Standard -> genWith'  cfg start (_gcLen gc) (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
@@ -674,7 +664,7 @@ execGenConfigWithDiag gc = do
           srcQuad  = not (null srcSizes) && all (== 4) srcSizes
           srcMixed = length (nub srcSizes) > 1
       when (_gcQuad gc && not srcQuad) $
-        error "genFrom is family-aware: this source is not a uniform 4-note (gen4) progression — regenerate with plain genFrom (quad is inferred from the source)"
+        error "genFrom is family-aware: this source is not a uniform 4-note (genE) progression — regenerate with plain genFrom (quad is inferred from the source)"
       when srcMixed $
         putStrLn "genFrom: hand-mixed source cardinalities — regenerating as plain triads (regen never amplifies mixing)"
       -- Generate _gcLen+1 chords (cue + new), then drop cue, splice into source.
@@ -719,6 +709,7 @@ defaultGenConfig = GenConfig
   , _gcBoostFlip   = 0.80
   , _gcBoostTri    = 0.70
   , _gcQuad        = False
+  , _gcSteer       = 3.0
   , _gcMaxAttempts  = 1
   , _gcViableTarget = 1
   -- Calibrated from a 30-sample online probe (gen, 8 bars, entropy 0.4,
@@ -758,7 +749,7 @@ gen'' = defaultGenConfig { _gcVerbosity = Verbose }
 genGrid :: GenConfig
 genGrid = defaultGenConfig { _gcMode = GridMode }
 
--- |Switch on the gen4 family: every generated bar carries a 4-note chord.
+-- |Switch on the genE family: every generated bar carries a 4-note chord.
 --
 -- Each step first selects a triad exactly as plain 'gen' (graph + fallback,
 -- R filters, gamma draw), then fuses in one more R-valid palette tone —
@@ -776,19 +767,42 @@ genGrid = defaultGenConfig { _gcMode = GridMode }
 quad :: GenConfig -> GenConfig
 quad gc = gc { _gcQuad = True }
 
--- |gen4 family sugar: 'quad' pre-applied to 'gen' \/ 'gen'' \/ 'gen'''.
+-- |genE family sugar: 'quad' pre-applied to 'gen' \/ 'gen'' \/ 'gen'''.
 --
--- @s <- seek "*" $ len 8 $ entropy 0.3 $ gen4'@
-gen4 :: GenConfig
-gen4 = quad gen
+-- @s <- seek "*" $ len 8 $ entropy 0.3 $ genE'@
+genE :: GenConfig
+genE = quad gen
 
--- |'gen4' with compact musical summary.
-gen4' :: GenConfig
-gen4' = quad gen'
+-- |'genE' with compact musical summary.
+genE' :: GenConfig
+genE' = quad gen'
 
--- |'gen4' with verbose diagnostic traces.
-gen4'' :: GenConfig
-gen4'' = quad gen''
+-- |'genE' with verbose diagnostic traces.
+genE'' :: GenConfig
+genE'' = quad gen''
+
+-- |Generate over the jazz (Change) graph: the genJ family. Same
+-- modifier chain as 'gen' (@seek "*" \$ cue start \$ len 8 \$ entropy 0.3 \$ genJ@);
+-- the seek spec resolves against BOTH corpora (see
+-- "Harmonic.Framework.Builder.JazzGen" for the full semantics: jazz
+-- names blend, classical names steer via the 'steer' dial, @"*"@ walks
+-- the whole corpus, @"none"@ is refused — the jazz graph has no offline
+-- mode). Progressions carry variable-arity chords (3-6 tones) straight
+-- from the corpus vocabulary, stamped 'PC.FJazz' so 'genFrom'
+-- regenerates them jazz-natively and 'attempt' ranks them against the
+-- @Change@ graph. 'tonal' constraints apply through the same R filter
+-- as every family; a step they empty is relaxed with a notice (there is
+-- deliberately no fallback pool).
+genJ :: GenConfig
+genJ = defaultGenConfig { _gcMode = JazzMode }
+
+-- |'genJ' with Standard per-step trace (walk steps, pool sizes, picks).
+genJ' :: GenConfig
+genJ' = genJ { _gcVerbosity = Standard }
+
+-- |'genJ' with Verbose trace (adds seek resolution and steer notices).
+genJ'' :: GenConfig
+genJ'' = genJ { _gcVerbosity = Verbose }
 
 -- |Regenerate a range of bars within an existing progression.
 -- The cue is inferred from the bar before the start position (wrapping).
@@ -800,7 +814,7 @@ gen4'' = quad gen''
 --   layers + provenance in lockstep, with one-step lookahead at the
 --   @e → e+1@ seam to keep the spliced bar sequence walk-graph valid
 --   under 'Harmonic.Framework.Builder.Strata.allowedNext'.
--- * uniform 4-note triad layer (gen4 source) — regen bars come out 4-note
+-- * uniform 4-note triad layer (genE source) — regen bars come out 4-note
 --   ('_gcQuad' set automatically).
 -- * uniform 3-note (gen source) — plain triad regen.
 -- * hand-mixed cardinalities — regenerated as plain triads with a printed
@@ -816,10 +830,11 @@ genFrom :: PC.ProgressionContext -> Int -> Int -> GenConfig
 genFrom pc s e = defaultGenConfig
   { _gcCue  = inferCue
   , _gcLen  = rSize
-  , _gcQuad = sourceIsQuad
-  , _gcMode = case PC.pcProvenance pc of
-      Just _  -> FromProgPC pc s e
-      Nothing -> FromProg (PC.triadLayer pc) s e
+  , _gcQuad = PC.pcFamily pc == PC.FExtended
+  , _gcMode = case PC.pcFamily pc of
+      PC.FStrata -> FromProgPC pc s e
+      PC.FJazz   -> FromProgJ pc s e
+      _          -> FromProg (PC.triadLayer pc) s e
   }
   where
     triad = PC.triadLayer pc
@@ -829,10 +844,6 @@ genFrom pc s e = defaultGenConfig
     inferCue = case Prog.getCadenceState triad cuePos of
       Just cs -> pure cs
       Nothing -> _gcCue defaultGenConfig
-    -- Family detection: every bar exactly 4 intervals → gen4 source.
-    barSizes = [ length (H.cadenceIntervals (H.stateCadence cs))
-               | cs <- toList (Prog.unProgression triad) ]
-    sourceIsQuad = not (null barSizes) && all (== 4) barSizes
 
 -- |Standard-verbosity alias of 'genFrom'. Mirrors @gen'@, @genP'@ and @genI'@.
 genFrom' :: PC.ProgressionContext -> Int -> Int -> GenConfig
@@ -917,7 +928,12 @@ emitFinalised gc (pc, diag) = do
         StrataMode _    -> True
         FromProgPC {}   -> True
         _               -> False
+      isJazz = case _gcMode gc of
+        JazzMode     -> True
+        FromProgJ {} -> True
+        _            -> False
   case _gcVerbosity gc of
+    _ | isJazz -> pure ()  -- genJ prints its own walk trace inline
     Silent   -> pure ()
     Standard -> if isStrata
                   then printStrataDiagnostics 1 diag
@@ -951,12 +967,18 @@ singlePassExecPC gc = do
 -- attempt output is suppressed and only the winner's emitted.
 singlePassExecPCWithDiag :: GenConfig -> IO (PC.ProgressionContext, GenerationDiagnostics)
 singlePassExecPCWithDiag gc = case _gcMode gc of
-  -- Family separation: gen4 (quad) and the strata family (genP \/
+  -- Family separation: genE (quad) and the strata family (genP \/
   -- strata-aware genFrom) never mix — strata progressions stay 3-5-7.
   StrataMode _ | _gcQuad gc ->
-    error "quad/gen4 applies to the gen family only — genP (strata) stays 3-5-7"
+    error "quad/genE applies to the gen family only — genP (strata) stays 3-5-7"
   FromProgPC {} | _gcQuad gc ->
-    error "quad/gen4 applies to the gen family only — this source is strata-aware (genP provenance); regenerate it with plain genFrom (family is inferred from the source)"
+    error "quad/genE applies to the gen family only — this source is strata-aware (genP provenance); regenerate it with plain genFrom (family is inferred from the source)"
+  JazzMode | _gcQuad gc ->
+    error "quad/genE applies to the gen family only — genJ (jazz) chords carry their own arity"
+  FromProgJ {} | _gcQuad gc ->
+    error "quad/genE applies to the gen family only — this source is jazz-family (regenerate with plain genFrom; family is inferred from the source)"
+  JazzMode             -> runJazzGen gc
+  FromProgJ srcPC s e  -> runJazzGenFrom srcPC s e gc
   StrataMode sStart    -> runStrataGen sStart gc
   FromProgPC srcPC s e -> runStrataGenFrom srcPC s e gc
   _                    -> do
@@ -987,8 +1009,13 @@ generateBest gc = do
   -- GHCi stdout is line-buffered, so the newline flushes right away.
   putStrLn "composing .."
   let online = map toLower (_gcSeek gc) /= "none"
+      isJazzGc = case _gcMode gc of
+        JazzMode        -> True
+        FromProgJ {}    -> True
+        _               -> False
   (winnerPC, winnerDiag, diags) <-
-    if online then runOnline gc else runOffline gc
+    if isJazzGc then runJazzBest gc
+      else if online then runOnline gc else runOffline gc
   -- All per-attempt printing was suppressed inside the loop (Phase 11
   -- moved every emission into @emitFinalised@). Emit the winner exactly
   -- once, at the caller's verbosity.
@@ -1032,6 +1059,40 @@ runOnline gc = do
   pipe <- connectNeo4j
   scored <- runDb pipe (onlineLoop seekTxt gc maxN target floorT)
   finaliseScored gc scored
+
+-- |Jazz arm of @generateBest@: identical loop shape to the online arm,
+-- scored via 'PS.scoreProgressionJazz' — the same pure components, with
+-- cadence favourability taken from the @Change@ graph under the seek
+-- spec's jazz half. Ranked with 'PS.defaultWeights' (the jazz graph is
+-- always online; @seek "none"@ was already refused by the walk).
+runJazzBest :: GenConfig
+            -> IO (PC.ProgressionContext, GenerationDiagnostics, [AttemptDiagnostic])
+runJazzBest gc = do
+  let maxN    = max 1 (_gcMaxAttempts gc)
+      target  = max 1 (_gcViableTarget gc)
+      floorT  = _gcViabilityFloor gc
+      seekTxt = T.pack (_gcSeek gc)
+  pipe <- connectNeo4j
+  scored <- runDb pipe (jazzLoop seekTxt gc maxN target floorT)
+  finaliseScored gc scored
+
+-- |Inner loop for the jazz arm, run under 'runDb'.
+jazzLoop
+  :: T.Text -> GenConfig -> Int -> Int -> Double
+  -> DbActionT [ScoredAttempt]
+jazzLoop seekTxt gc maxN target floorT = go (0 :: Int) [] maxN
+  where
+    go _ acc 0 = pure (reverse acc)
+    go viableSoFar acc remaining
+      | viableSoFar >= target = pure (reverse acc)
+      | otherwise = do
+          (pc, diag) <- liftIO (singlePassExecPCWithDiag gc)
+          ps <- PS.scoreProgressionJazz seekTxt pc
+          let tot   = PS.totalScore PS.defaultWeights ps
+              isOk  = PS.psModeValidity ps >= 1.0 && tot >= floorT
+              acc'  = (pc, ps, tot, isOk, diag) : acc
+              viable' = if isOk then viableSoFar + 1 else viableSoFar
+          go viable' acc' (remaining - 1)
 
 -- |Inner-loop record: per-attempt (progression, score, totalScore,
 -- viability flag, diagnostics). The diagnostics are carried so the
@@ -1138,6 +1199,16 @@ chordNamesOf prog =
 -- @s <- seek "*" $ entropy 0.5 $ gen@
 entropy :: Double -> GenConfig -> GenConfig
 entropy e gc = gc { _gcEntropy = e }
+
+-- |Set the genJ classical-steer boost strength (default 3.0). Applies
+-- only when the seek spec names classical composers: a jazz candidate
+-- containing one of the steer blend's top recommended triads has its
+-- score multiplied by up to @(1 + strength)@. 0 disables steering
+-- influence entirely. Initial calibration — tune by ear.
+--
+-- @s <- seek "debussy" $ steer 6 $ len 8 $ genJ'@
+steer :: Double -> GenConfig -> GenConfig
+steer x gc = gc { _gcSteer = max 0 x }
 
 -- |Run multi-attempt rank-and-select generation: produce up to @maxAttempts@
 -- candidate progressions, stop early once @viableTarget@ viable attempts
@@ -1423,6 +1494,7 @@ runStrataGen sStart gc = do
             , PC.strataLayer  = mempty
             , PC.modeLayer    = mempty
             , PC.pcProvenance = Just Seq.empty
+            , PC.pcFamily     = PC.FStrata
             }
           emptyDiag = GenerationDiagnostics
             { gdStartCadence = show (H.stateCadence start)
@@ -1462,16 +1534,9 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
         Silent   -> Nothing
         Standard -> Just 1
         Verbose  -> Just 2
-  (chain, rawDiags) <-
-    if map toLower (_gcSeek gc) == "none"
-      then buildStrataChainOffline defaultConfig rng verbArg
-             (_gcEntropy gc) (_gcTonal gc) pctxAtStep start (max 0 (n - 1))
-      else do
-        let composerWeights = Q.parseComposerWeights (T.pack (_gcSeek gc))
-        pipe <- connectNeo4j
-        result <- runDb pipe $ buildStrataChain defaultConfig rng verbArg
-                   (_gcEntropy gc) (_gcTonal gc) pctxAtStep composerWeights start (max 0 (n - 1))
-        pure result
+  source <- sourceFor (T.pack (_gcSeek gc))
+  (chain, rawDiags) <- buildChainWith source defaultConfig rng verbArg
+                         (_gcEntropy gc) (_gcTonal gc) pctxAtStep start (max 0 (n - 1))
 
   -- Assemble ProgressionContext. The triadLayer is the R→E→T chain.
   -- Strata & mode layers carry the full chroma (5 PCs \/ 7 PCs respectively)
@@ -1554,6 +1619,7 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
         , PC.strataLayer  = Prog.fromCadenceStates stratas
         , PC.modeLayer    = Prog.fromCadenceStates modes
         , PC.pcProvenance = Just provSeq
+        , PC.pcFamily     = PC.FStrata
         }
 
   -- Synthesize a "starter" StepDiagnostic for the cue bar (chain[0]) so
@@ -1804,6 +1870,7 @@ runStrataGenFrom srcPC s e gc = do
         , PC.pcProvenance = case PC.pcProvenance regenPC of
             Just sq -> Just (Seq.drop 1 sq)
             Nothing -> Nothing
+        , PC.pcFamily     = PC.pcFamily regenPC
         }
       splicedPC = PC.pcSplice srcPC s e insertPC
 

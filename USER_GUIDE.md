@@ -827,7 +827,7 @@ genPReport (pure pc)                -- provenance + triads in one report
 
 ___
 
-## 20. Four-note generation (`gen4`)
+## 20. Four-note generation (`genE`)
 
 **Why** — seventh-chord density with the same corpus-trained walk: every bar a 4-note chord, still steered by the composer graph.
 
@@ -835,7 +835,7 @@ ___
 
 ```haskell
 start <- lead "C maj"
-s <- seek "*" $ cue start $ len 8 $ entropy 0.3 $ gen4'   -- gen4 / gen4' / gen4''
+s <- seek "*" $ cue start $ len 8 $ entropy 0.3 $ genE'   -- genE / genE' / genE''
 ```
 
 A triad cue is fused once, so output is uniformly 4-note from bar 1. For an explicit 4-note opening there is `lead'`, which takes note names directly (first note = root/bass; typed accidentals drive spelling; optional `(N)` movement like `lead`):
@@ -845,21 +845,21 @@ start <- lead' "Eb Gb Bb Db"        -- Eb m7, printed and used as-is
 start <- lead' "A C E G (5)"        -- A m7, ascending-5th approach
 ```
 
-`quad` is the underlying modifier — `gen4 = quad gen` — so everything composes as usual, including regeneration:
+`quad` is the underlying modifier — `genE = quad gen` — so everything composes as usual, including regeneration:
 
 ```haskell
-s  <- seek "*" $ attempt 3 12 $ entropy 0.4 $ gen4''      -- rank-and-select
+s  <- seek "*" $ attempt 3 12 $ entropy 0.4 $ genE''      -- rank-and-select
 s' <- seek "*" $ entropy 0.3 $ genFrom s 3 5              -- family-aware: regen bars 3-5 stay 4-note
 ```
 
-The `gen4'` trace adds one line per bar under the Candidates line: `fused: +Ab → F m7  [rank 2/9]` — which tone was added, the resulting name, and where the draw landed in the consonant-first ranking. R adherence is structural: the added tone always comes from the active palette (`tonal`/`hcKey` constraints), the bass never moves, and pedal tones can only gain members. `consonant`/`dissonant` drift governs both the triad skeleton *and* the fused surface.
+The `genE'` trace adds one line per bar under the Candidates line: `fused: +Ab → F m7  [rank 2/9]` — which tone was added, the resulting name, and where the draw landed in the consonant-first ranking. R adherence is structural: the added tone always comes from the active palette (`tonal`/`hcKey` constraints), the bass never moves, and pedal tones can only gain members. `consonant`/`dissonant` drift governs both the triad skeleton *and* the fused surface.
 
-One boundary: `gen4` and `genP` never mix. Strata progressions stay 3-5-7 by design; `quad` on a strata source fails fast with a message.
+One boundary: `genE` and `genP` never mix. Strata progressions stay 3-5-7 by design; `quad` on a strata source fails fast with a message.
 
-**Try it** — run the same seed idea as `gen'` then `gen4'` and compare the grids: same walk character, thicker sonorities. Then `arrange` with `"0 1 2 3"` — index 3 is now a real fourth chord tone, not the octave.
+**Try it** — run the same seed idea as `gen'` then `genE'` and compare the grids: same walk character, thicker sonorities. Then `arrange` with `"0 1 2 3"` — index 3 is now a real fourth chord tone, not the octave.
 
 > **▶ VIDEO — The fourth voice**
-> _~60s: one progression generated twice — gen' then gen4' — same cue, same entropy; the fused: lines on screen as the second run plays._
+> _~60s: one progression generated twice — gen' then genE' — same cue, same entropy; the fused: lines on screen as the second run plays._
 >
 > `[ youtube link — TBD ]`
 >

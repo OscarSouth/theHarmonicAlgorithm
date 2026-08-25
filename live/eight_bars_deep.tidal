@@ -23,7 +23,7 @@ hush
 -- not narrative — exactly what the genre wants.
 
 startD <- lead' "A C E G"
-sD <- seek "*" $ cue startD $ tonal (hcKey "0#" $ consonant $ hContext) $ len 8 $ entropy 0.3 $ attempt 3 8 $ gen4
+sD <- seek "*" $ cue startD $ tonal (hcKey "0#" $ consonant $ hContext) $ len 8 $ entropy 0.3 $ attempt 3 8 $ genE
 
 -- ══════════════════════════════════════════════════════════
 -- THE PIECE (frozen — the session take)

@@ -21,10 +21,15 @@ module Harmonic.Rules.Import.Graph (
 
     -- * Writing cadence transitions
     ComposerWeights, writeCadenceEdges, edgeRow, batchCypher,
+
+    -- * Writing jazz (Change) transitions
+    initChangeGraph, truncateChangeGraph,
+    writeChangeEdges, changeEdgeRow, changeBatchCypher,
 ) where
 
 import           Harmonic.Database (DbActionT, connectNeo4j, runQuery, runQueryP)
 import qualified Harmonic.Rules.Types.Harmony as H
+import qualified Harmonic.Rules.Import.Jazz as J
 import qualified Harmonic.Rules.Types.Pitch as P
 import qualified Harmonic.Evaluation.Scoring.Dissonance as D
 
@@ -122,3 +127,71 @@ edgeRow (fromCadence, toCadence, weights) = A.object
       let (_, chord) = H.deconstructCadence cadence
           (value, _) = D.dissonanceLevel (fmap P.unPitchClass chord)
        in value
+
+-- | Initialise the jazz-graph schema: uniqueness on the @Change@ node
+-- key. Idempotent and label-scoped — resident @Cadence@ data is
+-- untouched.
+initChangeGraph :: DbActionT ()
+initChangeGraph = do
+  _ <- runQuery "CREATE CONSTRAINT IF NOT EXISTS FOR (n:Change) REQUIRE n.show IS UNIQUE"
+  pure ()
+
+-- | Delete every @Change@ node and its edges — and nothing else: the
+-- statement matches by label only, so the classical graph cannot be
+-- touched. The jazz graph is small (994 nodes / 9,235 edges from the
+-- full Bunks corpus), so a plain @DETACH DELETE@ suffices.
+truncateChangeGraph :: DbActionT ()
+truncateChangeGraph = do
+  _ <- runQuery "MATCH (n:Change) DETACH DELETE n"
+  pure ()
+
+-- | Write jazz transitions in parameterised batches of 1000 rows, the
+-- same idempotent @UNWIND@ + @MERGE@ shape as 'writeCadenceEdges'.
+writeChangeEdges :: [((J.JazzCadence, J.JazzCadence), ComposerWeights)] -> DbActionT ()
+writeChangeEdges edges =
+  mapM_ writeBatch (filter (not . null) (chunksOf 1000 (filter hasWeight edges)))
+  where
+    hasWeight (_, weights) = not (Map.null weights)
+    writeBatch batch = do
+      let rows = A.toJSON (map changeEdgeRow batch)
+      _ <- runQueryP changeBatchCypher (Map.singleton "rows" rows)
+      pure ()
+    chunksOf n xs = case splitAt n xs of
+      (chunk, [])   -> [chunk]
+      (chunk, rest) -> chunk : chunksOf n rest
+
+-- | The jazz write statement: identical shape to 'batchCypher' with the
+-- @Change@ label.
+changeBatchCypher :: T.Text
+changeBatchCypher = T.unlines
+  [ "UNWIND $rows AS row"
+  , "MERGE (from:Change {show: row.fromShow})"
+  , "  ON CREATE SET from.movement = row.fromMovement,"
+  , "                from.chord = row.fromChord,"
+  , "                from.dissonance = row.fromDissonance"
+  , "MERGE (to:Change {show: row.toShow})"
+  , "  ON CREATE SET to.movement = row.toMovement,"
+  , "                to.chord = row.toChord,"
+  , "                to.dissonance = row.toDissonance"
+  , "MERGE (from)-[r:NEXT]->(to)"
+  , "SET r.confidence = row.confidence, r.weights = row.weights"
+  ]
+
+-- | One jazz edge as a @$rows@ element. The @show@ key comes from
+-- 'J.jazzShow' (same @( movement -> functionality )@ shape as the
+-- classical key); @chord@ is the plain zero-form interval list (no
+-- legacy naming contract in the jazz keyspace); @dissonance@ reuses the
+-- classical scorer, which is arity-agnostic.
+changeEdgeRow :: ((J.JazzCadence, J.JazzCadence), ComposerWeights) -> A.Value
+changeEdgeRow ((fromCadence, toCadence), weights) = A.object
+  [ "fromShow"       .= J.jazzShow fromCadence
+  , "fromMovement"   .= show (J.jzMovement fromCadence)
+  , "fromChord"      .= show (J.jzSet fromCadence)
+  , "fromDissonance" .= fst (D.dissonanceLevel (J.jzSet fromCadence))
+  , "toShow"         .= J.jazzShow toCadence
+  , "toMovement"     .= show (J.jzMovement toCadence)
+  , "toChord"        .= show (J.jzSet toCadence)
+  , "toDissonance"   .= fst (D.dissonanceLevel (J.jzSet toCadence))
+  , "confidence"     .= sum (Map.elems weights)
+  , "weights"        .= TE.decodeUtf8 (BL.toStrict (A.encode weights))
+  ]

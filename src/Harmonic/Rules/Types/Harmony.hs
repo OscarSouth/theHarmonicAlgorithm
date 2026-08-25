@@ -74,7 +74,7 @@ module Harmonic.Rules.Types.Harmony
   , initCadenceState
   , mkCadenceStatePCs
 
-    -- * Walk Projection (gen4)
+    -- * Walk Projection (genE)
   , walkTriadCadence
   , walkTriadState
 
@@ -1006,7 +1006,7 @@ mkCadenceStatePCs root movement intervals =
   in CadenceState (Cadence functionality movement pcs) root spelling
 
 -------------------------------------------------------------------------------
--- Walk projection (gen4)
+-- Walk projection (genE)
 -------------------------------------------------------------------------------
 
 -- |Project a Cadence onto its most consonant ROOTED embedded triad.
@@ -1015,7 +1015,7 @@ mkCadenceStatePCs root movement intervals =
 -- intervals), picks the least dissonant via the Layer-B @mostConsonant@
 -- replica, and renames with the triad namer. Root, movement, and (via
 -- 'walkTriadState') spelling are preserved, so the projected cadence's
--- 'show' is always a corpus-shaped graph key. This is gen4's walk shadow:
+-- 'show' is always a corpus-shaped graph key. This is genE's walk shadow:
 -- the added tone can reinterpret the harmony (e.g. [0,3,6]+7 projects to
 -- [0,3,7] minor) and thereby steer the next step.
 walkTriadCadence :: Cadence -> Cadence
