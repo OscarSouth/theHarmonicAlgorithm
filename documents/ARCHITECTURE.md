@@ -378,12 +378,12 @@ data ProgressionContext = ProgressionContext
 `arrange` takes the layer as an argument, so the same pattern can read
 chords, pentatonics or modes from one generated result. The legacy
 `gen` family fills all three layers with the triad; the strata-first
-`genP` family populates them distinctly; the `gen4` family (below)
+`genP` family populates them distinctly; the `genE` family (below)
 fills all three with the 4-note progression.
 
-### 5.3a The gen4 family (4-note generation)
+### 5.3a The genE family (4-note generation)
 
-A third, distinct generator family (`quad`, `gen4`/`gen4'`/`gen4''`,
+A third, distinct generator family (`quad`, `genE`/`genE'`/`genE''`,
 family-aware `genFrom`; `lead'` for explicit N-note cues). It never touches the
 strata family — strata progressions stay 3-5-7, and `quad` on a strata
 source fails fast.
@@ -406,7 +406,7 @@ most-consonant *rooted* embedded triad for graph fetch keys, R
 filters, and drift comparisons — identity for all ≤3-interval states.
 The chain state is the fused chord itself, so the added tone feeds
 back: a dim triad plus an added fifth walks on as minor. Graph keys
-stay corpus-shaped throughout — gen4 generation is fully online.
+stay corpus-shaped throughout — genE generation is fully online.
 Corpus-shaped means `corpusFunctionality`'s 55-form table (Harmony.hs),
 transcribed from the live graph: the database was ingested under
 legacy naming (e.g. `[0,3,8]` → `maj_1stInv`), which the modernised

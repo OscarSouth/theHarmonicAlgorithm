@@ -34,6 +34,7 @@ mkProvCtx xs =
        , PC.strataLayer  = prog
        , PC.modeLayer    = prog
        , PC.pcProvenance = Just provSeq
+       , PC.pcFamily     = PC.FStrata
        }
 
 -- |Convenience: extract triad roots as a string list.
@@ -43,6 +44,7 @@ roots pc = map H.stateCadenceRoot
 
 spec :: Spec
 spec = do
+  familySpec
 
   describe "pcSplice — non-wrapping range" $ do
     it "replaces bars 2..3 of a 4-bar progression" $ do
@@ -103,3 +105,28 @@ spec = do
           ins   = mkTriadCtx [("G", [0,4,7])]                    -- Nothing
           out   = PC.pcSplice src 1 1 ins
       PC.pcProvenance out `shouldBe` Nothing
+
+familySpec :: Spec
+familySpec = describe "pcFamily" $ do
+  let triadProg = Prog.fromCadenceStates
+        [ H.initCadenceState m "C" [0,4,7] | m <- [0, 5] ]
+      quadProg = Prog.fromCadenceStates
+        [ H.mkCadenceStatePCs P.C H.Unison [0,4,7,10]
+        , H.mkCadenceStatePCs P.F H.Unison [0,3,7,10] ]
+
+  it "fromProgression infers FTriad for triads, FExtended for uniform 4-note" $ do
+    PC.pcFamily (PC.fromProgression triadProg) `shouldBe` PC.FTriad
+    PC.pcFamily (PC.fromProgression quadProg) `shouldBe` PC.FExtended
+
+  it "explicit stamps survive liftPC and pcSplice" $ do
+    let jazzPC = (PC.fromProgression triadProg) { PC.pcFamily = PC.FJazz }
+    PC.pcFamily (PC.liftPC id jazzPC) `shouldBe` PC.FJazz
+    PC.pcFamily (PC.pcSplice jazzPC 1 1 (PC.fromProgression
+      (Prog.fromCadenceStates [H.initCadenceState 0 "D" [0,3,7]])))
+      `shouldBe` PC.FJazz
+
+  it "fusing differing families downgrades to FTriad; equal families keep" $ do
+    let jazzPC = (PC.fromProgression triadProg) { PC.pcFamily = PC.FJazz }
+        triPC  = PC.fromProgression triadProg
+    PC.pcFamily (jazzPC <> triPC) `shouldBe` PC.FTriad
+    PC.pcFamily (jazzPC <> jazzPC) `shouldBe` PC.FJazz

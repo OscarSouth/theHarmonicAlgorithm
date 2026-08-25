@@ -21,6 +21,12 @@ import           Harmonic.Rules.Import.Merge
 import           Harmonic.Evaluation.Analysis.Markov (probabilitiesFromCounts)
 
 import           Harmonic.Database (runDb)
+import qualified Harmonic.Rules.Import.Jazz as J
+import qualified Data.Text.IO as TIO
+import           System.Directory (listDirectory)
+import           System.Environment (getArgs, lookupEnv)
+import           System.FilePath ((</>), takeBaseName)
+import           Data.Maybe (fromMaybe)
 import           Control.Monad (forM_)
 import qualified Data.Map.Strict as Map
 import qualified Data.Text as T
@@ -39,6 +45,48 @@ composerExclude = []
 
 main :: IO ()
 main = do
+  args <- getArgs
+  case args of
+    ["jazz"] -> jazzMain
+    []       -> classicalMain
+    _        -> putStrLn "usage: theHarmonicAlgorithm-exe [jazz]"
+
+-- | Ingest the Bunks jazz corpus into the @Change@ subgraph. Reads the
+-- corpus from @HA_JAZZ_CORPUS@ (default: ~\/musicdata\/Jazz-Chord-
+-- Progressions-Corpus). Label-scoped: only @Change@ nodes are truncated
+-- and written; resident @Cadence@ data is untouched. Refused songs are
+-- reported and counted, never silently dropped.
+jazzMain :: IO ()
+jazzMain = do
+  home <- fromMaybe "/Users/oscarsouth" <$> lookupEnv "HOME"
+  corpus <- fromMaybe (home </> "musicdata/Jazz-Chord-Progressions-Corpus")
+              <$> lookupEnv "HA_JAZZ_CORPUS"
+  let songRoot = corpus </> "SongDB"
+  dirs <- filter (\d -> take 5 d == "Songs") <$> listDirectory songRoot
+  files <- concat <$> mapM (\d -> map ((songRoot </> d) </>)
+                              <$> listDirectory (songRoot </> d)) dirs
+  putStrLn $ "theHarmonicAlgorithm: jazz ingest from " ++ songRoot
+           ++ " (" ++ show (length files) ++ " files)"
+  songs <- mapM (\f -> J.parseSong (T.pack (takeBaseName f)) <$> TIO.readFile f) files
+  let refused = [ r | Left r <- songs ]
+      parsed  = [ s | Right s <- songs ]
+  forM_ refused $ \r ->
+    putStrLn $ "  REFUSED: " ++ T.unpack (J.refusalInput r)
+             ++ " (" ++ T.unpack (J.refusalReason r) ++ ")"
+  putStrLn $ "Parsed songs: " ++ show (length parsed)
+           ++ "  refusals: " ++ show (length refused)
+  let edges = J.buildChangeEdges parsed
+  putStrLn $ "Change edges: " ++ show (length edges)
+  pipe <- connectNeo4j
+  putStrLn "Clearing existing Change subgraph (label-scoped)..."
+  runDb pipe truncateChangeGraph
+  runDb pipe initChangeGraph
+  putStrLn "Writing Change edges..."
+  runDb pipe (writeChangeEdges edges)
+  putStrLn "Jazz ingest complete."
+
+classicalMain :: IO ()
+classicalMain = do
   putStrLn "theHarmonicAlgorithm: Populating Neo4j graph from YCACL artifact"
   dataset <- loadYCACLData ycaclArtifactPath
   let normalized = normalizeComposers dataset

@@ -123,7 +123,7 @@ rep pc repVal =
 -- always voiced by 'A.strataModeFlow' — degree\/"key-signature" semantics:
 -- pattern index @i@ plays the i-th scale degree of that bar's set. The T
 -- layer always honours the user's 'VoiceFunction', as do S\/M layers of
--- gen\/gen4 contexts (ordinary-harmony duplicates of the triad layer).
+-- gen\/genE contexts (ordinary-harmony duplicates of the triad layer).
 --
 -- Routing by provenance + layer replaces the old first-bar cardinality
 -- sniff (@isOctaSM@), which mis-routed mixed-cardinality material in both

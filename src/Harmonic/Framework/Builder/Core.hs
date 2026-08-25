@@ -4,27 +4,22 @@
 --
 -- Internal chain building, candidate pool construction, R-constraint filtering,
 -- consonance fallback generation, state advancement, and progression conversion.
--- Online chain functions run inside 'DbActionT' for Neo4j access.
+-- Online vs offline is a 'TransitionSource' argument, not a code path:
+-- one chain builder serves every family and both modes.
 
 module Harmonic.Framework.Builder.Core
-  ( -- * Chain Building (online, requires Neo4j)
-    buildChain
-  , buildChainWithDiag
-  , buildChainWithDiagV
+  ( -- * The transition seam
+    TransitionSource
+  , offlineSource
+  , classicalSource
+  , sourceFor
 
-    -- * Chain Building (offline, no Neo4j required)
-  , buildChainOffline
-  , buildChainOfflineWithDiag
-  , buildChainOfflineWithDiagV
+    -- * Chain building (one builder, any source)
+  , buildChainWith
+  , stepChainWith
 
-    -- * Strata chain building (per-bar narrowed ParsedContext)
-  , buildStrataChain
-  , buildStrataChainOffline
-
-    -- * Step primitives (exposed for genP-style per-bar context narrowing)
-  , stepChainCore
+    -- * Step primitives
   , fuseState
-  , stepChainOffline
 
     -- * Conversion
   , chainToProgression
@@ -39,7 +34,6 @@ module Harmonic.Framework.Builder.Core
 import qualified Data.Text as T
 import qualified Data.IntSet as IntSet
 import           Control.Monad (foldM)
-import           Control.Monad.IO.Class (liftIO)
 import           Data.List (sort, sortBy)
 import           Data.Function (on)
 import           Data.Ord (Down(..))
@@ -50,8 +44,8 @@ import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as P
 import qualified Harmonic.Rules.Types.Progression as Prog
 import qualified Data.Map.Strict as Map
-import           Harmonic.Database (DbActionT)
-import           Harmonic.Evaluation.Database.Query (ComposerWeights, fetchTransitions)
+import           Harmonic.Database (DbConn, runDb, connectNeo4j)
+import           Harmonic.Evaluation.Database.Query (ComposerWeights)
 import qualified Harmonic.Evaluation.Database.Query as Q
 import           Harmonic.Traversal.Probabilistic (gammaIndexScaledWith)
 import           Harmonic.Rules.Constraints.Filter (parseOvertones', parseKey, isWildcard, resolveRoots,
@@ -67,28 +61,82 @@ import           Harmonic.Framework.Builder.Diagnostics (computeChordTrace)
 -- Chain Building (Inside DbActionT)
 -------------------------------------------------------------------------------
 
--- |Build the cadence chain step by step.
+-- |How a walk key resolves to scored transitions: THE seam between the
+-- step engine and any particular graph (or none). Sources return
+-- positive scores sorted highest first — exactly the contract
+-- @stepChainBody@ documents for its @transitions@ argument.
+type TransitionSource = T.Text -> IO [(H.Cadence, Double)]
+
+-- |The no-graph source: every step's pool is the consonance fallback
+-- alone. This IS offline mode — nothing else distinguishes it.
+offlineSource :: TransitionSource
+offlineSource _ = pure []
+
+-- |The classical @Cadence@ graph under a composer blend: the aggregate
+-- fast path for the wildcard (empty) blend, the full weights fetch and
+-- blend resolution otherwise.
+classicalSource :: DbConn -> ComposerWeights -> TransitionSource
+classicalSource conn weights key
+  | Map.null weights = runDb conn (Q.fetchTransitionsAggregate key)
+  | otherwise        = runDb conn (Q.applyComposerBlend weights <$> Q.fetchTransitions key)
+
+-- |Resolve a seek string to its 'TransitionSource': @"none"@ (case-
+-- insensitive) is 'offlineSource'; anything else opens the database and
+-- blends per 'Q.parseComposerWeights'.
+sourceFor :: T.Text -> IO TransitionSource
+sourceFor seekStr
+  | T.toLower (T.strip seekStr) == "none" = pure offlineSource
+  | otherwise = do
+      conn <- connectNeo4j
+      pure (classicalSource conn (Q.parseComposerWeights seekStr))
+
+-- |Build the cadence chain step by step against any 'TransitionSource'.
 --
--- Simplified algorithm:
---   1. Start from initial CadenceState
---   2. For each step: build candidate pool, gamma-select next
---   3. Pool = filtered graph transitions + consonance fallback (unlimited)
-buildChain :: GeneratorConfig
-           -> GenIO            -- ^ Shared random generator
-           -> Double           -- ^ Entropy [0,1]
-           -> HarmonicContext
-           -> ParsedContext    -- ^ Pre-parsed context for O(1) lookups
-           -> ComposerWeights  -- ^ Composer blend weights
-           -> H.CadenceState   -- ^ Starting state
-           -> Int              -- ^ Number of steps to generate
-           -> DbActionT [H.CadenceState]
-buildChain config gen ent context pctx composerWeights start totalSteps = do
+-- The one chain builder: online\/offline is the source argument, fixed
+-- vs per-bar R-context is the supplier argument (@const pctx@ for the
+-- plain families; 'Harmonic.Framework.Builder.genP' narrows overtones
+-- per bar), diagnostics collection is the verbosity argument (@Nothing@
+-- skips construction entirely; @Just 1@ standard, @Just 2@ maximum).
+--
+-- Algorithm per step: fetch the walk key's transitions from the source
+-- (the key is the current state's most-consonant rooted embedded triad —
+-- identity for triads, so the walk never silently goes offline on
+-- cardinality), then delegate the full R-filter\/scoring\/selection
+-- logic to @stepChainBody@ (pool = graph candidates + unlimited
+-- consonance fallback).
+buildChainWith :: TransitionSource
+               -> GeneratorConfig
+               -> GenIO                    -- ^ Shared random generator
+               -> Maybe Int                -- ^ Diagnostics verbosity (Nothing \/ Just 1 \/ Just 2)
+               -> Double                   -- ^ Entropy (>= 0; rank-target dial)
+               -> HarmonicContext
+               -> (Int -> ParsedContext)   -- ^ Bar index (1-based) -> R context for that bar
+               -> H.CadenceState           -- ^ Starting state
+               -> Int                      -- ^ Number of steps to generate
+               -> IO ([H.CadenceState], [StepDiagnostic])
+buildChainWith source config gen mVerbosity ent context pctxAt start totalSteps = do
   let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
-  ((_current, revChain, _counter), _noDiags) <-
-    foldM (stepChainCore config gen Nothing ent context pctx composerWeights)
+  ((_current, revChain, _counter), revDiags) <-
+    foldM (\acc i -> stepChainWith source config gen mVerbosity ent context (pctxAt i) acc i)
           ((start, [start], initCounter), [])
           [1..totalSteps]
-  pure $ reverse revChain
+  pure (reverse revChain, reverse revDiags)
+
+-- |One step against a 'TransitionSource': fetch, then @stepChainBody@.
+stepChainWith :: TransitionSource
+              -> GeneratorConfig
+              -> GenIO
+              -> Maybe Int
+              -> Double
+              -> HarmonicContext
+              -> ParsedContext
+              -> ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
+              -> Int
+              -> IO ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
+stepChainWith source config gen mVerbosity ent context pctx acc@((current, _, _), _) stepNum = do
+  scored <- source (T.pack $ show (extractCadence (H.walkTriadState current)))
+  stepChainBody config gen mVerbosity ent context pctx acc stepNum scored
+
 
 -- |Resolve a 'BassDirectionSpec' into a concrete 'BassDirection' for a
 -- single generation step. Returns 'Nothing' when no spec is active, or
@@ -122,7 +170,8 @@ resolveBassDirection gen stepNum (Just spec) = do
 -- |Core body for a single chain-building step (plain IO, no database dependency).
 --
 -- Takes pre-fetched transitions and executes the full filtering\/scoring\/selection logic.
--- Used by both the online wrapper ('stepChainCore') and offline path ('stepChainOffline').
+-- Used by 'stepChainWith' for every family and mode (the source argument
+-- decides online vs offline).
 -- When transitions is empty (offline mode), generation relies entirely on the consonance fallback.
 stepChainBody :: GeneratorConfig
               -> GenIO
@@ -135,7 +184,7 @@ stepChainBody :: GeneratorConfig
               -> [(H.Cadence, Double)]   -- ^ Pre-scored transitions, sorted desc (empty for offline)
               -> IO ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
 stepChainBody config gen mVerbosity ent _context pctx ((current, revChain, nonInvCount), revDiags) stepNum transitions = do
-  -- Walk shadow (gen4): all stage-1 machinery runs against the current
+  -- Walk shadow (genE): all stage-1 machinery runs against the current
   -- state's most-consonant rooted embedded triad, so drift comparisons stay
   -- triad-vs-triad and graph keys stay corpus-shaped. Identity for every
   -- <=3-interval state, i.e. all plain gen\/genP steps.
@@ -247,7 +296,7 @@ stepChainBody config gen mVerbosity ent _context pctx ((current, revChain, nonIn
           (newState, advTrace) = advanceStateTraced (pcKeySpelling pctx) walkCur nextCadence
           newCounter = if H.isInversion nextCadence then 0 else nonInvCount + 1
 
-      -- gen4: fuse one palette tone into the selected triad; the fused
+      -- genE: fuse one palette tone into the selected triad; the fused
       -- state becomes the emitted bar AND the next walk state (whose
       -- stage-1 shadow is its most-consonant embedded triad — the added
       -- tone can reinterpret the harmony and steer the next step).
@@ -318,204 +367,6 @@ stepChainBody config gen mVerbosity ent _context pctx ((current, revChain, nonIn
               in diag : revDiags
 
       pure ((emitState, emitState : revChain, newCounter), diags)
-
--- |Unified single step for chain building (online, requires Neo4j).
---
--- Fetches graph transitions from Neo4j then delegates all logic to @stepChainBody@.
--- When verbosity is Nothing, skips diagnostic construction entirely.
--- When verbosity is Just n, collects diagnostics at level n:
---   Just 1 = standard diagnostics (rendered chord populated)
---   Just 2 = maximum diagnostics (full TransformTrace and AdvanceTrace)
-stepChainCore :: GeneratorConfig
-              -> GenIO
-              -> Maybe Int
-              -> Double
-              -> HarmonicContext
-              -> ParsedContext
-              -> ComposerWeights
-              -> ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
-              -> Int
-              -> DbActionT ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
-stepChainCore config gen mVerbosity ent context pctx composerWeights acc@((current, _, _), _) stepNum = do
-  -- Fetch key via the walk projection: identity for triads (all corpus
-  -- states); for 4-note states (gen4 chain, or a 4-note lead' cue under
-  -- plain gen) the key is the most-consonant rooted embedded triad, which
-  -- always exists in the corpus keyspace — the walk never silently goes
-  -- offline on cardinality.
-  let currentShow = T.pack $ show (extractCadence (H.walkTriadState current))
-  -- Wildcard blend (empty map): project the pre-aggregated r.confidence
-  -- instead of parsing the full r.weights JSON — identical scores by the
-  -- ingestion invariant, ~30x faster per step. Blended seeks keep the full
-  -- weights fetch. Both arrive positive and sorted highest first, matching
-  -- what scoreByConfidence used to produce here.
-  scored <- if Map.null composerWeights
-              then Q.fetchTransitionsAggregate currentShow
-              else Q.applyComposerBlend composerWeights <$> fetchTransitions currentShow
-  liftIO $ stepChainBody config gen mVerbosity ent context pctx acc stepNum scored
-
--- |Offline single step for chain building (no Neo4j required).
---
--- Passes empty transitions to @stepChainBody@, so generation relies entirely
--- on the consonance-fallback mechanism (~660 candidates shaped by context filters).
-stepChainOffline :: GeneratorConfig
-                 -> GenIO
-                 -> Maybe Int
-                 -> Double
-                 -> HarmonicContext
-                 -> ParsedContext
-                 -> ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
-                 -> Int
-                 -> IO ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
-stepChainOffline config gen mVerbosity ent context pctx acc stepNum =
-  stepChainBody config gen mVerbosity ent context pctx acc stepNum []
-
--------------------------------------------------------------------------------
--- Chain Building with Diagnostics
--------------------------------------------------------------------------------
-
--- |Build cadence chain with diagnostic collection (verbosity level 1)
-buildChainWithDiag :: GeneratorConfig
-                   -> GenIO            -- ^ Shared random generator
-                   -> Double           -- ^ Entropy [0,1]
-                   -> HarmonicContext
-                   -> ParsedContext    -- ^ Pre-parsed context for O(1) lookups
-                   -> ComposerWeights  -- ^ Composer blend weights
-                   -> H.CadenceState   -- ^ Starting state
-                   -> Int              -- ^ Number of steps to generate
-                   -> DbActionT ([H.CadenceState], [StepDiagnostic])
-buildChainWithDiag config gen ent context pctx composerWeights start totalSteps =
-  buildChainWithDiagV config gen 1 ent context pctx composerWeights start totalSteps
-
--- |Build cadence chain with diagnostic collection (configurable verbosity)
--- Verbosity levels:
---   1 = standard diagnostics (sdRenderedChord populated)
---   2 = maximum diagnostics (full TransformTrace and AdvanceTrace)
-buildChainWithDiagV :: GeneratorConfig
-                    -> GenIO           -- ^ Shared random generator
-                    -> Int             -- ^ Verbosity level (1 or 2)
-                    -> Double          -- ^ Entropy [0,1]
-                    -> HarmonicContext
-                    -> ParsedContext    -- ^ Pre-parsed context for O(1) lookups
-                    -> ComposerWeights -- ^ Composer blend weights
-                    -> H.CadenceState  -- ^ Starting state
-                    -> Int             -- ^ Number of steps to generate
-                    -> DbActionT ([H.CadenceState], [StepDiagnostic])
-buildChainWithDiagV config gen verbosity ent context pctx composerWeights start totalSteps = do
-  let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
-  ((_current, revChain, _counter), revDiags) <-
-    foldM (stepChainCore config gen (Just verbosity) ent context pctx composerWeights)
-          ((start, [start], initCounter), [])
-          [1..totalSteps]
-  pure (reverse revChain, reverse revDiags)
-
--------------------------------------------------------------------------------
--- Offline Chain Building (plain IO, no Neo4j)
--------------------------------------------------------------------------------
-
--- |Build cadence chain offline (no Neo4j required).
---
--- Uses only the consonance-fallback mechanism — no graph traversal.
--- Progressions are shaped by context filters (overtones, key, roots, drift,
--- inversion spacing) and entropy. Fully musical without corpus-trained style.
-buildChainOffline :: GeneratorConfig
-                  -> GenIO
-                  -> Double
-                  -> HarmonicContext
-                  -> ParsedContext
-                  -> H.CadenceState
-                  -> Int
-                  -> IO [H.CadenceState]
-buildChainOffline config gen ent context pctx start totalSteps = do
-  let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
-  ((_current, revChain, _counter), _noDiags) <-
-    foldM (stepChainOffline config gen Nothing ent context pctx)
-          ((start, [start], initCounter), [])
-          [1..totalSteps]
-  pure $ reverse revChain
-
--- |Build cadence chain offline with standard diagnostic collection.
-buildChainOfflineWithDiag :: GeneratorConfig
-                           -> GenIO
-                           -> Double
-                           -> HarmonicContext
-                           -> ParsedContext
-                           -> H.CadenceState
-                           -> Int
-                           -> IO ([H.CadenceState], [StepDiagnostic])
-buildChainOfflineWithDiag config gen ent context pctx start totalSteps = do
-  let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
-  ((_current, revChain, _counter), revDiags) <-
-    foldM (stepChainOffline config gen (Just 1) ent context pctx)
-          ((start, [start], initCounter), [])
-          [1..totalSteps]
-  pure (reverse revChain, reverse revDiags)
-
--- |Build cadence chain offline with configurable verbosity diagnostics.
-buildChainOfflineWithDiagV :: GeneratorConfig
-                            -> GenIO
-                            -> Int
-                            -> Double
-                            -> HarmonicContext
-                            -> ParsedContext
-                            -> H.CadenceState
-                            -> Int
-                            -> IO ([H.CadenceState], [StepDiagnostic])
-buildChainOfflineWithDiagV config gen verbosity ent context pctx start totalSteps = do
-  let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
-  ((_current, revChain, _counter), revDiags) <-
-    foldM (stepChainOffline config gen (Just verbosity) ent context pctx)
-          ((start, [start], initCounter), [])
-          [1..totalSteps]
-  pure (reverse revChain, reverse revDiags)
-
--------------------------------------------------------------------------------
--- Strata Chain Building (per-bar narrowed ParsedContext)
--------------------------------------------------------------------------------
-
--- |Like 'buildChain' but accepts a per-bar 'ParsedContext' supplier.
--- Used by 'Harmonic.Framework.Builder.genP' to narrow '_hcOvertones' to the active strata's 5-PC
--- chroma at each bar while still running the full R→E→T pipeline
--- (graph candidates + fallback scoring + gamma selection).
---
--- The supplier is called once per bar with the 1-based bar index; it
--- should return a 'ParsedContext' whose 'pcEffectiveOvertones' is the
--- strata's chroma, with 'pcSoftBoost' set by the caller to reflect the
--- (strata, tristrata) continuity against prior bars.
-buildStrataChain :: GeneratorConfig
-                 -> GenIO
-                 -> Maybe Int       -- ^ verbosity
-                 -> Double          -- ^ entropy
-                 -> HarmonicContext -- ^ base context (threaded unchanged for non-overtone R rules)
-                 -> (Int -> ParsedContext)  -- ^ bar index (1-based) → per-bar pctx
-                 -> ComposerWeights
-                 -> H.CadenceState  -- ^ starting state
-                 -> Int             -- ^ number of steps
-                 -> DbActionT ([H.CadenceState], [StepDiagnostic])
-buildStrataChain config gen mVerb ent ctx pctxAt weights start n = do
-  let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
-  ((_, revChain, _), revDiags) <-
-    foldM (\acc i -> stepChainCore config gen mVerb ent ctx (pctxAt i) weights acc i)
-          ((start, [start], initCounter), [])
-          [1..n]
-  pure (reverse revChain, reverse revDiags)
-
--- |Offline counterpart of 'buildStrataChain'.
-buildStrataChainOffline :: GeneratorConfig
-                        -> GenIO
-                        -> Maybe Int
-                        -> Double
-                        -> HarmonicContext
-                        -> (Int -> ParsedContext)
-                        -> H.CadenceState
-                        -> Int
-                        -> IO ([H.CadenceState], [StepDiagnostic])
-buildStrataChainOffline config gen mVerb ent ctx pctxAt start n = do
-  let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
-  ((_, revChain, _), revDiags) <-
-    foldM (\acc i -> stepChainOffline config gen mVerb ent ctx (pctxAt i) acc i)
-          ((start, [start], initCounter), [])
-          [1..n]
-  pure (reverse revChain, reverse revDiags)
 
 -------------------------------------------------------------------------------
 -- Scoring and Selection
@@ -674,11 +525,11 @@ applyDriftFilter direction currentState pool =
   in if null filtered then pool else filtered
 
 -------------------------------------------------------------------------------
--- gen4 Fusion (add one R-valid tone to a selected triad)
+-- genE Fusion (add one R-valid tone to a selected triad)
 -------------------------------------------------------------------------------
 
 -- |Fuse one palette tone into a triad state, producing the 4-note bar the
--- gen4 family emits. State-local by construction: the candidate set is
+-- genE family emits. State-local by construction: the candidate set is
 -- @pcEffectiveOvertones \\ triadAbsPCs@ — the set-theoretic collapse of
 -- "every R-valid triad sharing exactly 2 pitches with the selected triad,
 -- unioned over the original root" (any such triad unions to T ∪ {x}).

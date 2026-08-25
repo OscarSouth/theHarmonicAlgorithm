@@ -113,7 +113,7 @@ printDiagnostics verbosity diag = do
       Just chord -> putStrLn $ "  Chord: " ++ chord
       Nothing -> return ()
 
-    -- gen4 fusion (added-tone draw)
+    -- genE fusion (added-tone draw)
     case sdFusion step of
       Just fd -> putStrLn $ "  Fusion: +PC" ++ show (fdAddedPC fd)
                             ++ " → " ++ fdFusedName fd

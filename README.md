@@ -317,7 +317,9 @@ This project wouldn't exist without the work of:
 - **Paul Hindemith** — interval dissonance theory from The Craft of Musical
   Composition (1937), which informs the evaluation scoring
 - **UCI Machine Learning Repository** — the Yale Classical Archives Corpus
-  that trains the model
+  that trains the classical model
+- **Carey Bunks** — the Jazz-Chord-Progressions-Corpus (ISMIR 2023) that
+  trains the jazz model; full citation in [NOTICES.md](NOTICES.md)
 
 ___
 

@@ -12,6 +12,7 @@
 
 module Harmonic.Rules.Types.ProgressionContext
   ( Layer(..)
+  , Family(..)
   , ProgressionContext(..)
   , layer
   , pcLength
@@ -26,6 +27,7 @@ import Data.Foldable (toList)
 
 import qualified Harmonic.Rules.Types.Progression as Prog
 import Harmonic.Rules.Types.Progression (Progression(..), progLength)
+import qualified Harmonic.Rules.Types.Harmony as H
 import Harmonic.Rules.Types.Scale (Tristrata, StrataLabel)
 
 -- |Layer tag selecting one of the three progression layers at a call site.
@@ -39,6 +41,19 @@ import Harmonic.Rules.Types.Scale (Tristrata, StrataLabel)
 data Layer = T | S | M
   deriving (Eq, Ord, Show, Read, Enum, Bounded)
 
+-- |Generation family a progression belongs to. Families never mix:
+-- regeneration ('Harmonic.Framework.Builder.genFrom') always reproduces
+-- the source's family, and @fuse@ of differing families downgrades to
+-- 'FTriad' (the walk then re-reads cardinality bar by bar, matching the
+-- historical hand-mixed behaviour).
+--
+-- * 'FTriad'    — plain triadic walk ('Harmonic.Framework.Builder.gen').
+-- * 'FExtended' — uniform 4-note fusion family ('Harmonic.Framework.Builder.genE').
+-- * 'FStrata'   — strata-first family ('Harmonic.Framework.Builder.genP'\/@genI@; carries provenance).
+-- * 'FJazz'     — jazz Change-graph walk ('Harmonic.Framework.Builder.genJ'; variable arity 3-6).
+data Family = FTriad | FExtended | FStrata | FJazz
+  deriving (Eq, Ord, Show, Read, Enum, Bounded)
+
 -- |Three bar-aligned progression layers with optional per-bar provenance.
 --
 -- Invariant: @progLength triadLayer == progLength strataLayer == progLength modeLayer@,
@@ -48,6 +63,7 @@ data ProgressionContext = ProgressionContext
   , strataLayer  :: Progression
   , modeLayer    :: Progression
   , pcProvenance :: Maybe (Seq (Tristrata, StrataLabel))
+  , pcFamily     :: Family
   } deriving (Eq)
 
 -- Source-compatible with the legacy 'Progression' display; verbose triadic layout only.
@@ -73,7 +89,18 @@ fromProgression p = ProgressionContext
   , strataLayer  = p
   , modeLayer    = p
   , pcProvenance = Nothing
+  , pcFamily     = inferFamilyFromProgression p
   }
+
+-- |Cardinality-based family inference for progressions arriving without
+-- an explicit stamp (hand-built, deserialised, or legacy callers):
+-- uniform 4-note bars are 'FExtended'; anything else 'FTriad'. Strata
+-- and jazz producers stamp 'pcFamily' explicitly instead.
+inferFamilyFromProgression :: Progression -> Family
+inferFamilyFromProgression p =
+  let sizes = [ length (H.cadenceIntervals (H.stateCadence cs))
+              | cs <- toList (Prog.unProgression p) ]
+  in if not (null sizes) && all (== 4) sizes then FExtended else FTriad
 
 -- |Apply a 'Progression'-transforming function pointwise across all three
 -- layers. Drops provenance — specific Class 1 combinators that preserve bar
@@ -85,6 +112,7 @@ liftPC f pc = ProgressionContext
   , strataLayer  = f (strataLayer pc)
   , modeLayer    = f (modeLayer pc)
   , pcProvenance = Nothing
+  , pcFamily     = pcFamily pc
   }
 
 instance Semigroup ProgressionContext where
@@ -95,10 +123,11 @@ instance Semigroup ProgressionContext where
     , pcProvenance = case (pcProvenance a, pcProvenance b) of
                        (Just sa, Just sb) -> Just (sa Seq.>< sb)
                        _                  -> Nothing
+    , pcFamily     = if pcFamily a == pcFamily b then pcFamily a else FTriad
     }
 
 instance Monoid ProgressionContext where
-  mempty = ProgressionContext mempty mempty mempty Nothing
+  mempty = ProgressionContext mempty mempty mempty Nothing FTriad
 
 -- |Splice a range of bars within a 'ProgressionContext', replacing the
 -- triad \/ strata \/ mode layers and the 'pcProvenance' sequence in lockstep.
@@ -135,7 +164,7 @@ pcSplice src start end ins =
       prov'   = case (pcProvenance src, pcProvenance ins) of
                   (Just s, Just i) -> Just (spliceSeq s start end i)
                   _                -> Nothing
-  in ProgressionContext triad' strata' mode' prov'
+  in ProgressionContext triad' strata' mode' prov' (pcFamily src)
 
 -- |Plain sequence splice with 1-indexed wrap-aware semantics. Mirrors the
 -- geometry of 'Prog.spliceProgression' but without movement-fix

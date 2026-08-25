@@ -78,7 +78,11 @@ def _run(here, tmp, a):
     session = tmp / "session.ghci"
     session.write_text(f":script {BOOT}\n{gen.stdout}\nputStrLn \"{DONE}\"\n:quit\n")
 
-    proc = subprocess.run(["stack", "ghci", "--ghci-options=-v0"],
+    # The guide deliberately binds results the reader is invited to play
+    # with (pcNN <- ...), so unused-binding warnings are pedagogical noise
+    # here, not defects — the gate's job is type errors.
+    proc = subprocess.run(["stack", "ghci",
+                           "--ghci-options=-v0 -Wno-unused-matches -Wno-unused-local-binds -Wno-unused-do-bind"],
                           cwd=ROOT, stdin=session.open(), capture_output=True, text=True)
     out = proc.stdout + proc.stderr
 

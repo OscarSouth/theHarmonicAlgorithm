@@ -1,0 +1,303 @@
+-- ══════════════════════════════════════════════════════════
+-- The Harmonic Algorithm — Jazz (:Change) Ingestion Diagnostic
+-- ══════════════════════════════════════════════════════════
+--
+-- A top-to-bottom exploration of the new jazz corpus layer:
+-- chord-symbol parser → curated tone sets → the jazz namer →
+-- beatwise cadence extraction → the :Change graph on the
+-- scratch container. Execute each line as you scroll.
+--
+-- STATUS (2026-08-25): FULL FEATURE. The :Change graph lives in
+-- the core database alongside :Cadence (one DB, two labels), and
+-- gen-side genJ is implemented: §7 generates and §8 plays it
+-- through the normal arrange pipeline.
+--
+-- ── PREREQUISITES ──
+-- The core database (jazz graph already ingested):
+--
+--     docker compose up -d neo4j
+--
+-- To re-ingest the jazz graph from the corpus (label-scoped,
+-- classical data untouched):    stack run -- jazz
+--
+-- The corpus itself: ~/musicdata/Jazz-Chord-Progressions-Corpus
+-- (Bunks/Weyde/Dixon/Di Giorgi, ISMIR 2023, CC BY 4.0).
+
+-- ── 0. IMPORTS ──
+-- The jazz layer is deliberately separate from Harmonic.Lib:
+-- it's an ingestion module, not a performance surface (yet).
+
+import qualified Harmonic.Rules.Import.Jazz as J
+
+import qualified Data.Text.IO as TIO
+
+import Harmonic.Database (connectNeo4jAt, runDb, runQuery)
+
+import Harmonic.Rules.Types.Pitch (unPitchClass)
+
+-- ══════════════════════════════════════════════════════════
+-- 1. ONE SYMBOL → PITCH-CLASS CONTENT
+-- ══════════════════════════════════════════════════════════
+-- parseToken reads a leadsheet symbol exactly as notated.
+-- jcTones = absolute pitch classes (0=C .. 11=B), sorted.
+-- jcAnchor = the sounding fundamental: slash bass when written,
+-- otherwise the chord root. Zero-form and movement are relative
+-- to the anchor — the slash is honoured, never rewritten.
+
+J.parseToken "C"
+
+J.parseToken "Dm7"
+
+-- Slash chord, bass NOT a chord member: G joins the set, and
+-- becomes the anchor. {D F A C} ∪ {G} over G.
+J.parseToken "Dm7/G"
+
+-- Slash chord, bass IS a chord member (an inversion): the set
+-- gains nothing, the anchor still moves to the bass.
+J.parseToken "C/E"
+
+-- Enharmonics fold by arithmetic — Cb is pitch class 11:
+J.parseToken "Cb13#11"
+
+-- Deep-tail alteration stack:
+J.parseToken "Eb7b9#11"
+
+-- Notated silence is a first-class token (it will BRIDGE, §4):
+J.parseToken "NC"
+
+-- Refusals are data, not crashes — unknown symbols are recorded:
+J.parseToken "Hm7"
+
+J.parseToken "Cwat"
+
+-- ══════════════════════════════════════════════════════════
+-- 2. THE CURATED QUALITY TABLE
+-- ══════════════════════════════════════════════════════════
+-- 122 quality spellings → canonical tone sets (semitones above
+-- the root). Curated to what a player reads, not the full
+-- theory stack: 13 = 1-3-b7-9-13 (no 5th/11th), dominant 11
+-- omits the 3rd, alterations displace their naturals.
+
+length J.qualityNames
+
+-- A few lookups (Data.Map interface):
+Data.Map.Strict.lookup "13" J.qualityIntervals
+
+Data.Map.Strict.lookup "7alt" J.qualityIntervals
+
+Data.Map.Strict.lookup "m7b5" J.qualityIntervals
+
+-- Spelling variants collapse to one set — 122 names, 85 sets:
+Data.Map.Strict.lookup "h7" J.qualityIntervals
+
+Data.Map.Strict.size J.canonicalQuality
+
+-- Where variants collide, the corpus-preferred spelling wins
+-- (embedded census frequencies decide — e.g. the corpus writes
+-- "7+" 1048 times vs "7#5" 758 times, so the node shows "7+"):
+Data.Map.Strict.lookup [0,4,8,10] J.canonicalQuality
+
+-- ══════════════════════════════════════════════════════════
+-- 3. THE JAZZ NAMER
+-- ══════════════════════════════════════════════════════════
+-- jazzFunctionality is the pure set→name function that keeps
+-- node identity and node label in lockstep. Direct table hit:
+
+J.jazzFunctionality [0,4,7]
+
+J.jazzFunctionality [0,3,7,10]
+
+-- Anything else is a slash shape: some ROTATION of the set is a
+-- curated quality, and the name is quality/bass-degree.
+-- {0,5,9} rotated to its 5th is {0,4,7} — a major triad over
+-- its fifth, i.e. G/D:
+J.jazzFunctionality [0,5,9]
+
+-- Cm/Bb: {0,2,5,9} is a rotation of {0,3,7,10} — the namer
+-- discovers that Cm over Bb IS an inverted m7:
+J.jazzFunctionality [0,2,5,9]
+
+-- First-inversion dominant (G7/B):
+J.jazzFunctionality [0,3,6,8]
+
+-- Alien sets refuse rather than invent (chromatic cluster):
+J.jazzFunctionality [0,1,2]
+
+-- ══════════════════════════════════════════════════════════
+-- 4. A REAL TUNE, BEAT BY BEAT
+-- ══════════════════════════════════════════════════════════
+
+birdText <- TIO.readFile "/Users/oscarsouth/musicdata/Jazz-Chord-Progressions-Corpus/SongDB/Songs[H-O]/LullabyOfBirdland.txt"
+
+bird <- either (fail . show) pure (J.parseSong "LullabyOfBirdland" birdText)
+
+J.jsTitle bird
+
+J.jsComposer bird
+
+J.jsTimeSig bird
+
+length (J.jsBars bird)
+
+-- Beat expansion: a bar's beats are shared front-loaded across
+-- its chords (2 chords in 4/4 → 2+2; 3 chords → 2+1+1), and a
+-- chord holding n beats repeats n times in the stream — that's
+-- where pedal self-cadences come from. NC beats VANISH, so the
+-- harmony either side of a silence becomes adjacent (bridge).
+
+J.beatSlots (4,4) 2
+
+J.beatSlots (4,4) 3
+
+J.beatSlots (3,4) 2
+
+length (J.beatStream bird)
+
+-- The cadence chain: movement of the anchor + zero-form target.
+-- "pedal" = sustained harmony, "asc 5" = up a fourth (the V→I /
+-- ii→V motion), each named by the §3 namer:
+
+mapM_ print (take 12 (J.songCadences bird))
+
+-- Same shape as the classical graph key:
+map J.jazzShow (take 6 (J.songCadences bird))
+
+-- ══════════════════════════════════════════════════════════
+-- 5. HEAR IT (d01, one beat per cycle)
+-- ══════════════════════════════════════════════════════════
+-- The tune's beat stream as raw tone sets — not generation,
+-- just the parsed corpus data made audible. 1 cycle = 1 beat.
+
+birdNotes = map (map ((+ 48) . unPitchClass) . J.jcTones) (J.beatStream bird)
+
+d01 $ n (cat (map (stack . map (pure . fromIntegral)) birdNotes)) # ch 01
+
+hush
+
+-- ══════════════════════════════════════════════════════════
+-- 6. THE :Change GRAPH (core database probes)
+-- ══════════════════════════════════════════════════════════
+-- Same database, same NEXT edges, disjoint label — the classical
+-- :Cadence graph is untouched by jazz ingest (verified by count +
+-- digest gates at promotion).
+
+conn <- connectNeo4jAt "http://localhost:7474"
+
+runDb conn (runQuery "MATCH (n:Change) RETURN count(n) AS nodes")
+
+runDb conn (runQuery "MATCH (:Change)-[r:NEXT]->(:Change) RETURN count(r) AS edges, round(sum(r.confidence)) AS mass")
+
+-- The graph speaks jazz: the heaviest non-self edges are the
+-- ii-V-I, by an order of magnitude.
+runDb conn (runQuery "MATCH (a:Change)-[r:NEXT]->(b:Change) WHERE a.show <> b.show RETURN a.show, b.show, r.confidence ORDER BY r.confidence DESC LIMIT 8")
+
+-- Out of any node, the walk's future candidates (this is what
+-- gen-side genJ will rank and sample):
+runDb conn (runQuery "MATCH (c:Change {show: '( pedal -> m7 )'})-[r:NEXT]->(n:Change) RETURN n.show, r.confidence ORDER BY r.confidence DESC LIMIT 12")
+
+-- Per-composer weights ride every edge (sparse JSON, summed
+-- into confidence — identical machinery to the classical graph):
+runDb conn (runQuery "MATCH (a:Change {show: '( pedal -> m7 )'})-[r:NEXT]->(b:Change {show: '( asc 5 -> 7 )'}) RETURN r.confidence, left(r.weights, 200)")
+
+-- One composer's voice, isolated (Monk's node vocabulary):
+runDb conn (runQuery "MATCH (a:Change)-[r:NEXT]->(b:Change) WHERE r.weights CONTAINS 'theloniousmonk' RETURN count(r) AS monkEdges")
+
+-- ══════════════════════════════════════════════════════════
+-- 7. GENERATION: genJ
+-- ══════════════════════════════════════════════════════════
+-- The jazz walk. Same modifier chain as gen/genE/genP; the R
+-- constraint IS the graph (no consonance fallback — measured:
+-- ~219-candidate typical pools, 0 dead ends, 99.6% reachability).
+-- Chords come out at corpus arity (3-6 tones).
+--
+-- SEEK SEMANTICS (one spec, both corpora):
+--   seek "*"                  whole-corpus frequency walk
+--   seek "monk:60 coltrane:40"  jazz-composer blend (matched by
+--                             substring against jazz keys — weight
+--                             splits across "theloniousmonk" etc.)
+--   seek "debussy"            no jazz names -> jazz walk on "*",
+--                             classical STEER: each step, the
+--                             current chord's most consonant
+--                             embedded triad asks the classical
+--                             graph "what would Debussy do?", and
+--                             jazz candidates containing a
+--                             recommended triad (same movement)
+--                             get boosted.
+--   seek "monk debussy"       blend AND steer together.
+--   seek "none"               refused — no offline jazz mode.
+
+jstart = initCadenceState 0 "C" [0,4,7]
+
+sj <- seek "*" $ cue jstart $ len 8 $ entropy 0.3 $ genJ
+
+-- Standard trace: per-step walk lines (node -> node, pool, pick):
+sj2 <- seek "theloniousmonk:60 johncoltrane:40" $ cue jstart $ len 8 $ entropy 0.5 $ genJ'
+
+-- Verbose: adds seek resolution + steer match counts:
+sj3 <- seek "debussy" $ cue jstart $ len 8 $ entropy 0.3 $ genJ''
+
+-- Entropy dial behaves identically to the classical families:
+-- 0 hugs the corpus's strongest continuations (lots of ii-V-I),
+-- 1 wanders around rank 10, 2+ gets genuinely outside.
+sj4 <- seek "*" $ cue jstart $ len 8 $ entropy 1.2 $ genJ
+
+-- Single-composer viability (measured subgraphs — tunes/edges/
+-- weighted branching): rodgers 66/813/39, arlen 51/1086/43,
+-- monk 59/770/31, porter 42/713/35, coltrane 45/467/23,
+-- parker 45/309/22. Top-dozen composers walk independently;
+-- thinner names want blends. A blend that dead-ends mid-walk
+-- widens to "*" for that step and says so.
+
+-- ── STEER DIAL ──
+-- Classical steering strength (default 3.0; 0 = off). At 8 a
+-- Debussy steer audibly drags the walk into maj7 colour:
+
+sj5 <- seek "debussy" $ steer 8 $ cue jstart $ len 8 $ entropy 0.3 $ genJ'
+
+-- ── TONAL CONSTRAINTS ──
+-- The same R filter as every family, applied to jazz candidates
+-- (absolute tones from the anchor). Key of C pins the walk to
+-- diatonic corpus vocabulary — Am7, Dm7, G7sus4, CM7, C/B...
+-- A step the filter empties is relaxed with a notice (there is
+-- deliberately no fallback pool to fill from).
+
+ctxC = harmonicContext "*" "0#" "*"
+
+sj6 <- seek "*" $ cue jstart $ tonal ctxC $ len 8 $ entropy 0.4 $ genJ'
+
+-- ── REGENERATE IN PLACE ──
+-- genJ output is stamped as jazz-family: genFrom regenerates a
+-- range jazz-natively (bars outside the range byte-identical,
+-- seam movement metadata fixed by the standard splice).
+
+sj7 <- seek "*" $ entropy 0.6 $ genFrom sj 3 4
+
+-- ── MULTI-ATTEMPT ──
+-- attempt N K ranks candidates against the Change graph itself
+-- (jazz cadence-favourability + the shared rm/vl/mv components);
+-- genJ'' prints the scoreboard:
+
+sj8 <- seek "*" $ attempt 3 8 $ cue jstart $ len 8 $ entropy 0.4 $ genJ''
+
+-- ══════════════════════════════════════════════════════════
+-- 8. PLAY IT (the normal performance pipeline, unchanged)
+-- ══════════════════════════════════════════════════════════
+-- genJ output is an ordinary ProgressionContext: voicings,
+-- kinetics, arrange, subKick all work as with gen/genE/genP.
+
+flow (triadLayer sj)
+
+grid (triadLayer sj)
+
+pcj = fromProgression (triadLayer sj)
+
+kj = iK 120 [at 0 1 1 pcj] (rep pcj 1)
+
+d01 $ arrange (0,1) kj (-9,9) T flow id ["[0 1 2 3]/4"] # ch 01
+
+hush
+
+-- Walking bass under it (channel 2), comping over it:
+d02 $ arrange (0,1) kj (-16,-4) T root id ["[0 ~ 0 0]/4"] # ch 02
+
+hush

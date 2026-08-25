@@ -20,6 +20,14 @@ module Harmonic.Evaluation.Database.Query
   , fetchTransitions
   , fetchTransitionsAggregate
 
+    -- * Jazz (Change) Graph Queries
+  , ChangeCandidate(..)
+  , fetchChangeTransitions
+  , fetchChangeAggregate
+  , resolveChangeCue
+  , fetchJazzComposers
+  , splitSeekByCorpus
+
     -- * Weight Resolution
   , resolveWeights
   , applyComposerBlend
@@ -32,6 +40,7 @@ import qualified Data.Text as T
 import           Data.Text (Text)
 import qualified Data.Text.Encoding as TE
 import           Data.Maybe (fromMaybe, mapMaybe)
+import           Data.Either (partitionEithers)
 import           Data.List (sortBy)
 import           Data.Ord (Down(..))
 import           Data.Function (on)
@@ -42,7 +51,9 @@ import qualified Data.Aeson.KeyMap as KM
 import qualified Data.ByteString.Lazy as BL
 import           Data.Scientific (toRealFloat)
 
-import           Harmonic.Database (DbActionT, runQueryP)
+import qualified Data.Set as Set
+import           Harmonic.Database (DbActionT, runQuery, runQueryP)
+import           Text.Read (readMaybe)
 import qualified Harmonic.Rules.Types.Harmony as H
 
 -- | Map from composer name to weight (e.g., "bach" -> 0.7)
@@ -198,13 +209,13 @@ fetchTransitionsAggregate cadenceShow = do
 --   candidate weights: {"bach": 5, "debussy": 3}
 --   user blend: {"bach": 0.7, "debussy": 0.3}
 --   score = 5 * 0.7 + 3 * 0.3 = 4.4
-resolveWeights :: ComposerWeights -> [(H.Cadence, ComposerWeights)] -> [(H.Cadence, Double)]
+resolveWeights :: ComposerWeights -> [(a, ComposerWeights)] -> [(a, Double)]
 resolveWeights blend candidates =
   let scored = map (scoreCandidate blend) candidates
       sorted = sortBy (compare `on` (Down . snd)) scored  -- Highest first
    in sorted
   where
-    scoreCandidate :: ComposerWeights -> (H.Cadence, ComposerWeights) -> (H.Cadence, Double)
+    scoreCandidate :: ComposerWeights -> (a, ComposerWeights) -> (a, Double)
     scoreCandidate userBlend (cadence, edgeWeights)
       | Map.null userBlend =
           -- Wildcard "*": use aggregate (sum of all composer weights = r.confidence equivalent)
@@ -225,7 +236,7 @@ resolveWeights blend candidates =
            in (cadence, score)
 
 -- |Apply composer blend to filter transitions, keeping only those with score > 0
-applyComposerBlend :: ComposerWeights -> [(H.Cadence, ComposerWeights)] -> [(H.Cadence, Double)]
+applyComposerBlend :: ComposerWeights -> [(a, ComposerWeights)] -> [(a, Double)]
 applyComposerBlend blend = filter ((> 0) . snd) . resolveWeights blend
 
 -------------------------------------------------------------------------------
@@ -260,3 +271,112 @@ extractText _            = Nothing
 extractDouble :: A.Value -> Maybe Double
 extractDouble (A.Number n) = Just (toRealFloat n)
 extractDouble _            = Nothing
+
+-------------------------------------------------------------------------------
+-- Jazz (Change) Graph Queries
+-------------------------------------------------------------------------------
+
+-- | One candidate next node in the jazz graph: its @show@ key (the walk
+-- state), plus the movement and anchor-relative zero-form set parsed
+-- back from node properties.
+data ChangeCandidate = ChangeCandidate
+  { ccShow     :: Text        -- ^ Node key, e.g. @( asc 5 -> 7 )@.
+  , ccMovement :: H.Movement  -- ^ Anchor motion arriving at the node.
+  , ccSet      :: [Int]       -- ^ Zero-form tone set above the anchor.
+  } deriving (Show, Eq)
+
+-- | Outgoing jazz transitions with full per-composer weights — the blend
+-- path, mirroring 'fetchTransitions' for the @Change@ label.
+fetchChangeTransitions :: Text -> DbActionT [(ChangeCandidate, ComposerWeights)]
+fetchChangeTransitions showKey = do
+  let query = T.unlines
+        [ "MATCH (c:Change {show: $show})-[r:NEXT]->(n:Change)"
+        , "RETURN n.show AS show, n.movement AS movement, n.chord AS chord, r.weights AS weights"
+        ]
+  records <- runQueryP query (Map.fromList [("show", A.String showKey)])
+  pure $ mapMaybe parseRecord records
+  where
+    parseRecord record = do
+      cand <- parseCandidate record
+      weightsStr <- extractText =<< Map.lookup "weights" record
+      pure (cand, parseWeightsJson weightsStr)
+
+-- | Outgoing jazz transitions on the pre-aggregated corpus score — the
+-- wildcard fast path, mirroring 'fetchTransitionsAggregate'. Sorted
+-- highest first.
+fetchChangeAggregate :: Text -> DbActionT [(ChangeCandidate, Double)]
+fetchChangeAggregate showKey = do
+  let query = T.unlines
+        [ "MATCH (c:Change {show: $show})-[r:NEXT]->(n:Change)"
+        , "RETURN n.show AS show, n.movement AS movement, n.chord AS chord, r.confidence AS confidence"
+        ]
+  records <- runQueryP query (Map.fromList [("show", A.String showKey)])
+  pure $ sortBy (compare `on` (Down . snd))
+       $ filter ((> 0) . snd)
+       $ mapMaybe parseRecord records
+  where
+    parseRecord record = do
+      cand <- parseCandidate record
+      conf <- extractDouble =<< Map.lookup "confidence" record
+      pure (cand, conf)
+
+-- Shared row parser for Change node columns (show, movement, chord).
+parseCandidate :: Map Text A.Value -> Maybe ChangeCandidate
+parseCandidate record = do
+  showTxt  <- extractText =<< Map.lookup "show" record
+  mvmtStr  <- extractText =<< Map.lookup "movement" record
+  chordStr <- extractText =<< Map.lookup "chord" record
+  mvmt     <- readMaybe (T.unpack mvmtStr)
+  set      <- readMaybe (T.unpack chordStr)
+  pure (ChangeCandidate showTxt mvmt set)
+
+-- | Resolve a cue functionality to a jazz walk-start node. Exact
+-- movement+name keys are the caller's own lookup; this finds the best
+-- node for a bare functionality: prefer the pedal arrival, then the
+-- node with the most outgoing corpus mass.
+resolveChangeCue :: Text -> DbActionT (Maybe Text)
+resolveChangeCue functionality = do
+  let query = T.unlines
+        [ "MATCH (n:Change) WHERE n.show ENDS WITH $suffix"
+        , "OPTIONAL MATCH (n)-[r:NEXT]->(:Change)"
+        , "WITH n.show AS s, sum(r.confidence) AS out"
+        , "RETURN s ORDER BY (CASE WHEN s STARTS WITH '( pedal' THEN 1 ELSE 0 END) DESC, out DESC"
+        , "LIMIT 1"
+        ]
+      suffix = "-> " <> functionality <> " )"
+  records <- runQueryP query (Map.fromList [("suffix", A.String suffix)])
+  pure $ case records of
+    (r:_) -> extractText =<< Map.lookup "s" r
+    []    -> Nothing
+
+-- | Split a parsed seek blend into its (jazz, classical-steer) halves
+-- against the jazz graph's key set. A token names a jazz composer when
+-- it matches a key exactly or as a substring (@"monk"@ matches
+-- @"theloniousmonk"@ and co-credits); its weight is split equally across
+-- all matching keys. Unmatched tokens are classical steer names. Both
+-- halves are renormalised. Pure — callers fetch the key set once
+-- ('fetchJazzComposers') and reuse it.
+splitSeekByCorpus :: Set.Set Text -> ComposerWeights -> (ComposerWeights, ComposerWeights)
+splitSeekByCorpus jazzKeys blend =
+  let expand (tok, w)
+        | Set.member tok jazzKeys = Left [(tok, w)]
+        | not (null subs)         = Left [ (k, w / fromIntegral (length subs)) | k <- subs ]
+        | otherwise               = Right (tok, w)
+        where subs = [ k | k <- Set.toList jazzKeys, tok `T.isInfixOf` k ]
+      (js, cs) = partitionEithers (map expand (Map.toList blend))
+  in ( normalizeWeights (Map.fromListWith (+) (concat js))
+     , normalizeWeights (Map.fromList cs) )
+
+-- | Every composer key present in the jazz graph — the corpus membership
+-- test that splits a mixed seek spec into its jazz-blend and
+-- classical-steer halves. One scan of the (small) @Change@ edge set,
+-- keys unioned client-side.
+fetchJazzComposers :: DbActionT (Set.Set Text)
+fetchJazzComposers = do
+  records <- runQuery "MATCH (:Change)-[r:NEXT]->(:Change) RETURN r.weights AS w"
+  pure $ Set.fromList
+    [ T.toLower k
+    | record <- records
+    , Just wtxt <- [extractText =<< Map.lookup "w" record]
+    , k <- Map.keys (parseWeightsJson wtxt)
+    ]

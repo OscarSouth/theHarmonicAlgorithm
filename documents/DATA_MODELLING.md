@@ -35,7 +35,7 @@ registers. Two abstractions make it tractable as a Markov model:
   plausible triads. 55 zero-form triads × 12 movements = a complete, closed
   660-node keyspace — small enough that every node accumulates real
   evidence, rich enough to voice anything downstream (extensions are
-  reintroduced by the voicing and gen4/strata layers).
+  reintroduced by the voicing and genE/strata layers).
 
 ## 2. The model
 

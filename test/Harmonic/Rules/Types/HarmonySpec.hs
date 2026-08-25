@@ -308,7 +308,7 @@ spec = do
       let cs = mkCadenceStatePCs Eb Unison [0,3,7,10]
       stateSpelling cs `shouldBe` FlatSpelling
 
-  describe "walkTriadCadence / walkTriadState (gen4 walk projection)" $ do
+  describe "walkTriadCadence / walkTriadState (genE walk projection)" $ do
 
     it "is identity for triad cadences" $ do
       let cad = Cadence "maj" Unison [P 0, P 4, P 7]

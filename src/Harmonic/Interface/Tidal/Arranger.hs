@@ -200,6 +200,7 @@ interleave a b = PC.ProgressionContext
   , PC.strataLayer  = fuseProgression (PC.strataLayer a) (PC.strataLayer b)
   , PC.modeLayer    = fuseProgression (PC.modeLayer a)   (PC.modeLayer b)
   , PC.pcProvenance = Nothing
+  , PC.pcFamily     = if PC.pcFamily a == PC.pcFamily b then PC.pcFamily a else PC.FTriad
   }
 
 -- |Expand a progression by repeating each chord n times
@@ -677,7 +678,7 @@ lead input = do
 -- |Construct a 'CadenceState' from an explicit list of note names —
 -- the arbitrary-cardinality counterpart to 'lead'. The first note is the
 -- root\/bass; the rest become root-relative intervals (any count, so
--- 4-note cues for @gen4@ and beyond are first-class). Never truncates:
+-- 4-note cues for @genE@ and beyond are first-class). Never truncates:
 -- builds via 'mkCadenceStatePCs', so all pitch content survives into the
 -- cue. Enharmonics follow the typed accidentals ("Eb" spells flat,
 -- "D#" sharp; double accidentals accepted and resolved). An optional

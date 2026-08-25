@@ -165,14 +165,14 @@ spec = do
       -- Hybrid: each edge present + share 1/1 → 0.5 + 0.5 = 1.0. Mean = 1.0.
       let prog = mkProg [alphaSig, betaSig]
           srcMap = Map.fromList
-            [ (T.pack (show cAlpha), [(cBeta,  1.0)])
-            , (T.pack (show cBeta),  [(cAlpha, 1.0)])
+            [ (T.pack (show cAlpha), [(T.pack (show cBeta),  1.0)])
+            , (T.pack (show cBeta),  [(T.pack (show cAlpha), 1.0)])
             ]
       cadenceFavFromMap srcMap prog `shouldBe` 1.0
 
-    it "a fused 4-note chain scores identically to its triad walk shadow (gen4)" $ do
+    it "a fused 4-note chain scores identically to its triad walk shadow (genE)" $ do
       -- Same alpha/beta walk, but each bar carries maj7 (triad + added 11)
-      -- as gen4 emits. walkTriadCadence must project the keys back to the
+      -- as genE emits. walkTriadCadence must project the keys back to the
       -- plain maj cadences — otherwise the map misses and the score is 0.
       let fuse4 (m, r, ints) =
             let base = H.initCadenceState m r ints
@@ -183,8 +183,8 @@ spec = do
           fusedProg = Prog.Progression (Seq.fromList (map fuse4 [alphaSig, betaSig]))
           triadProg = mkProg [alphaSig, betaSig]
           srcMap = Map.fromList
-            [ (T.pack (show cAlpha), [(cBeta,  1.0)])
-            , (T.pack (show cBeta),  [(cAlpha, 1.0)])
+            [ (T.pack (show cAlpha), [(T.pack (show cBeta),  1.0)])
+            , (T.pack (show cBeta),  [(T.pack (show cAlpha), 1.0)])
             ]
       cadenceFavFromMap srcMap fusedProg
         `shouldBe` cadenceFavFromMap srcMap triadProg
@@ -195,7 +195,7 @@ spec = do
       -- back; map empty there.
       let prog = mkProg [alphaSig, betaSig]
           srcMap = Map.fromList
-            [ (T.pack (show cAlpha), [(cGamma, 5.0)])    -- alpha→gamma, not alpha→beta
+            [ (T.pack (show cAlpha), [(T.pack (show cGamma), 5.0)])    -- alpha→gamma, not alpha→beta
             ]
       -- Edge 1 (α→β): 0/5 = 0. Edge 2 (β→α): β not in map → 0. Mean = 0.
       cadenceFavFromMap srcMap prog `shouldBe` 0.0
@@ -206,7 +206,7 @@ spec = do
       -- Mean of [1, 0] = 0.5.
       let prog = mkProg [alphaSig, betaSig]
           srcMap = Map.fromList
-            [ (T.pack (show cAlpha), [(cBeta, 3.0)])
+            [ (T.pack (show cAlpha), [(T.pack (show cBeta), 3.0)])
             ]
       cadenceFavFromMap srcMap prog `shouldBe` 0.5
 
@@ -216,8 +216,8 @@ spec = do
       -- Mean = (0.65 + 1.0) / 2 = 0.825.
       let prog = mkProg [alphaSig, betaSig]
           srcMap = Map.fromList
-            [ (T.pack (show cAlpha), [(cBeta, 3.0), (cGamma, 7.0)])
-            , (T.pack (show cBeta),  [(cAlpha, 1.0)])
+            [ (T.pack (show cAlpha), [(T.pack (show cBeta), 3.0), (T.pack (show cGamma), 7.0)])
+            , (T.pack (show cBeta),  [(T.pack (show cAlpha), 1.0)])
             ]
       let result = cadenceFavFromMap srcMap prog
       result `shouldSatisfy` (\x -> abs (x - 0.825) < 1e-9)
@@ -225,7 +225,7 @@ spec = do
     it "zero total weight under blend → contributes 0 (no division by zero)" $ do
       let prog = mkProg [alphaSig, betaSig]
           srcMap = Map.fromList
-            [ (T.pack (show cAlpha), [(cBeta,  0.0)])    -- present but zeroed
-            , (T.pack (show cBeta),  [(cAlpha, 0.0)])
+            [ (T.pack (show cAlpha), [(T.pack (show cBeta),  0.0)])    -- present but zeroed
+            , (T.pack (show cBeta),  [(T.pack (show cAlpha), 0.0)])
             ]
       cadenceFavFromMap srcMap prog `shouldBe` 0.0

@@ -238,7 +238,7 @@ hcTristrata t ctx = ctx { _hcTristrata = T.pack t }
 
 -- |Configuration for the progression generator.
 --
--- @gcQuad@ switches on the gen4 family: after each triad selection, the
+-- @gcQuad@ switches on the genE family: after each triad selection, the
 -- step fuses one R-valid palette tone into the chord (4-note output) and
 -- the walk continues from the fused chord's most-consonant embedded triad
 -- (see 'Harmonic.Framework.Builder.Core.fuseState').
@@ -248,7 +248,7 @@ hcTristrata t ctx = ctx { _hcTristrata = T.pack t }
 -- deliberately unlimited (full 660-candidate fallback; see
 -- 'Harmonic.Framework.Builder.Core').
 data GeneratorConfig = GeneratorConfig
-  { gcQuad :: !Bool  -- ^ gen4: fuse a 4th tone into every generated bar (default False)
+  { gcQuad :: !Bool  -- ^ genE: fuse a 4th tone into every generated bar (default False)
   } deriving (Show, Eq)
 
 -- |Default configuration.
@@ -375,6 +375,8 @@ data GenMode
   | FromProgPC PC.ProgressionContext !Int !Int -- ^ Regenerate range in a strata-aware context (preserves all three layers + provenance)
   | GridMode                                    -- ^ Static repetition of cue chord
   | StrataMode Sc.StrataLabel                  -- ^ 'Harmonic.Framework.Builder.genP' (strata-first, produces ProgressionContext)
+  | JazzMode                                    -- ^ 'Harmonic.Framework.Builder.genJ' (walk over the jazz Change graph)
+  | FromProgJ PC.ProgressionContext !Int !Int   -- ^ Regenerate range in a jazz-family context
 
 -- |Configuration for the modifier-based generation API.
 --
@@ -397,7 +399,8 @@ data GenConfig = GenConfig
   , _gcBoostSame   :: Double              -- ^ same-strata continuity multiplier (default 0.90)
   , _gcBoostFlip   :: Double              -- ^ flip-flop bias multiplier        (default 0.80)
   , _gcBoostTri    :: Double              -- ^ same-tristrata bias multiplier   (default 0.70)
-  , _gcQuad        :: Bool                -- ^ gen4 family: fuse a 4th R-valid tone into every bar (default False)
+  , _gcQuad        :: Bool                -- ^ genE family: fuse a 4th R-valid tone into every bar (default False)
+  , _gcSteer       :: Double              -- ^ genJ classical-steer boost strength (default 3.0 — initial calibration; a fully-matched candidate is lifted ~(1+strength)x, several ranks up a Zipf-shaped pool)
   , _gcMaxAttempts   :: Int               -- ^ Maximum generation attempts in rank-and-select (default 1: single-pass behaviour)
   , _gcViableTarget  :: Int               -- ^ Stop early once this many viable attempts have been collected (default 1)
   , _gcViabilityFloor :: Double           -- ^ Minimum 'Harmonic.Evaluation.Scoring.Progression.totalScore' for an attempt to count as viable (default 0.5). Setting 0 recovers structural-only viability.
@@ -479,10 +482,10 @@ data StepDiagnostic = StepDiagnostic
   , sdParentKey       :: Maybe (P.PitchClass, Sc.ScaleFamily) -- ^ Parent key (root, family) of 'sdMode'
   , sdModeResult      :: Maybe Sc.ModeResult     -- ^ Raw mode classification result; 'Harmonic.Rules.Types.Scale.ModeInvalid' surfaces overlap PCs to the renderer
   , sdBarSpelling     :: Maybe H.EnharmonicSpelling -- ^ Single enharmonic spelling for the bar, derived via 'H.inferSpelling' on the mode chroma (triad-root-first). Reused across chord name, strata chroma, mode label, mode chroma, and parent-key tag so the block renders in one coherent accidental system.
-  , sdFusion          :: Maybe FusionDiag        -- ^ gen4 only: how the 4th tone was fused into this bar ('Nothing' for plain gen\/genP steps and palette-exhausted fallback bars)
+  , sdFusion          :: Maybe FusionDiag        -- ^ genE only: how the 4th tone was fused into this bar ('Nothing' for plain gen\/genP steps and palette-exhausted fallback bars)
   } deriving (Show, Eq)
 
--- |Diagnostic record for one gen4 fusion (the added-tone draw that turns
+-- |Diagnostic record for one genE fusion (the added-tone draw that turns
 -- the selected triad into a 4-note chord).
 data FusionDiag = FusionDiag
   { fdAddedPC   :: Int     -- ^ Absolute pitch class of the added tone

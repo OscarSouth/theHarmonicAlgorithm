@@ -29,9 +29,9 @@ OUT_ABS="$(cd "$OUT_DIR" && pwd)"
 
 echo "==> Graph contents before dump"
 if curl -fsS -u neo4j:password -H 'Content-Type: application/json' \
-     -d '{"statement":"MATCH (n:Cadence) WITH count(n) AS n MATCH ()-[r:NEXT]->() RETURN n, count(r)"}' \
+     -d '{"statement":"MATCH (n:Cadence) WITH count(n) AS cad OPTIONAL MATCH (ch:Change) WITH cad, count(ch) AS chg MATCH (a)-[r:NEXT]->(b) WHERE labels(a) = labels(b) RETURN cad, chg, count(r)"}' \
      http://localhost:7474/db/neo4j/query/v2 2>/dev/null \
-     | python3 -c 'import json,sys; print("   ", json.load(sys.stdin)["data"]["values"][0])'; then
+     | python3 -c 'import json,sys; v=json.load(sys.stdin)["data"]["values"][0]; print(f"    Cadence nodes: {v[0]}  Change nodes: {v[1]}  NEXT edges: {v[2]}")'; then
   :
 else
   echo "    (Neo4j not reachable — cannot report counts; continuing)"
@@ -74,7 +74,7 @@ cat <<EOF
 1. Upload as a single stable asset, decoupled from code releases:
 
      gh release create corpus-v2 \\
-       --title "Composer graph (YCACL, corpus-v2)" \\
+       --title "Harmonic graphs (YCACL :Cadence + Bunks jazz :Change, corpus-v2)" \\
        --notes "Neo4j 5.26 dump of the harmonic transition graph (consistent-path counting)." \\
        "$OUT_ABS/$DUMP_NAME" "$OUT_ABS/SHA256SUMS"
 

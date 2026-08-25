@@ -353,7 +353,7 @@ spec = do
       let chordSel = parseBP_E "[1 2 3 4]/4" :: Pattern Int
           kin = Kinetics (pure 1.0) (pure 1.0)
                   (pure (PC.ProgressionContext strataFixture strataFixture strataFixture
-                          (Just Seq.empty)))
+                          (Just Seq.empty) PC.FStrata))
                   0 0
           aFlow = arrange (0,1) (kin, chordSel) (-24,24) S A.flow id [parseBP_E "[0 1 2 3 4]"]
           aLite = arrange (0,1) (kin, chordSel) (-24,24) S A.lite id [parseBP_E "[0 1 2 3 4]"]
@@ -364,7 +364,7 @@ spec = do
           tProg = testProgression  -- 3-PC triads
           kin = Kinetics (pure 1.0) (pure 1.0)
                   (pure (PC.ProgressionContext tProg strataFixture modeFixture
-                          (Just Seq.empty)))
+                          (Just Seq.empty) PC.FStrata))
                   0 0
           aT  = arrange (0,1) (kin, chordSel) (-24,24) T A.flow id [parseBP_E "[0 1 2]"]
           aT' = arrange (0,1) (testKinetics tProg, chordSel) (-24,24) T A.flow id [parseBP_E "[0 1 2]"]

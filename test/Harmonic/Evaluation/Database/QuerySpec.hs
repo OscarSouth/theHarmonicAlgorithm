@@ -14,6 +14,7 @@ import Test.Hspec.QuickCheck
 import Test.QuickCheck
 
 import qualified Data.Map.Strict as Map
+import qualified Data.Set as Set
 import Data.Map.Strict (Map)
 import Data.Text (Text)
 import qualified Data.Text as T
@@ -46,6 +47,7 @@ testCadence n = H.Cadence ("test" ++ show n) H.Unison [P.P 0, P.P 4, P.P 7]
 
 spec :: Spec
 spec = do
+  splitSpec
   describe "parseComposerWeights" $ do
     
     describe "Space-separated equal weights" $ do
@@ -288,3 +290,29 @@ spec = do
                        ]
           result = applyComposerBlend userBlend candidates
       length result `shouldBe` 1
+
+splitSpec :: Spec
+splitSpec = describe "splitSeekByCorpus" $ do
+  let jazzKeys = Set.fromList ["theloniousmonk", "johncoltrane", "kennethsclarkeandtheloniousmonk"]
+
+  it "exact jazz key claims full weight on the jazz side" $ do
+    let (j, c) = splitSeekByCorpus jazzKeys (Map.fromList [("theloniousmonk", 1.0)])
+    Map.toList j `shouldBe` [("theloniousmonk", 1.0)]
+    Map.null c `shouldBe` True
+
+  it "substring expands across matching keys with split weight" $ do
+    let (j, _) = splitSeekByCorpus jazzKeys (Map.fromList [("monk", 1.0)])
+    Map.keys j `shouldBe` ["kennethsclarkeandtheloniousmonk", "theloniousmonk"]
+    sum (Map.elems j) `shouldSatisfy` (\s -> abs (s - 1.0) < 1e-9)
+
+  it "unmatched names land on the classical-steer side" $ do
+    let (j, c) = splitSeekByCorpus jazzKeys (Map.fromList [("debussy", 1.0)])
+    Map.null j `shouldBe` True
+    Map.toList c `shouldBe` [("debussy", 1.0)]
+
+  it "mixed specs split and renormalise both halves" $ do
+    let (j, c) = splitSeekByCorpus jazzKeys
+                   (Map.fromList [("coltrane", 0.5), ("debussy", 0.5)])
+    Map.keys j `shouldBe` ["johncoltrane"]
+    sum (Map.elems j) `shouldSatisfy` (\s -> abs (s - 1.0) < 1e-9)
+    Map.toList c `shouldBe` [("debussy", 1.0)]
