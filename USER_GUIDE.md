@@ -37,7 +37,7 @@ See [`live/BootTidal.hs`](live/BootTidal.hs) for all available helpers (`ch`, `v
 
 Two areas are deliberately out of scope:
 
-- **The Algorithmic Orchestration system** (15-instrument virtual orchestra) depends on a specific hardware/MIDI rig — see [`ALGORITHMIC_ORCHESTRATION.md`](documents/ALGORITHMIC_ORCHESTRATION.md) and [`live/ORCHESTRAL_CATALOGUE.tidal`](live/ORCHESTRAL_CATALOGUE.tidal).
+- **The Algorithmic Orchestration system** (16-instrument virtual orchestra) depends on a specific hardware/MIDI rig — see [`ALGORITHMIC_ORCHESTRATION.md`](documents/ALGORITHMIC_ORCHESTRATION.md) and [`live/ORCHESTRAL_CATALOGUE.tidal`](live/ORCHESTRAL_CATALOGUE.tidal).
 - **Hardware-bound helpers** in `BootTidal.hs` — Roland S-1 / P-6 CC maps, the Q-Link controller bridge, the LED display rig, and the MPC kit program behind `subKick` — are documented in the BootTidal source comments. This guide stays on the single piano channel plus generic drums.
 
 ___
@@ -637,7 +637,7 @@ ___
 
 ## 16. Walking lines (`walk` / `lineHarmony`)
 
-**Why** — a walking bassline synthesised from the progression: consonant anchors on the strong beats (root on 1; P5/root/3rds on 3), weighted connectors on beats 2 and 4 preferring sandwich motion and approach tones, and a soft direction-persistence bias on the beat-1 contour. The walk follows the **performed** bar order — warp/rep selections resolve at eval time, repeated bars walk as neighbours (root–fifth alternation), approach tones aim at the bar that actually comes next; non-periodic selections fall back to stored order with a printed notice.
+**Why** — a walking bassline synthesised from the progression: consonant anchors on the strong beats (root on 1; P5/root/3rds on 3), weighted connectors on beats 2 and 4 preferring sandwich motion and approach tones, and a soft direction-persistence bias on the beat-1 contour. The walk follows the **performed** bar order — warp/rep selections resolve at eval time, repeated bars walk as neighbours (root–fifth alternation), approach tones aim at the bar that actually comes next; non-periodic selections fall back to stored order with a printed notice. Jazz progressions (`genJ`) walk from a per-quality **bass vocabulary** rather than the raw corpus set: the fifth a 13th chord omits is restored, an altered dominant's #5 replaces the natural 5 it does not contain, notated colours (b9, #9, #11, b13) stay off strong beats while remaining available as weak-beat tension, and the 9th and 11th act as favourable passing tones. `genP` walks its strata chroma as before; `gen` and `genE` are unchanged.
 
 **What** — [`LineHarmony.hs`](src/Harmonic/Interface/Tidal/LineHarmony.hs), [`WalkingBass.hs`](src/Harmonic/Traversal/WalkingBass.hs)
 
@@ -705,7 +705,7 @@ vl = voiceLines {_vl = "~"
 , arrange (0,1) k (-9,9) T flow (overlapF 0) ["~", vlGet Soprano' vl] # o # divisi2 |+ oct 1
 ```
 
-With the orchestral instrument functions the same split is one line — `divisi 2 violin1 T (0, 1) k vl grid Soprano` — and primed voices (`Soprano'`, `Bass8vb'`) pick desks manually. The full system (15 instruments, articulations, section blocks, timbral blends) lives in [`ALGORITHMIC_ORCHESTRATION.md`](documents/ALGORITHMIC_ORCHESTRATION.md); it depends on a specific MIDI rig, so this guide stops at the paradigm.
+With the orchestral instrument functions the same split is one line — `divisi 2 violin1 T (0, 1) k vl grid Soprano` — and primed voices (`Soprano'`, `Bass8vb'`) pick desks manually. The full system (16 instruments — 14 pitched, 2 unpitched percussion — articulations, section blocks, timbral blends) lives in [`ALGORITHMIC_ORCHESTRATION.md`](documents/ALGORITHMIC_ORCHESTRATION.md); it depends on a specific MIDI rig, so this guide stops at the paradigm.
 
 > **▶ VIDEO — Stacked voices**
 > _~45s: the SATB stack assembling voice by voice; a divisi split with the equal-power drop audible._
@@ -867,7 +867,50 @@ One boundary: `genE` and `genP` never mix. Strata progressions stay 3-5-7 by des
 
 ___
 
-## 21. Snippets & the liveness gradient
+## 21. Jazz generation (`genJ`)
+
+**Why** — a second corpus, a second harmonic language: leadsheet changes (m7, 7#9, 13b9#11, slash chords) walked with the same modifier chain, trained on the Jazz-Chord-Progressions-Corpus (Bunks/Weyde/Dixon/Di Giorgi, ISMIR 2023 — 2,614 tunes).
+
+**What** — a fourth generator family. The jazz graph (`:Change`) lives beside the classical one in the same database; nodes are anchor-relative chord sets at corpus arity (3–6 tones), named by a jazz-specific namer, and there is deliberately **no consonance fallback** — the corpus is rich enough that the graph IS the pool (measured: ~219-candidate typical steps, zero dead ends). Cue with `leadJ`, which parses leadsheet symbols in their own quality namespace (triadic `lead`/`lead'` untouched); a notated slash bass is honoured exactly — unioned into the set and made the anchor:
+
+```haskell
+start <- leadJ "Cm7"                -- corpus workhorse
+start <- leadJ "Dm7/G"              -- G anchor, full Dm7 above (a 9sus4 set)
+s <- seek "*" $ cue start $ len 8 $ entropy 0.3 $ genJ'    -- genJ / genJ' / genJ''
+```
+
+Jazz progressions play through every interface unchanged, and the walking bass (§16) understands them natively: `lineHarmony` reads each bar's quality as bass vocabulary — restoring the fifth a 13th chord omits, taking an altered dominant's #5 as its fifth, keeping b9/#9/#11/b13 off the strong beats — so `walk` over `genJ` changes sounds like a bassist reading the chart rather than the voicing.
+
+One `seek` spec drives both corpora. Jazz composer names blend by corpus weights (substring-matched — `"monk:60 coltrane:40"` finds `theloniousmonk` and the co-credits). A **classical** name doesn't walk the jazz graph — it *steers* it: each step, the current chord's most consonant embedded triad asks the classical graph what that composer would do next, and jazz candidates containing a recommended triad (same movement) get boosted. Both can combine, and `steer` dials the boost strength:
+
+```haskell
+s <- seek "theloniousmonk:60 johncoltrane:40" $ cue start $ len 8 $ genJ'
+s <- seek "debussy" $ steer 8 $ cue start $ len 8 $ genJ'   -- jazz walk, Debussy pull
+s <- seek "monk debussy" $ cue start $ len 8 $ genJ'        -- blend AND steer
+```
+
+`seek "none"` is refused — the jazz graph has no offline mode. Everything else composes as usual: `tonal` runs the same R filters over the jazz candidates (key-of-C pins the walk to diatonic corpus vocabulary — Am7, Dm7, G7sus4, CM7...), `genFrom` regenerates ranges jazz-natively (the output is stamped as jazz-family), and `attempt` ranks against the jazz graph's own cadence statistics:
+
+```haskell
+s  <- seek "*" $ cue start $ tonal (hcKey "0#" hContext) $ len 8 $ genJ'
+s' <- seek "*" $ entropy 0.6 $ genFrom s 3 4
+s2 <- seek "*" $ attempt 3 8 $ cue start $ len 8 $ genJ''   -- scoreboard
+```
+
+Output is an ordinary `ProgressionContext`: `flow`/`grid` voice the 3–6-tone chords, `arrange` and the walking bass play them unchanged.
+
+**Try it** — the guided tour with live database probes is [`live/JAZZ_DIAGNOSTIC.tidal`](live/JAZZ_DIAGNOSTIC.tidal); work down it section by section.
+
+> **▶ VIDEO — Two corpora, one walk**
+> _~90s: leadJ "Dm7/G" cue, a wildcard jazz walk, then the same cue under seek "debussy" steer 8 — the M7-colour pull audible side by side._
+>
+> `[ youtube link — TBD ]`
+>
+> <!-- author discussion space -->
+
+___
+
+## 22. Snippets & the liveness gradient
 
 **Why** — choose, deliberately, how much of a performance is prepared and how much is conjured at the keyboard.
 
@@ -907,7 +950,7 @@ The `state` snippet is the canonical prepared opening: tempo, context, a generat
 
 ___
 
-## 22. Going further
+## 23. Going further
 
 **Instrument catalogue** —
 - [`live/ORCHESTRAL_CATALOGUE.tidal`](live/ORCHESTRAL_CATALOGUE.tidal) — range tests per instrument

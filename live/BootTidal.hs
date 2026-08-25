@@ -18,6 +18,18 @@
 :set prompt ""
 :set prompt-cont ""
 :set -Wno-operator-whitespace-ext-conflict
+-- Warning classes that are idiom in a live session, not defects: rebinding a
+-- name (start, k, s) is the central gesture, numeric literals default
+-- constantly, and a bare `d1 $ ...` is a discarded do-bind by design. The
+-- library itself still compiles under bare -Wall and stays clean; these apply
+-- only to this boot file and to code evaluated at the prompt. Errors are
+-- unaffected.
+:set -Wno-name-shadowing
+:set -Wno-type-defaults
+:set -Wno-unused-do-bind
+:set -Wno-unused-local-binds
+:set -Wno-unused-matches
+:set -Wno-x-partial
 import Sound.Tidal.Context hiding (defaultConfig)
 import qualified Sound.Tidal.Config as TidalConfig
 

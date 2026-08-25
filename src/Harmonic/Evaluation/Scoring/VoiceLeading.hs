@@ -157,6 +157,9 @@ minimalMovement (P from) (P to) =
 -- which in the DP acted as "ignore this edge" — seam registers were
 -- decided by downstream edges alone and the cyclic wrap objective was
 -- silently disabled on mixed material.
+-- Voicings must be SORTED ascending — list position is voice order for
+-- both the alignment and the parallel-perfect scan. Every production
+-- caller sorts before calling.
 voiceLeadingCost :: [Int] -> [Int] -> Int
 voiceLeadingCost from to
   | null from || null to = 0        -- Empty bar: neutral edge
@@ -223,8 +226,13 @@ voiceLeadingCost from to
 -- O(m·n) DP (≤ 49 cells at max cardinality 7). Symmetric in its result
 -- (roles of from\/to only decide which side gets padded). Equal-length
 -- input is returned unchanged.
+-- Both arguments must be SORTED ascending (every internal caller sorts;
+-- the monotone-alignment DP and the parallel-interval scan both read
+-- list order as voice order).
 alignVoices :: [Int] -> [Int] -> ([Int], [Int])
 alignVoices from to
+  -- Total on empty input: nothing to align (the DP would index at -1).
+  | null from || null to     = (from, to)
   | length from == length to = (from, to)
   | length from <  length to = (padTo from to, to)
   | otherwise                = (from, padTo to from)
@@ -259,7 +267,7 @@ alignVoices from to
 totalCost :: [[Int]] -> Int
 totalCost [] = 0
 totalCost [_] = 0
-totalCost chords = sum $ zipWith voiceLeadingCost chords (tail chords)
+totalCost chords = sum $ zipWith voiceLeadingCost chords (drop 1 chords)
 
 -- |Calculate cyclic cost: total cost including wrap-around from last to first.
 -- This is essential for loop-aware optimization.
@@ -271,7 +279,7 @@ totalCost chords = sum $ zipWith voiceLeadingCost chords (tail chords)
 cyclicCost :: [[Int]] -> Int
 cyclicCost [] = 0
 cyclicCost [_] = 0
-cyclicCost chords = totalCost chords + voiceLeadingCost (last chords) (head chords)
+cyclicCost chords@(c0 : _) = totalCost chords + voiceLeadingCost (last chords) c0
 
 -------------------------------------------------------------------------------
 -- Candidate Generation
@@ -501,14 +509,13 @@ bassVoicing chords = map (\chord -> if null chord then [] else [bassPC chord]) c
 -- 'liteVoicing', whose raw input has its root in [0, 11].)
 normalizeByFirstRoot :: [[Int]] -> [[Int]]
 normalizeByFirstRoot [] = []
-normalizeByFirstRoot voicings@(firstChord : _)
-  | null firstChord = voicings  -- empty first bar: nothing to anchor on
-  | otherwise =
-      let firstRoot   = head firstChord
+normalizeByFirstRoot voicings@((fr0 : _) : _) =
+      let firstRoot   = fr0
           firstRootPC = firstRoot `mod` 12
           targetRoot  = firstRootPC + targetFirstRootMin
           shift       = targetRoot - firstRoot
       in map (map (+ shift)) voicings
+normalizeByFirstRoot voicings = voicings  -- empty first bar: nothing to anchor on
 
 -- |Bass pitch class of a voicing (0 for an empty bar — degrades, never crashes).
 bassPC :: [Int] -> Int

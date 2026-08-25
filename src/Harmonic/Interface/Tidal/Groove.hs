@@ -12,8 +12,14 @@
 --
 -- @
 -- subk f k d = p \"subk\" $ f
---   $ subKick k \"1 ~ ~ 1\" |* vel d
+--   $ subKick d k fund (1\/2, \"1 ~ ~ ~\", \"~\", \"~ ~ 1 ~\")
 -- @
+--
+-- (dynamics, context, voice strategy, then (maxDur, sub-on, manual-off,
+-- kick) pattern strings). Dynamics discipline: the launcher @d@ is the
+-- only dynamic applied — 'subKick' deliberately ignores the form's
+-- 'kDynamic' envelope, so the sub holds its level while the orchestra
+-- swells and ducks around it.
 --
 -- The note is held by a CC64 sustain pedal rather than by note length, so the
 -- sub rings between onsets instead of retriggering — see 'subKick' for why
@@ -59,10 +65,10 @@ fund prog =
 --
 --   > noteoff 4 "[[1 0 0 0] [0 0 0 0] [1 0 0 0] [1 0 0 0]]\/4"  ==  "[1 0 1 1]\/4"
 noteoff :: Time -> Pattern Bool -> Pattern Bool
-noteoff n p = splitQueries $ p { query = f, steps = Nothing, pureValue = Nothing }
+noteoff nBeats p = splitQueries $ p { query = f, steps = Nothing, pureValue = Nothing }
   where
     barLen = 4
-    cap    = barLen / n
+    cap    = barLen / nBeats
     f st =
       let a   = arc st
           b0  = barLen * sam (start a / barLen)          -- enclosing-bar start
@@ -120,7 +126,7 @@ subKick dyn k voiceFunc (maxDur, subOnStr, subOffStr, kickStr) =
                        nc = length norm
                    in (norm, nc))
               | p <- uniqueProgs]
-      cacheForced = foldr (\(_, (ns, n)) acc -> sum ns `seq` n `seq` acc) () cache
+      cacheForced = foldr (\(_, (ns, cnt)) acc -> sum ns `seq` cnt `seq` acc) () cache
       lookupCache prog = case lookup prog cache of
         Just hit -> hit
         Nothing  -> let raw = voiceFunc prog
@@ -147,13 +153,13 @@ subKickCoreP (normPitches, nChords) subOnPat subOffPat kickPat chordPat dyn k ma
   | otherwise =
   let
     -- CC helper
-    midiCC num val = midicmd "control" # ctlNum num # control val
+    midiCC num cval = midicmd "control" # ctlNum num # control cval
 
     -- LED feedback helper (only used for the kick high-C indicator on CC 32;
     -- the 12 pitch-class LEDs CC 20-31 are driven by the SC-side coordinator)
-    ledCC num val = midicmd "control"
+    ledCC num cval = midicmd "control"
                   # ctlNum (fromIntegral num)
-                  # control (fromIntegral val)
+                  # control (fromIntegral cval)
 
     -- Convert dynamics to boolean gate for mask
     dynGate = fmap (> 0) dyn
@@ -189,8 +195,8 @@ subKickCoreP (normPitches, nChords) subOnPat subOffPat kickPat chordPat dyn k ma
     -- Kick LED: 1\/64 offset puts the CC on its own SuperDirt dispatch tick
     -- so it doesn't collide with the kick note under MIDI burst load.
     -- Pulse extended to 1\/8 cycle for reliable visual response.
-    kickLedOn  = (1/64) ~> (struct kickPat $ ledCC 32 1)
-    kickLedOff = (1/64) ~> (struct ((pure (1/8)) ~> kickPat) $ ledCC 32 0)
+    kickLedOn  = (1/64) ~> (struct kickPat $ ledCC (32 :: Int) (1 :: Int))
+    kickLedOff = (1/64) ~> (struct ((pure (1/8)) ~> kickPat) $ ledCC (32 :: Int) (0 :: Int))
 
     -- Sub group: sub pattern + CC64 sustain
     subGroup = ki (0.1, 1) k $ stack

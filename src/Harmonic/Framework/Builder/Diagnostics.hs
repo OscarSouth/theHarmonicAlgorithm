@@ -209,7 +209,7 @@ parseCadenceFromString name posteriorRootPC =
       (before, after) = break (== '>') (dropWhile (/= '-') cleaned)
   in if null after || null before
      then Nothing
-     else let functionality = trim (tail after)  -- skip '>'
+     else let functionality = trim (drop 1 after)  -- skip '>'
               posteriorRoot = show (P.sharp (P.mkPitchClass posteriorRootPC))
           in Just $ posteriorRoot ++ " " ++ functionality
   where

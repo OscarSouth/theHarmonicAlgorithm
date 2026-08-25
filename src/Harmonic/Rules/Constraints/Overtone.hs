@@ -38,8 +38,6 @@ module Harmonic.Rules.Constraints.Overtone
   , combinations
 
     -- * Triad Selection
-  , rankedTriads
-  , topTriads
 
     -- * Overtone Annotation
   , annotateOvertones
@@ -50,7 +48,6 @@ module Harmonic.Rules.Constraints.Overtone
 import Data.List (sort, nub, intercalate)
 
 import Harmonic.Rules.Types.Pitch (PitchClass(..), mkPitchClass, unPitchClass)
-import Harmonic.Evaluation.Scoring.Dissonance (rankByConsonance)
 
 -------------------------------------------------------------------------------
 -- Combination Generator (nCr)
@@ -136,22 +133,6 @@ possibleTriadsFrom root overtones =
       overtoneInts = map unPitchClass overtones
       triads = possibleTriads (rootInt, overtoneInts)
   in map (map mkPitchClass) triads
-
--------------------------------------------------------------------------------
--- Ranked Triad Selection
--------------------------------------------------------------------------------
-
--- |Generate triads ranked by consonance (most consonant first).
--- Uses Hindemith dissonance scores from the Dissonance module.
-rankedTriads :: (Int, [Int]) -> [[Int]]
-rankedTriads input = rankByConsonance $ possibleTriads input
-
--- |Get the top N most consonant triads from a fundamental\/overtone pair.
--- Used by the multi-triad branching logic (3\/2\/1 weighting).
---
--- Returns at most n triads, or fewer if not enough valid triads exist.
-topTriads :: Int -> (Int, [Int]) -> [[Int]]
-topTriads n input = take n $ rankedTriads input
 
 -------------------------------------------------------------------------------
 -- Legacy Compatibility Aliases

@@ -19,6 +19,75 @@ burn-down deleted ten provably unreachable functions and thirty-odd
 redundant imports, and closed a latent non-exhaustive pattern over
 `Movement.Empty` in fallback scoring.
 
+### Hygiene close-out: warnings, tests, docs, jazz in the guide
+
+The library now compiles with ZERO warnings under bare `-Wall` plus GHC's
+default set — the deferred name-shadowing, x-partial, and type-defaults
+suppressions are gone (every `head`/`tail` on the hot paths replaced with
+total, semantics-preserving forms; ~60 shadowing binders renamed with the
+compiler verifying every site). The user guide gained **SECTION 21 — Jazz
+generation (genJ)** in both lockstep halves. A typo'd composer in a `seek`
+string is now reported after a few steps instead of silently degrading the
+walk. Test-suite repair: the key/roots filter tests now pin the live
+per-candidate path (the divergent unused copy is deleted), the two
+`mostConsonant` replicas are pinned to agreement, `alignVoices` is total on
+empty input, and `test/Spec.hs` labels match the real module names — so
+`--match Bridge` works again. `documents/ALGORITHMIC_ORCHESTRATION.md`
+carries a "Range review" section (JV1010 patch limits are authoritative; a
+practical per-instrument pass is queued). Repo hygiene: `archive/` staging
+per the manifest, Neo4j transaction-log retention capped in compose, stale
+doc claims corrected (Spec labels, app/README, module-header examples).
+
+### Walking bass across the four families
+
+The walk now reads jazz harmony as a bass player does. Corpus chord sets
+are working voicings, not bass vocabulary: 13th chords carry no 5th and no
+11th, altered qualities replace the 5th, and notated colours (b9 #9 #11
+b13) are not tones to land on. A curated `BassVocab` derives, per quality,
+the triadic TARGET tones a line aims at, the defining seventh, favourable
+passing extensions (the 9, and the 11 over the minor family only — over a
+major third the 11 is the classic avoid note), the avoid tones, and —
+decisively — *the* fifth, restored where the symbol implies one the
+voicing omits, and priced as a fifth on strong beats whichever semitone
+it occupies. Avoid tones are removed from the strong-beat pool outright
+rather than merely surcharged, so the guarantee is structural; they stay
+reachable as weak-beat tension. `genJ` progressions walk through all of
+it via a per-bar side-channel keyed on `pcFamily`, exactly as `genP`
+walks through its strata chroma.
+
+`gen`, `genE` and `genP` are byte-identical as generated. The one shared
+change is the progression-consonance curve for 5-and-6-tone bars, which
+previously saturated at the 75th percentile of real jazz usage and now
+spreads across the whole band — that affects any progression carrying
+such bars, including a hand-built one stamped as a plain triad family.
+
+Concretely: a C13 bar now anchors its restored G on beat 3 instead of
+wobbling back to the root, an altered dominant walks its #5 rather than
+the natural 5 it does not contain, and the beat-1 fifth alternation on
+repeated bars can no longer land a tone the chord lacks.
+
+That last guarantee now holds in **every** family, not just jazz. The walk
+used to reach for `root + 7` whatever the chord actually contained, so a
+diminished or augmented bar could alternate onto a fifth a semitone away
+from a tone it was sounding — and under genP it could leave the bar's
+chroma altogether, which the generator forbids so strictly that it
+disables the bass exemption to enforce it. One shared rule now derives the
+fifth from the chord read in root position, and the genP path admits it
+only when the bar's own strata or mode contains it; where they do not, the
+bar holds its root and a repeat displaces by octave. Pinned by an
+invariant test over all four beats — no genP line may leave its chroma,
+nor the octatripentatonic universe — plus a golden walked line per family,
+so future "this cannot move legacy output" claims are checked rather than
+asserted. Key inference
+learned to read above the seventh too — an altered dominant points at a
+minor tonic rather than the major key a fourth above, a #11 over a major
+seventh rules out the subdominant reading, and an unaltered 13 confirms
+mixolydian. `progConsonance`'s 5-6 tone anchors were recalibrated on the
+corpus census (frequency-weighted dissonance over the quality table), and
+`genJ`/`genJ'`/`genJ''` — documented in guide section 21 but never
+re-exported through `Harmonic.Lib` — are reachable from the live surface
+at last.
+
 ### Correctness sweep: generator, regen and live surface
 
 The regenerate-in-place seam is now walk-valid by construction — a range

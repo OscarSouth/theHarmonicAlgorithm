@@ -54,29 +54,29 @@ import qualified Harmonic.Interface.Tidal.ArrangerSpec as ArrangerSpec
 main :: IO ()
 main = hspec $ do
   -- Phase B
-  describe "Harmonic.Core.Pitch" PitchSpec.spec
-  describe "Harmonic.Core.Harmony" HarmonySpec.spec
-  describe "Harmonic.Core.Overtone" OvertoneSpec.spec
+  describe "Harmonic.Rules.Types.Pitch" PitchSpec.spec
+  describe "Harmonic.Rules.Types.Harmony" HarmonySpec.spec
+  describe "Harmonic.Rules.Constraints.Overtone" OvertoneSpec.spec
   describe "Harmonic.Evaluation.Scoring.VoiceLeading" VoiceLeadingSpec.spec
-  describe "Harmonic.Scoring.Progression" ScoringProgressionSpec.spec
-  describe "Harmonic.Core.Progression" ProgressionSpec.spec
-  describe "Harmonic.Core.ProgressionContext" ProgressionContextSpec.spec
-  describe "Harmonic.Core.Scale" ScaleSpec.spec
-  describe "Harmonic.Core.Filter" FilterSpec.spec
+  describe "Harmonic.Evaluation.Scoring.Progression" ScoringProgressionSpec.spec
+  describe "Harmonic.Rules.Types.Progression" ProgressionSpec.spec
+  describe "Harmonic.Rules.Types.ProgressionContext" ProgressionContextSpec.spec
+  describe "Harmonic.Rules.Types.Scale" ScaleSpec.spec
+  describe "Harmonic.Rules.Constraints.Filter" FilterSpec.spec
   describe "Harmonic.Rules.Import.Transform" TransformSpec.spec
   describe "Harmonic.Rules.Import.Merge" MergeSpec.spec
   describe "Harmonic.Rules.Import.Graph" GraphSpec.spec
   describe "Harmonic.Rules.Import.Jazz" JazzSpec.spec
-  describe "Harmonic.Core.Dissonance" DissonanceSpec.spec
+  describe "Harmonic.Evaluation.Scoring.Dissonance" DissonanceSpec.spec
   -- Phase C
-  describe "Harmonic.Database.Query" QuerySpec.spec
-  describe "Harmonic.Core.Probabilistic" ProbabilisticSpec.spec
+  describe "Harmonic.Evaluation.Database.Query" QuerySpec.spec
+  describe "Harmonic.Traversal.Probabilistic" ProbabilisticSpec.spec
   describe "Harmonic.Traversal.WalkingBass" WalkingBassSpec.spec
-  describe "Harmonic.Core.Builder" BuilderSpec.spec
-  describe "Harmonic.Core.BuilderP" BuilderPSpec.spec
-  describe "Harmonic.Tidal.Interface" InterfaceSpec.spec
-  describe "Harmonic.Tidal.Groove" GrooveSpec.spec
-  describe "Harmonic.Tidal.Form" FormSpec.spec
-  describe "Harmonic.Tidal.Orchestra" OrchestraSpec.spec
-  describe "Harmonic.Tidal.Arranger" ArrangerSpec.spec
-  describe "Harmonic.Tidal.LineHarmony" LineHarmonySpec.spec
+  describe "Harmonic.Framework.Builder" BuilderSpec.spec
+  describe "Harmonic.Framework.Builder (genP)" BuilderPSpec.spec
+  describe "Harmonic.Interface.Tidal.Bridge" InterfaceSpec.spec
+  describe "Harmonic.Interface.Tidal.Groove" GrooveSpec.spec
+  describe "Harmonic.Interface.Tidal.Form" FormSpec.spec
+  describe "Harmonic.Interface.Tidal.Orchestra" OrchestraSpec.spec
+  describe "Harmonic.Interface.Tidal.Arranger" ArrangerSpec.spec
+  describe "Harmonic.Interface.Tidal.LineHarmony" LineHarmonySpec.spec

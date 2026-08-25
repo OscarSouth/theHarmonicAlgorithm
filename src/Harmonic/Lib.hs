@@ -131,6 +131,12 @@ module Harmonic.Lib (
   genE, genE', genE'', quad,
   genGrid, genFrom, genFrom', genFrom'',
 
+  -- ** The genJ paradigm (jazz Change graph)
+  -- | Generation over the jazz corpus graph: variable-arity leadsheet
+  -- harmony (3-6 tones), cued by 'leadJ', walked by the same modifier
+  -- chain as every family. See USER_GUIDE section 21.
+  genJ, genJ', genJ'',
+
   -- ** The genP paradigm (strata-first)
   -- | Three-layer generation (triad \/ strata \/ mode). The roman-numeral
   -- aliases pin the starting tristrata.
@@ -143,7 +149,7 @@ module Harmonic.Lib (
   cue, len, seek, entropy, tonal,
   relStrata, absStrata,
   sameBoost, flipBoost, triBoost,
-  attempt, viability,
+  attempt, viability, steer,
 
   -- ** Generation types
   GenConfig(..), GenMode(..), Verbosity(..),
@@ -252,7 +258,11 @@ module Harmonic.Lib (
 
 -- Phase B: Core Music Types
 import Harmonic.Rules.Types.Pitch
-import Harmonic.Rules.Types.Harmony
+-- hiding: the Layer-B mostConsonant replica (test-only export; the
+-- Dissonance copy is the production one and keeps the Lib name)
+-- 'mostConsonant' has replicas in both Harmony and Dissonance (pinned to
+-- agreement by the suite); hide one so the re-export is unambiguous.
+import Harmonic.Rules.Types.Harmony hiding (mostConsonant)
 import Harmonic.Evaluation.Scoring.Dissonance
 import Harmonic.Rules.Constraints.Overtone
 import Harmonic.Evaluation.Scoring.VoiceLeading (voiceLeadingCost, totalCost, cyclicCost, voiceMovement, minimalMovement, allVoicings, initialCompact, solveRoot, solveFlow)
@@ -266,6 +276,8 @@ import Harmonic.Framework.Builder (
     gen, gen', gen'',
     genE, genE', genE'', quad,
     genGrid, genFrom, genFrom', genFrom'',
+    -- genJ paradigm (jazz Change graph)
+    genJ, genJ', genJ'',
     -- genP paradigm (strata-first)
     genP, genP', genP'',
     genI,   genII,   genIII,   genIV,   genV,   genVI,   genVII,   genVIII,   genIX,   genX,   genXI,
@@ -274,7 +286,7 @@ import Harmonic.Framework.Builder (
     cue, len, seek, entropy, tonal,
     relStrata, absStrata,
     sameBoost, flipBoost, triBoost,
-  attempt, viability,
+    attempt, viability, steer,
     GenConfig(..), GenMode(..), Verbosity(..),
     defaultGenConfig, execGenConfig, execGenConfigPC,
     -- Positional API

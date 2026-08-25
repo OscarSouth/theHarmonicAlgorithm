@@ -88,10 +88,10 @@ newtype Progression = Progression { unProgression :: Seq CadenceState }
 -- Each chord is rendered using the enharmonic spelling stored in its CadenceState root.
 -- The final grid shows consistent note names throughout the progression.
 instance Show Progression where
-  show (Progression seq) 
-    | Seq.null seq = "[empty progression]"
+  show (Progression sq) 
+    | Seq.null sq = "[empty progression]"
     | otherwise = 
-      let cadenceStates = toList seq
+      let cadenceStates = toList sq
           -- Get enharmonic function from each cadence's stored spelling
           enharms = map (enharmonicFunc . stateSpelling) cadenceStates
           -- Name each state via the cardinality dispatch (triads keep the
@@ -141,8 +141,8 @@ fromCadenceStates = Progression . Seq.fromList
 fromChordStates :: [ChordState] -> Progression
 fromChordStates [] = mempty
 fromChordStates [_] = mempty  -- Need at least 2 chords for a cadence
-fromChordStates states = 
-  let pairs = zip states (tail states)
+fromChordStates states =
+  let pairs = zip states (drop 1 states)
       cadenceStates = map toCadenceStateFromPair pairs
   in fromCadenceStates cadenceStates
 
@@ -164,8 +164,8 @@ toCadenceStateFromPair (from, to) =
   in CadenceState cad (stateRoot to) spelling
   where
     calculateMovement :: PitchClass -> PitchClass -> Movement
-    calculateMovement (P from) (P to) = 
-      let diff = (to - from) `mod` 12
+    calculateMovement (P pcF) (P pcT) =
+      let diff = (pcT - pcF) `mod` 12
       in if diff <= 6 
          then if diff == 0 then Unison
               else if diff == 6 then Tritone
@@ -182,15 +182,15 @@ progLength = Seq.length . unProgression
 
 -- |Extract all chords from a progression
 progChords :: Progression -> [Chord]
-progChords (Progression seq) = map fromCadenceState (toList seq)
+progChords (Progression sq) = map fromCadenceState (toList sq)
 
 -- |Extract all cadences from a progression
 progCadences :: Progression -> [Cadence]
-progCadences (Progression seq) = map stateCadence (toList seq)
+progCadences (Progression sq) = map stateCadence (toList sq)
 
 -- |Get a CadenceState at a specific index (1-indexed for user friendliness)
 getCadenceState :: Progression -> Int -> Maybe CadenceState
-getCadenceState (Progression seq) idx = Seq.lookup (idx - 1) seq
+getCadenceState (Progression sq) idx = Seq.lookup (idx - 1) sq
 
 -- |Get a ChordState at a specific index (derived from CadenceState)
 getChordState :: Progression -> Int -> Maybe ChordState
@@ -207,21 +207,21 @@ getChordState prog idx = do
 -- Positive n rotates left (first elements move to end)
 -- Negative n rotates right (last elements move to front)
 rotateProgression :: Int -> Progression -> Progression
-rotateProgression n (Progression seq)
-  | Seq.null seq = Progression seq
+rotateProgression n (Progression sq)
+  | Seq.null sq = Progression sq
   | otherwise = 
-    let len = Seq.length seq
+    let len = Seq.length sq
         n' = n `mod` len
-        (front, back) = Seq.splitAt n' seq
+        (front, back) = Seq.splitAt n' sq
     in Progression (back >< front)
 
 -- |Extract a subsequence from a progression
 -- Start and end are 1-indexed, inclusive
 excerptProgression :: Int -> Int -> Progression -> Progression
-excerptProgression start end (Progression seq) =
+excerptProgression start end (Progression sq) =
   let start' = max 0 (start - 1)
       len = max 0 (end - start + 1)
-  in Progression $ Seq.take len $ Seq.drop start' seq
+  in Progression $ Seq.take len $ Seq.drop start' sq
 
 -- |Insert a progression at a specific position (1-indexed)
 insertProgression :: Int -> Progression -> Progression -> Progression
@@ -241,8 +241,8 @@ fuseProgression (Progression a) (Progression b) =
 
 -- |Transpose a progression by n semitones
 transposeProgression :: Int -> Progression -> Progression
-transposeProgression n (Progression seq) =
-  Progression $ fmap (transposeCadenceState n) seq
+transposeProgression n (Progression sq) =
+  Progression $ fmap (transposeCadenceState n) sq
 
 -- |Helper: transpose a CadenceState, re-inferring spelling from new pitches
 transposeCadenceState :: Int -> CadenceState -> CadenceState
@@ -280,13 +280,13 @@ expandProgression n prog
 -- Wrapping (start > end): replaces start..N and 1..end.
 -- Fixes the movement at the seam where new chords meet kept chords.
 spliceProgression :: Progression -> Int -> Int -> [CadenceState] -> Progression
-spliceProgression (Progression seq) start end newChords =
-  let n = Seq.length seq
+spliceProgression (Progression sq) start end newChords =
+  let n = Seq.length sq
       newSeq = Seq.fromList newChords
   in if start <= end then
     -- Non-wrapping
-    let prefix = Seq.take (start - 1) seq
-        suffix = Seq.drop end seq
+    let prefix = Seq.take (start - 1) sq
+        suffix = Seq.drop end sq
         result = prefix >< newSeq >< suffix
         jIdx = Seq.length prefix + Seq.length newSeq  -- 0-indexed position of first suffix chord
     in if jIdx < Seq.length result && jIdx > 0 && not (Seq.null suffix)
@@ -294,7 +294,7 @@ spliceProgression (Progression seq) start end newChords =
        else Progression result
   else
     -- Wrapping: replaced = [start..N] ++ [1..end], kept = [end+1..start-1]
-    let kept = Seq.take (start - end - 1) (Seq.drop end seq)
+    let kept = Seq.take (start - end - 1) (Seq.drop end sq)
         headCount = n - start + 1
         newAtEnd = Seq.take headCount newSeq
         newAtStart = Seq.drop headCount newSeq
@@ -310,18 +310,18 @@ fixMovementAt pos = fixMovementAt0 (pos - 1)
 
 -- |Internal: fix movement at 0-indexed position.
 fixMovementAt0 :: Int -> Progression -> Progression
-fixMovementAt0 idx (Progression seq)
-  | Seq.null seq || idx <= 0 || idx >= Seq.length seq = Progression seq
+fixMovementAt0 idx (Progression sq)
+  | Seq.null sq || idx <= 0 || idx >= Seq.length sq = Progression sq
   | otherwise =
-    let prevCS = Seq.index seq (idx - 1)
-        currCS = Seq.index seq idx
+    let prevCS = Seq.index sq (idx - 1)
+        currCS = Seq.index sq idx
         prevRootPC = pitchClass (stateCadenceRoot prevCS)
         currRootPC = pitchClass (stateCadenceRoot currCS)
         newMovement = toMovement prevRootPC currRootPC
         oldCadence = stateCadence currCS
         newCadence = oldCadence { cadenceMovement = newMovement }
         fixed = currCS { stateCadence = newCadence }
-    in Progression (Seq.update idx fixed seq)
+    in Progression (Seq.update idx fixed sq)
 
 -------------------------------------------------------------------------------
 -- Voicing Extractors
@@ -330,8 +330,8 @@ fixMovementAt0 idx (Progression seq)
 
 -- |Extract literal voicings (pitch integers as stored)
 literalVoicing :: Progression -> [[Int]]
-literalVoicing (Progression seq) = 
-  map (map fromIntegral . chordIntervals . fromCadenceState) (toList seq)
+literalVoicing (Progression sq) = 
+  map (map fromIntegral . chordIntervals . fromCadenceState) (toList sq)
 
 -- |Extract harmony voicings (pitch classes only, 0-11)
 harmonyVoicing :: Progression -> [[Int]]

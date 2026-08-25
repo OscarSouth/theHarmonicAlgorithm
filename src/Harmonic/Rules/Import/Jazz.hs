@@ -42,6 +42,8 @@ module Harmonic.Rules.Import.Jazz (
     qualityFrequency,
     canonicalQuality,
     jazzFunctionality,
+    BassVocab(..),
+    bassVocabFor,
 ) where
 
 import qualified Data.Map.Strict as Map
@@ -442,7 +444,7 @@ canonicalQuality =
 -- happens downstream.
 jazzFunctionality :: [Int] -> Maybe T.Text
 jazzFunctionality raw
-  | null set || head set /= 0 = Nothing
+  | case set of { (s0 : _) -> s0 /= 0; [] -> True } = Nothing
   | otherwise = case Map.lookup set canonicalQuality of
       Just q  -> Just (display q)
       Nothing -> case candidates of
@@ -469,6 +471,98 @@ degreeLabel :: Int -> T.Text
 degreeLabel n = case n of
   1 -> "b2"; 2 -> "2";  3 -> "b3"; 4 -> "3";  5 -> "4";  6 -> "b5"
   7 -> "5";  8 -> "b6"; 9 -> "6";  10 -> "b7"; 11 -> "7"; _ -> "1"
+
+-- | Walking-bass understanding of a jazz tone set: what the SYMBOL means
+-- to a bass player rather than what the working voicing contains. Corpus
+-- sets omit degrees a bassist still needs (13th chords carry no 5th and
+-- no 11th) and notate colours a bassist must not land on strong beats
+-- (b9, #9, #11, b13). Root-relative intervals throughout.
+data BassVocab = BassVocab
+  { bvTarget  :: [Int] -- ^ The triadic core — root, third (or sus 4) and
+                       --   THE fifth: the tones a line aims AT. Primary
+                       --   strong-beat targets; the rest of the chord is
+                       --   colour that guides passing motion and scale
+                       --   choice rather than serving as a destination.
+  , bvStrong  :: [Int] -- ^ Strong-beat anchors: the target triad plus the
+                       --   seventh (or true 6th) — legal to land on, with
+                       --   the target tones preferred.
+  , bvPassing :: [Int] -- ^ Favourable passing tones — weak-beat preferred,
+                       --   modest strong-beat access: the 9 where natural,
+                       --   and the 11 over the minor family only (over a
+                       --   major third it is the classic avoid note).
+  , bvAvoid   :: [Int] -- ^ Notated tones never to land on strong beats
+                       --   (colour alterations); still reachable as
+                       --   weak-beat tension through the connector pools.
+  , bvFifth   :: Int   -- ^ THE fifth of the quality: 7 natural (restored
+                       --   for the 13th family), 6 where b5 defines it,
+                       --   8 where #5 replaces it.
+  } deriving (Show, Eq, Ord)
+
+-- | Derive the walking-bass vocabulary from a zero-form tone set. The
+-- rules codify the hand-inferred per-quality palettes of
+-- notes\/walking_bass_theory.md (maj\/dom take the 9 and avoid the 11;
+-- the minor family takes 9 and 11; defining tones reserved for strong
+-- beats) plus the corpus table's own conventions (alterations displace
+-- naturals; 13th chords omit 5th and 11th). Total over any zero-form
+-- set, so hand-built and spliced material degrades gracefully.
+--
+-- Known limitation, deliberate: the same source supersedes per-QUALITY
+-- palettes with per-FUNCTION ones (a iii chord takes the 11 but not the
+-- 9, which is a b9 from the key; a IV takes the \#11). This signature
+-- takes one bar's intervals and cannot see key or function, so it
+-- implements the quality-level rule only. The walk does infer a key
+-- centre, so the refinement is reachable later without changing callers.
+bassVocabFor :: [Int] -> BassVocab
+bassVocabFor raw = BassVocab
+  { bvTarget  = target
+  , bvStrong  = strong
+  , bvPassing = passing
+  , bvAvoid   = avoid
+  , bvFifth   = fifth
+  }
+  where
+    ivs = sort (nub (map (`mod` 12) raw))
+    has = (`elem` ivs)
+    -- The 13th family omits the 5th by convention, so a bare 6 there is
+    -- the #11, not a b5. `13#11` and `13b5` share a tone set, so set-only
+    -- inference must take the majority reading: #11-named 13ths outnumber
+    -- `13b5` 141 to 15 in the corpus, and canonicalQuality already names
+    -- that set `13#11`. The `has 4` term keeps o7M7's diminished fifth.
+    thirteenish = has 9 && (has 10 || has 11) && has 4
+    fifth
+      | has 7                    = 7
+      | has 6 && has 8           = if has 4 then 8 else 6
+      | has 6 && not thirteenish = 6
+      | has 8                    = 8
+      | otherwise                = 7   -- restored: the symbol implies a natural 5th
+    third
+      | has 4     = [4]
+      | has 3     = [3]
+      | otherwise = []
+    sus4    = has 5 && not (has 3) && not (has 4)
+    seventh
+      | has 10    = [10]
+      | has 11    = [11]
+      | otherwise = []
+    -- a 9-semitone tone is the chord's 6th when no 7th is present
+    -- (6-chords, dim7), and a 13 colour when one is.
+    sixthStrong = has 9 && null seventh
+    target = nub $ [0, fifth] ++ third ++ [5 | sus4]
+    strong = nub $ target ++ seventh ++ [9 | sixthStrong]
+    minorThird  = has 3 && not (has 4)
+    -- the natural 9 is only vocabulary when the symbol carries no b9/#9.
+    naturalNine = not (has 1) && not (has 3 && has 4)
+    -- The 11 belongs to the MINOR family only: over a major third it is a
+    -- tritone above it — the classic avoid note (walking_bass_theory.md
+    -- ch. 10). The 13th family's table entries omit it for that reason,
+    -- not for voicing economy, so it is never restored the way the 5th is.
+    passing = filter (`notElem` strong) . filter (`notElem` avoid) . nub $
+                 [2 | naturalNine]
+              ++ [5 | minorThird]
+    avoid = nub $ [1 | has 1]
+               ++ [3 | has 3 && has 4]
+               ++ [6 | has 6 && fifth /= 6]
+               ++ [8 | has 8 && fifth /= 8]
 
 -- | One corpus tune: identifying header fields and the bar-structured
 -- token stream. @DBKeySig@ is deliberately not read — the graph is

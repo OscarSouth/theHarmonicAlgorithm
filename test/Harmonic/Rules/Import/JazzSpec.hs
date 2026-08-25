@@ -232,3 +232,103 @@ spec = do
       let shared = [ w | ((a, b), w) <- edges
                        , jzName a == "m7", jzMovement b /= Unison, jzName b == "7" ]
       map (Map.keys) shared `shouldBe` [["alpha", "beta"]]
+
+  describe "bassVocabFor (walking-bass symbol understanding)" $ do
+
+    let vocabOf q = bassVocabFor (qualityIntervals Map.! q)
+
+    it "13-family restores the natural fifth but NOT the 11th (avoid note)" $ do
+      let v = vocabOf "13"                      -- [0,2,4,9,10]: no 5th, no 11th
+      bvFifth v `shouldBe` 7
+      bvStrong v `shouldMatchList` [0, 4, 7, 10]
+      -- the 5th is omitted for voicing economy and restored; the 11th is
+      -- omitted because it is a tritone above the major 3rd, and stays out
+      bvPassing v `shouldMatchList` [2]
+      bvAvoid v `shouldBe` []
+
+    it "the 11th is minor-family vocabulary only, never over a major third" $ do
+      map (bvPassing . vocabOf) ["13", "M13", "67", "7add13"]
+        `shouldBe` [[2], [2], [2], [2]]
+      map (bvPassing . vocabOf) ["m13", "m7", "m9"]
+        `shouldSatisfy` all (elem 5)
+
+    it "a bare 6 in the 13 family is the #11, not a b5 — fifth stays natural" $ do
+      -- 13#11 and 13b5 share a tone set; corpus frequency (141 vs 15) and
+      -- canonicalQuality both name it #11, so the natural fifth is restored
+      -- and the 6 becomes an avoid tone.
+      mapM_ (\q -> do
+              let v = vocabOf q
+              bvFifth v `shouldBe` 7
+              bvAvoid v `shouldSatisfy` elem 6
+              bvStrong v `shouldSatisfy` notElem 6)
+            ["13#11", "13b9#11", "M13#11"]
+
+    it "the 13-family guard does not disturb genuine altered fifths" $ do
+      map (bvFifth . vocabOf) ["m7b5", "o7", "o7M7", "7alt", "7#5", "7#5b9#11"]
+        `shouldBe` [6, 6, 6, 8, 8, 8]
+
+    it "13sus4 restores the fifth; the sus 4 is a strong quality tone" $ do
+      let v = vocabOf "13sus4"                  -- [0,2,5,9,10]
+      bvFifth v `shouldBe` 7
+      bvStrong v `shouldMatchList` [0, 5, 7, 10]
+      bvPassing v `shouldBe` [2]
+
+    it "m13 restores the fifth with minor-family passing tones" $ do
+      let v = vocabOf "m13"                     -- [0,2,3,9,10]
+      bvFifth v `shouldBe` 7
+      bvStrong v `shouldMatchList` [0, 3, 7, 10]
+      bvPassing v `shouldMatchList` [2, 5]
+
+    it "7alt takes the #5 as its fifth and never lands the b9 strong" $ do
+      let v = vocabOf "7alt"                    -- [0,1,4,8,10]
+      bvFifth v `shouldBe` 8
+      bvStrong v `shouldMatchList` [0, 4, 8, 10]
+      bvAvoid v `shouldBe` [1]
+      bvPassing v `shouldBe` []                 -- natural 9 wrong over altered
+
+    it "m7b5 takes the b5 as its fifth" $ do
+      let v = vocabOf "m7b5"                    -- [0,3,6,10]
+      bvFifth v `shouldBe` 6
+      bvStrong v `shouldMatchList` [0, 3, 6, 10]
+
+    it "7b9 keeps its natural fifth; the notated b9 is avoid, not strong" $ do
+      let v = vocabOf "7b9"                     -- [0,1,4,7,10]
+      bvFifth v `shouldBe` 7
+      bvStrong v `shouldMatchList` [0, 4, 7, 10]
+      bvAvoid v `shouldBe` [1]
+
+    it "7#9: the 4 is the third, the notated #9 is avoid, no natural-9 passing" $ do
+      let v = vocabOf "7#9"                     -- [0,3,4,7,10]
+      bvStrong v `shouldMatchList` [0, 4, 7, 10]
+      bvAvoid v `shouldBe` [3]
+      bvPassing v `shouldBe` []
+
+    it "plain m7 offers 9 and 11 as passing (theory.md palette)" $ do
+      let v = vocabOf "m7"
+      bvStrong v `shouldMatchList` [0, 3, 7, 10]
+      bvPassing v `shouldMatchList` [2, 5]
+
+    it "plain dominant and maj7 offer the 9 but not the 11" $ do
+      bvPassing (vocabOf "7") `shouldBe` [2]
+      bvPassing (vocabOf "M7") `shouldBe` [2]
+
+    it "6-chords carry the 6th as a strong tone" $ do
+      bvStrong (vocabOf "6") `shouldMatchList` [0, 4, 7, 9]
+      bvStrong (vocabOf "m6") `shouldMatchList` [0, 3, 7, 9]
+
+    it "9sus4 (the Dm7/G shape) anchors root-4-5-b7 from the sounding bass" $ do
+      let v = vocabOf "9sus4"                   -- [0,2,5,7,10]
+      bvStrong v `shouldMatchList` [0, 5, 7, 10]
+
+    it "present colour tones route to avoid: #11 and b13 over a natural fifth" $ do
+      bvAvoid (vocabOf "7#11") `shouldBe` [6]   -- [0,4,6,7,10]
+      bvAvoid (vocabOf "7b13") `shouldBe` [8]   -- [0,4,7,8,10]
+
+    it "is total and well-formed over every corpus quality" $ do
+      let vs = [ (q, bassVocabFor ivs) | (q, ivs) <- Map.toList qualityIntervals ]
+      mapM_ (\(_, v) -> do
+              bvFifth v `shouldSatisfy` (`elem` [6, 7, 8])
+              bvStrong v `shouldSatisfy` (elem 0)
+              bvStrong v `shouldSatisfy` all (\i -> i >= 0 && i < 12)
+              bvStrong v `shouldSatisfy` (\st -> all (`notElem` st) (bvAvoid v)))
+            vs

@@ -1007,6 +1007,13 @@ hush
 -- For octatripentatonic progressions (Section 19) the line's
 -- connector pool automatically reweights toward the 5-PC strata
 -- set — the walk speaks the same dialect as the harmony.
+--
+-- For jazz progressions (Section 21) each bar is read through its
+-- chord symbol's bass vocabulary: the fifth a 13th chord omits is
+-- restored, an altered dominant's #5 stands in for the natural 5,
+-- and notated colours (b9 #9 #11 b13) never land on strong beats —
+-- they stay available as weak-beat tension. Nothing to switch on;
+-- the walk follows the progression's family.
 
 -- ── TRY THIS ──
 -- Mute the pad and listen to the line alone — the strong beats
@@ -1088,7 +1095,7 @@ hush
 -- With the orchestral instrument functions the same split is one
 -- line — `divisi 2 violin1 T (0, 1) k vl grid Soprano` — and
 -- primed voices (Soprano', Bass8vb') pick desks manually. The
--- full system (15 instruments, articulations, section blocks,
+-- full system (16 instruments — 14 pitched, 2 unpitched — articulations, section blocks,
 -- timbral blends) lives in documents/ALGORITHMIC_ORCHESTRATION.md; it
 -- depends on a specific MIDI rig, so this guide stops at the
 -- paradigm.
@@ -1317,7 +1324,74 @@ hush
 
 
 -- ══════════════════════════════════════════════════════════
--- SECTION 21 — Snippets & the liveness gradient
+-- SECTION 21 — Jazz generation (genJ)
+-- ══════════════════════════════════════════════════════════
+-- src/Harmonic/Framework/Builder/JazzGen.hs   (the jazz walk)
+-- src/Harmonic/Rules/Import/Jazz.hs           (parser + namer)
+--
+-- GOAL: leadsheet changes — m7, 7#9, 13b9#11, slash chords —
+-- walked with the same modifier chain, trained on the
+-- Jazz-Chord-Progressions-Corpus (Bunks et al., ISMIR 2023;
+-- 2,614 tunes). The jazz graph (:Change) lives beside the
+-- classical one; chords come out at corpus arity (3-6 tones)
+-- and there is deliberately NO consonance fallback — the
+-- corpus is rich enough that the graph IS the pool.
+
+-- Cue with leadJ: leadsheet symbols in their own quality
+-- namespace (lead/lead' and the triadic tables are untouched).
+-- A notated slash bass is honoured exactly: unioned into the
+-- set and made the anchor.
+jstart <- leadJ "Cm7"                -- corpus workhorse
+jslash <- leadJ "Dm7/G"              -- G anchor, full Dm7 above (9sus4 set)
+
+pc21 <- seek "*" $ cue jstart $ len 8 $ entropy 0.3 $ genJ'
+
+-- ── ONE SEEK SPEC, BOTH CORPORA ──
+-- Jazz names blend by corpus weights (substring-matched:
+-- "monk" finds theloniousmonk and the co-credits). A CLASSICAL
+-- name steers instead: each step, the chord's most consonant
+-- embedded triad asks the classical graph what that composer
+-- would do next, and jazz candidates containing a recommended
+-- triad get boosted. steer dials the strength.
+pc21b <- seek "theloniousmonk:60 johncoltrane:40" $ cue jstart $ len 8 $ entropy 0.5 $ genJ'
+pc21s <- seek "debussy" $ steer 8 $ cue jstart $ len 8 $ entropy 0.3 $ genJ'
+pc21m <- seek "monk debussy" $ cue jstart $ len 8 $ entropy 0.3 $ genJ'
+-- (seek "none" is refused — the jazz graph has no offline mode.)
+
+-- ── THE USUAL MODIFIERS ──
+-- tonal runs the same R filters over jazz candidates (key of C
+-- pins the walk to diatonic corpus vocabulary — Am7, Dm7,
+-- G7sus4, CM7...); genFrom regenerates jazz-natively; attempt
+-- ranks against the jazz graph's own cadence statistics.
+pc21k <- seek "*" $ cue jstart $ tonal (hcKey "0#" hContext) $ len 8 $ entropy 0.4 $ genJ'
+pc21r <- seek "*" $ entropy 0.6 $ genFrom pc21 3 4
+pc21a <- seek "*" $ attempt 3 8 $ cue jstart $ len 8 $ entropy 0.4 $ genJ''
+
+-- Play it: ordinary ProgressionContext — voicings, kinetics and
+-- arrange all work unchanged on 3-6-tone chords, and the walking
+-- bass reads the jazz vocabulary automatically (Section 16).
+p21 = do
+  let k = iK tempo [at 0 1 1 pc21] (rep pc21 1)
+  mapM_ id [hush, setbpm tempo
+    , (d01 $ arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~", "[0 1 2 3]/4"] # ch 01 |* vel 0.7 |= legato 1.2)
+    , (p "lineHarmony" $ lineHarmony 0.9 k root ["~", "[1 2 3 4]/4"] # ch 08 # legato 0.95)
+    ]
+
+p21
+
+-- ── TRY THIS ──
+-- The guided tour with live database probes is
+-- live/JAZZ_DIAGNOSTIC.tidal — work down it section by section.
+-- Compare pc21 and pc21s grids: the Debussy steer audibly drags
+-- the walk into maj7 colour. Then mute the pad and listen to the
+-- bass alone: on a 13th chord it reaches the fifth the voicing
+-- never states, and it steps around the altered tones.
+
+hush
+
+
+-- ══════════════════════════════════════════════════════════
+-- SECTION 22 — Snippets & the liveness gradient
 -- ══════════════════════════════════════════════════════════
 -- live/snippets.cson   (the snippet library — Pulsar format)
 --
@@ -1375,7 +1449,7 @@ hush
 
 
 -- ══════════════════════════════════════════════════════════
--- SECTION 22 — Going further
+-- SECTION 23 — Going further
 -- ══════════════════════════════════════════════════════════
 --
 -- INSTRUMENT CATALOGUE

@@ -12,7 +12,10 @@ import Harmonic.Interface.Tidal.Form (Kinetics(..))
 import Harmonic.Interface.Tidal.Groove (fund)
 import Harmonic.Interface.Tidal.LineHarmony
 import Harmonic.Interface.Tidal.Bridge (warp, rep)
-import Harmonic.Traversal.WalkingBass (closestLowMidi, walkLine)
+import Harmonic.Traversal.WalkingBass (closestLowMidi, walkLine, walkLineJ)
+import Harmonic.Interface.Tidal.Arranger (root)
+import qualified Harmonic.Rules.Import.Jazz as J
+import qualified Harmonic.Rules.Types.Pitch as Pt
 
 import qualified Data.Sequence as Seq
 import qualified Data.Map.Strict as Map
@@ -185,3 +188,34 @@ spec = do
     it "rep s 1 renders identically to the stored-order walk" $ do
       let tc = PC.fromProgression testProgression
       runWalk (rep tc 1) 4 `shouldBe` shifted (walkLine fund testProgression)
+
+  describe "FJazz routing (bass-vocabulary side-channel)" $ do
+
+    -- C13 C13 F13 G13sus4: corpus sets with no fifth, so the vocab path
+    -- and the raw path produce audibly different lines.
+    let mkJ nn ivs = H.mkCadenceStatePCs nn
+          (H.toMovement (Pt.mkPitchClass 0) (Pt.mkPitchClass 0)) ivs
+        prog13 = P.fromCadenceStates
+          [ mkJ Pt.C [0,2,4,9,10], mkJ Pt.C [0,2,4,9,10]
+          , mkJ Pt.F [0,2,4,9,10], mkJ Pt.G [0,2,5,9,10] ]
+        kinFam fam =
+          let ctx = (PC.fromProgression prog13) { PC.pcFamily = fam }
+          in Kinetics (pure 1.0) (pure 1.0) (pure ctx) [ctx] 0 0
+        runFam fam =
+          let result = lineHarmony (pure 1.0) (kinFam fam, rep13 fam) root
+                         [parseBP_E "[1 2 3 4]/4"]
+          in [ n | (_, n) <- queryOnsets result (Arc 0 16) ]
+        rep13 fam = rep ((PC.fromProgression prog13) { PC.pcFamily = fam }) 1
+        vocab = [ J.bassVocabFor
+                    [ Pt.unPitchClass iv
+                    | iv <- H.cadenceIntervals (H.stateCadence cs) ]
+                | cs <- foldr (:) [] (P.unProgression prog13) ]
+
+    it "an FJazz context walks through the vocabulary path" $ do
+      runFam PC.FJazz `shouldBe`
+        [ fromIntegral m - 48 | bar <- walkLineJ root prog13 vocab, m <- bar ]
+
+    it "the same progression under FTriad walks the raw sets (paths differ)" $ do
+      runFam PC.FTriad `shouldBe`
+        [ fromIntegral m - 48 | bar <- walkLine root prog13, m <- bar ]
+      runFam PC.FTriad `shouldNotBe` runFam PC.FJazz

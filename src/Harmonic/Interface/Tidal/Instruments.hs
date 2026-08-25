@@ -2,9 +2,11 @@
 -- Module      : Harmonic.Interface.Tidal.Instruments
 -- Description : MIDI channel routing and instrument shorthand for TidalCycles
 --
--- Provides channel-assignment helpers (@p10@..@p16@, @ch@) and instrument
--- launchers (@wind@, @strg@, @brss@, @perc@, etc.) that combine MIDI
--- routing with form-driven kinetics for live performance.
+-- Provides channel-assignment helpers (@p10@..@p16@, @ch@) and named
+-- synth wrappers for live MIDI routing. Section launchers (@wind@,
+-- @strg@, @brss@, @perc@) are NOT defined here — they are composed
+-- per-performance in the .tidal files (see
+-- documents\/ALGORITHMIC_ORCHESTRATION.md).
 
 module Harmonic.Interface.Tidal.Instruments (
     -- * Channel shorthand
@@ -53,7 +55,7 @@ juno = (\pat -> pat # s "thru" # midichan 15)
 -- The general form of 'p10' .. 'p16'; used internally by every orchestral
 -- instrument in "Harmonic.Interface.Tidal.Orchestra".
 ch :: Int -> Pattern ValueMap
-ch n = s "thru" # midichan (fromIntegral (n - 1))
+ch c = s "thru" # midichan (fromIntegral (c - 1))
 
 -- | Velocity, as an alias for the @amp@ control. Multiply onto a pattern to
 -- scale it:

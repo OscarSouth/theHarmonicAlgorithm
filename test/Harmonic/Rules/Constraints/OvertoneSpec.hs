@@ -79,29 +79,12 @@ spec = do
       -- C(5,3) = 10
       length (nCr 3 [1,2,3,4,5]) `shouldBe` 10
     
-  describe "rankedTriads Ordering" $ do
-    
-    it "rankedTriads returns most consonant first" $ do
-      -- Major triad [0,4,7] should be more consonant than [0,1,2]
-      let ranked = rankedTriads (0, [1,2,3,4,5,6,7,8,9,10,11])
-      let scores = map dissonanceScore ranked
-      -- First should have lower (better) score than later entries
-      scores `shouldSatisfy` isSortedAscending
-    
-    it "topTriads 3 returns at most 3 triads" $ do
-      let top = topTriads 3 (0, [1,2,3,4,5,6,7,8,9,10,11])
-      length top `shouldSatisfy` (<= 3)
-    
-    it "topTriads n on limited input returns what's available" $ do
-      let top = topTriads 10 (0, [4,7])  -- Only 1 triad possible
-      length top `shouldBe` 1
-    
   describe "possibleTriadsFrom (PitchClass version)" $ do
     
-    it "produces same structure as possibleTriads" $ do
+    it "agrees exactly with possibleTriads (same triads, not just the same count)" $ do
       let triadsInt = possibleTriads (0, [4,7,10])
-      let triadsPc = possibleTriadsFrom (P 0) [P 4, P 7, P 10]
-      length triadsInt `shouldBe` length triadsPc
+          triadsPc  = map (map (\(P n) -> n)) (possibleTriadsFrom (P 0) [P 4, P 7, P 10])
+      sort triadsPc `shouldBe` sort triadsInt
 
   describe "annotateOvertones" $ do
 
