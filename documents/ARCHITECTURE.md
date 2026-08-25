@@ -306,8 +306,31 @@ passes:
 
 `walkLineP` is the octatripentatonic variant: the connector pool becomes
 the bar's strata ∪ mode ∪ neighbour-triad overlap (closed — no chromatic
-outsiders) with three-tier preference. `LineHarmony` wraps either in the
-cached Tidal interface and resolves the **performed** bar sequence from
+outsiders) with three-tier preference.
+
+`walkLineJ` is the jazz variant, and the reason it exists is that a
+corpus chord symbol describes a working voicing rather than a bass
+player's reading of it: 13th chords carry no 5th and no 11th, altered
+qualities put a #5 or b5 where the 5th would be, and notated colours
+(b9, #9, #11, b13) are tension to pass through, not tones to land on.
+`Rules.Import.Jazz.bassVocabFor` derives that reading per bar — the
+triadic **target** tones a line aims at, the defining seventh, the
+favourable passing extensions, the avoid tones, and *the* fifth
+(restored where the symbol implies one the voicing omits). The vocabulary
+then corrects every fifth-driven term, tiers the beat-3 pool (target ≺
+seventh ≺ passing ≺ palette) and the beat-2 preference, and keeps avoid
+tones off strong beats while leaving them reachable as weak-beat colour.
+The same triad/extension split runs through key inference: triads vote
+widely and weakly because they are ambiguous, sevenths narrow the
+reading, and the upper extensions narrow it further or redirect it —
+an altered dominant points at a minor tonic, a #11 over a major seventh
+rules out the subdominant reading.
+
+`LineHarmony` selects the variant per context — strata chroma for
+`FStrata`, bass vocabulary for `FJazz`, plain tone sets otherwise — with
+the chosen side-channel folded into the cache key so lines never collide.
+It wraps whichever variant in the cached Tidal interface and resolves the
+**performed** bar sequence from
 the chord-selection pattern, so warped/repeated bars are walked in the
 order the audience hears them (non-periodic selections fall back to
 stored order). The register is a 21-semitone window (MIDI 28–48); its
@@ -444,8 +467,14 @@ ctx = invSkip 2 $ consonant $ hcPedal "C?" $ hcKey "0#" $ hcOvertones "E A D G" 
 
 Each filter string supports the wildcard `*`, subtraction (`-Bb'`),
 prime notation for exact pitches (`E'`), and — for roots — forced
-stepwise motion (`rise`/`fall`). Overtone strings expand each named
-fundamental to its playable set (root, fifth, third).
+stepwise motion (`rise`/`fall`, with `<…>` step lists; whitespace before
+the bracket is tolerated). All three contexts share one parser core, so
+the grammar cannot diverge between them. The roots string additionally
+accepts the magic values `key` (mirror the key filter) and `tones` (the
+key-filtered overtone set). A token no branch recognises is ignored for
+generation but named in a `⚠` warning printed once per generation — a
+typo never silently reshapes the rule set. Overtone strings expand each
+named fundamental to its playable set (root, fifth, third).
 
 ---
 

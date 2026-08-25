@@ -25,6 +25,19 @@ import qualified Data.List
 
 spec :: Spec
 spec = do
+  describe "alignVoices totality" $ do
+    it "empty against non-empty returns the inputs unchanged (no crash)" $ do
+      alignVoices [] [1, 2] `shouldBe` ([], [1, 2])
+      alignVoices [1, 2] [] `shouldBe` ([1, 2], [])
+
+    it "equal lengths pass through" $
+      alignVoices [0, 4, 7] [2, 5, 9] `shouldBe` ([0, 4, 7], [2, 5, 9])
+
+    it "pads the smaller voicing to the larger's length" $ do
+      let (f, t) = alignVoices [0, 7] [0, 4, 7]
+      length f `shouldBe` 3
+      t `shouldBe` [0, 4, 7]
+
   describe "voiceMovement" $ do
     
     it "no movement = 0" $

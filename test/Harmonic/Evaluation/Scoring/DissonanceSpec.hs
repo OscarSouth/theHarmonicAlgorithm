@@ -5,6 +5,8 @@ import Test.Hspec.QuickCheck
 import Test.QuickCheck
 
 import qualified Harmonic.Evaluation.Scoring.Dissonance as D
+import qualified Harmonic.Rules.Types.Harmony as H
+import qualified Harmonic.Rules.Constraints.Overtone as O
 import qualified Harmonic.Rules.Types.Pitch as P
 
 spec :: Spec
@@ -157,6 +159,19 @@ spec = do
     prop "interval vector always has 6 elements" $ \pcs ->
       let normalized = map (`mod` 12) pcs
       in length (D.intervalVector normalized) == 6
+
+  -- Standing ruling (roadmap §4): Harmony keeps a private replica of
+  -- mostConsonant so Layer B never imports Layer C; this pins the two
+  -- copies to identical behaviour so they cannot drift apart.
+  describe "mostConsonant replica agreement (Harmony vs Dissonance)" $ do
+    it "agrees on every pool drawn from a chromatic triad enumeration" $ do
+      let pools = [ take n (drop k (O.possibleTriads (0, [1..11])))
+                  | n <- [1, 3, 7], k <- [0, 5, 11] ]
+      map H.mostConsonant pools `shouldBe` map D.mostConsonant pools
+
+    it "agrees on ties and single-element pools" $ do
+      H.mostConsonant [[0,4,7]] `shouldBe` D.mostConsonant [[0,4,7]]
+      H.mostConsonant [[0,3,7], [0,4,7]] `shouldBe` D.mostConsonant [[0,3,7], [0,4,7]]
 
   describe "mostConsonant" $ do
     it "selects major over diminished" $

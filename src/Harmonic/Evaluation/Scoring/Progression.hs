@@ -146,7 +146,7 @@ scoreRootMotion prog =
      else
        let rootPC s = P.unPitchClass (P.pitchClass (H.stateCadenceRoot s))
            rootPCs  = map rootPC states
-           edges    = zip rootPCs (drop 1 rootPCs) ++ [(last rootPCs, head rootPCs)]
+           edges    = zip rootPCs (drop 1 rootPCs ++ take 1 rootPCs)
            rawSum   = sum [ fromIntegral (D.rootMotionScore ((b - a) `mod` 12))
                           | (a, b) <- edges
                           ] :: Double
@@ -270,7 +270,7 @@ cadenceFavFromKeys srcMap keys =
   let n = length keys
   in if n < 2 then 0
      else
-       let edges = zip keys (drop 1 keys ++ [head keys])
+       let edges = zip keys (drop 1 keys ++ take 1 keys)
            perEdge = map (edgeScore srcMap) edges
        in sum perEdge / fromIntegral (length perEdge)
 

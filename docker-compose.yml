@@ -17,6 +17,9 @@ services:
       - NEO4J_PLUGINS=["apoc"]
       - NEO4J_dbms_security_procedures_allowlist=apoc.coll.*,apoc.load.*,apoc.*
       - NEO4J_dbms_security_procedures_unrestricted=apoc.coll.*,apoc.load.*,apoc.*
+      # Cap transaction-log retention: the WAL had grown to 514MB with the
+      # default keep-policy; 100M is ample for a single-user local graph.
+      - NEO4J_db_tx__log_rotation_retention__policy=100M size
       - NEO4J_server_memory_pagecache_size=1G
       - NEO4J_server_memory_heap_initial__size=1G
       - NEO4J_server_memory_heap_max__size=1G

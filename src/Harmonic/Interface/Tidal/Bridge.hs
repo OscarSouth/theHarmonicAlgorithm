@@ -66,7 +66,10 @@ import Sound.Tidal.Context hiding (voice)
 -- |Voice function type: extracts integer pitch sequences from progression
 type VoiceFunction = P.Progression -> [[Int]]
 
--- |Filter pattern events by MIDI note range
+-- |Filter pattern events by DEGREE-INDEX range — the raw @Pattern Int@
+-- values before the degree→pitch mapping, NOT MIDI notes. Instrument
+-- range clipping in MIDI space happens later, via
+-- 'Harmonic.Interface.Tidal.Orchestra.clip'.
 voiceRange :: (Int, Int) -> Pattern Int -> Pattern Int
 voiceRange (lo, hi) = filterValues (\v -> v >= lo && v <= hi)
 
@@ -89,7 +92,7 @@ forceAll = foldr (\xs acc -> foldr seq acc xs) ()
 -- let r = warp \"[1 2]\/8\"       -- 2 chords over 8 bars (4 bars each)
 -- @
 warp :: String -> Pattern Int
-warp s = slow 4 $ parseBP_E s
+warp str = slow 4 $ parseBP_E str
 
 -- |Generate a sequential chord selection pattern from a progression.
 -- Auto-derives length from the progression. Timing is bar-relative.
@@ -100,8 +103,8 @@ warp s = slow 4 $ parseBP_E s
 -- @
 rep :: PC.ProgressionContext -> Pattern Time -> Pattern Int
 rep pc repVal =
-  let n = PC.pcLength pc
-  in slow (fromIntegral n * repVal * 4) $ fastcat $ map pure [1..n]
+  let barsN = PC.pcLength pc
+  in slow (fromIntegral barsN * repVal * 4) $ fastcat $ map pure [1..barsN]
 
 -------------------------------------------------------------------------------
 -- Arrangement: arrange (onset-join)
@@ -141,7 +144,7 @@ layerForVoicing lyr ctx =
 -- "Harmonic.Interface.Tidal.Orchestra" is a thin wrapper around it.
 --
 -- @d1 $ arrange (0,1) k (-9,9) T flow id [\"0 1 2 3\"]@
-arrange :: (Double, Double)                     -- ^ Kinetics range
+arrange :: (Double, Double)                     -- ^ Kinetics gate: events pass only while 'kSignal' sits inside @(lo, hi)@ — the same predicate as 'Harmonic.Interface.Tidal.Form.ki', applied here so every instrument line carries its own activation band
         -> IK                                    -- ^ Performance context (kinetics + chord selection)
         -> (Int, Int)                            -- ^ Degree-index trim for the input patterns (scale degrees, not MIDI; instrument-range clipping happens later via clip)
         -> Layer                                 -- ^ Progression layer to voice (T | S | M)
@@ -174,7 +177,7 @@ arrange (lo, hi) (kin, chordPat) register lyr voiceFunc modifier pats =
                           forced = forceAll sc
                       in forced `seq` (sc, nc))
               | key <- uniqueProgs ]
-      cacheForced = foldr (\(_, (s, _)) acc -> forceAll s `seq` acc) () cache
+      cacheForced = foldr (\(_, (scs, _)) acc -> forceAll scs `seq` acc) () cache
       lookupCache key = case lookup key cache of
         Just hit -> hit
         Nothing  -> let vs     = effectiveVF (fmap modifier key)
@@ -207,12 +210,12 @@ arrangeLookup (scales, nChords) chordPat ranged
                     sc      = scales !! (ci `mod` nChords)
                     noteVal = value nEv
                     scLen   = length sc
-                    octave  = noteVal `div` max 1 scLen
+                    octv    = noteVal `div` max 1 scLen
                     idx     = noteVal `mod` max 1 scLen
                 -- A bar with no pitch content (e.g. a typo'd empty chord
                 -- in a hand-written prog) emits nothing rather than
                 -- indexing [] on the audio thread.
-                in [ nEv { value = (sc !! idx) + fromIntegral (octave * 12) }
+                in [ nEv { value = (sc !! idx) + fromIntegral (octv * 12) }
                    | scLen > 0 ]
               ) noteEvs
             ) Nothing Nothing
@@ -256,7 +259,7 @@ arrange' (lo, hi) (kin, chordPat) register lyr voiceFunc modifier pats =
                           forced = forceAll sc
                       in forced `seq` (sc, nc))
               | key <- uniqueProgs ]
-      cacheForced = foldr (\(_, (s, _)) acc -> forceAll s `seq` acc) () cache
+      cacheForced = foldr (\(_, (scs, _)) acc -> forceAll scs `seq` acc) () cache
       lookupCache key = case lookup key cache of
         Just hit -> hit
         Nothing  -> let vs     = effectiveVF (fmap modifier key)

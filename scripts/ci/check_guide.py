@@ -75,14 +75,30 @@ def _run(here, tmp, a):
         gen_ln, src_ln = row.split("\t")
         mapping[int(gen_ln)] = int(src_ln)
 
+    # A live Pulsar session sees exactly what BootTidal.hs imports — nothing
+    # more. `stack ghci` loads the whole package, so without this reset the
+    # payload can resolve names straight out of any library module and the
+    # gate goes green on code that dies in Pulsar with "not in scope" (that
+    # is how an unexported `steer` shipped). `:m` drops back to Prelude;
+    # replaying the boot file's own import lines rebuilds the real surface.
+    # Interactive bindings from the boot script (tidal, d1..d16, ch, ...)
+    # are top-level bindings, not imports, so they survive the reset.
+    boot_imports = "\n".join(
+        ln.rstrip() for ln in (ROOT / BOOT).read_text().splitlines()
+        if ln.startswith("import ")
+    )
+
     session = tmp / "session.ghci"
-    session.write_text(f":script {BOOT}\n{gen.stdout}\nputStrLn \"{DONE}\"\n:quit\n")
+    session.write_text(
+        f":script {BOOT}\n:m\n{boot_imports}\n{gen.stdout}\nputStrLn \"{DONE}\"\n:quit\n")
 
     # The guide deliberately binds results the reader is invited to play
     # with (pcNN <- ...), so unused-binding warnings are pedagogical noise
-    # here, not defects — the gate's job is type errors.
+    # here, not defects — the gate's job is type errors. Re-binding start/k
+    # per section is likewise the live-coding idiom, so name-shadowing is
+    # off here too (the library itself compiles clean without it).
     proc = subprocess.run(["stack", "ghci",
-                           "--ghci-options=-v0 -Wno-unused-matches -Wno-unused-local-binds -Wno-unused-do-bind"],
+                           "--ghci-options=-v0 -Wno-unused-matches -Wno-unused-local-binds -Wno-unused-do-bind -Wno-name-shadowing"],
                           cwd=ROOT, stdin=session.open(), capture_output=True, text=True)
     out = proc.stdout + proc.stderr
 

@@ -31,7 +31,7 @@ import Sound.Tidal.Context
 --
 -- @, cello T (0,1) k vl grid Bass |+ oct (-1)@
 oct :: Int -> Pattern ValueMap
-oct n = note (fromIntegral (12 * n))
+oct k = note (fromIntegral (12 * k))
 
 -- | Rotate a pattern earlier ('pullBy') or later ('pushBy') in time.
 -- Function forms of the TidalCycles @\<~@ and @~>@ operators, so they compose
@@ -46,9 +46,11 @@ pushBy :: Time -> Pattern a -> Pattern a
 pushBy t pat = (pure t) ~> pat
 
 -- | Random per-event velocity jitter, for a less mechanical feel. The argument
--- scales the spread: @humanise 1@ varies @amp@ by up to &#177;0.09.
+-- scales the spread: @humanise 1@ varies @amp@ by up to ±0.09. The value
+-- is centred on ZERO — combine with @|+@ (\"|+ humanise 0.2\"), never
+-- @#@, which would replace the amp instead of jittering it.
 humanise :: Double -> Pattern ValueMap
-humanise n = pF "amp" (range (pure (-0.09 * n)) (pure (0.09 * n)) rand)
+humanise x = pF "amp" (range (pure (-0.09 * x)) (pure (0.09 * x)) rand)
 
 -- | Ensure every event is an onset by aligning whole start with part start,
 -- but only at cycle boundaries. Prevents TidalCycles' onset detection from

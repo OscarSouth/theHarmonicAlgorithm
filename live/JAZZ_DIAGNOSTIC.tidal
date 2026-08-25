@@ -226,7 +226,10 @@ runDb conn (runQuery "MATCH (a:Change)-[r:NEXT]->(b:Change) WHERE r.weights CONT
 --   seek "monk debussy"       blend AND steer together.
 --   seek "none"               refused — no offline jazz mode.
 
-jstart = initCadenceState 0 "C" [0,3,7,10]
+-- leadJ parses a leadsheet symbol into a jazz-named cue. (Do not use
+-- initCadenceState here: it truncates anything past three pitch classes,
+-- so "Cm7" would silently become a Cm triad.)
+jstart <- leadJ "Cm7"
 
 jstart
 
@@ -299,7 +302,11 @@ d01 $ arrange (0,1) kj (-9,9) T flow id ["[0 1 2 3]/4"] # ch 01
 
 hush
 
--- Walking bass under it (channel 2), comping over it:
-d02 $ arrange (0,1) kj (-16,-4) T root id ["[0 ~ 0 0]/4"] # ch 02
+-- Walking bass under it (channel 8). This is the real thing, not
+-- a root-per-bar arrange: lineHarmony sees pcj's FJazz family and
+-- routes it through walkLineJ, so each bar walks its chord
+-- symbol's bass vocabulary — restored fifths on the 13ths, the #5
+-- on altered dominants, colour tones kept off strong beats.
+d08 $ lineHarmony 0.9 kj root ["[1 2 3 4]/4"] # ch 08 # legato 0.95
 
 hush

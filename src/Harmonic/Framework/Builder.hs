@@ -191,7 +191,6 @@ module Harmonic.Framework.Builder
   , defaultConfig
 
     -- * Internal functions (exposed for testing)
-  , matchesContext
   , parseComposersWithOrder
   , makePortmanteau
   , extractByPosition
@@ -271,8 +270,8 @@ generate :: H.CadenceState       -- ^ Starting state (root + quality)
          -> Double               -- ^ Entropy (gamma shape)
          -> HarmonicContext      -- ^ R constraints
          -> IO Prog.Progression
-generate start len composerStr entropy context =
-  generateWith defaultConfig start len composerStr entropy context
+generate start nBars composerStr ent context =
+  generateWith defaultConfig start nBars composerStr ent context
 
 -------------------------------------------------------------------------------
 -- String-Friendly Generation (TidalCycles Interface)
@@ -280,17 +279,17 @@ generate start len composerStr entropy context =
 
 -- |Positional generate with header + grid output (internal).
 genPrint :: H.CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Prog.Progression
-genPrint start len composerStr entropy ctx = do
-  (prog, _diag) <- generate' start len composerStr entropy ctx
+genPrint start nBars composerStr ent ctx = do
+  (prog, _diag) <- generate' start nBars composerStr ent ctx
   putStrLn ""
-  printHeader (T.pack composerStr) entropy ctx
+  printHeader (T.pack composerStr) ent ctx
   print prog
   putStrLn ""
   pure prog
 
 -- |String-friendly generateWith for TidalCycles live coding.
 genWith :: GeneratorConfig -> H.CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Prog.Progression
-genWith config start len composerStr entropy ctx = generateWith config start len (T.pack composerStr) entropy ctx
+genWith config start nBars composerStr ent ctx = generateWith config start nBars (T.pack composerStr) ent ctx
 
 -- |Generate with custom configuration
 --
@@ -306,11 +305,11 @@ generateWith :: GeneratorConfig
              -> Double
              -> HarmonicContext
              -> IO Prog.Progression
-generateWith config start len composerStr entropy context = do
+generateWith config start nBars composerStr ent context = do
   let pctx = parseContextOnce context
   rng <- createSystemRandom
   source <- sourceFor composerStr
-  (chain, _) <- buildChainWith source config rng Nothing entropy context (const pctx) start (len - 1)
+  (chain, _) <- buildChainWith source config rng Nothing ent context (const pctx) start (nBars - 1)
   pure $ chainToProgression chain
 
 -------------------------------------------------------------------------------
@@ -328,17 +327,17 @@ generateWith config start len composerStr entropy context = do
 --   * 'genVerbose' - for verbose diagnostics
 generate' :: H.CadenceState -> Int -> String -> Double -> HarmonicContext
           -> IO (Prog.Progression, GenerationDiagnostics)
-generate' start len composerStr entropy ctx =
-  genWith' defaultConfig start len composerStr entropy ctx
+generate' start nBars composerStr ent ctx =
+  genWith' defaultConfig start nBars composerStr ent ctx
 
 -- |Positional generate with compact musical summary (internal).
 genPrint' :: H.CadenceState -> Int -> String -> Double -> HarmonicContext
           -> IO Prog.Progression
-genPrint' start len composerStr entropy ctx = do
-  (prog, diag) <- generate' start len composerStr entropy ctx
+genPrint' start nBars composerStr ent ctx = do
+  (prog, diag) <- generate' start nBars composerStr ent ctx
   renderStandardSteps show composerStr ctx diag
   putStrLn ""
-  printHeader (T.pack composerStr) entropy ctx
+  printHeader (T.pack composerStr) ent ctx
   print prog
   putStrLn ""
   pure prog
@@ -365,14 +364,15 @@ renderStandardSteps barLabel composerStr ctx diag = do
 
   putStrLn ""
   putStrLn $ "Generation: " ++ gdStartRoot diag ++ " " ++ gdStartCadence diag
-             ++ " → " ++ show (gdActualLen diag) ++ " chords (entropy " ++ show (gdEntropy diag) ++ ")"
+             ++ " → " ++ show (gdActualLen diag) ++ " chords (ent " ++ show (gdEntropy diag) ++ ")"
   putStrLn $ composerModeStr composerStr
   putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-  let bar1Suffix = if hasAnnotation && not (null allStates)
-                   then let ann = annotateState (head allStates)
-                        in if null ann then "" else "  " ++ ann
-                   else ""
+  let bar1Suffix = case allStates of
+        (a0 : _) | hasAnnotation ->
+          let ann = annotateState a0
+          in if null ann then "" else "  " ++ ann
+        _ -> ""
   putStrLn $ "  " ++ barLabel 1 ++ ": " ++ gdStartRoot diag ++ " " ++ gdStartCadence diag
              ++ " [starting state]" ++ bar1Suffix
   putStrLn ""
@@ -445,18 +445,18 @@ genWith' = genWithV (Just 1)
 -- @Just 1@ Standard, @Just 2@ Verbose (full transform\/advance traces).
 genWithV :: Maybe Int -> GeneratorConfig -> H.CadenceState -> Int -> String -> Double -> HarmonicContext
          -> IO (Prog.Progression, GenerationDiagnostics)
-genWithV mLevel config start len composerStr entropy context = do
+genWithV mLevel config start nBars composerStr ent context = do
   let pctx = parseContextOnce context
   rng <- createSystemRandom
   source <- sourceFor (T.pack composerStr)
-  (chain, stepDiags) <- buildChainWith source config rng mLevel entropy context (const pctx) start (len - 1)
+  (chain, stepDiags) <- buildChainWith source config rng mLevel ent context (const pctx) start (nBars - 1)
   let prog = chainToProgression chain
       diag = GenerationDiagnostics
         { gdStartCadence = show (extractCadence start)
         , gdStartRoot = show (H.stateCadenceRoot start)
-        , gdRequestedLen = len
+        , gdRequestedLen = nBars
         , gdActualLen = Prog.progLength prog
-        , gdEntropy = entropy
+        , gdEntropy = ent
         , gdSteps = stepDiags
         , gdProgression = prog
         }
@@ -478,17 +478,17 @@ genWithV mLevel config start len composerStr entropy context = do
 -- Use only for debugging chord name discrepancies or voice leading issues.
 generate'' :: H.CadenceState -> Int -> String -> Double -> HarmonicContext
            -> IO (Prog.Progression, GenerationDiagnostics)
-generate'' start len composerStr entropy ctx =
-  genWith'' defaultConfig start len composerStr entropy ctx
+generate'' start nBars composerStr ent ctx =
+  genWith'' defaultConfig start nBars composerStr ent ctx
 
 -- |Positional generate with verbose traces (internal).
 genPrint'' :: H.CadenceState -> Int -> String -> Double -> HarmonicContext
            -> IO Prog.Progression
-genPrint'' start len composerStr entropy ctx = do
-  (prog, diag) <- generate'' start len composerStr entropy ctx
+genPrint'' start nBars composerStr ent ctx = do
+  (prog, diag) <- generate'' start nBars composerStr ent ctx
   renderVerboseSteps show composerStr diag
   putStrLn ""
-  printHeader (T.pack composerStr) entropy ctx
+  printHeader (T.pack composerStr) ent ctx
   print prog
   putStrLn ""
   pure prog
@@ -502,7 +502,7 @@ renderVerboseSteps :: (Int -> String) -> String -> GenerationDiagnostics -> IO (
 renderVerboseSteps barLabel composerStr diag = do
   putStrLn ""
   putStrLn $ "Verbose Generation: " ++ gdStartRoot diag ++ " " ++ gdStartCadence diag
-             ++ " → " ++ show (gdActualLen diag) ++ " chords (entropy " ++ show (gdEntropy diag) ++ ")"
+             ++ " → " ++ show (gdActualLen diag) ++ " chords (ent " ++ show (gdEntropy diag) ++ ")"
   putStrLn $ composerModeStr composerStr
   putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
@@ -558,41 +558,41 @@ genWith'' = genWithV (Just 2)
 
 -- |Generate a progression with NO diagnostic output (verbosity 0 - silent mode).
 genSilent :: H.CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Prog.Progression
-genSilent start len composerStr entropy ctx = do
-  (prog, _diag) <- generate' start len composerStr entropy ctx
+genSilent start nBars composerStr ent ctx = do
+  (prog, _diag) <- generate' start nBars composerStr ent ctx
   pure prog
 
 -- |Generate a progression with STANDARD diagnostic output (verbosity 1).
 genStandard :: H.CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Prog.Progression
-genStandard start len composerStr entropy ctx = do
-  (prog, diag) <- generate' start len composerStr entropy ctx
+genStandard start nBars composerStr ent ctx = do
+  (prog, diag) <- generate' start nBars composerStr ent ctx
   printDiagnostics 1 diag
   pure prog
 
 -- |Generate a progression with VERBOSE diagnostic output (verbosity 2).
 genVerbose :: H.CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Prog.Progression
-genVerbose start len composerStr entropy ctx = do
-  (prog, diag) <- generate'' start len composerStr entropy ctx
+genVerbose start nBars composerStr ent ctx = do
+  (prog, diag) <- generate'' start nBars composerStr ent ctx
   printDiagnostics 2 diag
   pure prog
 
 -- |Silent mode with custom 'GeneratorConfig'.
 genSilent' :: GeneratorConfig -> H.CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Prog.Progression
-genSilent' config start len composerStr entropy ctx = do
-  (prog, _diag) <- genWithV Nothing config start len composerStr entropy ctx
+genSilent' config start nBars composerStr ent ctx = do
+  (prog, _diag) <- genWithV Nothing config start nBars composerStr ent ctx
   pure prog
 
 -- |Standard diagnostics with custom 'GeneratorConfig'.
 genStandard' :: GeneratorConfig -> H.CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Prog.Progression
-genStandard' config start len composerStr entropy ctx = do
-  (prog, diag) <- genWith' config start len composerStr entropy ctx
+genStandard' config start nBars composerStr ent ctx = do
+  (prog, diag) <- genWith' config start nBars composerStr ent ctx
   printDiagnostics 1 diag
   pure prog
 
 -- |Verbose diagnostics with custom 'GeneratorConfig'.
 genVerbose' :: GeneratorConfig -> H.CadenceState -> Int -> String -> Double -> HarmonicContext -> IO Prog.Progression
-genVerbose' config start len composerStr entropy ctx = do
-  (prog, diag) <- genWith'' config start len composerStr entropy ctx
+genVerbose' config start nBars composerStr ent ctx = do
+  (prog, diag) <- genWith'' config start nBars composerStr ent ctx
   printDiagnostics 2 diag
   pure prog
 
@@ -675,7 +675,7 @@ execGenConfigWithDiag gc = do
       -- Generate _gcLen+1 chords (cue + new), then drop cue, splice into source.
       (fullProg, regenDiag) <- genWithV (diagLevelOf (_gcVerbosity gc)) cfg start (_gcLen gc + 1)
                                  (_gcSeek gc) (_gcEntropy gc) (_gcTonal gc)
-      let newChords = tail $ toList $ Prog.unProgression fullProg
+      let newChords = drop 1 $ toList $ Prog.unProgression fullProg
           result    = Prog.spliceProgression srcProg s e newChords
       pure (result, regenDiag)
 

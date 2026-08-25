@@ -52,6 +52,7 @@ import Harmonic.Rules.Types.Progression
 import Harmonic.Traversal.WalkingBass
 import Harmonic.Interface.Tidal.Groove (fund)
 import Harmonic.Interface.Tidal.Arranger (root)
+import qualified Harmonic.Rules.Import.Jazz as J
 
 
 -------------------------------------------------------------------------------
@@ -586,19 +587,23 @@ spec = do
     it "falls back to walkLine when the chromas list length mismatches" $
       walkLineP fund progGenP [] `shouldBe` walkLine fund progGenP
 
-    it "keeps every connector inside the bar's strata/overlap/mode pool" $ do
-      let line  = walkLineP fund progGenP genPChromas
-          bars  = toList (unProgression progGenP)
-          n     = length bars
-          chSet i = chordPCsFor (bars !! i)
-          overlapAt i = Set.unions
-            [ chSet ((i + d) `mod` n) | d <- [-1, 0, 1] ]
-          poolAt i =
-            let ChromaSources s m = genPChromas !! i
-            in s `Set.union` overlapAt i `Set.union` m
-          ok i = all (\k -> ((line !! i !! k) `mod` 12) `Set.member` poolAt i)
-                     [1, 3]
-      all ok [0 .. n - 1] `shouldBe` True
+    it "keeps EVERY beat inside the bar's strata/overlap/mode chroma" $
+      chromaClean progGenP genPChromas `shouldBe` True
+
+    -- The generator refuses to let even the bass leave the stratum
+    -- (pcStrictContainment). A duplicate-chord run offers the bar's fifth
+    -- as a beat-1 alternative, so the fifth a genP bar walks must itself
+    -- be chroma-resident: C# diminished in stratum V has no natural fifth
+    -- anywhere in its chroma — A natural is not even in the
+    -- octatripentatonic universe.
+    it "a duplicate genP bar never alternates onto a foreign fifth" $
+      chromaClean progGenPDup genPChromasDup `shouldBe` True
+
+    it "never emits a pitch class outside the octatripentatonic universe" $ do
+      let universe = Set.fromList [1, 2, 4, 6, 7, 9, 10, 11]
+          pcsOf pr chs = [ m `mod` 12 | bar <- walkLineP fund pr chs, m <- bar ]
+      all (`Set.member` universe) (pcsOf progGenP genPChromas) `shouldBe` True
+      all (`Set.member` universe) (pcsOf progGenPDup genPChromasDup) `shouldBe` True
 
     it "leading-tone parity: at least half of the bars approach the next \
        \beat 1 within two semitones on beat 4" $ do
@@ -608,6 +613,136 @@ spec = do
                        - head (line !! ((i + 1) `mod` n))) `elem` [1, 2]
           hits = length (filter hit [0 .. n - 1])
       hits * 2 `shouldSatisfy` (>= n)
+
+
+  describe "walkLineJ (jazz bass-vocabulary path)" $ do
+
+    let jazzVocab prog =
+          [ J.bassVocabFor
+              [ unPitchClass iv | iv <- cadenceIntervals (stateCadence cs) ]
+          | cs <- toList (unProgression prog) ]
+        walkJ prog = walkLineJ root prog (jazzVocab prog)
+        prog13 = fromCadenceStates          -- C13 C13 F13 G13sus4
+          [ mkCS C [0,2,4,9,10], mkCS C [0,2,4,9,10]
+          , mkCS F [0,2,4,9,10], mkCS G [0,2,5,9,10] ]
+        progAlt = fromCadenceStates         -- A7alt A7alt Dm9 Dm9
+          [ mkCS A [0,1,4,8,10], mkCS A [0,1,4,8,10]
+          , mkCS D [0,2,3,7,10], mkCS D [0,2,3,7,10] ]
+
+    it "a duplicate-run 13th chord alternates onto the RESTORED fifth" $ do
+      let line  = walkJ prog13
+          b1pc1 = head (line !! 1) `mod` 12
+      -- bar 2 of C13 x2: root C or the restored natural fifth G — never a
+      -- tone outside the bass vocabulary.
+      b1pc1 `shouldSatisfy` (`elem` [0, 7])
+
+    it "an altered dominant anchors its #5; the natural five never lands \
+       \on a strong beat" $ do
+      let line = walkJ progAlt
+          strongPCs = [ (line !! i !! k) `mod` 12 | i <- [0, 1], k <- [0, 2] ]
+      -- natural five (E over A7alt) on no strong beat of the alt bars;
+      -- weak-beat chromatic use (E approaching the #5) remains legal.
+      strongPCs `shouldSatisfy` notElem 4
+      -- the duplicate-run fifth alternation lands the #5, not the natural 5
+      (head (line !! 1) `mod` 12) `shouldSatisfy` (`elem` [9, 5])
+
+    it "notated avoid tones never land on strong beats" $ do
+      let checkProg prog =
+            let line  = walkJ prog
+                vs    = jazzVocab prog
+                bars' = toList (unProgression prog)
+            in and [ ((line !! i !! k) - fundPCOf (bars' !! i)) `mod` 12
+                       `notElem` J.bvAvoid (vs !! i)
+                   | i <- [0 .. length line - 1], k <- [0, 2] ]
+      checkProg prog13 `shouldBe` True
+      checkProg progAlt `shouldBe` True
+
+    it "the restored fifth is reachable as a beat-3 anchor on 13th chords" $ do
+      let line  = walkJ prog13
+          bars' = toList (unProgression prog13)
+          hits  = [ i | i <- [0 .. 3]
+                      , ((line !! i !! 2) - fundPCOf (bars' !! i)) `mod` 12 == 7 ]
+      hits `shouldSatisfy` (not . null)
+
+    it "beat 2 prefers an anchor tone over a passing extension" $ do
+      -- Dm9 | G13 | Cmaj9 | C6: bar 1 beat 2 takes the minor 3rd (F),
+      -- not the 11th (G) — both are bass vocabulary, but the quality's
+      -- defining tone outranks its passing extension in that slot.
+      let progIIVI = fromCadenceStates
+            [ mkCS D [0,2,3,7,10], mkCS G [0,2,4,9,10]
+            , mkCS C [0,2,4,7,11], mkCS C [0,4,7,9] ]
+          line = walkJ progIIVI
+      ((line !! 0 !! 1) `mod` 12) `shouldBe` 5     -- F, the m3 of Dm
+
+    it "falls back to walkLine on a vocab length mismatch" $ do
+      walkLineJ root prog13 [] `shouldBe` walkLine root prog13
+
+    it "the #9 never lands on a strong beat (avoid tones leave the pool)" $ do
+      -- the #9 is the cheapest avoid tone by interval quality, so it is
+      -- the one a soft surcharge would let through on geometry alone
+      let progSharp9 = fromCadenceStates
+            [ mkCS C [0,3,4,7,10], mkCS F [0,3,4,9,10]   -- C7#9, F13#9
+            , mkCS C [0,3,4,7,10], mkCS G [0,4,7,10] ]
+          line  = walkJ progSharp9
+          bars' = toList (unProgression progSharp9)
+          strongIvs = [ ((line !! i !! k) - fundPCOf (bars' !! i)) `mod` 12
+                      | i <- [0 .. 3], k <- [0, 2] ]
+      strongIvs `shouldSatisfy` all (/= 3)
+
+    it "a quality's own fifth is priced as a fifth, whatever semitone it sits on" $ do
+      -- b5 and #5 are the declared targets of these qualities; before
+      -- role pricing they were the dearest strong-beat options in the bar
+      let progHalfDim = fromCadenceStates
+            [ mkCS B [0,3,6,10], mkCS B [0,3,6,10]       -- Bm7b5 x2
+            , mkCS E [0,1,4,8,10], mkCS A [0,3,7,10] ]
+          line  = walkJ progHalfDim
+          bars' = toList (unProgression progHalfDim)
+          ivAt i k = ((line !! i !! k) - fundPCOf (bars' !! i)) `mod` 12
+      -- the b5 is reachable as a strong-beat anchor on a half-diminished bar
+      [ ivAt i k | i <- [0, 1], k <- [0, 2] ] `shouldSatisfy` elem 6
+      -- and the natural 5 the chord does not contain never appears there
+      [ ivAt i k | i <- [0, 1], k <- [0, 2] ] `shouldSatisfy` notElem 7
+
+
+  describe "golden lines (one fixture per generation family)" $ do
+
+    -- Literal note lists, so any claim that a change "cannot move legacy
+    -- output" is checked by the suite rather than asserted. A diff here is
+    -- not necessarily a regression — but it must be a deliberate, explained
+    -- one, re-pinned in the same commit that causes it.
+
+    it "gen (triads)" $
+      walkLine fund progGoldGen `shouldBe`
+        [[36,33,31,32],[33,36,40,39],[38,41,45,44],[43,40,38,37]]
+
+    it "genE (four-note)" $
+      walkLine fund progGoldGenE `shouldBe`
+        [[36,33,31,32],[33,36,40,39],[38,41,45,44],[43,41,38,37]]
+
+    it "genP (strata chroma)" $
+      walkLineP fund progGenP genPChromas `shouldBe`
+        [[33,37,40,37],[38,40,40,35],[34,31,31,34],[37,38,40,37]
+        ,[38,40,38,35],[37,38,40,37],[38,40,38,35],[33,31,28,31]]
+
+    it "genJ (bass vocabulary)" $
+      walkLineJ root progGoldJazz (goldJazzVocab) `shouldBe`
+        [[36,34,31,30],[31,29,28,31],[29,31,33,29],[31,36,38,37]]
+
+-- Golden-line fixtures: fixed material per family, deliberately plain so
+-- the pinned lines stay readable.
+progGoldGen, progGoldGenE, progGoldJazz :: Progression
+progGoldGen = fromCadenceStates
+  [ cMaj, aMin, dMin, gMaj ]
+progGoldGenE = fromCadenceStates
+  [ mkCS C [0,4,7,11], mkCS A [0,3,7,10], mkCS D [0,3,7,10], mkCS G [0,4,7,10] ]
+progGoldJazz = fromCadenceStates
+  [ mkCS C [0,2,4,9,10], mkCS C [0,2,4,9,10]
+  , mkCS F [0,2,4,9,10], mkCS G [0,2,5,9,10] ]
+
+goldJazzVocab :: [J.BassVocab]
+goldJazzVocab =
+  [ J.bassVocabFor [ unPitchClass iv | iv <- cadenceIntervals (stateCadence cs) ]
+  | cs <- toList (unProgression progGoldJazz) ]
 
 -------------------------------------------------------------------------------
 -- genP fixtures (frozen from a live strata-V generation; ChromaSources
@@ -625,6 +760,48 @@ progGenP = fromCadenceStates
   , initCadenceState 0 "D"  [0,2,5]
   , initCadenceState 0 "C#" [0,3,8]
   ]
+
+-- Every emitted pitch class of a genP walk must belong to its bar's
+-- chroma: the bar's own stratum, its mode, or the neighbouring-bar triad
+-- overlap the connector pool admits by design.
+chromaClean :: Progression -> [ChromaSources] -> Bool
+chromaClean prog chromas =
+  all ok [0 .. n - 1]
+  where
+    line  = walkLineP fund prog chromas
+    bars  = toList (unProgression prog)
+    n     = length bars
+    chSet i = chordPCsFor (bars !! i)
+    overlapAt i = Set.unions [ chSet ((i + d) `mod` n) | d <- [-1, 0, 1] ]
+    poolAt i =
+      let ChromaSources st md = chromas !! i
+      in st `Set.union` overlapAt i `Set.union` md
+    ok i = all (\k -> ((line !! i !! k) `mod` 12) `Set.member` poolAt i)
+               [0 .. beatsPerBar - 1]
+
+-- The stratum-V C# diminished bar, duplicated: `dupOdd` fires on the
+-- second occurrence and offers that bar's fifth on beat 1. Reproduces
+-- exactly what `rep s 2` and repeating warps manufacture in performance.
+progGenPDup :: Progression
+progGenPDup = fromCadenceStates
+  [ initCadenceState 0 "C#" [0,3,6]
+  , initCadenceState 0 "C#" [0,3,6]
+  , initCadenceState 0 "D"  [0,2,5]
+  , initCadenceState 0 "A"  [0,4,7]
+  ]
+
+genPChromasDup :: [ChromaSources]
+genPChromasDup =
+  [ ChromaSources (absSetT r sIvs) (absSetT r mIvs)
+  | (r, sIvs, mIvs) <-
+      [ (1,  [0,1,3,6,8],  [0,1,3,5,6,8,9])
+      , (1,  [0,1,3,6,8],  [0,1,3,5,6,8,9])
+      , (2,  [0,2,4,5,9],  [0,2,4,5,7,9,11])
+      , (9,  [0,4,5,7,10], [0,2,4,5,7,9,10])
+      ] ]
+
+absSetT :: Int -> [Int] -> Set.Set Int
+absSetT r ivs = Set.fromList [ (r + i) `mod` 12 | i <- ivs ]
 
 genPChromas :: [ChromaSources]
 genPChromas =

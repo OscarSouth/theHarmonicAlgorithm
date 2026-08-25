@@ -60,6 +60,14 @@
 -- 2. Union all negative tokens
 -- 3. Subtract: positive \\ negative
 --
+-- === Invalid Tokens
+--
+-- A token no branch recognises parses to nothing (a live set must not
+-- crash on a typo), but is NOT silent: 'unrecognizedTokens' names it and
+-- the Builder prints a @⚠@ warning once per generation. Prime notation
+-- and subtraction behave identically in every context (overtones, key,
+-- roots, tuning) — all four route through one shared parser core.
+--
 -- === Edge Cases
 --
 -- * @"*"@ → all pitches (wildcard shortcut)
@@ -364,11 +372,11 @@ resolveRoots :: Text -> Text -> Text -> [PitchClass]
 resolveRoots overtoneFilter keyFilter rootsFilter
   | T.toLower (T.strip rootsFilter) == "key" = parseKey keyFilter
   | T.toLower (T.strip rootsFilter) == "tones" = 
-      let overtones = parseOvertones' 3 overtoneFilter
+      let tones = parseOvertones' 3 overtoneFilter
           keyPcs = parseKey keyFilter
       in if isWildcard keyFilter
-         then overtones
-         else Prelude.filter (`elem` keyPcs) overtones
+         then tones
+         else Prelude.filter (`elem` keyPcs) tones
   | otherwise = parseFunds' rootsFilter
 
 -------------------------------------------------------------------------------

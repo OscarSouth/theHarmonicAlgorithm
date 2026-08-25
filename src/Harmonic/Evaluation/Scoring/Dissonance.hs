@@ -50,7 +50,7 @@ module Harmonic.Evaluation.Scoring.Dissonance
   ) where
 
 import Data.Function (on)
-import Data.List (sortBy, sort, nub)
+import Data.List (sortBy, sort, nub, minimumBy)
 
 -------------------------------------------------------------------------------
 -- Hindemith Dissonance Model (VERBATIM from legacy MusicData.hs)
@@ -196,9 +196,7 @@ countElem xs x = length $ filter (== x) xs
 -- @
 mostConsonant :: [[Int]] -> [Int]
 mostConsonant [] = [0, 4, 7]  -- Default to major triad if no options
-mostConsonant xs = snd . head . sortByFst $ map dissonanceLevel xs
-  where
-    sortByFst = sortBy (compare `on` fst)
+mostConsonant xs = snd $ minimumBy (compare `on` fst) $ map dissonanceLevel xs
 
 -- |Rank a list of pitch sets by consonance (most consonant first)
 rankByConsonance :: [[Int]] -> [[Int]]

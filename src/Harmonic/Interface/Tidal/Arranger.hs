@@ -166,12 +166,12 @@ clone m n = liftPC (cloneProg m n)
 extract :: Int -> ProgressionContext -> CadenceState
 extract n pc
   | len == 0  = error "extract: empty progression"
-  | otherwise = case getCadenceState prog idx of
+  | otherwise = case getCadenceState progArg idx of
       Just cs -> cs
       Nothing -> error "extract: internal error"
   where
-    prog = PC.triadLayer pc
-    len  = progLength prog
+    progArg = PC.triadLayer pc
+    len  = progLength progArg
     idx  = ((n - 1) `mod` len) + 1  -- 1-indexed with modulo wrap
 
 -------------------------------------------------------------------------------
@@ -246,33 +246,33 @@ progOverlapWith window (Progression sq)
 
 -- |Bidirectional overlap: merge pitches from n bars in both directions
 progOverlap :: Int -> Progression -> Progression
-progOverlap range prog
-  | range <= 0 = prog
-  | otherwise  = progOverlapWith (\i -> (i - range, i + range)) prog
+progOverlap range progArg
+  | range <= 0 = progArg
+  | otherwise  = progOverlapWith (\i -> (i - range, i + range)) progArg
 
 -- |Forward-only overlap: merge pitches from n bars ahead
 progOverlapF :: Int -> Progression -> Progression
-progOverlapF range prog
-  | range <= 0 = prog
-  | otherwise  = progOverlapWith (\i -> (i, i + range)) prog
+progOverlapF range progArg
+  | range <= 0 = progArg
+  | otherwise  = progOverlapWith (\i -> (i, i + range)) progArg
 
 -- |Backward-only overlap: merge pitches from n bars behind
 progOverlapB :: Int -> Progression -> Progression
-progOverlapB range prog
-  | range <= 0 = prog
-  | otherwise  = progOverlapWith (\i -> (i - range, i)) prog
+progOverlapB range progArg
+  | range <= 0 = progArg
+  | otherwise  = progOverlapWith (\i -> (i - range, i)) progArg
 
 -- Helper: rebuild a CadenceState with new intervals
 rebuildCadenceState :: Cadence -> NoteName -> [Integer] -> CadenceState
-rebuildCadenceState cad root newIntervals =
+rebuildCadenceState cad rootName newIntervals =
   let -- Create a modified cadence with the new intervals (as PitchClasses)
       newPCs = map (\i -> mkPitchClass (fromIntegral i)) newIntervals
       newCad = cad { cadenceIntervals = newPCs }
       -- Infer spelling from the new absolute pitches
-      rootPC = pitchClass root
+      rootPC = pitchClass rootName
       absolutePitches = map (\i -> (fromIntegral i + unPitchClass rootPC) `mod` 12) newIntervals
       spelling = inferSpelling absolutePitches
-  in CadenceState newCad root spelling
+  in CadenceState newCad rootName spelling
 
 -------------------------------------------------------------------------------
 -- Voicing Extractors (Voicing paradigms)
@@ -283,10 +283,10 @@ rebuildCadenceState cad root newIntervals =
 -- First chord starts compact with root in bass; all subsequent chords
 -- maintain root in bass with minimal voice movement.
 grid :: Progression -> [[Int]]
-grid prog
-  | hasBigChroma prog = strataModeFlow prog
+grid progArg
+  | hasBigChroma progArg = strataModeFlow progArg
   | otherwise =
-      let intVoicings = map (map fromIntegral) $ literalVoicing' prog
+      let intVoicings = map (map fromIntegral) $ literalVoicing' progArg
       in solveRoot intVoicings
 
 -- |FLOW paradigm: Smoothest voice leading with any inversion allowed.
@@ -294,26 +294,26 @@ grid prog
 -- Voice crossings permitted for optimal smoothness; bass doesn't need
 -- to be the root if an inversion provides smoother voice leading.
 flow :: Progression -> [[Int]]
-flow prog
-  | hasBigChroma prog = strataModeFlow prog
+flow progArg
+  | hasBigChroma progArg = strataModeFlow progArg
   | otherwise =
-      let intVoicings = map (map fromIntegral) $ literalVoicing' prog
+      let intVoicings = map (map fromIntegral) $ literalVoicing' progArg
       in solveFlow intVoicings
 
 -- |LITE paradigm: Literal voicings with first-root normalization.
 -- Returns pitches as stored, but normalized so first chord's root is in [-12,-1].
 -- No voice leading optimization applied (only octave normalization).
 lite :: Progression -> [[Int]]
-lite prog = 
-  let raw = map (map fromIntegral) $ literalVoicing' prog
+lite progArg = 
+  let raw = map (map fromIntegral) $ literalVoicing' progArg
   in normalizeByFirstRoot raw
 
 -- |ROOT paradigm: Root note only (root pitch class per chord).
 -- Extracts the root note (first element, mod 12) from each chord.
 -- Returns as single-element lists in [0,11] range.
 root :: Progression -> [[Int]]
-root prog =
-  let raw = map (map fromIntegral) $ literalVoicing' prog
+root progArg =
+  let raw = map (map fromIntegral) $ literalVoicing' progArg
   in bassVoicing raw
 
 -- |Alias for lite (legacy compatibility)
@@ -350,8 +350,8 @@ literal = lite
 -- candidates (~7). Sub-microsecond per bar; eager forcing in 'Bridge.arrange'
 -- still hoists the work to REPL evaluation time.
 strataModeFlow :: Progression -> [[Int]]
-strataModeFlow prog =
-  case toList (unProgression prog) of
+strataModeFlow progArg =
+  case toList (unProgression progArg) of
     []                  -> []
     (firstCS : restCSs) ->
       let firstPCs    = cadencePCs firstCS
@@ -389,9 +389,9 @@ shiftBar v0 cs =
 -- contract. Harmony-sized bars (<= 5 voices, mixed or uniform) always get
 -- the real DP.
 hasBigChroma :: Progression -> Bool
-hasBigChroma prog =
+hasBigChroma progArg =
   any (\cs -> length (cadenceIntervals (stateCadence cs)) >= 6)
-      (toList (unProgression prog))
+      (toList (unProgression progArg))
 
 -- |Read a CadenceState's absolute PCs in cadence-interval order (NOT sorted).
 -- For genP strata\/mode layers (intervals start at 0 from harmonic root), this
@@ -409,8 +409,8 @@ cadencePCs cs =
 -- reduction. For 3-PC triad cadences this produces the same PCs as the
 -- legacy chordIntervals path.
 literalVoicing' :: Progression -> [[Integer]]
-literalVoicing' (Progression seq) =
-  map cadenceVoicing (toList seq)
+literalVoicing' (Progression sq) =
+  map cadenceVoicing (toList sq)
   where
     cadenceVoicing cs =
       let rootPC = unPitchClass (pitchClass (stateCadenceRoot cs))
@@ -461,17 +461,17 @@ fromChordsRaw chordSets = Progression (Seq.fromList cadenceStates)
         go _ [] = []
         go prev (pcs : rest) =
           let cs = toCadenceState prev pcs
-              rootPC = (`mod` 12) (if null pcs then 0 else head pcs)
+              rootPC = (`mod` 12) (case pcs of { [] -> 0; (p : _) -> p })
           in cs : go (Just (rootPC, stateSpelling cs)) rest
 
     toCadenceState :: Maybe (Int, EnharmonicSpelling) -> [Int] -> CadenceState
     toCadenceState prev pcs =
-      let root = if null pcs then 0 else head pcs
-          rootPC = mkPitchClass root
+      let rootInt = case pcs of { [] -> 0; (p : _) -> p }
+          rootPC = mkPitchClass rootInt
           -- Dedup: pitch-class sets carry no duplicates (matches
           -- mkCadenceStatePCs; a duplicated PC would otherwise reach the
           -- voicing paths as a phantom voice).
-          intervals = nub $ sort $ map (\p -> (p - root) `mod` 12) pcs
+          intervals = nub $ sort $ map (\p -> (p - rootInt) `mod` 12) pcs
           intervalPCs = map mkPitchClass intervals
           chordName = nameChord intervals
           -- Create Cadence with record syntax
@@ -483,7 +483,7 @@ fromChordsRaw chordSets = Progression (Seq.fromList cadenceStates)
           absPCs = map (`mod` 12) pcs
           spelling = case prev of
             Just (prevRoot, prevSpelling)
-              | prevRoot == root `mod` 12          -> prevSpelling
+              | prevRoot == rootInt `mod` 12       -> prevSpelling
               | isAmbiguousPattern absPCs          -> prevSpelling
             _                                      -> inferSpelling absPCs
           rootNote = enharmonicFunc spelling rootPC
@@ -510,8 +510,8 @@ data ScaleSource
 -- Converts a ScaleSource into a Progression suitable for melody arrangement.
 melodyStateFrom :: ScaleSource -> Progression
 melodyStateFrom (ExplicitScale scales) = fromChordsRaw scales
-melodyStateFrom (HarmonyAsScale prog) = prog  -- Direct passthrough
-melodyStateFrom (HarmonyWithOverlap prog overlapFn) = overlapFn 1 prog
+melodyStateFrom (HarmonyAsScale progArg) = progArg  -- Direct passthrough
+melodyStateFrom (HarmonyWithOverlap progArg overlapFn) = overlapFn 1 progArg
 
 -------------------------------------------------------------------------------
 -- Starting State Construction
@@ -608,7 +608,7 @@ resolveQuality gen (Just q) = do
 -- Select a random quality, biased toward consonant (low entropy gamma)
 randomQuality :: GenIO -> IO (String, [Int])
 randomQuality gen = do
-  let entries = sortBy (comparing (\(_,vs) -> dissonanceScore (head vs))) (Map.toList qualityMap)
+  let entries = sortBy (comparing (\(_, vs) -> dissonanceScore (case vs of { (v : _) -> v; [] -> [] }))) (Map.toList qualityMap)
   idx <- gammaIndexScaledWith gen 0.2 (length entries)
   let (name, variants) = entries !! idx
   pickVariant gen name variants

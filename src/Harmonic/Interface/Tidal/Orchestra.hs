@@ -192,7 +192,7 @@ clip :: (Int, Int) -> ControlPattern -> ControlPattern
 clip (lo, hi) = filterValues (\vm ->
     case Map.lookup "note" vm of
         Just (VF v) -> v >= fromIntegral lo && v <= fromIntegral hi
-        Just (VN n) -> let v = unNote n in v >= fromIntegral lo && v <= fromIntegral hi
+        Just (VN nt) -> let v = unNote nt in v >= fromIntegral lo && v <= fromIntegral hi
         _ -> True)
 
 -------------------------------------------------------------------------------
@@ -201,8 +201,8 @@ clip (lo, hi) = filterValues (\vm ->
 
 -- Pipeline: arrange -> # ch -> |+ oct -> clip (outermost, filters AFTER octave shift)
 instrument :: (Int, Int) -> Int -> Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
-instrument range channel lyr ki k vl vf v =
-    clip range $ arrange ki k (-9,9) lyr vf (overlapF 0) [vlGet v vl] # ch channel |+ oct (voiceOct v)
+instrument bounds chan lyr ki k vl vf v =
+    clip bounds $ arrange ki k (-9,9) lyr vf (overlapF 0) [vlGet v vl] # ch chan |+ oct (voiceOct v)
 
 -------------------------------------------------------------------------------
 -- Pitched instruments (partial application of instrument)
@@ -214,7 +214,7 @@ instrument range channel lyr ki k vl vf v =
 -- the triad layer (default harmonic behaviour), 'S' for the strata layer,
 -- 'M' for the diatonic-mode layer:
 --
--- @d1 $ flute T (0,1) k voiceLines flow Soprano [\"0 1 2 3\"]@
+-- @d1 $ flute T (0,1) k voiceLines flow Soprano@
 -- RANGE-REVIEW NOTE (2026-08-25): the numeric bounds are tuned to the
 -- range limits of the actual JV1010 sampler patches and are authoritative;
 -- the note-name comments drift from them in four places (bassoon, horn,
@@ -303,11 +303,11 @@ type Instrument =
 -- Octave rides the 'Voice' argument, so @divisi 2 contrabass T (0.9,1) k vl grid Bass8vb@
 -- voices Bass8vb and Bass8vb' (tier + octave together).
 divisi :: Int -> Instrument -> Instrument
-divisi n instr lyr rng k vl vf v
-  | n <= 1    = instr lyr rng k vl vf v
+divisi nDesks instr lyr rng k vl vf v
+  | nDesks <= 1 = instr lyr rng k vl vf v
   | otherwise =
-      stack [ instr lyr rng k vl vf (primeN i v) | i <- [0 .. n-1] ]
-        |* vel (1 / sqrt (fromIntegral n))
+      stack [ instr lyr rng k vl vf (primeN i v) | i <- [0 .. nDesks - 1] ]
+        |* vel (1 / sqrt (fromIntegral nDesks))
   where
     -- 'Voice' has exactly 3 tiers of 20 (base \/ ' \/ ''); a bare
     -- @toEnum (+ i * 20)@ crashed the scheduler for @divisi 4@ or an
