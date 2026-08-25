@@ -226,9 +226,11 @@ runDb conn (runQuery "MATCH (a:Change)-[r:NEXT]->(b:Change) WHERE r.weights CONT
 --   seek "monk debussy"       blend AND steer together.
 --   seek "none"               refused — no offline jazz mode.
 
-jstart = initCadenceState 0 "C" [0,4,7]
+jstart = initCadenceState 0 "C" [0,3,7,10]
 
-sj <- seek "*" $ cue jstart $ len 8 $ entropy 0.3 $ genJ
+jstart
+
+sj <- seek "mingus" $ cue jstart $ len 8 $ entropy 0.3 $ genJ
 
 -- Standard trace: per-step walk lines (node -> node, pool, pick):
 sj2 <- seek "theloniousmonk:60 johncoltrane:40" $ cue jstart $ len 8 $ entropy 0.5 $ genJ'

@@ -73,6 +73,7 @@ module Harmonic.Interface.Tidal.Arranger
     -- * Starting State Construction
   , lead
   , lead'
+  , leadJ
   , parseLeadTokens
   , LeadToken(..)
   ) where
@@ -90,8 +91,9 @@ import System.Random.MWC (createSystemRandom, uniformRM, GenIO)
 import Harmonic.Rules.Types.Progression
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import Harmonic.Rules.Types.ProgressionContext (ProgressionContext, liftPC)
-import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), CadenceState(..), fromCadenceState, EnharmonicSpelling(..), toFunctionality, toFunctionalityChord, Movement(..), enharmonicFunc, inferSpelling, isAmbiguousPattern, initCadenceState, mkCadenceStatePCs, toMovement)
+import Harmonic.Rules.Types.Harmony (Cadence(..), CadenceState(..), EnharmonicSpelling(..), toFunctionality, toFunctionalityChord, Movement(..), enharmonicFunc, inferSpelling, isAmbiguousPattern, initCadenceState, mkCadenceStatePCs, toMovement)
 import qualified Harmonic.Rules.Constraints.Filter as Filter
+import qualified Harmonic.Rules.Import.Jazz as J
 import qualified Data.Text as T
 import Harmonic.Traversal.Probabilistic (gammaIndexScaledWith)
 import Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
@@ -203,7 +205,8 @@ interleave a b = PC.ProgressionContext
   , PC.pcFamily     = if PC.pcFamily a == PC.pcFamily b then PC.pcFamily a else PC.FTriad
   }
 
--- |Expand a progression by repeating each chord n times
+-- |Expand a progression by repeating the WHOLE progression n times
+-- (@expandP 2@ on C F G A yields C F G A C F G A)
 expandP :: Int -> ProgressionContext -> ProgressionContext
 expandP n = liftPC (expandProgression n)
 
@@ -212,81 +215,52 @@ expandP n = liftPC (expandProgression n)
 -- These create sustain\/legato effects by merging pitches from adjacent chords
 -------------------------------------------------------------------------------
 
+-- Shared overlap core: for every bar, union the ABSOLUTE pitch classes
+-- of the bars inside the window, then store them relative to that bar's
+-- own root. Pitch content is read straight from 'cadenceIntervals' — no
+-- 'fromCadenceState'\/'toTriad' round trip. The old round trip stored
+-- each bar's ABSOLUTE pitch classes back into 'cadenceIntervals', which
+-- the voicing layer then transposed by the root a second time (every
+-- non-C-rooted bar sounded shifted up by its own root), and 'toTriad'
+-- reduced >3-note bars to a triad before merging (genE material lost its
+-- fourth voice).
+progOverlapWith :: (Int -> (Int, Int)) -> Progression -> Progression
+progOverlapWith window (Progression sq)
+  | Seq.null sq = Progression sq
+  | otherwise =
+      let states = toList sq
+          len    = length states
+          absAt j =
+            let cs     = states !! j
+                rootPC = unPitchClass (pitchClass (stateCadenceRoot cs))
+            in [ (unPitchClass p + rootPC) `mod` 12
+               | p <- cadenceIntervals (stateCadence cs) ]
+          rebuilt i cs =
+            let (lo, hi)  = window i
+                rootPC    = unPitchClass (pitchClass (stateCadenceRoot cs))
+                absUnion  = nub (concatMap absAt [max 0 lo .. min (len - 1) hi])
+                rels      = sort (nub [ (a - rootPC) `mod` 12 | a <- absUnion ])
+            in rebuildCadenceState (stateCadence cs) (stateCadenceRoot cs)
+                                   (map fromIntegral rels)
+      in Progression (Seq.fromList (zipWith rebuilt [0 ..] states))
+
 -- |Bidirectional overlap: merge pitches from n bars in both directions
 progOverlap :: Int -> Progression -> Progression
-progOverlap range prog@(Progression seq)
+progOverlap range prog
   | range <= 0 = prog
-  | Seq.null seq = prog
-  | otherwise = 
-    let chords = toList $ fmap fromCadenceState seq
-        cadences = toList $ fmap stateCadence seq
-        roots = toList $ fmap stateCadenceRoot seq
-        len = length chords
-        
-        -- For each position, gather pitches from range bars before and after
-        overlappedChords = 
-          [ overlapAt i chords range | i <- [0..len-1] ]
-        
-        -- Rebuild CadenceStates with original cadences but new chord intervals
-        newSeq = Seq.fromList $ zipWith3 rebuildCadenceState cadences roots overlappedChords
-    in Progression newSeq
+  | otherwise  = progOverlapWith (\i -> (i - range, i + range)) prog
 
 -- |Forward-only overlap: merge pitches from n bars ahead
 progOverlapF :: Int -> Progression -> Progression
-progOverlapF range prog@(Progression seq)
+progOverlapF range prog
   | range <= 0 = prog
-  | Seq.null seq = prog
-  | otherwise = 
-    let chords = toList $ fmap fromCadenceState seq
-        cadences = toList $ fmap stateCadence seq
-        roots = toList $ fmap stateCadenceRoot seq
-        len = length chords
-        
-        overlappedChords = 
-          [ overlapForwardAt i chords range | i <- [0..len-1] ]
-        
-        newSeq = Seq.fromList $ zipWith3 rebuildCadenceState cadences roots overlappedChords
-    in Progression newSeq
+  | otherwise  = progOverlapWith (\i -> (i, i + range)) prog
 
--- |Backward-only overlap: merge pitches from n bars behind  
+-- |Backward-only overlap: merge pitches from n bars behind
 progOverlapB :: Int -> Progression -> Progression
-progOverlapB range prog@(Progression seq)
+progOverlapB range prog
   | range <= 0 = prog
-  | Seq.null seq = prog
-  | otherwise = 
-    let chords = toList $ fmap fromCadenceState seq
-        cadences = toList $ fmap stateCadence seq
-        roots = toList $ fmap stateCadenceRoot seq
-        len = length chords
-        
-        overlappedChords = 
-          [ overlapBackwardAt i chords range | i <- [0..len-1] ]
-        
-        newSeq = Seq.fromList $ zipWith3 rebuildCadenceState cadences roots overlappedChords
-    in Progression newSeq
-
--- Helper: get overlapped pitches for position i (bidirectional)
-overlapAt :: Int -> [Chord] -> Int -> [Integer]
-overlapAt i chords range =
-  let len = length chords
-      indices = [max 0 (i - range) .. min (len - 1) (i + range)]
-      allPitches = concatMap (chordIntervals . (chords !!)) indices
-  in nub allPitches
-
--- Helper: get overlapped pitches for position i (forward only)
-overlapForwardAt :: Int -> [Chord] -> Int -> [Integer]
-overlapForwardAt i chords range =
-  let len = length chords
-      indices = [i .. min (len - 1) (i + range)]
-      allPitches = concatMap (chordIntervals . (chords !!)) indices
-  in nub allPitches
-
--- Helper: get overlapped pitches for position i (backward only)
-overlapBackwardAt :: Int -> [Chord] -> Int -> [Integer]
-overlapBackwardAt i chords range =
-  let indices = [max 0 (i - range) .. i]
-      allPitches = concatMap (chordIntervals . (chords !!)) indices
-  in nub allPitches
+  | otherwise  = progOverlapWith (\i -> (i - range, i)) prog
 
 -- Helper: rebuild a CadenceState with new intervals
 rebuildCadenceState :: Cadence -> NoteName -> [Integer] -> CadenceState
@@ -715,3 +689,56 @@ lead' input = do
                         (toMovement (P 0) (mkPitchClass movement)) intervals
       putStrLn $ show rootName ++ " " ++ cadenceFunctionality (stateCadence cs)
       pure cs
+
+-- |Construct a 'CadenceState' from a leadsheet chord symbol — the jazz
+-- counterpart to 'lead', for cueing 'Harmonic.Framework.Builder.genJ'.
+-- Accepts the Bunks corpus grammar: root, quality, optional slash bass
+-- ("Cm7", "EbM7", "G7b9#11", "Dm7\/G"). Qualities occupy the jazz
+-- namespace ('Harmonic.Rules.Import.Jazz.qualityIntervals'), entirely
+-- separate from 'lead''s triadic quality table, so triadic behaviour is
+-- untouched. A notated slash bass is honoured exactly: unioned into the
+-- pitch-class set and made the anchor, so "Dm7\/G" cues from G with the
+-- full Dm7 sounding above it. An optional @(N)@ token fixes the approach
+-- movement, otherwise it is randomized exactly like 'lead'. An
+-- unparseable symbol is reported and falls back to the corpus workhorse
+-- C m7.
+--
+-- Examples:
+-- @
+-- start <- leadJ "Cm7"        -- C m7, random movement
+-- start <- leadJ "Dm7\/G"     -- G anchor, Dm7 above (a 9sus4 set)
+-- start <- leadJ "EbM7 (5)"   -- Eb maj7, ascending 5th approach
+-- @
+leadJ :: String -> IO CadenceState
+leadJ input = do
+  rng <- createSystemRandom
+  let toks    = words input
+      mMove   = listToMaybe [ n | t <- toks, Just n <- [parseMovement t] ]
+      syms    = [ t | t <- toks, parseMovement t == Nothing ]
+      moveTok = concat [ " (" ++ show n ++ ")" | Just n <- [mMove] ]
+  case syms of
+    (sym : _) | Right (J.Sounding jc) <- J.parseToken (T.pack sym) -> do
+      movement <- maybe (uniformRM (-5, 6) rng) pure mMove
+      -- the typed accidental of the anchor segment drives its spelling
+      let anchorTok  = case break (== '/') sym of
+            (_, '/' : b) -> b
+            (r, _)       -> takeWhile (`elem` ("ABCDEFG#b" :: String)) (take 2 r)
+          anchorName = if 'b' `elem` drop 1 anchorTok
+                         then flat (J.jcAnchor jc) else sharp (J.jcAnchor jc)
+          intervals  = J.jazzZeroForm jc
+          cs0        = mkCadenceStatePCs anchorName
+                         (toMovement (P 0) (mkPitchClass movement)) intervals
+          name       = maybe (cadenceFunctionality (stateCadence cs0)) T.unpack
+                         (J.jazzFunctionality intervals)
+          cs         = cs0 { stateCadence =
+                               (stateCadence cs0) { cadenceFunctionality = name } }
+      putStrLn $ show anchorName ++ " " ++ name
+      pure cs
+    _ -> do
+      let reason = case syms of
+            []       -> "no chord symbol"
+            (s0 : _) -> case J.parseToken (T.pack s0) of
+              Left r  -> T.unpack (J.refusalReason r) ++ " in '" ++ s0 ++ "'"
+              Right _ -> "NC is silence, not a chord"
+      putStrLn $ "leadJ: " ++ reason ++ " — cueing C m7"
+      leadJ ("Cm7" ++ moveTok)

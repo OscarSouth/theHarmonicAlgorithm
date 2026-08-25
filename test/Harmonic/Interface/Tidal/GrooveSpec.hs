@@ -5,7 +5,9 @@ import Harmonic.Lib
 import Harmonic.Interface.Tidal.Arranger (literal, fromChords)
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import Sound.Tidal.Context
-  (Pattern, Time, ArcF(..), Arc, queryArc, wholeOrPart, eventHasOnset, value, silence)
+  (Pattern, Time, ArcF(..), Arc, queryArc, wholeOrPart, eventHasOnset, value, silence,
+   ValueMap, Value(VF, VN))
+import qualified Data.Map.Strict as Map
 
 spec :: Spec
 spec = describe "Groove Interface" $ do
@@ -47,6 +49,43 @@ spec = describe "Groove Interface" $ do
       -- E major [E,G#,B] = [4,7,11] → root E (4)
       -- G# minor 1st inv [B,D#,G#] = [11,3,8] → root G# (8), NOT bass B (11)
       fund (PC.triadLayer prog) `shouldBe` [[4], [8]]  -- Harmonic roots, not [[4], [11]]
+
+  -- CHARACTERISATION (standing instruction: the sustain 0.01 + CC64
+  -- mechanism is intentional and must never change). These pin the
+  -- emitted event set so any drift is a build failure, not a discovery
+  -- on stage.
+  describe "subKick CC64/sustain characterisation" $ do
+    let prog  = fromChords [[0,4,7], [5,9,0]]
+        kin   = Kinetics (pure 1.0) (pure 1.0) (pure prog) [prog] 0 0
+        k     = (kin, pure 1 :: Pattern Int)
+        pat   = subKick (pure 1.0) k fund (1/2, "1 ~ ~ ~", "~", "~ ~ 1 ~")
+        evs   = map value (queryArc pat (Arc 0 4))
+        num v = case v of { VF x -> Just x; VN x -> Just (realToFrac x); _ -> Nothing }
+        field f vm = Map.lookup f vm >>= num
+        -- midinote N lands in the ValueMap as note (N - 60): kick 48 -> -12
+        notes = [ vm | vm <- evs, Map.member "note" vm ]
+        ccs   = [ (n, val) | vm <- evs
+                           , Just n   <- [field "ctlNum" vm]
+                           , Just val <- [field "control" vm] ]
+
+    it "every sub/kick note carries sustain 0.01 (ring is pedal-held, not note-length)" $ do
+      notes `shouldSatisfy` (not . null)
+      mapM_ (\vm -> field "sustain" vm `shouldBe` Just 0.01) notes
+
+    it "a continuous CC64=127 background holds the pedal down" $
+      ccs `shouldSatisfy` any (\(n, v) -> n == 64 && v == 127)
+
+    it "maxDur < 1 emits CC64=0 auto note-offs" $
+      ccs `shouldSatisfy` any (\(n, v) -> n == 64 && v == 0)
+
+    it "the kick is fixed high-C MIDI 48 (note -12)" $ do
+      let kicks = [ vm | vm <- notes, field "note" vm == Just (-12) ]
+      kicks `shouldSatisfy` (not . null)
+
+    it "sub notes sit in the sub register (below the MIDI-48 kick)" $ do
+      let subs = [ p | vm <- notes, Just p <- [field "note" vm], p /= (-12) ]
+      subs `shouldSatisfy` (not . null)
+      subs `shouldSatisfy` all (< (-12))
 
   describe "noteoff (note-length truncate)" $ do
     let spans p = [ (start w, stop w - start w)

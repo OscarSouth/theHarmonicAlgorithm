@@ -105,8 +105,9 @@ lineHarmony dyn (kin, chordPat) voiceFn pats =
       dynSig = dyn * kDynamic kin
       (performedVals, dynTiers) = resolveDynTiers dynSig performedVals0
       keyPat      = fmap (walkKey performedVals dynTiers) ctxPat
-      allEvents   = queryArc keyPat (Arc 0 1000)
-      uniqueKeys  = nub (map value allEvents)
+      -- Exact cache domain from the form's own progression list — no
+      -- time-window sampling (see 'Harmonic.Interface.Tidal.Bridge.arrange').
+      uniqueKeys  = nub (map (walkKey performedVals dynTiers) (kProgs kin))
       -- Build the cache and deeply force each entry so the 3-pass
       -- walking-bass synthesis runs at REPL evaluation time, not on the
       -- audio thread. Mirrors the eager-forcing pattern in 'Harmonic.Interface.Tidal.Bridge.arrange'.

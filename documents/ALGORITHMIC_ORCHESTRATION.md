@@ -162,6 +162,31 @@ tamtam   pat = struct pat $ midinote 31 # ch 11 # sustain 0.5
 
 Tidal note 0 = MIDI 60 = middle C. Ranges are enforced by `clip` inside each instrument function.
 
+### Range review (pending — do before v3.1.0 close-out)
+
+The numeric bounds above are tuned to the range limits of the **actual
+JV1010 sampler patches**, not textbook instrument ranges — the numbers are
+authoritative and must not be "corrected" to the note names. The 2026-08-25
+sweep found the two columns disagreeing in four places, where the coded MIDI
+floor sits below the named pitch:
+
+| Instrument | Coded floor | Named floor | Gap |
+|---|---|---|---|
+| Bassoon | MIDI 32 (Ab1) | Bb1 (34) | 2 semitones |
+| Horn | MIDI 31 (G1) | B1 (35) | 4 semitones |
+| Trombone | MIDI 32 (Ab1) | Bb1 (34) | 2 semitones |
+| Harp | MIDI 31 (G1) | B1 (35) | 4 semitones |
+
+Separately, the flute (low C3, a physical flute's floor is C4) and clarinet
+(low D2, a Bb clarinet sounds to D3) lower bounds sit an octave below the
+acoustic instruments — plausible as deliberate patch headroom, unverified.
+
+The sweep briefly aligned the four numbers to the names before the JV1010
+provenance was clarified; the values were restored untouched. **Action:** a
+practical per-instrument pass on the JV1010, sounding each patch at its
+extremes, then setting number AND name precisely in all three copies of this
+table (`Orchestra.hs`, this file, `live/ORCHESTRAL_CATALOGUE.tidal`).
+
 ### Unpitched Percussion
 
 | Instrument | Ch | MIDI Note | Usage |

@@ -37,11 +37,16 @@ module Harmonic.Evaluation.Scoring.Progression
   , cadenceFavFromMap
   , scoreProgressionOnline
   , scoreProgressionJazz
+  , TransitionCache
+  , newTransitionCache
+  , resolveJazzBlend
   , cadenceFavFromKeys
   , computeCadenceFav
   ) where
 
 import           Control.Monad (forM)
+import           Control.Monad.IO.Class (liftIO)
+import           Data.IORef (IORef, newIORef, readIORef, modifyIORef')
 import           Data.Bifunctor (first)
 import           Data.Foldable (toList)
 import qualified Data.Map.Strict as Map
@@ -86,24 +91,33 @@ data ProgressionScoreWeights = ProgressionScoreWeights
 -- Default weights
 -------------------------------------------------------------------------------
 
--- |Cadence-favourability dominant: @0.4@ fav, @0.2@ each on root motion,
--- voice leading, mode validity.
+-- |Cadence-favourability dominant: @0.5@ fav, @0.25@ each on root motion
+-- and voice leading. Mode validity carries NO weight: it is structurally
+-- @1.0@ on every walk-generated progression (proven — see CLAUDE.md's
+-- mode-invariant note), so weighting it only compressed the usable score
+-- range to @[0.2, 1.0]@. It remains a hard viability /gate/
+-- (@psModeValidity >= 1.0@) in the attempt loop, which is the one job it
+-- can actually do. The three live weights are the old @0.2\/0.2\/0.4@
+-- renormalised — rankings are order-identical to the previous scale via
+-- @new = (old − 0.2) \/ 0.8@.
 defaultWeights :: ProgressionScoreWeights
 defaultWeights = ProgressionScoreWeights
-  { wRootMotion   = 0.2
-  , wVoiceLeading = 0.2
-  , wCadenceFav   = 0.4
-  , wModeValidity = 0.2
+  { wRootMotion   = 0.25
+  , wVoiceLeading = 0.25
+  , wCadenceFav   = 0.5
+  , wModeValidity = 0
   }
 
--- |Offline-mode weights — cadence favourability dropped, remaining three
--- renormalised to @1\/3@ each.
+-- |Offline-mode weights — cadence favourability dropped (no graph), mode
+-- validity gate-only as in 'defaultWeights', the two live axes
+-- renormalised. Offline totals now span the full @[0, 1]@ instead of
+-- having a @1\/3@ floor.
 defaultWeightsOffline :: ProgressionScoreWeights
 defaultWeightsOffline = ProgressionScoreWeights
-  { wRootMotion   = 1 / 3
-  , wVoiceLeading = 1 / 3
+  { wRootMotion   = 0.5
+  , wVoiceLeading = 0.5
   , wCadenceFav   = 0
-  , wModeValidity = 1 / 3
+  , wModeValidity = 0
   }
 
 -------------------------------------------------------------------------------
@@ -302,13 +316,25 @@ edgeScore srcMap (srcKey, dstKey) =
 -- Runs inside 'DbActionT' so the caller controls connection
 -- lifecycle (typically a single shared pipe across a multi-attempt loop).
 scoreProgressionOnline
-  :: Text                          -- ^ Seek string (composer blend; same format as @_gcSeek@).
+  :: TransitionCache               -- ^ Cross-attempt fetch cache ('newTransitionCache').
+  -> Text                          -- ^ Seek string (composer blend; same format as @_gcSeek@).
   -> PC.ProgressionContext
   -> DbActionT ProgressionScore
-scoreProgressionOnline seekStr pc = do
+scoreProgressionOnline cache seekStr pc = do
   let basePure = scoreProgression pc
-  cf <- computeCadenceFav seekStr (PC.triadLayer pc)
+  cf <- computeCadenceFav cache seekStr (PC.triadLayer pc)
   pure basePure { psCadenceFav = cf }
+
+-- |Mutable fetch cache threaded through a multi-attempt loop: source key →
+-- blend-resolved outgoing transitions. Attempts share source cadences
+-- heavily (same cue, same key, same filters), so attempts 2..K score
+-- almost query-free. Valid for ONE blend — create a fresh cache per
+-- @generateBest@ call, never share across seek strings.
+type TransitionCache = IORef TransitionMap
+
+-- |A fresh, empty 'TransitionCache'.
+newTransitionCache :: IO TransitionCache
+newTransitionCache = newIORef Map.empty
 
 -- |Cyclic per-edge favourability mean, computed against Neo4j. Builds the
 -- 'TransitionMap' by fetching each unique source cadence's outgoing
@@ -316,12 +342,14 @@ scoreProgressionOnline seekStr pc = do
 -- pure 'cadenceFavFromMap'.
 --
 -- Number of graph queries = number of distinct source-cadence 'show' keys
--- in the progression (≤ N for an N-bar progression).
+-- in the progression NOT already in the cache (≤ N for an N-bar
+-- progression on the first attempt; near zero on later attempts).
 computeCadenceFav
-  :: Text
+  :: TransitionCache
+  -> Text
   -> Prog.Progression
   -> DbActionT Double
-computeCadenceFav seekStr prog = do
+computeCadenceFav cache seekStr prog = do
   -- Walk-shadow projection: see 'cadenceFavFromMap'.
   let cads      = map (H.walkTriadCadence . H.stateCadence) (toList (Prog.unProgression prog))
       srcKeys   = nub (map (T.pack . show) cads)
@@ -331,12 +359,26 @@ computeCadenceFav seekStr prog = do
   -- instead of parsing every edge's weights JSON. edgeScore is
   -- share-of-total, so ordering is immaterial either way.
   pairs <- forM srcKeys $ \k -> do
-    resolved <- if Map.null blend
-                  then Q.fetchTransitionsAggregate k
-                  else Q.resolveWeights blend <$> Q.fetchTransitions k
-    pure (k, [ (T.pack (show c), w) | (c, w) <- resolved ])
+    resolved <- fetchCached cache k $ do
+      raw <- if Map.null blend
+               then Q.fetchTransitionsAggregate k
+               else Q.resolveWeights blend <$> Q.fetchTransitions k
+      pure [ (T.pack (show c), w) | (c, w) <- raw ]
+    pure (k, resolved)
   let srcMap = Map.fromList pairs
   pure (cadenceFavFromMap srcMap prog)
+
+-- Cache-through fetch: hit returns the stored transitions, miss runs the
+-- supplied fetch and stores its result.
+fetchCached :: TransitionCache -> Text -> DbActionT [(Text, Double)] -> DbActionT [(Text, Double)]
+fetchCached cache k fetch = do
+  m <- liftIO (readIORef cache)
+  case Map.lookup k m of
+    Just v  -> pure v
+    Nothing -> do
+      v <- fetch
+      liftIO (modifyIORef' cache (Map.insert k v))
+      pure v
 
 -- |Jazz-family variant of 'scoreProgressionOnline': pure components are
 -- identical (they are arity-agnostic); 'psCadenceFav' is computed against
@@ -346,29 +388,36 @@ computeCadenceFav seekStr prog = do
 -- under. Node keys are the bars' own 'show' identities (jazz names) —
 -- no triad projection.
 scoreProgressionJazz
-  :: Text                          -- ^ Seek string (same format as @_gcSeek@).
+  :: TransitionCache               -- ^ Cross-attempt fetch cache ('newTransitionCache').
+  -> Q.ComposerWeights             -- ^ Resolved jazz blend ('resolveJazzBlend'); empty = wildcard.
   -> PC.ProgressionContext
   -> DbActionT ProgressionScore
-scoreProgressionJazz seekStr pc = do
+scoreProgressionJazz cache jazzBlend pc = do
   let basePure = scoreProgression pc
       prog     = PC.triadLayer pc
       keys     = map (T.pack . show . H.stateCadence)
                      (toList (Prog.unProgression prog))
-      blend    = Q.parseComposerWeights seekStr
-  jazzBlend <-
-    if Map.null blend
-      then pure Map.empty
-      else do
-        jazzKeys <- Q.fetchJazzComposers
-        pure (fst (Q.splitSeekByCorpus jazzKeys blend))
   pairs <- forM (nub keys) $ \k -> do
-    resolved <- if Map.null jazzBlend
-                  then map (first Q.ccShow) <$> Q.fetchChangeAggregate k
-                  else map (first Q.ccShow) . Q.resolveWeights jazzBlend
-                         <$> Q.fetchChangeTransitions k
+    resolved <- fetchCached cache k $
+      if Map.null jazzBlend
+        then map (first Q.ccShow) <$> Q.fetchChangeAggregate k
+        else map (first Q.ccShow) . Q.resolveWeights jazzBlend
+               <$> Q.fetchChangeTransitions k
     pure (k, resolved)
   let cf = cadenceFavFromKeys (Map.fromList pairs) keys
   pure basePure { psCadenceFav = cf }
+
+-- |Resolve a seek string's jazz half once (one 'Q.fetchJazzComposers'
+-- round trip), for threading through a multi-attempt loop. An empty seek
+-- blend (wildcard) resolves to the empty map without touching the graph.
+resolveJazzBlend :: Text -> DbActionT Q.ComposerWeights
+resolveJazzBlend seekStr = do
+  let blend = Q.parseComposerWeights seekStr
+  if Map.null blend
+    then pure Map.empty
+    else do
+      jazzKeys <- Q.fetchJazzComposers
+      pure (fst (Q.splitSeekByCorpus jazzKeys blend))
 
 -------------------------------------------------------------------------------
 -- Internal helpers

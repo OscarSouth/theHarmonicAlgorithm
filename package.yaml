@@ -97,6 +97,8 @@ library:
     - Harmonic.Framework.Builder.Portmanteau
     - Harmonic.Framework.Builder.Strata
     - Harmonic.Framework.Builder.JazzGen
+    - Harmonic.Framework.Builder.Modifiers
+    - Harmonic.Framework.Builder.StrataGen
     # Rules (R Component + Layer A)
     - Harmonic.Rules.Types.Pitch
     - Harmonic.Rules.Types.Harmony

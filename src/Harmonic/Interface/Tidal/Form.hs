@@ -61,6 +61,7 @@ module Harmonic.Interface.Tidal.Form
 
   ) where
 
+import Data.List (nub, sortOn)
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import Sound.Tidal.Context
 
@@ -94,6 +95,12 @@ data Kinetics = Kinetics
   { kSignal   :: Pattern Double                -- ^ Kinetics level 0-1 (continuous interpolated)
   , kDynamic  :: Pattern Double                -- ^ Dynamic envelope 0-1 (continuous interpolated)
   , kProg     :: Pattern PC.ProgressionContext -- ^ Active 3-layer progression (step function)
+  , kProgs    :: [PC.ProgressionContext]       -- ^ The distinct progressions 'kProg' can emit —
+                                               --   finite and known at construction (form nodes,
+                                               --   or the single 'lK' progression). Voicing
+                                               --   caches derive from THIS list, exactly and
+                                               --   horizon-free, instead of sampling 'kProg'
+                                               --   over an arbitrary time window.
   , kLoopSecs :: Double                        -- ^ Form total duration in seconds; 0 = atemporal
                                                --   (single-node iK or lK). Consumers like the
                                                --   4-char-display helper read this to drive a
@@ -142,7 +149,7 @@ lK :: Pattern Double          -- ^ Kinetics signal (0-1, live)
    -> PC.ProgressionContext   -- ^ Active 3-layer progression
    -> Pattern Int             -- ^ Chord-selection pattern
    -> IK
-lK sig dyn pc chordPat = (Kinetics sig dyn (pure pc) 0 0, chordPat)
+lK sig dyn pc chordPat = (Kinetics sig dyn (pure pc) [pc] 0 0, chordPat)
 
 -------------------------------------------------------------------------------
 -- Realization
@@ -171,20 +178,27 @@ nodeSecs cps n = case fnTime n of
 -- per each node's 'fnTrans' — and a step-function progression, looping at the
 -- form's total duration. Time is resolved from each node's 'FormTime'.
 formK :: Double -> [FormNode] -> Kinetics
-formK bpm nodes = Kinetics
+formK bpm nodes0 = Kinetics
   { kSignal   = formSignal cps nodes fnKinetics
   , kDynamic  = formSignal cps nodes fnDynamic
   , kProg     = formStep   cps nodes fnProg
+  , kProgs    = nub (map fnProg nodes)
   , kLoopSecs = case nodes of
                   (_:_:_) -> nodeSecs cps (last nodes)   -- multi-node: form duration (seconds)
                   _       -> 0                           -- single-node or empty: atemporal
   , kCps      = cps
   }
-  where cps = bpm / 60
+  where
+    cps = bpm / 60
+    -- Nodes sorted by resolved time: an out-of-order form (a rehearsal
+    -- mark moved without reordering the list) previously produced
+    -- negative-width timecat segments with no diagnostic.
+    nodes = sortOn (nodeCycles cps) nodes0
 
 -- |Kinetics\/dynamic signal: piecewise per segment, ramped when the segment's
 -- start node is 'Smooth', held (stepped) when 'Snap'. Single node: constant.
 formSignal :: Double -> [FormNode] -> (FormNode -> Double) -> Pattern Double
+formSignal _   []     _        = silence
 formSignal _   [node] accessor = pure (realToFrac $ accessor node)
 formSignal cps nodes  accessor =
   let totalCycles = realToFrac (nodeCycles cps (last nodes)) :: Time
@@ -202,6 +216,7 @@ formSignal cps nodes  accessor =
 -- |Step signal: hold each node's value until the next (progression can't ramp).
 -- Independent of 'fnTrans'. Single node: constant value.
 formStep :: Double -> [FormNode] -> (FormNode -> a) -> Pattern a
+formStep _   []     _        = silence
 formStep _   [node] accessor = pure (accessor node)
 formStep cps nodes  accessor =
   let totalCycles = realToFrac (nodeCycles cps (last nodes)) :: Time

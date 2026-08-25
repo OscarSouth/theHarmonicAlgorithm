@@ -162,8 +162,12 @@ arrange (lo, hi) (kin, chordPat) register lyr voiceFunc modifier pats =
       -- the lazy 'strataModeFlow' \/ 'flow' voicing computation per bar.
       -- This hoists the work from the audio thread (where it would cause
       -- 'skip:' events on first query) to REPL evaluation time.
-      allEvents = queryArc progPat (Arc 0 1000)
-      uniqueProgs = nub (map value allEvents)
+      -- Exact cache domain: the form's own distinct progressions,
+      -- projected like progPat. No time-window sampling (the old
+      -- @queryArc … (Arc 0 1000)@ allocated 1000 events per instrument
+      -- and silently missed progressions past the horizon, forcing a
+      -- full voice-leading solve on the audio thread mid-set).
+      uniqueProgs = nub (map (layerForVoicing lyr) (kProgs kin))
       cache = [ (key, let vs     = effectiveVF (fmap modifier key)
                           sc     = map (map fromIntegral) vs :: [[Note]]
                           nc     = length vs
@@ -202,10 +206,14 @@ arrangeLookup (scales, nChords) chordPat ranged
                     ci      = lookupChordAt onsetT chordIdx
                     sc      = scales !! (ci `mod` nChords)
                     noteVal = value nEv
-                    scLen   = max 1 (length sc)
-                    octave  = noteVal `div` scLen
-                    idx     = noteVal `mod` scLen
-                in [nEv { value = (sc !! idx) + fromIntegral (octave * 12) }]
+                    scLen   = length sc
+                    octave  = noteVal `div` max 1 scLen
+                    idx     = noteVal `mod` max 1 scLen
+                -- A bar with no pitch content (e.g. a typo'd empty chord
+                -- in a hand-written prog) emits nothing rather than
+                -- indexing [] on the audio thread.
+                in [ nEv { value = (sc !! idx) + fromIntegral (octave * 12) }
+                   | scLen > 0 ]
               ) noteEvs
             ) Nothing Nothing
 
@@ -236,8 +244,12 @@ arrange' (lo, hi) (kin, chordPat) register lyr voiceFunc modifier pats =
       -- Pre-compute voicings at construction time. See 'arrange' for the
       -- forced\/cacheForced rationale: hoists per-bar voicing computation
       -- from the audio thread to REPL evaluation time.
-      allEvents = queryArc progPat (Arc 0 1000)
-      uniqueProgs = nub (map value allEvents)
+      -- Exact cache domain: the form's own distinct progressions,
+      -- projected like progPat. No time-window sampling (the old
+      -- @queryArc … (Arc 0 1000)@ allocated 1000 events per instrument
+      -- and silently missed progressions past the horizon, forcing a
+      -- full voice-leading solve on the audio thread mid-set).
+      uniqueProgs = nub (map (layerForVoicing lyr) (kProgs kin))
       cache = [ (key, let vs     = effectiveVF (fmap modifier key)
                           sc     = map (map fromIntegral) vs :: [[Note]]
                           nc     = length vs
@@ -311,7 +323,9 @@ lookupChord pc idx =
       len = P.progLength prog
       chords = P.progChords prog
       wrappedIdx = idx `mod` len
-  in chords !! wrappedIdx
+  in if len == 0
+       then error "lookupChord: empty progression"
+       else chords !! wrappedIdx
 
 -- |Lookup progression (triad layer) as a pattern of voicings via 'A.flow'.
 lookupProgression :: PC.ProgressionContext -> Pattern Int -> Pattern [Int]
@@ -319,7 +333,9 @@ lookupProgression pc idxPat =
   let prog = PC.triadLayer pc
       len = P.progLength prog
       voicings = A.flow prog
-  in fmap (\idx -> voicings !! (idx `mod` len)) idxPat
+  in if len == 0
+       then silence
+       else fmap (\idx -> voicings !! (idx `mod` len)) idxPat
 
 -------------------------------------------------------------------------------
 -- Progression Overlap (Re-exports from Arranger)

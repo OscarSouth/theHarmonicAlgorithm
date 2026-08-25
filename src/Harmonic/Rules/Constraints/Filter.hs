@@ -107,6 +107,9 @@ module Harmonic.Rules.Constraints.Filter
   , nthBelow
 
     -- * Internal (for testing)
+  , unrecognizedTokens
+  , parseUnifiedToken
+  , parseGeneralToken
   , parseOvertones'
   , parseKey'
   , parseFunds'
@@ -174,12 +177,11 @@ keyPitches fifths = sort $ nub $ map ((`mod` 12) . (+ fifths * 7)) [0, 2, 4, 5, 
 --   * @"E A D G"@ → overtones of E, A, D, G (bass tuning)
 --   * @"C"@ → overtones of C
 --   * @"*"@ → all pitch classes
+-- Routed through the shared include\/exclude core, so subtraction
+-- ("E A D G -A'") and token-level wildcards ("* -C'") work here exactly
+-- as in the other contexts (previously both silently produced wrong sets).
 parseTuning' :: Int -> Text -> [PitchClass]
-parseTuning' n input
-  | isWildcard input = chromaticSet
-  | otherwise = unique $ concatMap (parseToken n False) tokens
-  where
-    tokens = T.words $ T.toLower input
+parseTuning' n = parseWithTokens (parseGeneralToken n)
     
 -- |Parse a tuning string preserving string names for overtone annotation.
 -- Case is preserved for string identification (uppercase = lower octave,
@@ -198,19 +200,6 @@ parseTuningNamed input
       case noteNameToPitchClass (T.toLower tok) of
         Just pc -> Just (T.unpack tok, pc)
         Nothing -> Nothing
-
--- |Parse a single token in tuning context
-parseToken :: Int -> Bool -> Text -> [PitchClass]
-parseToken n isPrime token
-  | T.null token = []
-  | "'" `T.isSuffixOf` token = 
-      -- Prime notation: single pitch class only (legacy behavior)
-      case noteNameToPitchClass (T.init token) of
-        Just pc -> [pc]
-        Nothing -> []
-  | otherwise = case noteNameToPitchClass token of
-      Just pc -> if isPrime then [pc] else overtoneSeriesFrom n pc
-      Nothing -> []  -- Invalid token ignored
 
 -- |Map note names to pitch classes
 -- Handles: c, c#, db, d, d#, eb, e, f, f#, gb, g, g#, ab, a, a#, bb, b
@@ -242,13 +231,20 @@ noteNameToPitchClass t = case T.toLower t of
 --   * Numbered key sig: @"0#"@ = C major, @"1#"@ = G major, @"2b"@ = Bb major
 --   * Wildcard: @"*"@
 --   * Removal: @"1b -G"@ (F major minus G), @"* -C'"@ (all minus C)
-parseKey' :: Int -> Text -> [PitchClass]
-parseKey' _ input
+parseKey' :: Text -> [PitchClass]
+parseKey' = parseWithTokens parseKeyToken
+
+-- |Shared include\/exclude shape of every filter parser: wildcard guard,
+-- then 'partitionTokens' and the given per-token parser on both sides.
+-- One body means subtraction and prime notation cannot diverge between
+-- contexts again.
+parseWithTokens :: (Text -> [PitchClass]) -> Text -> [PitchClass]
+parseWithTokens tokParse input
   | isWildcard input = chromaticSet
   | otherwise =
       let (includes, excludes) = partitionTokens input
-          includePcs = unique $ concatMap parseKeyToken includes
-          excludePcs = unique $ concatMap parseKeyToken excludes
+          includePcs = unique $ concatMap tokParse includes
+          excludePcs = unique $ concatMap tokParse excludes
       in includePcs \\ excludePcs
 
 -- |Convert a key specification to pitch classes
@@ -268,6 +264,14 @@ parseUnifiedToken :: Text -> [PitchClass]
 parseUnifiedToken token
   | T.null token = []
   | token == "*" || token == "all" || token == "chr" = chromaticSet
+  | "'" `T.isSuffixOf` token =
+      -- Prime = single pitch. Note names already yield single pitches in
+      -- key\/roots contexts, so E' ≡ E here — but the documented removal
+      -- form "* -Bb'" must work identically in every context, and it
+      -- previously parsed to [] (the exclusion silently no-opped).
+      case noteNameToPitchClass (T.init token) of
+        Just pc -> [pc]
+        Nothing -> []
   | Just pc <- noteNameToPitchClass token = [pc]
   | Just fifths <- parseKeySignature token = keyPitches fifths
   | otherwise = []
@@ -332,14 +336,8 @@ parseNamedKey t =
 --   * Numbered key sig: @"1b"@ = F major roots, @"2#"@ = D major roots
 --   * Wildcard: @"*"@
 --   * Removal: @"C G -G"@ (C and G minus G), @"* -E -A"@ (all except E,A)
-parseFunds' :: Int -> Text -> [PitchClass]
-parseFunds' _ input
-  | isWildcard input = chromaticSet
-  | otherwise =
-      let (includes, excludes) = partitionTokens input
-          includePcs = unique $ concatMap parseFundsToken includes
-          excludePcs = unique $ concatMap parseFundsToken excludes
-      in includePcs \\ excludePcs
+parseFunds' :: Text -> [PitchClass]
+parseFunds' = parseWithTokens parseFundsToken
 
 -- |Parse a single token in fundamentals\/roots context.
 -- Same unified rules as key context: note name = single pitch, numbered sig = scale.
@@ -371,7 +369,7 @@ resolveRoots overtoneFilter keyFilter rootsFilter
       in if isWildcard keyFilter
          then overtones
          else Prelude.filter (`elem` keyPcs) overtones
-  | otherwise = parseFunds' 4 rootsFilter
+  | otherwise = parseFunds' rootsFilter
 
 -------------------------------------------------------------------------------
 -- Generalized Parsing (combines all notations)
@@ -381,13 +379,7 @@ resolveRoots overtoneFilter keyFilter rootsFilter
 -- This is the most general parser, combining tuning notation with individual pitches.
 -- Supports removal with '-' prefix: "C E -E'" removes E pitch from (C ∪ E) overtones
 parseOvertones' :: Int -> Text -> [PitchClass]
-parseOvertones' n input
-  | isWildcard input = chromaticSet
-  | otherwise =
-      let (includes, excludes) = partitionTokens input
-          includePcs = unique $ concatMap (parseGeneralToken n) includes
-          excludePcs = unique $ concatMap (parseGeneralToken n) excludes
-      in includePcs \\ excludePcs
+parseOvertones' n = parseWithTokens (parseGeneralToken n)
 
 -- |Parse a general token (could be note name, prime notation, or key signature)
 parseGeneralToken :: Int -> Text -> [PitchClass]
@@ -420,11 +412,11 @@ parseTuning = parseTuning' 3
 
 -- |Parse key (overtone count not used for keys)
 parseKey :: Text -> [PitchClass]
-parseKey = parseKey' 3
+parseKey = parseKey'
 
 -- |Parse fundamentals with 3 overtones (default)
 parseFunds :: Text -> [PitchClass]
-parseFunds = parseFunds' 3
+parseFunds = parseFunds'
 
 -- |Parse overtones with 3 overtones (default: root, P5, M3)
 parseOvertones :: Text -> [PitchClass]
@@ -531,6 +523,27 @@ partitionTokens input =
       negTokens' = map (T.drop 1) negTokens
   in (posTokens, negTokens')
 
+-- |Tokens in a filter string that the given per-token parser does not
+-- recognise. The silent-[] convention means a typo ("bahc", "fall7",
+-- "rise<1 2" with its bracket unclosed) simply vanishes from the rule
+-- set; this names the vanished tokens so the context boundary can warn
+-- once per generation. Subtraction prefixes are stripped before checking;
+-- direction tokens are excluded when @allowDirections@ (the roots
+-- context) since they are consumed by 'parseBassDirectionSpec', not the
+-- pitch parsers.
+unrecognizedTokens :: (Text -> [PitchClass]) -> Bool -> Text -> [Text]
+unrecognizedTokens tokParse allowDirections input
+  | isWildcard input = []
+  | otherwise =
+      [ tok0
+      | tok0 <- splitBracketed (T.strip input)
+      , not (allowDirections && parseDirectionToken tok0 /= Nothing)
+      , let tok = T.toLower (maybe tok0 id (T.stripPrefix "-" tok0))
+      , not (T.null tok)
+      , not (isWildcard tok)
+      , null (tokParse tok)
+      ]
+
 -------------------------------------------------------------------------------
 -- Bass Direction
 -------------------------------------------------------------------------------
@@ -572,6 +585,12 @@ splitBracketed = go (0 :: Int) "" [] . T.unpack
     flushTok acc cur = if null cur then acc else T.pack (reverse cur) : acc
     go _ cur acc [] = reverse (flushTok acc cur)
     go 0 cur acc (c:cs)
+      -- Whitespace directly before a bracket group binds the group to the
+      -- preceding token: "fall <1,2>" reads as "fall<1,2>". Without this,
+      -- the checked-in form silently degraded to plain "fall" and the
+      -- orphaned "<1,2>" was dropped by the pitch parsers.
+      | Char.isSpace c, ('<':_) <- dropWhile Char.isSpace cs =
+          go 0 cur acc (dropWhile Char.isSpace cs)
       | Char.isSpace c = go 0 "" (flushTok acc cur) cs
       | c == '<'       = go 1 (c : cur) acc cs
       | otherwise      = go 0 (c : cur) acc cs

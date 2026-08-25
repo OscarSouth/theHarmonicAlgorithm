@@ -110,19 +110,22 @@ subKick dyn k voiceFunc (maxDur, subOnStr, subOffStr, kickStr) =
       subOffPat = slow 4 $ parseBP_E subOffStr
       kickPat   = slow 4 $ parseBP_E kickStr
       progPat = fmap PC.triadLayer (kProg kin)
-      -- Pre-compute voicings at construction time
-      allEvents = queryArc progPat (Arc 0 1000)
-      uniqueProgs = nub (map value allEvents)
+      -- Exact cache domain from the form's own progression list (see
+      -- 'Harmonic.Interface.Tidal.Bridge.arrange' — no Arc-window
+      -- sampling), forced at construction like the other Layer-D emitters
+      -- so no voicing work runs on the audio thread.
+      uniqueProgs = nub (map PC.triadLayer (kProgs kin))
       cache = [(p, let raw = voiceFunc p
                        norm = map normalizeToSubRange raw
                        nc = length norm
                    in (norm, nc))
               | p <- uniqueProgs]
+      cacheForced = foldr (\(_, (ns, n)) acc -> sum ns `seq` n `seq` acc) () cache
       lookupCache prog = case lookup prog cache of
         Just hit -> hit
         Nothing  -> let raw = voiceFunc prog
                     in (map normalizeToSubRange raw, length raw)
-  in innerJoin $ fmap (\prog ->
+  in cacheForced `seq` innerJoin $ fmap (\prog ->
        subKickCoreP (lookupCache prog) subOnPat subOffPat kickPat chordPat dyn k maxDur
      ) progPat
 

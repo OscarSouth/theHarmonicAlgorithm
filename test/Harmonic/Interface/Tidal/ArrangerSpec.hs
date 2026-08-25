@@ -5,13 +5,13 @@
 module Harmonic.Interface.Tidal.ArrangerSpec (spec) where
 
 import Test.Hspec
-import Harmonic.Interface.Tidal.Arranger (parseLeadTokens, LeadToken(..), lead, lead', strataModeFlow, flow, grid)
+import Harmonic.Interface.Tidal.Arranger (parseLeadTokens, LeadToken(..), lead, lead', leadJ, strataModeFlow, flow, grid, lite, root, progOverlapF, progOverlapB, rotate, excerpt, insert, switch, clone, fuse, interleave, expandP, transposeP, fromChords)
 import Harmonic.Rules.Types.Harmony (CadenceState(..), Cadence(..), Movement(..), stateCadenceRoot, stateCadence, stateSpelling, cadenceIntervals, cadenceFunctionality, cadenceMovement, EnharmonicSpelling(..), mkCadenceStatePCs)
 import Harmonic.Rules.Types.Progression (fromCadenceStates, unProgression)
-import Harmonic.Interface.Tidal.Arranger (fromChords)
 import Harmonic.Rules.Types.ProgressionContext (triadLayer)
 import qualified Data.Foldable
-import Harmonic.Rules.Types.Pitch (NoteName(..), PitchClass(..))
+import Data.List (sort, nub)
+import Harmonic.Rules.Types.Pitch (NoteName(..), PitchClass(..), pitchClass)
 
 spec :: Spec
 spec = do
@@ -96,6 +96,148 @@ spec = do
     it "falls back to random lead when no valid notes" $ do
       _ <- lead' "xyz qqq"
       pure ()
+
+  describe "rearranging family (ProgressionContext combinators)" $ do
+    let pcOf = fromChords
+        rootsOf pc' = map stateCadenceRoot
+                        (Data.Foldable.toList (unProgression (triadLayer pc')))
+        p4 = pcOf [[0,4,7], [5,9,0], [7,11,2], [9,0,4]]  -- C F G Am
+
+    it "rotate n shifts bars cyclically and preserves length" $ do
+      length (rootsOf (rotate 1 p4)) `shouldBe` 4
+      rootsOf (rotate 1 p4) `shouldBe` (drop 1 (rootsOf p4) ++ take 1 (rootsOf p4))
+
+    it "rotate by the length is the identity on roots" $
+      rootsOf (rotate 4 p4) `shouldBe` rootsOf p4
+
+    it "excerpt s e keeps exactly the requested bars" $
+      rootsOf (excerpt 2 3 p4) `shouldBe` take 2 (drop 1 (rootsOf p4))
+
+    it "insert replaces the bar at the position, length unchanged" $ do
+      cs <- lead "D min (0)"
+      let out = rootsOf (insert cs 2 p4)
+      length out `shouldBe` 4
+      out !! 1 `shouldBe` stateCadenceRoot cs
+      [out !! i | i <- [0, 2, 3]] `shouldBe` [rootsOf p4 !! i | i <- [0, 2, 3]]
+
+    it "switch m n swaps two bars" $ do
+      let out = rootsOf (switch 1 3 p4)
+          orig = rootsOf p4
+      out `shouldBe` [orig !! 2, orig !! 1, orig !! 0, orig !! 3]
+
+    it "clone m n copies bar m over bar n" $ do
+      let out = rootsOf (clone 1 4 p4)
+          orig = rootsOf p4
+      out `shouldBe` [orig !! 0, orig !! 1, orig !! 2, orig !! 0]
+
+    it "fuse concatenates in order" $ do
+      let a = pcOf [[0,4,7]]
+          b = pcOf [[5,9,0]]
+      rootsOf (fuse [a, b]) `shouldBe` (rootsOf a ++ rootsOf b)
+
+    it "interleave alternates bars from each source" $ do
+      let a = pcOf [[0,4,7], [7,11,2]]
+          b = pcOf [[5,9,0], [9,0,4]]
+          orig x = rootsOf x
+      rootsOf (interleave a b)
+        `shouldBe` [orig a !! 0, orig b !! 0, orig a !! 1, orig b !! 1]
+
+    it "expandP n repeats the whole progression n times" $ do
+      let out = rootsOf (expandP 2 p4)
+      out `shouldBe` (rootsOf p4 ++ rootsOf p4)
+
+    it "transposeP preserves interval structure (pitch content shifts)" $ do
+      let ivsOf' pc' = map (cadenceIntervals . stateCadence)
+                         (Data.Foldable.toList (unProgression (triadLayer pc')))
+      ivsOf' (transposeP 2 p4) `shouldBe` ivsOf' p4
+      length (rootsOf (transposeP 2 p4)) `shouldBe` 4
+
+  describe "voicing strategies (structure properties)" $ do
+    let prog = triadLayer (fromChords [[0,4,7], [5,9,0], [7,11,2]])
+
+    it "grid: one voicing per bar, root pitch class in the bass" $ do
+      let vs = grid prog
+      length vs `shouldBe` 3
+      [ v `mod` 12 | (v:_) <- vs ] `shouldBe` [0, 5, 7]
+
+    it "flow: one voicing per bar, pitch-class content preserved" $ do
+      let vs = flow prog
+      length vs `shouldBe` 3
+      map (sort . nub . map (`mod` 12)) vs `shouldBe`
+        [[0,4,7], [0,5,9], [2,7,11]]
+
+    it "lite: literal intervals, register-normalized only" $ do
+      let vs = lite prog
+      length vs `shouldBe` 3
+      map (sort . nub . map (`mod` 12)) vs `shouldBe`
+        [[0,4,7], [0,5,9], [2,7,11]]
+
+    it "root: one pitch class per bar (bass lines)" $ do
+      let vs = root prog
+      map length vs `shouldBe` [1, 1, 1]
+      [ v `mod` 12 | [v] <- vs ] `shouldBe` [0, 5, 7]
+
+  describe "progOverlap family (windowed pitch union)" $ do
+    let mkBar root ivs = mkCadenceStatePCs root Unison ivs
+        -- G maj -> C maj -> F maj (each stored as zero-form [0,4,7])
+        gcf = fromCadenceStates [mkBar G [0,4,7], mkBar C [0,4,7], mkBar F [0,4,7]]
+        pcInt (P n) = n
+        ivsOf cs = map pcInt (cadenceIntervals (stateCadence cs))
+        absOf cs = sort (nub [ (i + pcInt (pitchClass (stateCadenceRoot cs))) `mod` 12
+                             | i <- ivsOf cs ])
+        barsOf = Data.Foldable.toList . unProgression
+
+    it "keeps every bar's own pitch classes (no self-transposition)" $ do
+      let out = barsOf (progOverlapF 1 gcf)
+      -- G maj's absolute PCs {7, 11, 2} must survive in its overlapped bar
+      mapM_ (\pc -> absOf (head out) `shouldSatisfy` (pc `elem`)) [7, 11, 2]
+
+    it "overlapF 1 unions the next bar's absolute content (G+C)" $ do
+      let out = barsOf (progOverlapF 1 gcf)
+      absOf (head out) `shouldBe` sort (nub ([7, 11, 2] ++ [0, 4, 7]))
+
+    it "a 4-note bar keeps its fourth voice through overlap" $ do
+      let m7  = fromCadenceStates [mkBar C [0,3,7,10], mkBar C [0,3,7,10]]
+          out = barsOf (progOverlapF 1 m7)
+      sort (nub (ivsOf (head out))) `shouldBe` [0, 3, 7, 10]
+
+    it "overlapF 0 is the identity" $ do
+      map ivsOf (barsOf (progOverlapF 0 gcf)) `shouldBe` map ivsOf (barsOf gcf)
+
+    it "backward overlap pulls from behind only" $ do
+      let out = barsOf (progOverlapB 1 gcf)
+      -- bar 1 (index 0) has nothing behind: unchanged
+      absOf (head out) `shouldBe` sort [7, 11, 2]
+
+  describe "leadJ (leadsheet chord-symbol cue)" $ do
+    it "builds C m7 from 'Cm7' with the jazz namer" $ do
+      cs <- leadJ "Cm7"
+      stateCadenceRoot cs `shouldBe` C
+      cadenceIntervals (stateCadence cs) `shouldBe` [P 0, P 3, P 7, P 10]
+      cadenceFunctionality (stateCadence cs) `shouldBe` "m7"
+
+    it "honours a notated slash bass as the anchor" $ do
+      cs <- leadJ "Dm7/G (5)"
+      stateCadenceRoot cs `shouldBe` G
+      cadenceIntervals (stateCadence cs) `shouldBe` [P 0, P 2, P 5, P 7, P 10]
+      cadenceFunctionality (stateCadence cs) `shouldBe` "9sus4"
+      cadenceMovement (stateCadence cs) `shouldBe` Asc (P 5)
+
+    it "flat accidental implies flat spelling" $ do
+      cs <- leadJ "EbM7"
+      stateCadenceRoot cs `shouldBe` Eb
+      stateSpelling cs `shouldBe` FlatSpelling
+      cadenceFunctionality (stateCadence cs) `shouldBe` "M7"
+
+    it "falls back to C m7 on an unparseable symbol, keeping the movement" $ do
+      cs <- leadJ "Xq9 (3)"
+      stateCadenceRoot cs `shouldBe` C
+      cadenceFunctionality (stateCadence cs) `shouldBe` "m7"
+      cadenceMovement (stateCadence cs) `shouldBe` Asc (P 3)
+
+    it "treats NC as unparseable (silence is not a chord)" $ do
+      cs <- leadJ "NC"
+      cadenceFunctionality (stateCadence cs) `shouldBe` "m7"
 
   describe "strataModeFlow pedal behavior + big-chroma routing" $ do
     let csOf root ivs = mkCadenceStatePCs root Unison ivs
