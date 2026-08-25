@@ -48,8 +48,9 @@ identically in every context, and `fall <1,2>` (with the space) parses as
 written. `initCadenceState` stores the movement you asked for (inverted
 qualities no longer corrupt the first fetch key from `lead`), and adding
 a 9th no longer flips a bar's enharmonic spelling. Four instrument-range
-name/MIDI contradictions fixed (bassoon, horn, trombone, harp — code now
-matches the documented names). Builder.hs split into facade +
+name/MIDI disagreements documented for a practical JV1010 review (the
+numbers are sampler-patch limits and stay authoritative). Builder.hs
+split into facade +
 `Modifiers` + `StrataGen`; the subKick CC64/sustain mechanism is pinned
 by characterisation tests.
 

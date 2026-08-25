@@ -23,17 +23,17 @@ once $ d02 $ note "[-2 33]*2" # ch 2 # legato 0.8
 -- CLARINET (Ch 3) — D2 to Bb6 (MIDI 38-94)
 once $ d03 $ note "[-22 34]*2" # ch 3 # legato 0.8
 
--- BASSOON (Ch 4) — Bb1 to Eb5 (MIDI 34-75)
-once $ d04 $ note "[-26 15]*2" # ch 4 # legato 0.8
+-- BASSOON (Ch 4) — Bb1 to Eb5 (MIDI 32-75)
+once $ d04 $ note "[-28 15]*2" # ch 4 # legato 0.8
 
 
 -- ── BRASS ────────────────────────────────────────────────
 
--- HORN (Ch 5) — B1 to F5 (MIDI 35-77)
-once $ d05 $ note "[-25 17]*2" # ch 5 # legato 0.8
+-- HORN (Ch 5) — B1 to F5 (MIDI 31-77)
+once $ d05 $ note "[-29 17]*2" # ch 5 # legato 0.8
 
--- TROMBONE (Ch 6) — Bb1 to F5 (MIDI 34-77)
-once $ d06 $ note "[-26 17]*2" # ch 6 # legato 0.8
+-- TROMBONE (Ch 6) — Bb1 to F5 (MIDI 32-77)
+once $ d06 $ note "[-28 17]*2" # ch 6 # legato 0.8
 
 -- BASS TROMBONE (Ch 6) — A0 to G3 (MIDI 21-55)
 once $ d06 $ note "[-39 -5]*2" # ch 6 # legato 0.8
@@ -41,8 +41,8 @@ once $ d06 $ note "[-39 -5]*2" # ch 6 # legato 0.8
 
 -- ── PLUCKED / PITCHED PERCUSSION ─────────────────────────
 
--- HARP (Ch 7) — B1 to F#7 (MIDI 35-102)
-once $ d07 $ note "[-25 42]*2" # ch 7 # legato 0.8
+-- HARP (Ch 7) — B1 to F#7 (MIDI 31-102)
+once $ d07 $ note "[-29 42]*2" # ch 7 # legato 0.8
 
 -- TIMPANI (Ch 8) — D2 to C4 (MIDI 38-60)
 once $ d08 $ note "[-22 0]*2" # ch 8 # legato 0.8

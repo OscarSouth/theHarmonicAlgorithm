@@ -215,22 +215,29 @@ instrument range channel lyr ki k vl vf v =
 -- 'M' for the diatonic-mode layer:
 --
 -- @d1 $ flute T (0,1) k voiceLines flow Soprano [\"0 1 2 3\"]@
+-- RANGE-REVIEW NOTE (2026-08-25): the numeric bounds are tuned to the
+-- range limits of the actual JV1010 sampler patches and are authoritative;
+-- the note-name comments drift from them in four places (bassoon, horn,
+-- trombone, harp — names sit 2-4 semitones above the coded MIDI floor).
+-- Do not "correct" the numbers to the names: a practical per-instrument
+-- review against the JV1010 will set both precisely. Details in
+-- documents/ALGORITHMIC_ORCHESTRATION.md ("Range review").
 flute, oboe, clarinet, bassoon :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
 flute      = instrument (-12, 26) 1   -- C3–D6  (MIDI 48–86)
 oboe       = instrument ( -2, 33) 2   -- Bb3–A6 (MIDI 58–93)
 clarinet   = instrument (-22, 34) 3   -- D2–Bb6 (MIDI 38–94)
-bassoon    = instrument (-26, 15) 4   -- Bb1–Eb5 (MIDI 34–75)
+bassoon    = instrument (-28, 15) 4   -- Bb1–Eb5 (MIDI 32–75) [see range-review note]
 
 -- | Brass, channels 5&#8211;6. @basstrom@ shares channel 6 with @trombone@ at a
 -- lower range.
 horn, trombone, basstrom :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
-horn       = instrument (-25, 17) 5   -- B1–F5  (MIDI 35–77)
-trombone   = instrument (-26, 17) 6   -- Bb1–F5 (MIDI 34–77)
+horn       = instrument (-29, 17) 5   -- B1–F5  (MIDI 31–77) [see range-review note]
+trombone   = instrument (-28, 17) 6   -- Bb1–F5 (MIDI 32–77) [see range-review note]
 basstrom   = instrument (-39, -5) 6   -- A0–G3  (MIDI 21–55)
 
 -- | Harp, channel 7. The widest range in the orchestra.
 harp :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
-harp       = instrument (-25, 42) 7   -- B1–F#7 (MIDI 35–102)
+harp       = instrument (-29, 42) 7   -- B1–F#7 (MIDI 31–102) [see range-review note]
 
 -- | Timpani, channel 8. Pitched percussion; the narrowest range.
 timpani :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
