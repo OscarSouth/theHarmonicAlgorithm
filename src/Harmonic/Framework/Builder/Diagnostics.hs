@@ -226,8 +226,11 @@ parseCadenceFromString name posteriorRootPC =
 --
 -- Noop when 'sdStrataLabel' is 'Nothing' for every step, so it's safe to
 -- call unconditionally on any diagnostics value.
-printStrataDiagnostics :: Int -> GenerationDiagnostics -> IO ()
-printStrataDiagnostics verbosity diag = do
+-- The first argument maps a trace position (1 = starter\/seed row) to its
+-- displayed bar number — 'show' for fresh walks; regen callers map
+-- positions onto source bar numbers (see @emitFinalised@).
+printStrataDiagnostics :: (Int -> String) -> Int -> GenerationDiagnostics -> IO ()
+printStrataDiagnostics barLabel verbosity diag = do
   let steps = gdSteps diag
       hasStrata = any (\s -> sdStrataLabel s /= Nothing) steps
   if not hasStrata
@@ -238,7 +241,7 @@ printStrataDiagnostics verbosity diag = do
                  ++ " → " ++ show (gdActualLen diag) ++ " bars (entropy "
                  ++ show (gdEntropy diag) ++ ")"
       putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-      forM_ steps $ \step -> renderStrataStep verbosity step
+      forM_ steps $ \step -> renderStrataStep barLabel verbosity step
       putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       putStrLn ""
 
@@ -255,8 +258,8 @@ printStrataDiagnostics verbosity diag = do
 -- For 'Harmonic.Rules.Types.Scale.ModeInvalid' (only via 'Harmonic.Framework.Builder.absStrata' overrides that violate
 -- tristrata adjacency), the mode line reads
 -- @mode           invalid overlap                                 {<overlap PCs>}@.
-renderStrataStep :: Int -> StepDiagnostic -> IO ()
-renderStrataStep verbosity step = do
+renderStrataStep :: (Int -> String) -> Int -> StepDiagnostic -> IO ()
+renderStrataStep barLabel verbosity step = do
   let isStarter = sdSelectedFrom step == "starter"
       chord  = case sdRenderedChord step of
                  Just c  -> c
@@ -280,7 +283,7 @@ renderStrataStep verbosity step = do
 
   -- Header row: aligned on the same four columns as strata\/mode.
   putStrLn $ indent
-             ++ pad labelWidth (show (sdStepNumber step) ++ ":")
+             ++ pad labelWidth (barLabel (sdStepNumber step) ++ ":")
              ++ pad identWidth motion
              ++ pad infoWidth chord
              ++ src

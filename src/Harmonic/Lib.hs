@@ -230,7 +230,7 @@ module Harmonic.Lib (
   ScaleSource(..), melodyStateFrom,
 
   -- ** Starting state construction
-  lead, lead', parseLeadTokens, LeadToken(..),
+  lead, lead', leadJ, parseLeadTokens, LeadToken(..),
 
   -- ** Instruments and orchestra
   module Harmonic.Interface.Tidal.Instruments,
@@ -310,7 +310,7 @@ import Harmonic.Interface.Tidal.Arranger (
     grid, flow, lite, literal, root,
     fromChords, prog,
     ScaleSource(..), melodyStateFrom,
-    lead, lead', parseLeadTokens, LeadToken(..)
+    lead, lead', leadJ, parseLeadTokens, LeadToken(..)
   )
 import Harmonic.Interface.Tidal.Groove (subKick, fund, noteoff)
 import Harmonic.Interface.Tidal.LineHarmony (lineHarmony)

@@ -148,11 +148,11 @@ tamtam   pat = struct pat $ midinote 31 # ch 11 # sustain 0.5
 | Flute | 1 | (-12, 26) | 48–86 | C3–D6 | Wind |
 | Oboe | 2 | (-2, 33) | 58–93 | Bb3–A6 | Wind |
 | Clarinet | 3 | (-22, 34) | 38–94 | D2–Bb6 | Wind |
-| Bassoon | 4 | (-28, 15) | 32–75 | Bb1–Eb5 | Wind |
-| Horn | 5 | (-29, 17) | 31–77 | B1–F5 | Brass |
-| Trombone | 6 | (-28, 17) | 32–77 | Bb1–F5 | Brass |
+| Bassoon | 4 | (-26, 15) | 34–75 | Bb1–Eb5 | Wind |
+| Horn | 5 | (-25, 17) | 35–77 | B1–F5 | Brass |
+| Trombone | 6 | (-26, 17) | 34–77 | Bb1–F5 | Brass |
 | Bass Trombone | 6 | (-39, -5) | 21–55 | A0–G3 | Brass |
-| Harp | 7 | (-29, 42) | 31–102 | B1–F#7 | Plucked |
+| Harp | 7 | (-25, 42) | 35–102 | B1–F#7 | Plucked |
 | Timpani | 8 | (-22, 0) | 38–60 | D2–C4 | Pitched perc |
 | Violin 1 | 16 | (-5, 45) | 55–105 | G3–A7 | Strings (arco) |
 | Violin 2 | 16 | (-5, 45) | 55–105 | G3–A7 | Strings (arco) |

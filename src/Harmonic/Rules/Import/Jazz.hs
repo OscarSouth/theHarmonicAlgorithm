@@ -18,7 +18,9 @@
 -- * Symbols that fail to parse are returned as 'JazzRefusal' values —
 --   recorded, never silently skipped.
 --
--- Ingestion-only. Nothing here is needed to generate or play music.
+-- Shared surface: the ingest run parses the corpus through it, genJ
+-- names walked chords with 'jazzFunctionality', and @leadJ@ cues parse
+-- through 'parseToken'.
 
 module Harmonic.Rules.Import.Jazz (
     JazzToken(..),

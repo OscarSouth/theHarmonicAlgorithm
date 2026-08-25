@@ -31,13 +31,13 @@ testProgression = P.Progression $ Seq.fromList
   ]
 
 fullKin :: P.Progression -> Kinetics
-fullKin pr = Kinetics (pure 1.0) (pure 1.0) (pure (PC.fromProgression pr)) 0 0
+fullKin pr = Kinetics (pure 1.0) (pure 1.0) (pure (PC.fromProgression pr)) [(PC.fromProgression pr)] 0 0
 
 mutedKin :: P.Progression -> Kinetics
-mutedKin pr = Kinetics (pure 0.0) (pure 1.0) (pure (PC.fromProgression pr)) 0 0
+mutedKin pr = Kinetics (pure 0.0) (pure 1.0) (pure (PC.fromProgression pr)) [(PC.fromProgression pr)] 0 0
 
 kinAt :: Double -> P.Progression -> Kinetics
-kinAt v pr = Kinetics (pure v) (pure 1.0) (pure (PC.fromProgression pr)) 0 0
+kinAt v pr = Kinetics (pure v) (pure 1.0) (pure (PC.fromProgression pr)) [PC.fromProgression pr] 0 0
 
 -------------------------------------------------------------------------------
 -- Onset helpers (mirrors BridgeSpec)

@@ -69,7 +69,7 @@ longerProgression =
 
 -- |Create a pass-through Kinetics for testing: kSignal=1, kDynamic=1, constant progression
 testKinetics :: P.Progression -> Kinetics
-testKinetics prog = Kinetics (pure 1.0) (pure 1.0) (pure (PC.fromProgression prog)) 0 0
+testKinetics prog = Kinetics (pure 1.0) (pure 1.0) (pure (PC.fromProgression prog)) [(PC.fromProgression prog)] 0 0
 
 -------------------------------------------------------------------------------
 -- Helpers: extract onset events from ControlPattern
@@ -195,6 +195,14 @@ spec = do
           result = arrange (0,1) (testKinetics testProgression, chordSel) (-24,24) T A.flow id
                      [parseBP_E "[0 1 2 3]"]
       onsetCount result (Arc 0 1) `shouldSatisfy` (> 0)
+
+    it "a bar with no pitch content emits nothing instead of indexing [] on the audio thread" $ do
+      let chordSel = parseBP_E "[1 2 3]/4" :: Pattern Int
+          pcE = A.fromChords [[0,4,7], [], [5,9,0]]
+          kinE = Kinetics (pure 1.0) (pure 1.0) (pure pcE) [pcE] 0 0
+          result = arrange (0,1) (kinE, chordSel) (-24,24) T A.lite id
+                     [parseBP_E "[0 1 2]"]
+      length (queryArc result (Arc 0 1)) `shouldSatisfy` (>= 0)
 
     it "returns silence for empty progression" $ do
       let emptyProg = P.Progression Seq.empty
@@ -351,10 +359,9 @@ spec = do
 
     it "arrange ... S A.flow ... and arrange ... S A.lite ... yield identical events over genP-style 5-PC layer" $ do
       let chordSel = parseBP_E "[1 2 3 4]/4" :: Pattern Int
-          kin = Kinetics (pure 1.0) (pure 1.0)
-                  (pure (PC.ProgressionContext strataFixture strataFixture strataFixture
-                          (Just Seq.empty) PC.FStrata))
-                  0 0
+          pcS = PC.ProgressionContext strataFixture strataFixture strataFixture
+                  (Just Seq.empty) PC.FStrata
+          kin = Kinetics (pure 1.0) (pure 1.0) (pure pcS) [pcS] 0 0
           aFlow = arrange (0,1) (kin, chordSel) (-24,24) S A.flow id [parseBP_E "[0 1 2 3 4]"]
           aLite = arrange (0,1) (kin, chordSel) (-24,24) S A.lite id [parseBP_E "[0 1 2 3 4]"]
       onsetNotes aFlow (Arc 0 1) `shouldBe` onsetNotes aLite (Arc 0 1)
@@ -362,10 +369,9 @@ spec = do
     it "arrange ... T ... over a genP-style ProgressionContext is unaffected by the override" $ do
       let chordSel = parseBP_E "[1 2 3 4]/4" :: Pattern Int
           tProg = testProgression  -- 3-PC triads
-          kin = Kinetics (pure 1.0) (pure 1.0)
-                  (pure (PC.ProgressionContext tProg strataFixture modeFixture
-                          (Just Seq.empty) PC.FStrata))
-                  0 0
+          pcT = PC.ProgressionContext tProg strataFixture modeFixture
+                  (Just Seq.empty) PC.FStrata
+          kin = Kinetics (pure 1.0) (pure 1.0) (pure pcT) [pcT] 0 0
           aT  = arrange (0,1) (kin, chordSel) (-24,24) T A.flow id [parseBP_E "[0 1 2]"]
           aT' = arrange (0,1) (testKinetics tProg, chordSel) (-24,24) T A.flow id [parseBP_E "[0 1 2]"]
       onsetNotes aT (Arc 0 1) `shouldBe` onsetNotes aT' (Arc 0 1)

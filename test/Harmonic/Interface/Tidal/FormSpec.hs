@@ -112,23 +112,40 @@ spec = do
           evs = queryArc (kProg k) (Arc 0 1)
       all (\e -> value e == testProgA) evs `shouldBe` True
 
+  describe "empty and disordered forms (audio-thread totality)" $ do
+    it "formK [] yields queryable silence, not a crash on first query" $ do
+      let k = formK 120 []
+      queryArc (kSignal k) (Arc 0 4) `shouldBe` []
+      queryArc (kProg k) (Arc 0 4) `shouldBe` []
+      kProgs k `shouldBe` []
+
+    it "out-of-order nodes are sorted by time (no negative-width segments)" $ do
+      let ordered  = formK 60 [at 0 0.1 1 testProgA, at 16 0.5 1 testProgA, at 30 0.9 1 testProgA]
+          shuffled = formK 60 [at 0 0.1 1 testProgA, at 30 0.9 1 testProgA, at 16 0.5 1 testProgA]
+          sig k = map value (queryArc (kSignal k) (Arc 0 30))
+      sig shuffled `shouldBe` sig ordered
+
+    it "kProgs lists each distinct progression once" $ do
+      let k = formK 120 [at 0 0 0 testProgA, at 10 1 1 testProgA]
+      kProgs k `shouldBe` [testProgA]
+
   describe "ki (range gating)" $ do
     it "passes events when signal in range" $ do
-      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA) 0 0
+      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA) [testProgA] 0 0
           ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
           result = ki (0.3, 0.7) ik (note "0")
           evs = queryArc result (Arc 0 1)
       length evs `shouldSatisfy` (> 0)
 
     it "blocks events when signal outside range" $ do
-      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA) 0 0
+      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA) [testProgA] 0 0
           ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
           result = ki (0.6, 0.9) ik (note "0")
           evs = queryArc result (Arc 0 1)
       length evs `shouldBe` 0
 
     it "inclusive at boundaries" $ do
-      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA) 0 0
+      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA) [testProgA] 0 0
           ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
           result = ki (0.5, 0.5) ik (note "0")
           evs = queryArc result (Arc 0 1)
@@ -136,14 +153,14 @@ spec = do
 
   describe "slate" $ do
     it "activates patterns when in range" $ do
-      let kin = Kinetics (pure 0.8) (pure 1.0) (pure testProgA) 0 0
+      let kin = Kinetics (pure 0.8) (pure 1.0) (pure testProgA) [testProgA] 0 0
           ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
           result = slate (0.5, 1.0) ik [note "0", note "1"]
           evs = queryArc result (Arc 0 1)
       length evs `shouldSatisfy` (> 0)
 
     it "blocks patterns when outside range" $ do
-      let kin = Kinetics (pure 0.2) (pure 1.0) (pure testProgA) 0 0
+      let kin = Kinetics (pure 0.2) (pure 1.0) (pure testProgA) [testProgA] 0 0
           ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
           result = slate (0.5, 1.0) ik [note "0", note "1"]
           evs = queryArc result (Arc 0 1)
@@ -151,7 +168,7 @@ spec = do
 
   describe "withForm" $ do
     it "applies function using progression from kinetics" $ do
-      let kin = Kinetics (pure 1.0) (pure 1.0) (pure testProgA) 0 0
+      let kin = Kinetics (pure 1.0) (pure 1.0) (pure testProgA) [testProgA] 0 0
           ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
           result = withForm ik (\_ -> note "42")
           evs = queryArc result (Arc 0 1)

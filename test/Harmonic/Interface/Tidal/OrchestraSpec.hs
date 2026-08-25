@@ -177,6 +177,22 @@ spec = do
           amps = [ a | ev <- run pat, Just a <- [extractAmp (value ev)] ]
       amps `shouldSatisfy` all (\a -> abs (a - 1 / sqrt 3) < 1e-9)
 
+    it "clamps the tier for N past the top (divisi 4 doubles the top desk, no crash)" $ do
+      let pat = divisi 4 fakeInstr T (0,1) undefined voiceLines undefined Soprano
+          notes = [ n | ev <- run pat, Just n <- [extractNote (value ev)] ]
+      -- Soprano=0, Soprano'=20, Soprano''=40, 4th desk clamps to Soprano''
+      notes `shouldMatchList` [0, 20, 40, 40]
+
+    it "clamps starting from an already-primed voice (divisi 2 on Soprano'')" $ do
+      let pat = divisi 2 fakeInstr T (0,1) undefined voiceLines undefined Soprano''
+          notes = [ n | ev <- run pat, Just n <- [extractNote (value ev)] ]
+      notes `shouldMatchList` [40, 40]
+
+    it "divisi 1 is the plain instrument (no vel scaling)" $ do
+      let pat = divisi 1 fakeInstr T (0,1) undefined voiceLines undefined Soprano
+          notes = [ n | ev <- run pat, Just n <- [extractNote (value ev)] ]
+      notes `shouldMatchList` [0]
+
   describe "divisi volume tags" $ do
     it "divisi2 sets amp to 1/sqrt 2" $ do
       let pat = note 60 # divisi2 :: ControlPattern

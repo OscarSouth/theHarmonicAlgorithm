@@ -414,6 +414,62 @@ spec = describe "genP paradigm" $ do
                       (toList (Prog.unProgression (PC.modeLayer s')))
       cards `shouldBe` replicate 8 7
 
+    it "regen seam is an allowedNext edge on every output (R5: no unfiltered escape)" $ do
+      let cueE = H.initCadenceState 0 "E" [0,3,7]
+          seamValid pc' e = case PC.pcProvenance pc' of
+            Nothing -> False
+            Just sq ->
+              let prov = toList sq
+                  n    = length prov
+                  (tE, sE)   = prov !! (e - 1)
+                  (tN, sN)   = prov !! (e `mod` n)
+              in (sN, tN) `elem` Strata.allowedNext Sc.validTristrata (sE, tE)
+      s <- seek "none" $ len 8 $ cue cueE $ entropy 0.4 $ genI
+      results <- replicateM 10 $ do
+        s' <- seek "none" $ entropy 0.7 $ genFrom s 3 5
+        pure (seamValid s' 5)
+      results `shouldBe` replicate 10 True
+
+    it "regen seam holds on a wrap-around range" $ do
+      let cueE = H.initCadenceState 0 "E" [0,3,7]
+      s <- seek "none" $ len 6 $ cue cueE $ entropy 0.4 $ genI
+      s' <- seek "none" $ entropy 0.5 $ genFrom s 5 2
+      case PC.pcProvenance s' of
+        Nothing -> expectationFailure "expected provenance"
+        Just sq -> do
+          let prov = toList sq
+              (tE, sE) = prov !! 1   -- regen end = bar 2 (0-indexed 1)
+              (tN, sN) = prov !! 2   -- seam target = bar 3
+          Strata.allowedNext Sc.validTristrata (sE, tE)
+            `shouldSatisfy` ((sN, tN) `elem`)
+
+    it "len expands the strata regen range (bars outside it stay identical)" $ do
+      let cueE = H.initCadenceState 0 "E" [0,3,7]
+          triadsOf pc' = map H.stateCadenceRoot
+                           (toList (Prog.unProgression (PC.triadLayer pc')))
+      s <- seek "none" $ len 8 $ cue cueE $ entropy 0.4 $ genI
+      s' <- seek "none" $ len 4 $ entropy 0.4 $ genFrom s 3 4
+      -- range expands from 3..4 to 3..6; bars 1, 2, 7, 8 must survive
+      let before = triadsOf s
+          after  = triadsOf s'
+      length after `shouldBe` 8
+      [before !! i | i <- [0, 1, 6, 7]] `shouldBe` [after !! i | i <- [0, 1, 6, 7]]
+      -- and the expanded seam (bar 6 → bar 7) is still walk-valid
+      case PC.pcProvenance s' of
+        Nothing -> expectationFailure "expected provenance"
+        Just sq -> do
+          let prov = toList sq
+              (tE, sE) = prov !! 5
+              (tN, sN) = prov !! 6
+          Strata.allowedNext Sc.validTristrata (sE, tE)
+            `shouldSatisfy` ((sN, tN) `elem`)
+
+    it "genFrom on an empty source refuses loudly instead of dividing by zero" $ do
+      let emptyPC = PC.ProgressionContext mempty mempty mempty Nothing PC.FTriad
+      (do s' <- seek "none" $ entropy 0.4 $ genFrom emptyPC 1 2
+          length (toList (Prog.unProgression (PC.triadLayer s'))) `seq` pure ())
+        `shouldThrow` anyErrorCall
+
     it "genFrom dispatches to FromProgPC when source has provenance" $ do
       let cueE = H.initCadenceState 0 "E" [0,3,7]
       s <- seek "none" $ len 4 $ cue cueE $ entropy 0.4 $ genVI

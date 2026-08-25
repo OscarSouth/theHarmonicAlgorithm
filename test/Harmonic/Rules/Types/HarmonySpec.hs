@@ -19,6 +19,24 @@ import Harmonic.Rules.Types.Harmony
 
 spec :: Spec
 spec = do
+  describe "initCadenceState movement fidelity" $ do
+    let storedMv mv q = cadenceMovement (stateCadence (initCadenceState mv "C" q))
+
+    it "root-position qualities store the requested movement (unchanged)" $ do
+      storedMv 5 [0,4,7] `shouldBe` Asc (P 5)
+
+    it "inverted qualities store the REQUESTED movement, not the detected root's" $ do
+      -- each of these previously came back displaced by the inversion offset
+      storedMv 5 [0,4,9]    `shouldBe` Asc (P 5)   -- min 1st inv (was asc 2)
+      storedMv 3 [0,3,8]    `shouldBe` Asc (P 3)   -- maj 1st inv (was desc 1)
+      storedMv (-5) [0,5,9] `shouldBe` Desc (P 5)  -- maj 2nd inv (was pedal)
+      storedMv 0 [0,5,8]    `shouldBe` Unison      -- min 2nd inv (was asc 5)
+
+  describe "inferSpelling cardinality stability" $ do
+    it "adding a 9th to a C triad keeps the triad's flat spelling" $ do
+      inferSpelling [0, 4, 7]    `shouldBe` FlatSpelling
+      inferSpelling [0, 2, 4, 7] `shouldBe` FlatSpelling  -- Cadd9 (was sharp via sus2 entry)
+
   describe "Legacy nameFunc Fidelity" $ do
     
     describe "Basic Triads" $ do

@@ -100,9 +100,13 @@ spec = do
           w = ProgressionScoreWeights 0.25 0.25 0.25 0.25
       totalScore w s `shouldBe` 0.5
 
-    it "defaultWeights gives cadence-favourability (0.4) the dominant share" $ do
-      wCadenceFav defaultWeights `shouldBe` 0.4
-      wRootMotion defaultWeights `shouldBe` 0.2
+    it "defaultWeights gives cadence-favourability (0.5) the dominant share" $ do
+      wCadenceFav defaultWeights `shouldBe` 0.5
+      wRootMotion defaultWeights `shouldBe` 0.25
+
+    it "mode validity carries no weight — it is a viability gate, not a score axis" $ do
+      wModeValidity defaultWeights `shouldBe` 0.0
+      wModeValidity defaultWeightsOffline `shouldBe` 0.0
 
     it "defaultWeightsOffline zeroes the cadence component" $ do
       wCadenceFav defaultWeightsOffline `shouldBe` 0.0

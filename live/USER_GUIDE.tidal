@@ -348,7 +348,7 @@ hush
 --                  ones are collected, return the single highest
 --                  scoring progression
 --   viability T  — the score floor an attempt must clear to count
---                  as viable (default 0.6; 0.0 = structural only)
+--                  as viable (default 0.5; 0.0 = structural only)
 --
 -- Scoring ranks by cadence-favourability (dominant weight), plus
 -- resolution, voice-leading and motion terms. `attempt` wraps any

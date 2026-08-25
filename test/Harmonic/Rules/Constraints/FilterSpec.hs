@@ -39,6 +39,74 @@ import Harmonic.Rules.Constraints.Filter
 
 spec :: Spec
 spec = do
+  describe "subtraction and prime notation across all contexts" $ do
+    it "\"* -C'\" removes C in the key context (previously a silent no-op)" $
+      sort (parseKey' "* -C'") `shouldBe` [1..11]
+
+    it "\"* -Bb'\" removes Bb in the roots context (previously a silent no-op)" $
+      sort (parseFunds' "* -Bb'") `shouldBe` ([0..9] ++ [11])
+
+    it "prime inclusion in key/roots yields single pitches, not an empty rule set" $ do
+      sort (parseKey' "C' E' G'") `shouldBe` [0, 4, 7]
+      sort (parseFunds' "C' E' G'") `shouldBe` [0, 4, 7]
+
+    it "\"* -C'\" works in the tuning context (previously produced [])" $
+      sort (parseTuning' 3 "* -C'") `shouldBe` [1..11]
+
+    it "tuning subtraction removes a named pitch from the expansion" $ do
+      let full  = sort (parseTuning' 3 "E A D G")
+          less  = sort (parseTuning' 3 "E A D G -A'")
+      less `shouldBe` filter (/= 9) full
+
+    it "the documented removal grammar agrees across overtones/key/roots" $ do
+      let expected = [0..11] `del` 7
+          del xs x = filter (/= x) xs
+      sort (parseOvertones' 3 "* -G'") `shouldBe` expected
+      sort (parseKey' "* -G'")         `shouldBe` expected
+      sort (parseFunds' "* -G'")       `shouldBe` expected
+
+  describe "bracketed direction specs tolerate whitespace" $ do
+    it "\"fall <1,2>\" parses as a random-pick fall (the checked-in orchestrate.tidal form)" $
+      parseBassDirectionSpec "1b 0b 2b fall <1,2>"
+        `shouldBe` Just (BassDirectionSpec FallK [1,2] BDRandomPick False)
+
+    it "stripDirectionToken removes the whole spaced spec from the pitch string" $
+      stripDirectionToken "1b 0b 2b fall <1,2>" `shouldBe` "1b 0b 2b"
+
+    it "\"rise <3 2 1>\" parses as a rotation" $
+      parseBassDirectionSpec "* rise <3 2 1>"
+        `shouldBe` Just (BassDirectionSpec RiseK [3,2,1] BDRotate False)
+
+  describe "unrecognizedTokens (the loud-parser hook)" $ do
+    it "names a typo'd note token" $
+      unrecognizedTokens parseUnifiedToken False "C H G" `shouldBe` ["H"]
+
+    it "names an out-of-range direction step in the roots context" $
+      unrecognizedTokens parseUnifiedToken True "* fall7" `shouldBe` ["fall7"]
+
+    it "names an unclosed bracket spec" $
+      unrecognizedTokens parseUnifiedToken True "0# rise<1 2" `shouldBe` ["rise<1 2"]
+
+    it "accepts every valid form silently" $ do
+      unrecognizedTokens parseUnifiedToken True "0# 1b C -G' rise<1,2>" `shouldBe` []
+      unrecognizedTokens (parseGeneralToken 3) False "E A D G -A' 2#" `shouldBe` []
+
+    it "wildcard input never warns" $
+      unrecognizedTokens parseUnifiedToken False "*" `shouldBe` []
+
+  describe "resolveRoots magic values" $ do
+    it "\"key\" mirrors the key filter" $
+      sort (resolveRoots "*" "0#" "key") `shouldBe` sort (parseKey "0#")
+
+    it "\"tones\" is the key-filtered overtone set" $ do
+      let ot = parseOvertones' 3 "E A D G"
+          ks = parseKey "0#"
+      sort (resolveRoots "E A D G" "0#" "tones")
+        `shouldBe` sort (filter (`elem` ks) ot)
+
+    it "plain pitch strings parse as roots" $
+      sort (resolveRoots "*" "*" "C G") `shouldBe` [0, 7]
+
   describe "Wildcard handling" $ do
     
     it "\"*\" is wildcard" $ do

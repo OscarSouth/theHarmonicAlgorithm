@@ -218,19 +218,19 @@ instrument range channel lyr ki k vl vf v =
 flute, oboe, clarinet, bassoon :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
 flute      = instrument (-12, 26) 1   -- C3–D6  (MIDI 48–86)
 oboe       = instrument ( -2, 33) 2   -- Bb3–A6 (MIDI 58–93)
-clarinet   = instrument (-22, 34) 3   -- D2–Bb6 (MIDI 38–92)
-bassoon    = instrument (-28, 15) 4   -- Bb1–Eb5 (MIDI 32–75)
+clarinet   = instrument (-22, 34) 3   -- D2–Bb6 (MIDI 38–94)
+bassoon    = instrument (-26, 15) 4   -- Bb1–Eb5 (MIDI 34–75)
 
 -- | Brass, channels 5&#8211;6. @basstrom@ shares channel 6 with @trombone@ at a
 -- lower range.
 horn, trombone, basstrom :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
-horn       = instrument (-29, 17) 5   -- B1–F5  (MIDI 31–77)
-trombone   = instrument (-28, 17) 6   -- Bb1–F5 (MIDI 32–77)
+horn       = instrument (-25, 17) 5   -- B1–F5  (MIDI 35–77)
+trombone   = instrument (-26, 17) 6   -- Bb1–F5 (MIDI 34–77)
 basstrom   = instrument (-39, -5) 6   -- A0–G3  (MIDI 21–55)
 
 -- | Harp, channel 7. The widest range in the orchestra.
 harp :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
-harp       = instrument (-29, 42) 7   -- B1–F#7 (MIDI 31–102)
+harp       = instrument (-25, 42) 7   -- B1–F#7 (MIDI 35–102)
 
 -- | Timpani, channel 8. Pitched percussion; the narrowest range.
 timpani :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
@@ -296,10 +296,21 @@ type Instrument =
 -- Octave rides the 'Voice' argument, so @divisi 2 contrabass T (0.9,1) k vl grid Bass8vb@
 -- voices Bass8vb and Bass8vb' (tier + octave together).
 divisi :: Int -> Instrument -> Instrument
-divisi n instr lyr rng k vl vf v =
-  stack [ instr lyr rng k vl vf (primeN i v) | i <- [0 .. n-1] ]
-    |* vel (1 / sqrt (fromIntegral n))
-  where primeN i = toEnum . (+ i * 20) . fromEnum   -- shift a base voice into tier i
+divisi n instr lyr rng k vl vf v
+  | n <= 1    = instr lyr rng k vl vf v
+  | otherwise =
+      stack [ instr lyr rng k vl vf (primeN i v) | i <- [0 .. n-1] ]
+        |* vel (1 / sqrt (fromIntegral n))
+  where
+    -- 'Voice' has exactly 3 tiers of 20 (base \/ ' \/ ''); a bare
+    -- @toEnum (+ i * 20)@ crashed the scheduler for @divisi 4@ or an
+    -- already-primed voice. Clamp the TIER, keeping the base voice —
+    -- desks beyond the top tier double it.
+    primeN i v' =
+      let idx  = fromEnum v'
+          base = idx `mod` 20
+          tier = min 2 (idx `div` 20 + i)
+      in toEnum (base + 20 * tier)
 
 -- | Equal-power volume scalers for hand-built desks that differ in articulation
 -- or entry (not uniform 'divisi'). Postfix like the articulation tags — set

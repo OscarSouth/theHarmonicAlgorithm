@@ -227,10 +227,18 @@ inferSpelling [] = FlatSpelling
 inferSpelling pcs =
   let bassNorm = head pcs `mod` 12
       restSet = IS.fromList (map (`mod` 12) (tail pcs))
+      -- Most specific chord wins (largest matching upper-set); ties break
+      -- toward the FIRST declared entry. fromListWith (++) prepends, so
+      -- the raw bucket is reverse-declaration-order — without the reverse
+      -- an added 9th flipped Cadd9 from C-maj's flat spelling to sus2's
+      -- sharp purely by table position (325 such 4+-note conflicts).
       tryTable table = case IM.lookup bassNorm table of
         Nothing -> Nothing
         Just entries ->
-          listToMaybe [s | (upperSet, s) <- entries, upperSet `IS.isSubsetOf` restSet]
+          let hits = [ (IS.size upperSet, i, s)
+                     | (i, (upperSet, s)) <- zip [0 :: Int ..] (reverse entries)
+                     , upperSet `IS.isSubsetOf` restSet ]
+          in listToMaybe [ s | (_, _, s) <- List.sortOn (\(sz, i, _) -> (negate sz, i)) hits ]
   in fromMaybe (defaultEnharm (mkPitchClass bassNorm))
        (tryTable layer1Table <|> tryTable layer2Table)
 
@@ -967,10 +975,14 @@ initCadenceState :: Int -> String -> [Int] -> CadenceState
 initCadenceState movement note quality =
   let approach = toMovement (P 0) (mkPitchClass movement)
       from = flatTriad [0]
-      toIntervals = map (+ unPitchClass (fromMovement approach)) $ zeroFormInts quality
-      to = flatTriad toIntervals
+      to = flatTriad (zeroFormInts quality)
       root = readNoteName note
-      cad = toCadence (from, to)
+      -- The caller's movement is stored VERBATIM. toCadence recomputes
+      -- movement from toTriad's detected harmonic root, which for the six
+      -- inversion zero-forms sits off the bass by the inversion offset —
+      -- that displaced the stored movement (lead "C 6 (5)" stored asc 2)
+      -- and corrupted the Neo4j fetch key of any inverted-quality cue.
+      cad = (toCadence (from, to)) { cadenceMovement = approach }
       -- Infer spelling from absolute pitches
       rootPC = pitchClass root
       tones = cadenceIntervals cad

@@ -63,7 +63,7 @@ import qualified Harmonic.Rules.Types.Progression as Prog
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import qualified Harmonic.Rules.Types.Scale as Sc
 import qualified Harmonic.Evaluation.Scoring.Progression as PS
-import           Harmonic.Rules.Constraints.Filter (parseOvertones', parseKey, isWildcard, resolveRoots,
+import           Harmonic.Rules.Constraints.Filter (parseOvertones', parseKey, isWildcard, resolveRoots, unrecognizedTokens, parseGeneralToken, parseUnifiedToken,
                                                      BassDirection(..), BassDirectionSpec(..),
                                                      BDKind(..), BDSelector(..),
                                                      parseBassDirectionSpec, stripDirectionToken,
@@ -122,8 +122,11 @@ instance Show HarmonicContext where
 --   harmonicContext "*" "*" "*"       -- No filtering (all candidates)
 --   harmonicContext "E A D G" "C" "*" -- Bass tuning, C major key
 --   harmonicContext "*" "#" "E G"     -- G major key, E\/G roots only
-harmonicContext :: Text -> Text -> Text -> HarmonicContext
-harmonicContext o k r = HarmonicContext o k r Free 0 "" ""
+-- String (not Text) so editor plugins that wrap literals in Tidal's
+-- @deltaContext@ (which has a Stringy String instance but no Text one)
+-- can pass filter strings straight through.
+harmonicContext :: String -> String -> String -> HarmonicContext
+harmonicContext o k r = HarmonicContext (T.pack o) (T.pack k) (T.pack r) Free 0 "" ""
 
 -- |Default harmonic context for Tidal live coding: all wildcards (chromatic).
 -- Named 'hContext' to avoid collision with TidalCycles' EventF.context field.
@@ -273,6 +276,7 @@ data ParsedContext = ParsedContext
   , pcSoftBoost          :: !Double         -- ^ Multiplier applied to @badness@ at candidate-scoring time. Default 1.0 (no effect). 'Harmonic.Framework.Builder.genP' sets this per bar based on (s', t') continuity against the prior bar.
   , pcStrictContainment  :: !Bool           -- ^ When 'True', every absolute PC of a candidate cadence (including the bass) must be a member of 'pcEffectiveOvertones'. Default 'False' preserves the legacy bass-exemption behaviour for 'Harmonic.Framework.Builder.gen'. @runStrataGen@ sets 'True' per bar to enforce single-strata containment.
   , pcKeySpelling        :: !(Maybe H.EnharmonicSpelling) -- ^ Enharmonic side implied by the declared key signature ('Nothing' for wildcard \/ 0-accidental \/ C). When present it overrides per-bar spelling inference — a five-flat context never prints F#.
+  , pcWarnings           :: ![String]       -- ^ Filter tokens no parser recognised (the silent-[] convention would otherwise drop them without a trace). Printed once per generation by the Builder facade.
   }
 
 -- |Parse pedal tone string into required and preferred IntSets.
@@ -311,6 +315,22 @@ parseContextOnce ctx =
         in if null idxs
              then Sc.validTristrata
              else map Sc.tristrataIndex idxs
+      -- Unrecognised filter tokens, per context. The parsers keep their
+      -- silent-[] convention (a live set must not crash on a typo); this
+      -- names what vanished so the Builder can warn once per generation.
+      rootsMagic = T.toLower (T.strip rootsStripped) `elem` ["key", "tones"]
+      warnFor label raw toks =
+        [ "⚠ " ++ label ++ ": unrecognised token '" ++ T.unpack t
+          ++ "' in \"" ++ T.unpack raw ++ "\" (ignored)"
+        | t <- toks ]
+      warnings =
+           warnFor "overtones" (_hcOvertones ctx)
+             (unrecognizedTokens (parseGeneralToken 3) False (_hcOvertones ctx))
+        ++ warnFor "key" (_hcKey ctx)
+             (unrecognizedTokens parseUnifiedToken False (_hcKey ctx))
+        ++ (if rootsMagic then []
+            else warnFor "roots" rootsRaw
+                   (unrecognizedTokens parseUnifiedToken True rootsRaw))
   in ParsedContext
     { pcEffectiveOvertones = IntSet.fromList effectiveOvertones
     , pcAllowedBassNotes   = IntSet.fromList allowedBassNotes
@@ -327,6 +347,7 @@ parseContextOnce ctx =
     , pcSoftBoost          = 1.0
     , pcStrictContainment  = False
     , pcKeySpelling        = keySpellingOf (_hcKey ctx)
+    , pcWarnings           = warnings
     }
 
 -- |Enharmonic side implied by a key-signature string. A key filter may

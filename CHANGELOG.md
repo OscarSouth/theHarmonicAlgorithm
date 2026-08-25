@@ -19,6 +19,40 @@ burn-down deleted ten provably unreachable functions and thirty-odd
 redundant imports, and closed a latent non-exhaustive pattern over
 `Movement.Empty` in fallback scoring.
 
+### Correctness sweep: generator, regen and live surface
+
+The regenerate-in-place seam is now walk-valid by construction — a range
+that cannot reconnect to the bar after it refuses loudly instead of
+silently splicing a stale mode layer. Regen traces are renumbered onto
+source bars (with the seed row and range named) so they line up with the
+printed grid, `genFrom''` regained its full Verbose traces, `len` expands
+strata regen ranges like every other family, and an empty source refuses
+instead of dividing by zero. `attempt` draws its random cue once (the
+scoreboard compares walks from ONE starting chord), caches graph fetches
+across attempts (attempts 2..K score almost query-free), and mode
+validity is now a viability gate rather than a fifth of the score — the
+weights renormalise exactly (`0.5` cf / `0.25` rm / `0.25` vl, floor
+`0.5`), so rankings are unchanged while totals use the whole `[0, 1]`.
+
+On the live surface: the `overlap`/`overlapF`/`overlapB` family no longer
+transposes every non-C-rooted bar by its own root (and 4-note material
+keeps its fourth voice through overlap); voicing caches derive from the
+form's own node list instead of sampling a 1000-cycle window (no more
+mid-set uncached voice-leading solve past 8 minutes); `formK []`,
+empty-pitch bars, `divisi 4`, and empty-progression lookups are all total
+on the audio thread; `divisi` clamps its tier so extra desks double the
+top voice. Filter typos are loud: an unrecognised token in any
+overtones/key/roots string is named once per generation (`⚠ roots:
+unrecognised token 'fall7' …`), prime notation and subtraction now work
+identically in every context, and `fall <1,2>` (with the space) parses as
+written. `initCadenceState` stores the movement you asked for (inverted
+qualities no longer corrupt the first fetch key from `lead`), and adding
+a 9th no longer flips a bar's enharmonic spelling. Four instrument-range
+name/MIDI contradictions fixed (bassoon, horn, trombone, harp — code now
+matches the documented names). Builder.hs split into facade +
+`Modifiers` + `StrataGen`; the subKick CC64/sustain mechanism is pinned
+by characterisation tests.
+
 ### The genE rename and one chain builder
 
 The four-note fusion family is now `genE` (extended) — `genE`/`genE'`/
@@ -53,6 +87,8 @@ drives both corpora: jazz names blend by corpus weights (substring-matched,
 candidates containing the triads that composer would most plausibly move to —
 and the two combine freely. Output is an ordinary `ProgressionContext`:
 `flow`/`grid` voice the 3–6-tone chords and `arrange` plays them unchanged.
+`leadJ` cues genJ from a leadsheet symbol (`leadJ "Dm7/G"` — slash bass
+honoured as the anchor), in its own jazz-quality namespace beside `lead`.
 The full modifier surface applies: `tonal` constraints filter jazz candidates
 through the same R machinery as every family, `steer` dials the classical
 boost, `genFrom` regenerates ranges of jazz progressions in place (families

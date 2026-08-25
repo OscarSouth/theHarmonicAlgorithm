@@ -277,7 +277,7 @@ s <- seek "*" $ viability 0.7 $ attempt 5 24 $ cue start $ len 8 $ entropy 0.6 $
 s <- seek "*" $ viability 0.0 $ attempt 3 12 $ cue start $ len 8 $ entropy 0.6 $ gen
 ```
 
-`attempt N K` produces up to `K` attempts, stops early once `N` *viable* ones are collected, and returns the single highest-scoring progression. Scoring ([`Scoring/Progression.hs`](src/Harmonic/Evaluation/Scoring/Progression.hs)) is dominated by cadence-favourability, plus resolution, voice-leading and motion terms. `viability T` sets the floor an attempt must clear (default 0.6).
+`attempt N K` produces up to `K` attempts, stops early once `N` *viable* ones are collected, and returns the single highest-scoring progression. Scoring ([`Scoring/Progression.hs`](src/Harmonic/Evaluation/Scoring/Progression.hs)) is dominated by cadence-favourability, plus resolution, voice-leading and motion terms. `viability T` sets the floor an attempt must clear (default 0.5).
 
 With `gen''`, a full **scoreboard** prints — one row per attempt with per-term scores, a viability marker, the truncated chord sequence, and `← PICK` on the winner. It's a lesson in what "better" means to the evaluator.
 
@@ -932,7 +932,7 @@ s <- seek "bach:30 debussy:70" $ ... $ gen'                  -- blend + diagnost
 s <- seek "none" $ ... $ gen                                 -- offline fallback
 ```
 
-**Rank & select** — `attempt N K` (best of K, stop at N viable), `viability T` (floor, default 0.6); scoreboard under `gen''`.
+**Rank & select** — `attempt N K` (best of K, stop at N viable), `viability T` (floor, default 0.5); scoreboard under `gen''`.
 
 **Regenerate in place** — `genFrom s a b` (wrap-aware, cue auto-inferred), `genFrom'`/`genFrom''`.
 
