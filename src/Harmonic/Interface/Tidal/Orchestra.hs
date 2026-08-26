@@ -202,7 +202,7 @@ clip (lo, hi) = filterValues (\vm ->
 -- Pipeline: arrange -> # ch -> |+ oct -> clip (outermost, filters AFTER octave shift)
 instrument :: (Int, Int) -> Int -> Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
 instrument bounds chan lyr ki k vl vf v =
-    clip bounds $ arrange ki k (-9,9) lyr vf (overlapF 0) [vlGet v vl] # ch chan |+ oct (voiceOct v)
+    clip bounds $ arrange ki k (-9,9) lyr vf (overlapF 0) [vlGet v vl] # ch chan |+ oct (fromIntegral (voiceOct v))
 
 -------------------------------------------------------------------------------
 -- Pitched instruments (partial application of instrument)

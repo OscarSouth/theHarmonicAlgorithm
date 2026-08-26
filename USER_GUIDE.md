@@ -38,7 +38,7 @@ See [`live/BootTidal.hs`](live/BootTidal.hs) for all available helpers (`ch`, `v
 Two areas are deliberately out of scope:
 
 - **The Algorithmic Orchestration system** (16-instrument virtual orchestra) depends on a specific hardware/MIDI rig — see [`ALGORITHMIC_ORCHESTRATION.md`](documents/ALGORITHMIC_ORCHESTRATION.md) and [`live/ORCHESTRAL_CATALOGUE.tidal`](live/ORCHESTRAL_CATALOGUE.tidal).
-- **Hardware-bound helpers** in `BootTidal.hs` — Roland S-1 / P-6 CC maps, the Q-Link controller bridge, the LED display rig, and the MPC kit program behind `subKick` — are documented in the BootTidal source comments. This guide stays on the single piano channel plus generic drums.
+- **Hardware-bound helpers** — the Roland S-1 / P-6 CC maps and the JV-1010 drum map (`Harmonic.Interface.Tidal.Devices.S1`, `.P6`, `.JV1010`), the LED display feed (`Harmonic.Interface.Tidal.Display`), the Q-Link controller bridge, and the MPC kit program behind `subKick`. The rig they address is described in [`LIVE_ENVIRONMENT.md`](documents/LIVE_ENVIRONMENT.md). This guide stays on the single piano channel plus generic drums.
 
 ___
 

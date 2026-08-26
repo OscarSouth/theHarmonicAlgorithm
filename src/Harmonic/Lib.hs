@@ -228,6 +228,8 @@ module Harmonic.Lib (
 
   -- ** Groove interface (drums and sub bass)
   subKick, fund, noteoff,
+  son32, son23, rumba32, rumba23, bossa32, bossa23,
+  bellpat32, bellpat23,
 
   -- ** Walking-bass line interface
   lineHarmony,
@@ -242,6 +244,11 @@ module Harmonic.Lib (
   module Harmonic.Interface.Tidal.Instruments,
   module Harmonic.Interface.Tidal.Orchestra,
   module Harmonic.Interface.Tidal.Utils,
+  module Harmonic.Interface.Tidal.Motif,
+  module Harmonic.Interface.Tidal.Display,
+  module Harmonic.Interface.Tidal.Devices.S1,
+  module Harmonic.Interface.Tidal.Devices.P6,
+  module Harmonic.Interface.Tidal.Devices.JV1010,
   renderTristrataReport, genPReport,
   module Harmonic.Config,
 
@@ -324,7 +331,10 @@ import Harmonic.Interface.Tidal.Arranger (
     ScaleSource(..), melodyStateFrom,
     lead, lead', leadJ, parseLeadTokens, LeadToken(..)
   )
-import Harmonic.Interface.Tidal.Groove (subKick, fund, noteoff)
+import Harmonic.Interface.Tidal.Groove
+  ( subKick, fund, noteoff
+  , son32, son23, rumba32, rumba23, bossa32, bossa23
+  , bellpat32, bellpat23 )
 import Harmonic.Interface.Tidal.LineHarmony (lineHarmony)
 import Harmonic.Interface.Tidal.Form (
     FormNode(..), FormTime(..), Transition(..), Kinetics(..), IK,
@@ -334,5 +344,10 @@ import Harmonic.Interface.Tidal.Form (
 import Harmonic.Interface.Tidal.Instruments
 import Harmonic.Interface.Tidal.Orchestra
 import Harmonic.Interface.Tidal.Utils
+import Harmonic.Interface.Tidal.Motif
+import Harmonic.Interface.Tidal.Display
+import Harmonic.Interface.Tidal.Devices.S1
+import Harmonic.Interface.Tidal.Devices.P6
+import Harmonic.Interface.Tidal.Devices.JV1010
 import Harmonic.Interface.Tidal.OctatripentatonicT (renderTristrataReport, genPReport)
 import Harmonic.Config

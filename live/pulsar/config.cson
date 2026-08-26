@@ -1,0 +1,54 @@
+# Pulsar settings for this project — a reference, not a drop-in file.
+#
+# Pulsar owns ~/.pulsar/config.cson and rewrites it whenever a setting changes,
+# so this is a copy of the `tidalcycles:` block to read settings out of rather
+# than a file to install. Set them through Settings (Cmd+, → Packages →
+# tidalcycles → Settings), or paste the block in with Pulsar closed.
+#
+# The whole block lives under the top-level `"*":` key, indented two spaces.
+# See documents/LIVE_ENVIRONMENT.md for what each of these does and why.
+
+  tidalcycles:
+
+    # Empty object; Pulsar writes it whether or not the console has been sized.
+    console: {}
+
+    # Highlights each pattern event in the buffer as it sounds. The plugin
+    # implements this by rewriting every double-quoted literal on an evaluated
+    # line into `(deltaContext offset id "...")`. Tidal's `Stringy` class has
+    # instances for String and Pattern a but NOT for Text — so with this on, a
+    # library function taking a Text argument fails to typecheck at the prompt.
+    # Every user-facing function in this project takes String for that reason.
+    #
+    # fps must stay below the denominator of the boot file's cFrameTimespan,
+    # which is 1/30 in live/BootTidal.hs.
+    eventHighlighting:
+      enable: true
+      fps: 20
+
+    # The interpreter the plugin spawns, and the executable it spawns.
+    #
+    # `stack` would run a bare `stack ghci` with no arguments — and the plugin
+    # spawns its interpreter with no arguments and quotes the whole command, so
+    # there is nowhere to put a flag. `default` runs `ghciPath` verbatim, which
+    # is why the object-code flags ride on a wrapper script instead.
+    #
+    # live/bin/ghci loads the library as -O2 object code rather than bytecode;
+    # live/bin/ghc-pkg sits beside it because the plugin looks for both.
+    #
+    # Pulsar omits any setting equal to its schema default when it rewrites this
+    # file, and `default` IS the default for `interpreter` — so this line may
+    # disappear on its own. Absence means the same thing.
+    ghciPath: "/Users/oscarsouth/.stack/global-project/live/bin/ghci"
+    interpreter: "default"
+
+    # Off, because every line stack or GHC writes to stderr would otherwise
+    # raise a modal error notification — including ordinary build chatter.
+    # Errors still appear in the plugin console.
+    showErrorNotifications: false
+
+    # Starts SuperCollider at editor startup, running superdirt_startup.scd
+    # from the project root — which is why live/ is opened as the project
+    # folder rather than the repository root.
+    superDirt:
+      autostart: true

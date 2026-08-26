@@ -205,7 +205,9 @@ makes sound straight away; the second adds the composer corpus.
    [ghcup](https://www.haskell.org/ghcup/)) — `stack.yaml` sets
    `system-ghc: true`, so Stack uses your system GHC rather than
    downloading its own
-2. [TidalCycles](https://tidalcycles.org/) with SuperCollider + SuperDirt
+2. [TidalCycles](https://tidalcycles.org/) with SuperCollider + SuperDirt —
+   any editor will do; [`LIVE_ENVIRONMENT.md`](documents/LIVE_ENVIRONMENT.md)
+   documents the Pulsar rig this project is performed on, as one worked example
 3. [Docker](https://www.docker.com/) — only for the composer graph (second path)
 
 ### 1. Start here — no database required
@@ -284,8 +286,12 @@ strata, tristrata, and the three-layer harmony system, in full.
 a virtual orchestra: instrument catalogue, voice lines, divisi, sections,
 blends, and the subKick groove interface.
 
+**[The Live Environment](documents/LIVE_ENVIRONMENT.md)** — the editor, boot
+and SuperCollider rig the project is performed on: Pulsar configuration, the
+compiled-session wrapper, MIDI routing, and the failure modes worth recognising.
+
 **[API Reference](https://docs.theharmonicalgorithm.com/)** — generated Haddock
-documentation for all 37 modules, with worked examples on every user-facing
+documentation for all 46 modules, with worked examples on every user-facing
 entry point. Start at `Harmonic.Lib`.
 
 **[Architecture Guide](documents/ARCHITECTURE.md)** — the technical deep dive into

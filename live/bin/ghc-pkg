@@ -1,0 +1,11 @@
+#!/bin/sh
+# Companion to ./ghci, which the editor's tidalcycles plugin looks for beside
+# whatever it is pointed at. It is only reached if the boot file is NOT found
+# in the Pulsar project root, and a failure there falls back to the plugin's
+# own bundled BootTidal.hs -- a session that looks healthy and has none of the
+# project's definitions in it. Cheap to keep the chain intact.
+set -e
+
+repo=$(cd "$(dirname "$0")/../.." && pwd)
+
+exec stack --verbosity=error --stack-yaml "$repo/stack.yaml" exec -- ghc-pkg "$@"

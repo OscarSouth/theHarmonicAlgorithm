@@ -383,8 +383,9 @@ shiftBar v0 cs =
 -- |True iff any bar carries >= 6 pitch classes — scale-cluster territory
 -- (hand-built mode sets; genP chroma layers route by provenance in Bridge
 -- before reaching here). The cyclic DP on 6\/7-voice sets is both
--- prohibitively slow live (16-bar 7-PC ≈ 107 s interpreted) and musically
--- the wrong tool ("voice leading" between scale-clusters); such material
+-- prohibitively slow live (16-bar 7-PC ≈ 107 s as bytecode, ≈ 2.4 s compiled)
+-- and musically the wrong tool ("voice leading" between scale-clusters), so
+-- the routing holds whichever way the session is loaded; such material
 -- gets the chroma engine's degree semantics as a safety fallback, not a
 -- contract. Harmony-sized bars (<= 5 voices, mixed or uniform) always get
 -- the real DP.

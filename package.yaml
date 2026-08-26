@@ -36,7 +36,11 @@ description:         |
   * "Harmonic.Interface.Tidal.Form" — the form and kinetics framework.
   * "Harmonic.Interface.Tidal.Orchestra" — 15 orchestral instruments with
     built-in range clipping and divisi.
-  * "Harmonic.Interface.Tidal.Groove" — sub-bass and kick patterns.
+  * "Harmonic.Interface.Tidal.Groove" — sub-bass, kick patterns and the
+    clave\/cascara grids.
+  * "Harmonic.Interface.Tidal.Motif" — motivic development operators.
+  * "Harmonic.Interface.Tidal.Devices.JV1010" — drum map and continuo bank
+    addressing; @Devices.S1@ and @Devices.P6@ carry the Roland AIRA CC maps.
   * "Harmonic.Traversal.WalkingBass" — walking-bass line generation.
 
   == Music theory primitives
@@ -131,6 +135,11 @@ library:
     - Harmonic.Interface.Tidal.Instruments
     - Harmonic.Interface.Tidal.Orchestra
     - Harmonic.Interface.Tidal.Utils
+    - Harmonic.Interface.Tidal.Motif
+    - Harmonic.Interface.Tidal.Display
+    - Harmonic.Interface.Tidal.Devices.S1
+    - Harmonic.Interface.Tidal.Devices.P6
+    - Harmonic.Interface.Tidal.Devices.JV1010
     - Harmonic.Interface.Tidal.OctatripentatonicT
   source-dirs: src
   ghc-options:

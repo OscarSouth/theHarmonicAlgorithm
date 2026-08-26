@@ -272,6 +272,11 @@ src/Harmonic/
     ├── Orchestra.hs            [instruments, voices, divisi, sections]
     ├── OctatripentatonicT.hs   [strata provenance reporting helpers]
     ├── Instruments.hs          [MIDI channel routing helpers]
+    ├── Motif.hs                [motivic development: >:<, mirror, retro]
+    ├── Display.hs              [12 Step LED feed: bar/seconds CC arithmetic]
+    ├── Devices/S1.hs           [Roland AIRA S-1 CC map]
+    ├── Devices/P6.hs           [Roland AIRA P-6 CC and pad map]
+    ├── Devices/JV1010.hs       [JV-1010 drum map, continuo bank addressing]
     └── Utils.hs                [pattern/time utilities]
 ```
 
@@ -557,21 +562,27 @@ strictly-scoped:
   pedal in register). The general `flow`/`grid` DP handles all
   harmony-sized material — bars of ≤5 voices, uniform or mixed; ≥6-PC
   bars (hand-built scale sets) safety-route to the chroma engine
-  (16-bar 7-PC DP would take ~107 s interpreted and answer the wrong
-  musical question).
+  (a 16-bar 7-PC DP costs ~107 s as bytecode and ~2.4 s compiled —
+  slow either way, and answering the wrong musical question).
 - **Attempt scoring measures the heard surface**: sorted absolute PCs at
   full cardinality (the previous extraction was unsorted and
   mod-12-wrapped, so root motion C→A measured 9 semitones; anchors were
   recalibrated empirically — see `Scoring/Progression.hs`).
-- **Deferred, known**: the per-`arrange` voicing cache is not shared
-  across calls, so a 15-instrument Orchestra score solves the same
-  progression 15 times at REPL-eval time (bounded, off the audio
-  thread). A cross-call cache is future work. Loading the live session
-  with `stack ghci --ghci-options -fobject-code` compiles the library to
-  objects for a measured ~8-9× speedup on all VL solves — but the object
-  cache (`.stack-work/odir`) goes stale against source edits and then
-  poisons plain sessions (linker errors); delete it after changing
-  source, or use the flag only in performance sessions.
+- **Solves are shared across callers.** `solveFlow`/`solveRoot` are
+  memoised on their input, so a 15-instrument Orchestra score solves each
+  distinct progression once rather than 15 times. The memo sits on the
+  solver rather than inside `arrange` because `lineHarmony ... grid`
+  reaches the DP through `beat1PCs`, which an `arrange`-level cache would
+  never see.
+- **Compiled live sessions.** `live/bin/ghci` loads the library as `-O2`
+  object code rather than bytecode. Measured on 5-PC bars: a 4-bar solve
+  goes 0.317 s to 0.0065 s, 8-bar 0.958 s to 0.0212 s, 16-bar 2.390 s to
+  0.0528 s (45–49×; `-O0` alone gives 7.7–10×). The object directory must
+  be pinned. With no `-odir`/`-hidir` GHCi writes `.o` and `.hi` beside
+  each source file, and every later session links those instead of
+  compiling — after an edit, an ABI mismatch. The wrapper pins
+  `.stack-work/live-odir`, private to it, so plain `stack ghci`,
+  `stack build` and CI are untouched.
 
 **Form and kinetics.** A form is a list of nodes (`Form.hs`), each
 placed in seconds (`at`, `at'`) or bars (`rh`, `rh'`) and carrying three
@@ -647,6 +658,10 @@ line.
 | Generation entry points | `src/Harmonic/Framework/Builder.hs` |
 | Constraint types | `src/Harmonic/Framework/Builder/Types.hs` |
 | TidalCycles boot file | `live/BootTidal.hs` |
+| Compiled-session wrapper | `live/bin/ghci` |
+| Session launcher | `live/bin/livecode` |
+| SuperCollider startup | `live/superdirt_startup.scd` |
+| Editor configuration | `live/pulsar/` (reference copies) |
 | Interactive guide | `live/USER_GUIDE.tidal` |
 | Neo4j compose config | `docker-compose.yml` |
 | Package definition | `package.yaml` |

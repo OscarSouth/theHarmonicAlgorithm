@@ -7,6 +7,79 @@ ________________________________________________________________________________
 The cumulative modernisation release: each block below lands as it completes;
 the version tags once the sweep is done.
 
+### The boot file moves into the library
+
+`live/BootTidal.hs` was 766 lines, and most of it was code the compiler never
+saw: device maps, motivic operators, the display's CC arithmetic, all of it
+type-checked only at boot and covered by no test. Around 430 lines have moved
+into `Devices.S1`, `Devices.P6`, `Devices.JV1010`, `Display`, `Motif`, and the
+existing `Groove` and `Utils` — haddocked, `-Wall`-clean, and reachable from
+`Harmonic.Lib` like anything else. The boot file is down to 363 lines and now
+holds only what genuinely needs the live stream: the orbit map, the launcher's
+instrument list, the hush family, the MIDI helpers that fire `once`, transport,
+and the motif slots that exist to be rebound per arrangement.
+
+Nothing was deleted on the way. A CC map is a device reference, not dead code:
+it reads as unused right up until the device is patched in.
+
+The move surfaced four defects it also fixes. Twelve names were defined in both
+places, and because an interactive binding shadows an import, the library
+copies — the haddocked, tested ones — were the halves that never ran; worse,
+`Utils.oct` was typed `Int -> Pattern ValueMap` while every performance file
+calls it with a mini-notation pattern, so adopting the library version would
+have broken those files rather than the other way round. `oct` is widened,
+`pullBy`\/`pushBy` take a pattern to match, `unmuteAll` exists at last (the
+editor's unmute-all command has been sending that name into a scope error),
+`resetCycles` is defined once, and `retro` reads `Form.beatsPerBar` instead of
+restating it.
+
+A new gate keeps it honest. `scripts/ci/check_corpus.py` type-checks real
+performance files against the library — blocks are bound, never evaluated, so
+nothing reaches an audio target — and it catches exactly the `oct` class of
+drift that the user-guide gate is blind to. It found a live one immediately:
+every line of `ORCHESTRAL_CATALOGUE.tidal` was `once $ dNN $ …`, applying
+`once` to an `IO ()`, so none of them could ever have run.
+
+### Compiled live sessions
+
+`live/bin/ghci` loads the library as optimised object code rather than
+bytecode. Measured on five-tone bars, a cold voicing solve goes from 0.317 s to
+0.0065 s at four bars, 0.958 s to 0.0212 s at eight, and 2.390 s to 0.0528 s at
+sixteen — the eight-bar jazz case, the one that was still audible after the
+memo, lands at 21 ms. Voicings are identical either way; this buys speed and
+changes nothing musical. Point the editor's `ghciPath` at the wrapper to use
+it, and plain `stack ghci` stays interpreted and instant for development.
+
+The object directory is pinned and private to the wrapper. Left unset, GHCi
+writes `.o` and `.hi` beside each source file, and every later session links
+those instead of compiling — the mechanism behind the stale-object-directory
+incident recorded in the CI workflows.
+
+The rig around it is written down for the first time, in
+`documents/LIVE_ENVIRONMENT.md`: editor configuration, the boot-file resolution
+rule that makes a wrong-folder session boot cleanly with none of this library in
+it, MIDI routing, the SuperCollider startup file, ports, and the failure modes
+worth recognising. `live/bin/livecode` and `live/pulsar/` version the pieces that
+until now lived only on one machine — as a worked example rather than a required
+setup.
+
+### The launcher no longer stops the audio
+
+Evaluating a launcher used to silence every voice while the voicing solver
+ran — barely there on triads, seconds long on a five-tone `genJ` score.
+Each `arrange` call built a private voicing cache, so twelve instruments
+voicing the same progression solved the same cyclic DP twelve times; the
+solve is now shared across every caller, including the walking bass's own
+beat-1 lookup, which no cache living in `arrange` could have reached. A
+fifteen-block tetrad launcher fell from 3.59 s and 3.6 GB to 0.20 s, and
+the fourteen blocks after the first are free. The walking bass no longer
+rebuilds its jazz vocabulary once per bar per tick, so its steady-state
+query is 0.1 ms per cycle for jazz and tetrad alike, and its cache misses
+are silent rather than writing to stderr from the clock thread. A form
+whose per-bar dynamics never repeat within 128 bars can no longer spin
+forever searching for a period it will never be told about — that one
+could freeze a set.
+
 ### Toolchain modernisation
 
 The build moved to Stackage **lts-24.56 / GHC 9.10.3** (from lts-22.44 /

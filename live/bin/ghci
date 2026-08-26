@@ -1,0 +1,36 @@
+#!/bin/sh
+# GHCi for the live session: the library as optimised object code, not bytecode.
+#
+# The cyclic-DP voice-leading solve is the only library code on the evaluation
+# path slow enough to be heard. A five-tone sixteen-bar solve costs 2.4 s as
+# bytecode and 53 ms compiled, which is the difference between a launcher that
+# interrupts the music and one that does not.
+#
+# Pulsar's tidalcycles plugin spawns its interpreter with no arguments and
+# quotes the whole command, so flags have to travel with the executable it is
+# pointed at. Set `tidalcycles.interpreter` to `default` and
+# `tidalcycles.ghciPath` to this file.
+#
+# The object directory is pinned and private to this launcher. Left unset,
+# GHCi writes .o and .hi next to each source file, and every later session --
+# plain `stack ghci`, CI, anything -- links those objects instead of compiling,
+# which after a source edit is an ABI mismatch.
+#
+# Pulsar raises anything the interpreter writes to stderr as an editor error
+# notification, so stack's own progress logging is turned down to errors only;
+# GHC's compile output goes to stdout and still reaches the console view.
+#
+# -N2 gives Tidal's clock thread a capability of its own; that clock queries
+# every orbit in a single call per tick, so whatever else the REPL is doing
+# must not be able to starve it. -qg drops the parallel GC's stop-the-world
+# pauses, the other source of audible latency under heavy allocation.
+set -e
+
+repo=$(cd "$(dirname "$0")/../.." && pwd)
+odir="$repo/.stack-work/live-odir"
+
+export GHCRTS="-N2 -qg"
+
+exec stack --verbosity=error --stack-yaml "$repo/stack.yaml" \
+  ghci theHarmonicAlgorithm:lib \
+  --ghci-options "-fobject-code -O2 -odir $odir -hidir $odir"
