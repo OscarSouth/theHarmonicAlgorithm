@@ -116,25 +116,33 @@ lineHarmony dyn (kin, chordPat) voiceFn pats =
       -- dynamics stay walk-neutral by construction.
       dynSig = dyn * kDynamic kin
       (performedVals, dynTiers) = resolveDynTiers dynSig performedVals0
-      keyPat      = fmap (walkKey performedVals dynTiers) ctxPat
-      -- Exact cache domain from the form's own progression list — no
-      -- time-window sampling (see 'Harmonic.Interface.Tidal.Bridge.arrange').
-      uniqueKeys  = nub (map (walkKey performedVals dynTiers) (kProgs kin))
-      -- Build the cache and deeply force each entry so the 3-pass
-      -- walking-bass synthesis runs at REPL evaluation time, not on the
-      -- audio thread. Mirrors the eager-forcing pattern in 'Harmonic.Interface.Tidal.Bridge.arrange'.
-      cache       = [ (k, buildCacheKey voiceFn k) | k <- uniqueKeys ]
+      -- Cache keyed on the CONTEXT, not on the derived walk key. The form
+      -- can only ever emit the progressions in 'kProgs', so each one's key
+      -- and line are derived exactly once, here. Deriving the key inside
+      -- the query instead (@fmap (walkKey …) ctxPat@) rebuilt the jazz bass
+      -- vocabulary — and the genP chroma sets — for every bar on every
+      -- query, i.e. once per audio tick per bar.
+      --
+      -- Entries are deeply forced so the 3-pass walking-bass synthesis runs
+      -- at REPL evaluation time rather than on the audio thread. Mirrors
+      -- the eager-forcing pattern in 'Harmonic.Interface.Tidal.Bridge.arrange'.
+      lineFor ctx = buildCacheKey voiceFn (walkKey performedVals dynTiers ctx)
+      cache       = [ (ctx, lineFor ctx) | ctx <- nub (kProgs kin) ]
       cacheForced = foldr (\(_, (b, _)) acc -> forceAll b `seq` acc) () cache
-      lookupCache k = case lookup k cache of
+      -- Unreachable for both kinetics constructors ('formK' emits only
+      -- values drawn from its node list, 'lK' a single one), so this is a
+      -- safety net, not a path. Silent by design: it runs inside the query,
+      -- where a Debug.Trace write would take the stderr lock on the clock
+      -- thread every tick and turn a miss into a permanent dropout.
+      lookupLine ctx = case lookup ctx cache of
         Just hit -> hit
-        Nothing  -> trace "walk: uncached progression - synthesising line on demand"
-                          (let pair@(bars, _) = buildCacheKey voiceFn k
-                           in forceAll bars `seq` pair)
+        Nothing  -> let pair@(bars, _) = lineFor ctx
+                    in forceAll bars `seq` pair
   in cacheForced `seq` (|* pF "amp" (kDynamic kin)) $
      (|* pF "amp" dyn) $
-       innerJoin $ fmap (\k ->
-         renderWalk (lookupCache k) chordPat stacked (isJust performedVals)
-       ) keyPat
+       innerJoin $ fmap (\ctx ->
+         renderWalk (lookupLine ctx) chordPat stacked (isJust performedVals)
+       ) ctxPat
 
 -- | Quantise the dynamic signal per bar (mean of four in-bar samples,
 -- eighth-step grid) and extend the performed period so one walked cycle
@@ -145,6 +153,8 @@ lineHarmony dyn (kin, chordPat) voiceFn pats =
 -- and the walk dynamics-blind.
 resolveDynTiers :: Pattern Double -> Maybe [Int] -> (Maybe [Int], Maybe [Int])
 resolveDynTiers _    Nothing     = (Nothing, Nothing)
+-- No performed values means no period to extend, and `cycle []` diverges.
+resolveDynTiers _    (Just [])   = (Just [], Nothing)
 resolveDynTiers sigP (Just vals) =
   case mTiers of
     Nothing    -> (Just vals, Nothing)
@@ -152,7 +162,14 @@ resolveDynTiers sigP (Just vals) =
       let p      = length vals
           pairs  = zip (cycle vals) tiers
           maxP   = 64
-          exts   = [ k * p | k <- [1 ..], k * p <= maxP ]
+          -- takeWhile, NOT a filter guard. `[k * p | k <- [1..], k * p <= maxP]`
+          -- draws from an infinite source and simply stops yielding once the
+          -- guard fails — it never ends. `filter fits` over that hangs forever
+          -- whenever no extension fits, which made the `[]` branch below
+          -- unreachable and could freeze a live set outright. Any multi-node
+          -- form with ramping dynamics produces a non-periodic tier vector and
+          -- reaches exactly that case.
+          exts   = takeWhile (<= maxP) [ k * p | k <- [1 ..] ]
           fits m = and [ pairs !! i == pairs !! (i + m)
                        | i <- [0 .. length pairs - m - 1] ]
       in case filter fits exts of
