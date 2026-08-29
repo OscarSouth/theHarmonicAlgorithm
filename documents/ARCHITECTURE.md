@@ -260,7 +260,9 @@ src/Harmonic/
 │   │   ├── VoiceLeading.hs     [voice-leading cost, cyclic DP solvers]
 │   │   └── Progression.hs      [whole-progression scoring for rank-and-select]
 │   ├── Database/Query.hs       [Neo4j queries with composer weights]
-│   └── Analysis/Markov.hs      [transition probability computation]
+│   └── Analysis/
+│       ├── Markov.hs           [transition probability computation]
+│       └── KeyArea.hs          [key-area Viterbi; chordscale S/M derivation]
 │
 ├── Traversal/                  [T component]
 │   ├── Probabilistic.hs        [gamma-distribution sampling]
@@ -275,6 +277,7 @@ src/Harmonic/
     ├── Orchestra.hs            [instruments, voices, divisi, sections]
     ├── OctatripentatonicT.hs   [strata provenance reporting helpers]
     ├── PolytonalT.hs           [polytonal layer-view reporting (genEReport)]
+    ├── ChordscaleT.hs          [chordscale key/mode/pentatonic report]
     ├── Instruments.hs          [MIDI channel routing helpers]
     ├── Motif.hs                [motivic development: >:<, mirror, retro]
     ├── Display.hs              [12 Step LED feed: bar/seconds CC arithmetic]
@@ -306,7 +309,9 @@ passes:
 2. **Beat 3s** — the chord tone minimising smoothness plus a consonance
    table (P5 ≺ root ≺ 3rds ≺ 7ths ≺ colour tones), so strong beats stay
    grounded anchors.
-3. **Beats 2/4** — weighted connectors from the local-scale pool (plus
+3. **Beats 2/4** — weighted connectors from the key-area palette
+   ('Analysis.KeyArea.barPalettes' — per-bar mode sets from the same
+   whole-progression analysis that derives the chordscale S/M layers; plus
    chromatic neighbours of the target): sandwich motion preferred,
    leading tones and root/P5 approaches rewarded on beat 4, copy and
    repeat gates. Progression-level consonance (`progConsonance`) scales
@@ -329,11 +334,18 @@ favourable passing extensions, the avoid tones, and *the* fifth
 then corrects every fifth-driven term, tiers the beat-3 pool (target ≺
 seventh ≺ passing ≺ palette) and the beat-2 preference, and keeps avoid
 tones off strong beats while leaving them reachable as weak-beat colour.
-The same triad/extension split runs through key inference: triads vote
-widely and weakly because they are ambiguous, sevenths narrow the
-reading, and the upper extensions narrow it further or redirect it —
-an altered dominant points at a minor tonic, a #11 over a major seventh
-rules out the subdominant reading.
+The same triad/extension logic feeds key detection, which since the
+chordscale unification is `Analysis.KeyArea`: a cyclic Viterbi over 24
+key areas (12 major + 12 composite minor — one tonic realised per bar as
+its natural / harmonic / melodic form) with probe-calibrated switch
+penalties and boundary bonuses at dominant-approach and tonic-arrival.
+Extensions still sharpen the reading — an altered dominant votes a minor
+tonic, a #11 over a major seventh rules out the subdominant — but as
+emission evidence inside a whole-progression optimisation rather than a
+per-bar vote window. One detector feeds both the walk's palettes and the
+chordscale layers (full theory: [CHORDSCALE.md](CHORDSCALE.md)); under a
+reordering chord selection the walk re-analyses the performed sequence,
+deliberately.
 
 `LineHarmony` selects the variant per context — strata chroma for
 `FStrata`, bass vocabulary for `FJazz`, plain tone sets otherwise — with
@@ -413,10 +425,14 @@ any view of one generated result. `T`/`S`/`M` project the stored
 layers; `TS`/`TM`/`SM`/`TSM` synthesize pointwise pitch-class unions
 per bar, rooted on the lowest constituent layer (T before S before M —
 the foundation owns a merged bass); `PT` synthesizes the pivot tones
-every layer shares. The legacy `gen` family fills all three layers with
-the triad (every selector degrades to it); the strata-first `genP`
-family populates them with strata/mode chromas; the polytonal `genE`
-family (below) fills them with independent partner triad chains.
+every layer shares. The strata-first `genP` family populates the layers
+with curated strata/mode chromas; the polytonal `genE` family (below)
+fills them with independent partner triad chains; `gen` and `genJ`
+derive theirs by chordscale key-area analysis — S the bar's best-fit
+anhemitonic pentatonic, M the detected key as the mode on the bar's
+root ([CHORDSCALE.md](CHORDSCALE.md)). Only raw hand-built contexts
+(`fromChords`/`fromProgression` without `chordscale`) still duplicate
+the triad across all three layers.
 
 ### 5.3a The genE family (polytonal generation)
 
@@ -466,11 +482,18 @@ previously read inversions back under modern names, so every
 graph-selected inversion silently dropped the walk to fallback for one
 step.
 
-Attempt scoring reads the foundation (triad) layer — a plain classical
-walk, so genE attempts rank comparably with `gen`'s — and
-`cadenceFavFromMap` projects any >3-note bar through the same shadow
-before keying the corpus map; voice-leading scoring evaluates the triad
-skeleton (uniform 3-note comparisons, by design).
+Attempt scoring reads the triad layer for the three single-progression
+families, and `cadenceFavFromMap` projects any >3-note bar through the same
+shadow before keying the corpus map; voice-leading scoring evaluates the
+triad skeleton (uniform 3-note comparisons, by design).
+
+genE ranks differently, because it *is* three progressions: each layer is
+scored in its own right and blended (0.5 foundation, 0.25 each partner),
+and a divergence axis measures how far the layers stand apart — partner
+geometry and root spread, averaged over bars. Divergence is the purpose of
+the family, so it carries real weight rather than breaking ties; the
+calibration, and the requirement that raising K raise both means, are
+recorded on `polyDivergenceWeight`.
 
 ### 5.4 HarmonicContext
 
@@ -580,13 +603,17 @@ strictly-scoped:
 - **A held chord is strictly cheapest.** The cost total is floored at 1
   for any actual motion; bonuses (contrary, stepwise) discriminate among
   moving alternatives but can no longer beat stillness.
-- **Strict-context routing.** genP-provenance S/M layers are always
-  voiced by `strataModeFlow` (degree/"key-signature" semantics; octave
-  placement now chosen by common-tone MIDI overlap, so shared tones
-  pedal in register); combination selectors over genP contexts union to
-  ≥6 PCs and take the same route. genE contexts carry no provenance, so
-  every selector — partners, pairs, the pentad, the pivot tones —
-  honours the user's `VoiceFunction` through the real voice-leading DP.
+- **Chroma routing.** genP-provenance S/M layers, and the chordscale-
+  derived S/M layers of gen/genJ contexts, are always voiced by
+  `strataModeFlow` (degree/"key-signature" semantics; octave placement
+  chosen by common-tone MIDI overlap, so shared tones pedal in
+  register); combination selectors over those contexts take the same
+  route. Derived-layer detection requires a distinct mode layer whose
+  every bar is chroma-sized (≥5 PCs) — so a substitution-downgraded genE
+  context and a bar-substituted derived context both fall back honestly.
+  genE contexts themselves never chroma-route: every selector —
+  partners, pairs, the pentad, the pivot tones — honours the user's
+  `VoiceFunction` through the real voice-leading DP.
   The general `flow`/`grid` DP handles all
   harmony-sized material — bars of ≤5 voices, uniform or mixed; ≥6-PC
   bars (hand-built scale sets) safety-route to the chroma engine
@@ -669,6 +696,9 @@ line.
 | **Entropy** | Dial (≥ 0) targeting rank `entropy·10` in the scored pool (gamma shape `entropy·10 + 0.5`, capped at pool size); how far down the ranking traversal reaches |
 | **Form node** | A timed point carrying kinetics, dynamics and a progression |
 | **Kinetics** | Continuous 0–1 intensity signal driving range-gated arrangement |
+| **Key area** | A contiguous span governed by one key: 12 major + 12 composite minor candidates in the chordscale analysis |
+| **Key form** | The per-bar realisation of a composite minor key: natural (relative-major set), harmonic, or melodic |
+| **Chordscale** | Whole-progression key-area analysis deriving gen/genJ S (pentatonic) and M (mode) layers (`Analysis.KeyArea`) |
 | **Layer (T/S/M/TS/TM/SM/TSM/PT)** | A view of one progression context: stored layer, pairwise/threefold union, or the shared pivot tones |
 | **Partner chain** | A genE S/M layer: an independent corpus walk sharing tones with the foundation per bar |
 | **Pivot tones (PT)** | The pitch classes common to all three layers of a bar (a dyad on common-dyad bars, the hub tone on base-anchored bars) |

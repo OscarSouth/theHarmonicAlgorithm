@@ -215,7 +215,9 @@ instrument bounds chan lyr ki k vl vf v =
 -- 'M' for the diatonic-mode layer, or a combination selector ('TS'\/'TM'\/
 -- 'SM' pairs, 'TSM' the full union, 'PT' the shared pivot tones — on a
 -- polytonal genE context these are the 4-note structures, the pentad and
--- the pivot-tone line):
+-- the pivot-tone line; on a gen\/genJ context 'S' is the bar's chordscale
+-- pentatonic, 'M' its mode, and 'PT' the chord tones the pentatonic
+-- keeps):
 --
 -- @d1 $ flute T (0,1) k voiceLines flow Soprano@
 -- @d1 $ flute TS (0,1) k voiceLines flow Soprano   -- genE pair@

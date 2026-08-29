@@ -55,6 +55,7 @@ import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Interface.Tidal.Arranger as A
 import Harmonic.Interface.Tidal.Form (Kinetics(..), IK)
 
+import Data.Foldable (toList)
 import Data.Maybe (isJust)
 import Sound.Tidal.Context hiding (voice)
 
@@ -120,22 +121,38 @@ rep pc repVal =
 -- Parameter order: context first (kinetics range, IK, MIDI range), then
 -- interactive (voice function, modifier, patterns).
 -- |Project the requested layer from a context together with its voicing
--- route. Strict-context routing: the S\/M layers of a genP-provenance
--- context are THE curated 5\/7-PC chroma (uniform per layer) and are
--- always voiced by 'A.strataModeFlow' — degree\/"key-signature" semantics:
+-- route. Chroma routing: the S\/M layers of a genP-provenance context are
+-- THE curated 5\/7-PC chroma, and the S\/M layers of a chordscale-derived
+-- gen \/ genJ context are the analysis pentatonic \/ mode chroma — both are
+-- always voiced by 'A.strataModeFlow', degree\/"key-signature" semantics:
 -- pattern index @i@ plays the i-th scale degree of that bar's set. The T
 -- layer always honours the user's 'VoiceFunction', as do the S\/M layers
--- of gen contexts (duplicates of the triad layer) and of genE contexts
--- (independent partner triads — ordinary harmony either way, so no
--- chroma routing).
+-- of genE contexts (independent partner triads — ordinary harmony, so
+-- never chroma-routed) and of contexts whose layers are still literal
+-- duplicates (hand-built material without
+-- 'Harmonic.Evaluation.Analysis.KeyArea.chordscale').
 --
--- Routing by provenance + layer replaces the old first-bar cardinality
--- sniff (@isOctaSM@), which mis-routed mixed-cardinality material in both
--- directions (triad-first-bar chroma escaped to the DP; 4-note-first-bar
--- harmony was captured by the chroma engine).
+-- Routing by provenance \/ derived-chroma detection replaces the old
+-- first-bar cardinality sniff (@isOctaSM@), which mis-routed
+-- mixed-cardinality material in both directions (triad-first-bar chroma
+-- escaped to the DP; 4-note-first-bar harmony was captured by the chroma
+-- engine). Derived detection requires BOTH a distinct mode layer AND
+-- every mode bar at chroma cardinality (≥5) — so a subst-downgraded genE
+-- context (distinct but triadic layers) and a bar-substituted derived
+-- context (mixed cardinality after the edit) both fall back to the user's
+-- 'VoiceFunction' rather than half-claiming degree semantics.
+-- A genE context is excluded whole, combination selectors included. Its
+-- @S@\/@M@ are partner triads, and its @SM@\/@TSM@ unions are polytonal
+-- SONORITIES — three stacked triads, five tones — not scale forms, so the
+-- cyclic DP is the right tool for them and 'A.hasBigChroma' correctly
+-- declines to reroute a uniform 5-PC progression. Deliberate, not a gap.
 layerForVoicing :: Layer -> PC.ProgressionContext -> (Bool, P.Progression)
 layerForVoicing lyr ctx =
-  let chroma = lyr /= T && isJust (PC.pcProvenance ctx)
+  let chromaBar cs = length (H.cadenceIntervals (H.stateCadence cs)) >= 5
+      derived = PC.pcFamily ctx /= PC.FPoly
+                && PC.modeLayer ctx /= PC.triadLayer ctx
+                && all chromaBar (toList (P.unProgression (PC.modeLayer ctx)))
+      chroma  = lyr /= T && (isJust (PC.pcProvenance ctx) || derived)
   in (chroma, PC.layer lyr ctx)
 
 -- | Render scale-degree patterns into a playable 'ControlPattern', reading

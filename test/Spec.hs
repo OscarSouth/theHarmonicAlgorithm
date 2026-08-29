@@ -37,6 +37,7 @@ import qualified Harmonic.Rules.Import.MergeSpec as MergeSpec
 import qualified Harmonic.Rules.Import.GraphSpec as GraphSpec
 import qualified Harmonic.Rules.Import.JazzSpec as JazzSpec
 import qualified Harmonic.Evaluation.Scoring.DissonanceSpec as DissonanceSpec
+import qualified Harmonic.Evaluation.Analysis.KeyAreaSpec as KeyAreaSpec
 
 -- Phase C: Interactive Behaviour
 import qualified Harmonic.Traversal.ProbabilisticSpec as ProbabilisticSpec
@@ -69,6 +70,7 @@ main = hspec $ do
   describe "Harmonic.Rules.Import.Graph" GraphSpec.spec
   describe "Harmonic.Rules.Import.Jazz" JazzSpec.spec
   describe "Harmonic.Evaluation.Scoring.Dissonance" DissonanceSpec.spec
+  describe "Harmonic.Evaluation.Analysis.KeyArea" KeyAreaSpec.spec
   -- Phase C
   describe "Harmonic.Evaluation.Database.Query" QuerySpec.spec
   describe "Harmonic.Traversal.Probabilistic" ProbabilisticSpec.spec

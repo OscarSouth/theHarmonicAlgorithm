@@ -387,6 +387,7 @@ data GenMode
 -- @
 data GenConfig = GenConfig
   { _gcCue         :: IO H.CadenceState  -- ^ Starting state (default: random)
+  , _gcCueExplicit :: Bool                -- ^ True once @cue@ has been applied. Generators that need a cue from a restricted pool (genP's stratum) draw their own when this is False, and leave a deliberate cue alone when it is True
   , _gcLen         :: Int                 -- ^ Number of chords (default: 4)
   , _gcSeek        :: String              -- ^ Composer blend string (default: "*")
   , _gcEntropy     :: Double              -- ^ Entropy >= 0; targets rank ~e*10 in the pool (default: 0.2)
@@ -525,4 +526,5 @@ data AttemptDiagnostic = AttemptDiagnostic
   , adViable :: !Bool                  -- ^ Passed viability check ('psModeValidity >= 1 && tot >= floor')
   , adPicked :: !Bool                  -- ^ True iff the winner ('maximumByKey adTotal')
   , adChords :: ![String]              -- ^ Chord-name sequence for the diff column in the scoreboard
+  , adPoly   :: !(Maybe PS.PolyScore)  -- ^ Polytonal breakdown (genE only): per-layer scores and divergence
   } deriving (Show, Eq)

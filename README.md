@@ -61,10 +61,12 @@ The project is built around four principles:
 
 - **Octatripentatonics** — the harmonic-organisation research frontier.
   Every progression carries its harmony in three densities at once —
-  chords, pentatonics and modes — walked through a curated space of
-  interlocking five-note scales. It's my own ongoing thread of music
-  theory, grown out of the system and now feeding back into it
-  ([OCTATRIPENTATONICS.md](documents/OCTATRIPENTATONICS.md)).
+  chords, pentatonics and modes: genP walks them through a curated space
+  of interlocking five-note scales, and every gen / genJ result derives
+  them by chordscale key-area analysis. It's my own ongoing thread of
+  music theory, grown out of the system and now feeding back into it
+  ([OCTATRIPENTATONICS.md](documents/OCTATRIPENTATONICS.md),
+  [CHORDSCALE.md](documents/CHORDSCALE.md)).
 
 The system has grown into a genuinely performable instrument along the
 way. Mid-piece, I can regenerate just the two bars that aren't working and
@@ -286,6 +288,10 @@ strata, tristrata, and the three-layer harmony system, in full.
 walk plus two partner triad chains, the overlap algebra behind the layer
 selectors, and the viability study the design rests on.
 
+**[Chordscale](documents/CHORDSCALE.md)** — key-area analysis for gen and
+genJ: the composite-minor key lattice, the mode and pentatonic layer
+derivation, and the walking-bass unification.
+
 **[Algorithmic Orchestration](documents/ALGORITHMIC_ORCHESTRATION.md)** — scoring for
 a virtual orchestra: instrument catalogue, voice lines, divisi, sections,
 blends, and the subKick groove interface.
@@ -295,7 +301,7 @@ and SuperCollider rig the project is performed on: Pulsar configuration, the
 compiled-session wrapper, MIDI routing, and the failure modes worth recognising.
 
 **[API Reference](https://docs.theharmonicalgorithm.com/)** — generated Haddock
-documentation for all 48 modules, with worked examples on every user-facing
+documentation for all 50 modules, with worked examples on every user-facing
 entry point. Start at `Harmonic.Lib`.
 
 **[Architecture Guide](documents/ARCHITECTURE.md)** — the technical deep dive into

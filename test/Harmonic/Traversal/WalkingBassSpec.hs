@@ -53,6 +53,8 @@ import Harmonic.Traversal.WalkingBass
 import Harmonic.Interface.Tidal.Groove (fund)
 import Harmonic.Interface.Tidal.Arranger (root)
 import qualified Harmonic.Rules.Import.Jazz as J
+import qualified Harmonic.Evaluation.Analysis.KeyArea as KA
+import qualified Data.Vector as V
 
 
 -------------------------------------------------------------------------------
@@ -497,36 +499,10 @@ spec = do
                 `shouldSatisfy` (<= 7))
             [prog4, prog8, progDim, progDescTone, progDmG]
 
-  describe "inferKeyCentre (regional, walk-internal)" $ do
-
-    -- The five harvested fixtures from notes/walking_bass_theory.md:477-486.
-    let keyPCs prog = map unPitchClass (inferKeyCentre prog)
-
-    it "BbM7 Eb7 AbM7 infers Ab" $ do
-      let p = fromCadenceStates [mkCS Bb [0,4,7,11], mkCS Eb [0,4,7,10], mkCS Ab [0,4,7,11]]
-      keyPCs p `shouldBe` replicate 3 8
-
-    it "Am7 Em7 Bm7 infers G" $ do
-      let p = fromCadenceStates [mkCS A [0,3,7,10], mkCS E [0,3,7,10], mkCS B [0,3,7,10]]
-      keyPCs p `shouldBe` replicate 3 7
-
-    it "FM7 Am7 BbM7 infers F" $ do
-      let p = fromCadenceStates [mkCS F [0,4,7,11], mkCS A [0,3,7,10], mkCS Bb [0,4,7,11]]
-      keyPCs p `shouldBe` replicate 3 5
-
-    it "FM7 Em7 Dm7 infers C" $ do
-      let p = fromCadenceStates [mkCS F [0,4,7,11], mkCS E [0,3,7,10], mkCS D [0,3,7,10]]
-      keyPCs p `shouldBe` replicate 3 0
-
-    it "DM7 F#m7 Bm7 GM7 infers D" $ do
-      let p = fromCadenceStates [ mkCS D [0,4,7,11], mkCS F' [0,3,7,10]
-                                , mkCS B [0,3,7,10], mkCS G [0,4,7,11] ]
-      keyPCs p `shouldBe` replicate 4 2
-
-    it "returns one centre per bar and is deterministic" $ do
-      let ks = inferKeyCentre prog8
-      length ks `shouldBe` 8
-      inferKeyCentre prog8 `shouldBe` ks
+  -- The regional key fixtures moved to KeyAreaSpec when the vote-window
+  -- detector retired in favour of the whole-progression key-area analysis
+  -- (Harmonic.Evaluation.Analysis.KeyArea). The walk consumes the same
+  -- detector via barPalettes, tested below through the golden lines.
 
   describe "dynamics-coupled register arc (walkLineDyn)" $ do
 
@@ -563,9 +539,7 @@ spec = do
       let progEmpty = fromCadenceStates
             [ cMaj, initCadenceState 0 "C" [], gMaj, fMaj ]
           line = walkLine fund progEmpty
-          keyPC = unPitchClass (inferKeyCentre progEmpty !! 1)
-          keySet = Set.fromList [ (keyPC + st) `mod` 12
-                                | st <- [0, 2, 4, 5, 7, 9, 11] ]
+          keySet = KA.barPalettes progEmpty V.! 1
       length line `shouldBe` 4
       ((line !! 1 !! 2) `mod` 12) `shouldSatisfy` (`Set.member` keySet)
 

@@ -5,7 +5,9 @@
 -- Offline pins (seek "none"): the partner lists are empty, so every bar
 -- draws from the pure enumeration tier — the invariants below must hold
 -- there exactly as on the list tier, and offline runs exercise the
--- fallback floor categorically.
+-- fallback floor categorically. The LIST tier needs a populated graph, so
+-- its guard (partner masks are 3-PC) is covered only by the shared
+-- cardinality pin below until the online suite exists.
 
 module Harmonic.Framework.PolyGenSpec (spec) where
 
@@ -40,6 +42,16 @@ genOffline n e =
 
 spec :: Spec
 spec = describe "genE (polytonal, offline enumeration tier)" $ do
+
+  -- Union-5 does not by itself force triadic partners: a 4-PC partner
+  -- sharing two tones with T also contributes two new ones. The layer
+  -- cardinality is its own contract, so it gets its own pin.
+  it "every layer is triadic in every bar" $ do
+    s <- genOffline 8 0.4
+    let card = map (popCount . absMask)
+    card (barsOf (PC.triadLayer  s)) `shouldSatisfy` all (== 3)
+    card (barsOf (PC.strataLayer s)) `shouldSatisfy` all (== 3)
+    card (barsOf (PC.modeLayer   s)) `shouldSatisfy` all (== 3)
 
   it "every bar satisfies the overlap algebra: partners share 2 with T, union is 5" $ do
     s <- genOffline 8 0.4

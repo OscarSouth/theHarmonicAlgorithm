@@ -90,13 +90,16 @@ tidalNoteOffset = 48
 -- natural 5, and notated colour alterations stay off strong beats.
 -- 'Harmonic.Framework.Builder.gen' and 'Harmonic.Framework.Builder.genE'
 -- progressions walk their plain per-bar tone sets (for genE that is the
--- foundation layer — the layer that owns the bass).
+-- foundation layer — the layer that owns the bass); connector tones draw
+-- on the key-area palette
+-- ('Harmonic.Evaluation.Analysis.KeyArea.barPalettes') — the same
+-- analysis behind the chordscale S\/M layers.
 --
 -- Entropy is derived internally from the progression's harmonic character.
 lineHarmony
   :: Pattern Double       -- ^ Dynamics scalar (amp multiplier)
   -> IK                    -- ^ Performance context (kinetics + chord-selection)
-  -> VoiceFunction         -- ^ Beat-1 voicing (fund or root)
+  -> VoiceFunction         -- ^ Beat-1 voicing (@fund@ or @root@). Only the bass pitch class of each bar is read, so a solving strategy buys nothing here: @grid@ returns the root by its own invariant, at the price of a voicing solve
   -> [Pattern Int]         -- ^ Polyphonic layers (1-indexed beat positions)
   -> Pattern ValueMap
 lineHarmony dyn (kin, chordPat) voiceFn pats =
@@ -299,6 +302,14 @@ chromaSourcesFor ctx =
 -- 'Harmonic.Traversal.WalkingBass.walkLine'. The two are mutually
 -- exclusive in practice — genP carries provenance and genJ does not — so
 -- the order only fixes a case that cannot currently arise.
+--
+-- Performed order, deliberately: the walk analyses (and walks) the bar
+-- sequence AS PLAYED — under a non-identity chord selection its key-area
+-- palettes come from a fresh analysis of the performed sequence, not a
+-- permutation of the stored one that the chordscale S\/M layers carry.
+-- Same theory, two applications (generation-time annotation vs runtime
+-- line), and the walk adds chromatic approach tones beyond either. Ruled
+-- 2026-08-29.
 buildCacheKey :: VoiceFunction -> WalkKey -> ([[Note]], Int)
 buildCacheKey voiceFn (prog, mChromas, mVocab, mVals, mTiers) =
   let barsL = toList (P.unProgression prog)

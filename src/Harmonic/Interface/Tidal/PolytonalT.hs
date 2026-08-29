@@ -24,8 +24,10 @@ import qualified Harmonic.Rules.Types.ProgressionContext as PC
 
 -- |Every layer view of a polytonal context, labelled: single layers,
 -- pair unions, the pentad, the pivot tones. Returns 'Nothing' for other
--- families (their layers duplicate one progression, so the views carry
--- no information).
+-- families — the labels are genE-specific (partner chains, pentad, pivot
+-- dyad). gen\/genJ layer content is printed by
+-- 'Harmonic.Interface.Tidal.ChordscaleT.chordscaleReport', genP's by
+-- 'Harmonic.Interface.Tidal.OctatripentatonicT.genPReport'.
 polyLayerViews :: PC.ProgressionContext -> Maybe [(String, Prog.Progression)]
 polyLayerViews pc
   | PC.pcFamily pc /= PC.FPoly = Nothing

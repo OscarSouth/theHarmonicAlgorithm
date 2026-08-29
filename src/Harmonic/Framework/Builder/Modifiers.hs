@@ -56,6 +56,7 @@ import           Harmonic.Framework.Builder.Types
 defaultGenConfig :: GenConfig
 defaultGenConfig = GenConfig
   { _gcCue         = defaultCue
+  , _gcCueExplicit = False
   , _gcLen         = 4
   , _gcSeek        = "*"
   , _gcEntropy     = 0.2
@@ -242,7 +243,7 @@ genFrom'' pc s e = (genFrom pc s e) { _gcVerbosity = Verbose }
 --
 -- @s <- seek "*" $ cue start $ gen@
 cue :: H.CadenceState -> GenConfig -> GenConfig
-cue start gc = gc { _gcCue = pure start }
+cue start gc = gc { _gcCue = pure start, _gcCueExplicit = True }
 
 -- |Set progression length (number of chords).
 --
@@ -276,6 +277,13 @@ steer x gc = gc { _gcSteer = max 0 x }
 -- 'PS.defaultWeightsOffline'.
 --
 -- @s <- seek "*" $ attempt 3 24 $ entropy 0.4 $ gen@   -- best of up to 24
+--
+-- Polytonal ('Harmonic.Framework.Builder.genE') attempts rank differently,
+-- because they are three progressions rather than one: each layer is scored
+-- in its own right (half the weight on the foundation, a quarter on each
+-- partner) and a divergence axis rewards the layers standing apart — the
+-- point of the family. See 'PS.PolyScore'. Raising @maxAttempts@ raises both
+-- the quality and the divergence of what comes back.
 --
 -- Defaults are @attempt 1 1@ — i.e. the modifier is a no-op when omitted,
 -- preserving legacy single-pass behaviour.
@@ -356,6 +364,13 @@ triBoost x gc = gc { _gcBoostTri = x }
 -- a 'PC.ProgressionContext' with distinct triad, strata, and mode layers and
 -- @pcProvenance = Just …@.
 --
+-- Uncued, the starting chord is drawn from inside the stratum itself — a
+-- five-tone set admits few triads, and the ordinary whole-corpus cue almost
+-- never lands in one. A cue you pass with @cue@ is honoured as given; one
+-- that escapes the stratum is reported with the triads that would have
+-- fitted, rather than silently replaced.
+--
+-- @s <- seek "none" $ len 6 $ genP VI@
 -- @s <- seek "none" $ cue start $ len 6 $ genP VI@
 genP :: Sc.StrataLabel -> GenConfig
 genP s = defaultGenConfig { _gcMode = StrataMode s }

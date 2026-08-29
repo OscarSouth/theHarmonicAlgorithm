@@ -445,6 +445,7 @@ printAttemptScoreboard floorT diags = do
   let viableCount  = length (filter adViable diags)
       totalCount   = length diags
       sorted       = sortBy (comparing (Down . adTotal)) diags
+      isPoly       = any (\a -> case adPoly a of { Just _ -> True; Nothing -> False }) diags
       barLine      = replicate 91 '═'
       sepLine      = replicate 91 '─'
   putStrLn ""
@@ -452,10 +453,18 @@ printAttemptScoreboard floorT diags = do
   printf "Multi-attempt rank-and-select  (%d viable in %d attempts, floor T=%.2f)\n"
          viableCount totalCount floorT
   putStrLn barLine
-  printf "   %-3s %-6s %-6s %-6s %-6s %-7s %-6s %s\n"
-         ("#" :: String) ("rm" :: String) ("vl" :: String)
-         ("cf" :: String) ("mv" :: String)
-         ("total" :: String) ("viable" :: String) ("chords" :: String)
+  -- genE ranks on three layers plus their divergence, so its scoreboard
+  -- trades the mode-validity column (structurally 1.0 there) for the
+  -- composite quality and the divergence that competes with it.
+  if isPoly
+    then printf "   %-3s %-6s %-6s %-6s %-6s %-6s %-7s %-6s %s\n"
+           ("#" :: String) ("rm" :: String) ("vl" :: String)
+           ("cf" :: String) ("qual" :: String) ("div" :: String)
+           ("total" :: String) ("viable" :: String) ("chords" :: String)
+    else printf "   %-3s %-6s %-6s %-6s %-6s %-7s %-6s %s\n"
+           ("#" :: String) ("rm" :: String) ("vl" :: String)
+           ("cf" :: String) ("mv" :: String)
+           ("total" :: String) ("viable" :: String) ("chords" :: String)
   putStrLn ("   " ++ sepLine)
   forM_ sorted (renderRow)
   putStrLn ("   " ++ sepLine)
@@ -471,16 +480,30 @@ printAttemptScoreboard floorT diags = do
           viableMk  = if adViable a then "✓" else "·"
           pickedMk  = if adPicked a then "  ← PICK" else ""
           chordPrev = truncateChords 8 (adChords a)
-      printf "  %2d   %.3f  %.3f  %.3f  %.3f  %.3f  %-6s  %s%s\n"
-             (adIndex a)
-             (PS.psRootMotion ps)
-             (PS.psVoiceLeading ps)
-             (PS.psCadenceFav ps)
-             (PS.psModeValidity ps)
-             (adTotal a)
-             (viableMk :: String)
-             chordPrev
-             (pickedMk :: String)
+      case adPoly a of
+        Just py ->
+          printf "  %2d   %.3f  %.3f  %.3f  %.3f  %.3f  %.3f  %-6s  %s%s\n"
+                 (adIndex a)
+                 (PS.psRootMotion   (PS.pyT py))
+                 (PS.psVoiceLeading (PS.pyT py))
+                 (PS.psCadenceFav   (PS.pyT py))
+                 (PS.pyQuality py)
+                 (PS.pyDivergence py)
+                 (adTotal a)
+                 (viableMk :: String)
+                 chordPrev
+                 (pickedMk :: String)
+        Nothing ->
+          printf "  %2d   %.3f  %.3f  %.3f  %.3f  %.3f  %-6s  %s%s\n"
+                 (adIndex a)
+                 (PS.psRootMotion ps)
+                 (PS.psVoiceLeading ps)
+                 (PS.psCadenceFav ps)
+                 (PS.psModeValidity ps)
+                 (adTotal a)
+                 (viableMk :: String)
+                 chordPrev
+                 (pickedMk :: String)
 
     truncateChords :: Int -> [String] -> String
     truncateChords _ []     = "(empty)"

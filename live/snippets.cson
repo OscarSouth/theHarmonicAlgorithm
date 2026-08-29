@@ -170,6 +170,12 @@
         $ genE
     '''
 
+  'chordscale report':
+    'prefix': 'chordscale'
+    'body': '''
+      chordscaleReport $1
+    '''
+
   # ── Form ──────────────────────────────────────────────────
 
   'form: single state':

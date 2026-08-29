@@ -136,6 +136,10 @@ listEligible pctx tMask prev ts =
     , let st = advCand prev cad
           mk = absMask st
     , mk /= tMask
+    -- Each layer is a triad by the overlap algebra. The enumeration tiers
+    -- are 3-PC by construction; the list tier inherits whatever the corpus
+    -- holds, so the contract is asserted rather than assumed.
+    , popCount mk == 3
     , popCount (mk .&. tMask) == 2 ]
 
 -- Eligible continuations from the pure enumeration: every 3-PC set sharing
@@ -298,6 +302,9 @@ runPolyGen gc = do
       -- Diagnostics carry one entry per bar (starter row for the cue),
       -- each with the bar's PolyDiag; the renderers relabel nothing —
       -- chain-bound fields are already S/M-ordered here.
+      -- A one-bar walk takes no steps, so there is no step diagnostic to
+      -- hang the bar's PolyDiag on and genE'' prints no per-bar table at
+      -- len 1. Degenerate case — the grids still print.
       polySteps = case stepDiags of
         [] -> []
         _  -> [ d { sdStepNumber = i, sdPoly = Just pd }

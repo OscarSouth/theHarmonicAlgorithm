@@ -11,6 +11,7 @@
 
 module Harmonic.Framework.Builder.StrataGen
   ( runStrataGen
+  , strataStartCue
   , runStrataGenFrom
   , printInvalidCueError
   , viableTriadLines
@@ -60,14 +61,17 @@ import qualified Harmonic.Framework.Builder.Strata as Strata
 -- generated triad's root so they transpose with the progression.
 runStrataGen :: Sc.StrataLabel -> GenConfig -> IO (PC.ProgressionContext, GenerationDiagnostics)
 runStrataGen sStart gc = do
-  start <- _gcCue gc
   rng   <- createSystemRandom
   let basePctx = parseContextOnce (_gcTonal gc)
       allowed  = pcAllowedTristrata basePctx
       allowed' = if null allowed then Sc.validTristrata else allowed
       n        = max 1 (fromMaybe (_gcLen gc) (_gcLenOverride gc))
       (s0, t0) = Strata.initialPlacement allowed' sStart
-
+  -- The starting strata is only known here — it depends on the tonal
+  -- context's allowed tristrata, not on the label alone — so the cue is
+  -- drawn here rather than fixed in the config.
+  start <- if _gcCueExplicit gc then _gcCue gc else strataCue rng s0
+  let
       -- relStrata \/ absStrata narrowing on the walk's candidate pool.
       narrow :: Int -> [(Sc.StrataLabel, Sc.Tristrata)] -> [(Sc.StrataLabel, Sc.Tristrata)]
       narrow i pool =
@@ -612,6 +616,51 @@ printInvalidCueError start s = do
   putStrLn $ "  viable triads in strata " ++ show s ++ " {" ++ strataNames ++ "}:"
   mapM_ (putStrLn . ("    " ++)) (viableTriadLines s enharm)
   putStrLn ""
+
+-- |A starting chord drawn from inside the stratum a label resolves to under
+-- this config's tonal context.
+--
+-- Shared with @generateBest@ so a K-attempt loop freezes ONE valid chord:
+-- without it the loop's frozen cue is ignored (genP draws its own) and every
+-- attempt starts somewhere different, which is exactly what freezing the cue
+-- exists to prevent.
+strataStartCue :: Sc.StrataLabel -> GenConfig -> IO H.CadenceState
+strataStartCue sStart gc = do
+  rng <- createSystemRandom
+  let basePctx = parseContextOnce (_gcTonal gc)
+      allowed  = pcAllowedTristrata basePctx
+      allowed' = if null allowed then Sc.validTristrata else allowed
+      (s0, _)  = Strata.initialPlacement allowed' sStart
+  strataCue rng s0
+
+-- |Draw a random triad lying wholly inside a stratum's chroma.
+--
+-- Without this, an uncued 'Harmonic.Framework.Builder.genP' inherits the
+-- whole-corpus random cue, which a five-tone stratum almost never admits:
+-- measured across all eleven labels, 86 of 88 uncued draws escaped the
+-- stratum and returned an empty progression. The pool is the same
+-- enumeration 'viableTriadLines' prints, so what the generator picks and
+-- what the invalid-cue message offers can never disagree.
+--
+-- A deliberate cue is never overridden — an escaping one still earns the
+-- teaching diagnostic.
+strataCue :: GenIO -> Sc.StrataLabel -> IO H.CadenceState
+strataCue rng s0 =
+  let strataPCs = sort (map P.unPitchClass (Sc.strataChroma s0))
+      pool      = [ (r, [ (p - r) `mod` 12 | p <- pcs ])
+                  | r <- strataPCs, pcs <- possibleTriads (r, strataPCs) ]
+  in case pool of
+       -- Unreachable: every stratum admits triads. Answering with a bare
+       -- major triad keeps the function total rather than exploding on the
+       -- audio-adjacent path.
+       []              -> pure (H.initCadenceState 0 "C" [0, 4, 7])
+       (fallback : _)  -> do
+         i <- uniformRM (0, length pool - 1) rng
+         let (rootPC, ivs) = case drop i pool of
+                               (x : _) -> x
+                               []      -> fallback
+             rootName = H.enharmonicFunc H.FlatSpelling (P.mkPitchClass rootPC)
+         pure (H.initCadenceState 0 (show rootName) ivs)
 
 -- |Produce one display line per root PC in the strata, listing every
 -- distinct-by-name triad enumerated by 'possibleTriads' starting from

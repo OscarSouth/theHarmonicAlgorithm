@@ -130,6 +130,16 @@ module Harmonic.Lib (
   gen, gen', gen'',
   genGrid, genGrid', genGrid'', genFrom, genFrom', genFrom'',
 
+  -- ** Chordscale layers (gen \/ genJ)
+  -- | gen and genJ contexts carry derived S\/M layers: whole-progression
+  -- key-area analysis assigns every bar a key (major, or composite minor)
+  -- and realises it as the mode on the bar's root (M, 7 tones) and the
+  -- best-fitting anhemitonic pentatonic (S, 5 tones). Automatic at
+  -- generation; apply 'chordscale' by hand to 'lead''-built contexts.
+  -- 'chordscaleReport' prints the per-bar key \/ form \/ mode \/ pentatonic.
+  chordscale,
+  renderChordscaleReport, chordscaleReport,
+
   -- ** The genE paradigm (polytonal)
   -- | Three simultaneous triad progressions from one walk: a foundation
   -- (T) plus two partner chains (S\/M) sharing 2 pitch classes with it per
@@ -354,4 +364,6 @@ import Harmonic.Interface.Tidal.Devices.P6
 import Harmonic.Interface.Tidal.Devices.JV1010
 import Harmonic.Interface.Tidal.OctatripentatonicT (renderTristrataReport, genPReport)
 import Harmonic.Interface.Tidal.PolytonalT (polyLayerViews, genEReport)
+import Harmonic.Evaluation.Analysis.KeyArea (chordscale)
+import Harmonic.Interface.Tidal.ChordscaleT (renderChordscaleReport, chordscaleReport)
 import Harmonic.Config

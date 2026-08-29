@@ -5,10 +5,13 @@
 -- A 'ProgressionContext' bundles three bar-aligned 'Progression' layers —
 -- triads, pentatonic strata, and diatonic modes — together with optional
 -- per-bar provenance tracking which tristrata and strata each bar was drawn
--- from. The legacy 'Harmonic.Framework.Builder.gen' paradigm produces contexts where all three layers
--- duplicate the same triad progression and provenance is 'Nothing'; the new
--- 'Harmonic.Framework.Builder.genP' paradigm (introduced by the octatripentatonic framework) produces
--- contexts with distinct strata\/mode layers and 'Just' provenance.
+-- from. Every family fills the layers: 'Harmonic.Framework.Builder.genP' walks curated strata\/mode
+-- chroma and carries 'Just' provenance; 'Harmonic.Framework.Builder.genE' fills partner triads; plain
+-- 'Harmonic.Framework.Builder.gen' and 'Harmonic.Framework.Builder.genJ' derive a pentatonic S and a mode M by chordscale
+-- key-area analysis ('Harmonic.Evaluation.Analysis.KeyArea.chordscale'),
+-- provenance 'Nothing'. Only raw 'fromProgression' output (hand-built
+-- material not passed through @chordscale@) still duplicates one
+-- progression across all three layers.
 
 module Harmonic.Rules.Types.ProgressionContext
   ( Layer(..)
@@ -56,8 +59,12 @@ import Harmonic.Rules.Types.Scale (Tristrata, StrataLabel)
 -- (T before S before M) — the foundation owns the bass whenever it is
 -- present. On a polytonal (genE) context TS\/TM always union to 4 tones,
 -- TSM to 5, and PT holds 2 tones on common-dyad bars or the single hub
--- tone on base-anchored bars. On contexts whose layers duplicate one
--- progression (plain gen) every combination degrades to that progression.
+-- tone on base-anchored bars. On a chordscale-derived gen\/genJ context
+-- S is the bar's pentatonic, M its mode, and PT the chord tones the
+-- pentatonic keeps. On contexts whose layers still duplicate one
+-- progression (hand-built material without
+-- 'Harmonic.Evaluation.Analysis.KeyArea.chordscale') every combination
+-- degrades to that progression.
 --
 -- @M@ replaces the plan's @D@ to avoid clashing with 'Harmonic.Rules.Types.Pitch.NoteName'
 -- (@D@ natural), which is re-exported via 'Harmonic.Lib' for live-coding use.
@@ -107,8 +114,8 @@ instance Show ProgressionContext where
 -- unions (rooted on the lowest constituent layer's bar — T before S before
 -- M, so the foundation owns the merged bass whenever present); 'PT'
 -- synthesizes the per-bar intersection of all three layers. Total for every
--- family: duplicated layers make every combination collapse to the stored
--- progression.
+-- family; on duplicated-layer contexts (the raw 'fromProgression' fallback)
+-- every combination collapses to the stored progression.
 layer :: Layer -> ProgressionContext -> Progression
 layer T   = triadLayer
 layer S   = strataLayer
@@ -150,7 +157,9 @@ mergeLayers sels pc =
 
 -- Per-bar intersection of all three layers. Bars whose intersection equals
 -- the T bar's own set pass the T bar through unchanged (the duplicated-layer
--- degrade); otherwise the surviving tones are rooted by fifth orientation —
+-- degrade); on chordscale-derived gen\/genJ bars the intersection is the
+-- chord tones the pentatonic keeps — an anchor-tone selection. Otherwise
+-- the surviving tones are rooted by fifth orientation —
 -- a dyad roots on the tone whose partner sits within a tritone above it, a
 -- single hub tone roots on itself.
 pivotLayer :: ProgressionContext -> Progression
@@ -178,8 +187,11 @@ pcLength :: ProgressionContext -> Int
 pcLength = progLength . triadLayer
 
 -- |Wrap a single 'Progression' as a 'ProgressionContext' by duplicating it
--- into all three layers with no provenance. Used by the legacy 'Harmonic.Framework.Builder.gen' paradigm
--- and by test fixtures migrating to the widened type.
+-- into all three layers with no provenance — the RAW constructor. The gen
+-- and genJ producers post-process the result with
+-- 'Harmonic.Evaluation.Analysis.KeyArea.chordscale' to derive real S\/M
+-- layers; hand-built material stays duplicated until passed through the
+-- same combinator.
 fromProgression :: Progression -> ProgressionContext
 fromProgression p = ProgressionContext
   { triadLayer   = p
@@ -220,6 +232,10 @@ liftPC f pc = normalizeFamily ProgressionContext
 -- argument cannot inspect elements (parametricity), so it can only
 -- rearrange or duplicate whole bars — per-bar pairings (bar ↔ provenance,
 -- foundation ↔ partners) survive intact and the family stamp stays true.
+-- Chordscale-derived S\/M layers (gen \/ genJ) permute with their bars, so
+-- each bar keeps its own mode\/pentatonic; the key BOUNDARIES they encode
+-- reflect the pre-permutation whole-progression analysis — re-apply
+-- 'Harmonic.Evaluation.Analysis.KeyArea.chordscale' for a fresh reading.
 liftPCAligned :: (forall a. Seq a -> Seq a) -> ProgressionContext -> ProgressionContext
 liftPCAligned f pc = ProgressionContext
   { triadLayer   = onProg (triadLayer pc)
@@ -232,7 +248,10 @@ liftPCAligned f pc = ProgressionContext
 
 -- |Bar substitution breaks both the provenance-backed ('FStrata') and the
 -- structural ('FPoly') family invariants — the result walks and voices as
--- plain material, and the tag must not claim otherwise.
+-- plain material, and the tag must not claim otherwise. Chordscale-derived
+-- S\/M layers are mapped like any other bars and go stale the same way —
+-- re-apply 'Harmonic.Evaluation.Analysis.KeyArea.chordscale' after
+-- bar-substituting edits.
 liftPCSubst :: (Progression -> Progression) -> ProgressionContext -> ProgressionContext
 liftPCSubst f pc =
   let out = liftPC f pc   -- already normalized (provenance-less FStrata → FTriad)

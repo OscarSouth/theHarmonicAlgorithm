@@ -23,6 +23,7 @@ import Harmonic.Rules.Types.ProgressionContext (Layer(..))
 import Harmonic.Interface.Tidal.Bridge
 import Harmonic.Interface.Tidal.Form (Kinetics(..), IK)
 import qualified Harmonic.Interface.Tidal.Arranger as A
+import qualified Harmonic.Evaluation.Analysis.KeyArea as KA
 import qualified Data.Sequence as Seq
 import qualified Data.Map.Strict as Map
 import Data.List (nub, sort)
@@ -376,9 +377,10 @@ spec = do
           aT' = arrange (0,1) (testKinetics tProg, chordSel) (-24,24) T A.flow id [parseBP_E "[0 1 2]"]
       onsetNotes aT (Arc 0 1) `shouldBe` onsetNotes aT' (Arc 0 1)
 
-    it "S layer with 3-PC duplicated triad (gen origin) falls through to user's voiceFunc" $ do
-      -- gen-origin: PC.fromProgression duplicates triad layer across S/M.
-      -- So arrange ... S flow ... should produce same events as arrange ... T flow ...
+    it "S layer with 3-PC duplicated triad (raw hand-built context) falls through to user's voiceFunc" $ do
+      -- Raw fromProgression (no chordscale) duplicates the triad layer
+      -- across S/M, so arrange ... S flow ... should produce the same
+      -- events as arrange ... T flow ...
       -- (both use user's flow on the same 3-PC Progression).
       let chordSel = parseBP_E "[1 2 3 4]/4" :: Pattern Int
           kin = testKinetics testProgression  -- gen-style: all layers identical
@@ -404,9 +406,36 @@ spec = do
           [T, S, M, TS, TM, SM, TSM, PT]
         `shouldBe` [False, True, True, True, True, True, True, True]
 
-    it "gen-shaped contexts route every selector to the user VoiceFunction" $ do
+    it "duplicated-layer contexts route every selector to the user VoiceFunction" $ do
       let pcT = PC.fromProgression testProgression
       map (\sel -> fst (layerForVoicing sel pcT))
+          [T, S, M, TS, TM, SM, TSM, PT]
+        `shouldBe` replicate 8 False
+
+    it "chordscale-derived contexts route non-T selectors to the chroma engine" $ do
+      let pcD = KA.chordscale (PC.fromProgression testProgression)
+      map (\sel -> fst (layerForVoicing sel pcD))
+          [T, S, M, TS, TM, SM, TSM, PT]
+        `shouldBe` [False, True, True, True, True, True, True, True]
+
+    it "a bar-substituted derived context demotes to the user VoiceFunction" $ do
+      -- liftPCSubst maps the same edit over all three layers, so the mode
+      -- layer picks up a triadic bar; the mixed cardinality must fail the
+      -- all-bars-chroma check and fall back to ordinary voicing.
+      let pcD  = KA.chordscale (PC.fromProgression testProgression)
+          swap0 (P.Progression sq) = P.Progression
+            (Seq.update 0 (mk5' Pitch.C [0, 4, 7]) sq)
+          pcD' = PC.liftPCSubst swap0 pcD
+      map (\sel -> fst (layerForVoicing sel pcD'))
+          [T, S, M, TS, TM, SM, TSM, PT]
+        `shouldBe` replicate 8 False
+
+    it "genE-shaped contexts (distinct triad layers) never chroma-route" $ do
+      let sFx = P.Progression $ Seq.fromList
+            [ mk5' Pitch.A [0, 3, 7], mk5' Pitch.A [0, 4, 7]
+            , mk5' Pitch.A [0, 3, 7], mk5' Pitch.A [0, 4, 7] ]
+          pcE = PC.ProgressionContext testProgression sFx sFx Nothing PC.FPoly
+      map (\sel -> fst (layerForVoicing sel pcE))
           [T, S, M, TS, TM, SM, TSM, PT]
         `shouldBe` replicate 8 False
 

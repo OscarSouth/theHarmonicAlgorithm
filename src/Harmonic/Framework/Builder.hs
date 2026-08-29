@@ -209,6 +209,7 @@ import qualified Harmonic.Rules.Types.Progression as Prog
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import           Harmonic.Rules.Import.Graph (connectNeo4j)
 import qualified Harmonic.Evaluation.Scoring.Progression as PS
+import           Harmonic.Evaluation.Analysis.KeyArea (chordscale)
 import           Control.Monad.IO.Class (liftIO)
 import           Harmonic.Rules.Constraints.Filter (parseTuningNamed)
 import           Harmonic.Rules.Constraints.Overtone (formatOvertoneAnnotationPipe)
@@ -223,7 +224,7 @@ import           Harmonic.Framework.Builder.Portmanteau
 import           Harmonic.Framework.Builder.Diagnostics
 import           Harmonic.Framework.Builder.Core
 import           Harmonic.Framework.Builder.Modifiers
-import           Harmonic.Framework.Builder.StrataGen (runStrataGen, runStrataGenFrom)
+import           Harmonic.Framework.Builder.StrataGen (runStrataGen, runStrataGenFrom, strataStartCue)
 import           Harmonic.Framework.Builder.JazzGen (runJazzGen, runJazzGenFrom, jazzGuardSeek)
 import           Harmonic.Framework.Builder.PolyGen (runPolyGen, runPolyGenFrom)
 
@@ -622,10 +623,11 @@ execGenConfigWithDiag gc = do
     FromProgPC {} -> error "unreachable: FromProgPC dispatches to runStrataGenFrom before this case"
 
 -- |Set composer blend and execute. Terminal modifier — produces 'IO'
--- 'PC.ProgressionContext'. For legacy 'gen'-family configs, all three layers
--- duplicate the generated triad progression and @pcProvenance@ is 'Nothing';
--- the 'genP' paradigm produces distinct strata\/mode layers with 'Just'
--- provenance.
+-- 'PC.ProgressionContext'. Every family returns distinct layers: 'genP'
+-- carries curated strata\/mode chroma with 'Just' provenance, 'genE'
+-- partner triads, and 'gen'\/'genJ' chordscale-derived pentatonic\/mode
+-- layers ('Harmonic.Evaluation.Analysis.KeyArea.chordscale' is applied in
+-- the dispatch fallthrough) with @pcProvenance@ 'Nothing'.
 --
 -- @s <- seek "*" $ gen@
 -- @s <- seek "bach:70 debussy:30" $ cue start $ len 4 $ gen@
@@ -778,7 +780,9 @@ singlePassExecPCWithDiag gc = case _gcMode gc of
   FromProgPoly srcPC s e -> runPolyGenFrom srcPC s e gc
   _                    -> do
     (prog, diag) <- execGenConfigWithDiag gc
-    pure (PC.fromProgression prog, diag)
+    -- Chordscale annotation: derived S/M layers from the key-area analysis
+    -- of the finished progression (identity on empty output).
+    pure (chordscale (PC.fromProgression prog), diag)
 
 -- |Generate up to @_gcMaxAttempts@ progressions and return the single
 -- highest-scoring one. An attempt is /viable/ iff
@@ -808,8 +812,13 @@ generateBest gc0 = do
   -- attempt and the scoreboard compares progressions in different keys.
   -- genE's partner chains still redraw per attempt, so the layer pass
   -- keeps its per-attempt variety.
-  start0 <- _gcCue gc0
-  let gc = gc0 { _gcCue = pure start0 }
+  -- genP draws its cue from inside its stratum, so the frozen cue has to be
+  -- drawn the same way or the generator would discard it and redraw per
+  -- attempt — the very thing freezing prevents.
+  start0 <- case _gcMode gc0 of
+    StrataMode sLbl | not (_gcCueExplicit gc0) -> strataStartCue sLbl gc0
+    _                                          -> _gcCue gc0
+  let gc = gc0 { _gcCue = pure start0, _gcCueExplicit = True }
       online = map toLower (_gcSeek gc) /= "none"
       isJazzGc = case _gcMode gc of
         JazzMode        -> True
@@ -905,7 +914,8 @@ jazzLoop cache seekTxt gc maxN target floorT = do
             ps <- PS.scoreProgressionJazz cache jazzBlend pc
             let tot   = PS.totalScore PS.defaultWeights ps
                 isOk  = viableAttempt pc ps && tot >= floorT
-                acc'  = (pc, ps, tot, isOk, diag) : acc
+                -- Jazz is single-layer for ranking purposes.
+                acc'  = (pc, ps, tot, isOk, diag, Nothing) : acc
                 viable' = if isOk then viableSoFar + 1 else viableSoFar
             go viable' acc' (remaining - 1)
   go (0 :: Int) [] maxN
@@ -924,7 +934,9 @@ viableAttempt pc ps =
 -- without re-running generation. The accumulator is kept in generation
 -- order; index is assigned in 'finaliseScored' so the scoreboard
 -- reflects the actual trial sequence.
-type ScoredAttempt = (PC.ProgressionContext, PS.ProgressionScore, Double, Bool, GenerationDiagnostics)
+type ScoredAttempt =
+  ( PC.ProgressionContext, PS.ProgressionScore, Double, Bool
+  , GenerationDiagnostics, Maybe PS.PolyScore )
 
 -- |Inner loop for the offline arm. Calls 'singlePassExecPCWithDiag'
 -- (no printing) so per-attempt output is fully suppressed; diagnostics
@@ -942,10 +954,15 @@ offlineLoop gc maxN target floorT = go 0 [] maxN
       | viableSoFar >= target = pure (reverse acc)
       | otherwise = do
           (pc, diag) <- singlePassExecPCWithDiag gc
+          -- genE is three progressions, not one: rank it on all three
+          -- layers plus how far apart they stand.
           let ps    = PS.scoreProgression pc
-              tot   = PS.totalScore PS.defaultWeightsOffline ps
+              poly  = if PC.pcFamily pc == PC.FPoly
+                        then Just (PS.scorePoly PS.defaultWeightsOffline pc)
+                        else Nothing
+              tot   = maybe (PS.totalScore PS.defaultWeightsOffline ps) PS.pyTotal poly
               isOk  = viableAttempt pc ps && tot >= floorT
-              acc'  = (pc, ps, tot, isOk, diag) : acc
+              acc'  = (pc, ps, tot, isOk, diag, poly) : acc
               viable' = if isOk then viableSoFar + 1 else viableSoFar
           go viable' acc' (remaining - 1)
 
@@ -966,9 +983,12 @@ onlineLoop cache seekTxt gc maxN target floorT = go 0 [] maxN
       | otherwise = do
           (pc, diag) <- liftIO (singlePassExecPCWithDiag gc)
           ps <- PS.scoreProgressionOnline cache seekTxt pc
-          let tot   = PS.totalScore PS.defaultWeights ps
+          poly <- if PC.pcFamily pc == PC.FPoly
+                    then Just <$> PS.scorePolyOnline cache seekTxt PS.defaultWeights pc
+                    else pure Nothing
+          let tot   = maybe (PS.totalScore PS.defaultWeights ps) PS.pyTotal poly
               isOk  = viableAttempt pc ps && tot >= floorT
-              acc'  = (pc, ps, tot, isOk, diag) : acc
+              acc'  = (pc, ps, tot, isOk, diag, poly) : acc
               viable' = if isOk then viableSoFar + 1 else viableSoFar
           go viable' acc' (remaining - 1)
 
@@ -991,8 +1011,8 @@ finaliseScored gc scored = case scored of
     pure (pc, diag, [])
   xs -> do
     let indexed = zip [1..] xs
-        (winnerIdx, (winnerPC, _, _, _, winnerDiag)) =
-          maximumByKey (\(_, (_, _, tot, _, _)) -> tot) indexed
+        (winnerIdx, (winnerPC, _, _, _, winnerDiag, _)) =
+          maximumByKey (\(_, (_, _, tot, _, _, _)) -> tot) indexed
         diags = [ AttemptDiagnostic
                     { adIndex  = i
                     , adScore  = ps
@@ -1000,8 +1020,9 @@ finaliseScored gc scored = case scored of
                     , adViable = ok
                     , adPicked = i == winnerIdx
                     , adChords = chordNamesOf (PC.triadLayer pc)
+                    , adPoly   = poly
                     }
-                | (i, (pc, ps, tot, ok, _)) <- indexed
+                | (i, (pc, ps, tot, ok, _, poly)) <- indexed
                 ]
     pure (winnerPC, winnerDiag, diags)
   where

@@ -56,7 +56,6 @@
 -- 'Harmonic.Interface.Tidal.LineHarmony.lineHarmony', which dispatches on
 -- the progression's family.
 
-{-# LANGUAGE MultiWayIf #-}
 module Harmonic.Traversal.WalkingBass
   ( -- * Main entry
     walkLine
@@ -70,7 +69,6 @@ module Harmonic.Traversal.WalkingBass
     -- * Derived entropy (exported for tests \/ diagnostics)
   , progressionEntropy
   , progConsonance
-  , inferKeyCentre
 
     -- * Utilities (exported for tests)
   , hashProgEntropy
@@ -97,6 +95,7 @@ import qualified Harmonic.Rules.Types.Pitch as Pt
 import qualified Harmonic.Rules.Types.Harmony as Hm
 import qualified Harmonic.Rules.Types.Progression as Pr
 import Harmonic.Evaluation.Scoring.Dissonance (rootMotionScore, dissonanceScore)
+import Harmonic.Evaluation.Analysis.KeyArea (barPalettes)
 import Harmonic.Interface.Tidal.Bridge (VoiceFunction)
 import qualified Harmonic.Rules.Import.Jazz as J
 
@@ -237,7 +236,7 @@ kappaPhraseMid = 6
 
 -- | Pass 2 passing-tone surcharge: the middle beat-3 tier for tones a
 -- quality's bass vocabulary marks as favourable passing material (the 9,
--- the 11 over minor and 13th chords) — cheaper than a bare regional-key
+-- the 11 over minor and 13th chords) — cheaper than a bare key-area
 -- tone, dearer than a strong anchor.
 kappaB3Passing :: Int
 kappaB3Passing = 4
@@ -249,7 +248,7 @@ kappaB3Passing = 4
 kappaB3NonTarget :: Int
 kappaB3NonTarget = 2
 
--- | Pass 2 non-chord surcharge. Beat 3's pool admits regional-key tones
+-- | Pass 2 non-chord surcharge. Beat 3's pool admits key-area tones
 -- (the bar's stratum in the genP path) beyond the chord tones, but they
 -- pay this on top of their @beat3ConsTable@ cost — surfacing only where
 -- every consonant chord tone would force a leap or an anticipation.
@@ -267,7 +266,7 @@ kappaB1DupRepeat = 10
 kappaB1P5Option  = 2
 
 -- | Pass 3 Minor Thirds Rule bonus. A minor-third gap between a connector's
--- flanks admits exactly two passing tones: the regional-key diatonic one
+-- flanks admits exactly two passing tones: the key-area scale tone
 -- (strata tone in the genP path) earns the full bonus; the chromatic one an
 -- entropy-scaled fraction, so low-entropy material prefers the diatonic fill
 -- and high-entropy material may take the chromatic. A major-third gap
@@ -464,83 +463,16 @@ progConsonance prog
     clamp01 = max 0 . min 1
 
 -------------------------------------------------------------------------------
--- Regional key inference (walk-internal)
+-- Regional key inference (retired)
 -------------------------------------------------------------------------------
 
--- | Per-bar regional key centre, inferred from chord qualities over a local
--- window.
---
--- BOUNDARY: this is a PURE, DERIVED quantity computed over a finished
--- progression, consumed only inside the walk's connector selection. The
--- generation system deliberately operates without key awareness — each
--- state is abstract and deterministic, upholding the Markov property —
--- so this function must never feed back into generation, become part of
--- any state, or appear in a generation-path signature.
---
--- Heuristics (weights in votes): a dominant-quality chord is V of its key;
--- a major-quality chord is I (strong) or IV (weak), plain major triads also
--- V (weak); a minor-quality chord is ii (strong), vi, or iii (weak);
--- half-diminished is vii. Relative major\/minor are treated as one pool and
--- reported as the major-pool pitch class. Each bar takes the key with the
--- highest vote total over the surrounding window (cyclic, +/- 2 bars);
--- ties resolve to the lowest pitch class.
---
--- Triadic tones state a chord's identity; the tones ABOVE the triad state
--- which key it belongs to. A bare triad is genuinely ambiguous and votes
--- widely and weakly; a seventh narrows the reading; the upper extensions
--- narrow it further and can redirect it outright — an altered dominant
--- points at a MINOR tonic, not the major key a fourth above, and a #11
--- over a major seventh rules out the subdominant reading. So extension
--- evidence is read before the plain seventh-and-triad cases.
-inferKeyCentre :: Pr.Progression -> [Pt.PitchClass]
-inferKeyCentre prog =
-  [ Pt.mkPitchClass (bestFor i) | i <- [0 .. n - 1] ]
-  where
-    bars = V.fromList (toList (Pr.unProgression prog))
-    n    = V.length bars
-
-    -- (key offset from chord root, votes) per quality class.
-    votesFor cs =
-      let r   = rootPCInt cs
-          ivs = Set.fromList
-                  [ Pt.unPitchClass iv `mod` 12
-                  | iv <- Hm.cadenceIntervals (Hm.stateCadence cs) ]
-          has = (`Set.member` ivs)
-          -- Upper-extension evidence, read on a dominant shell (3 + b7).
-          altered   = has 1 || has 8 || (has 3 && has 4)  -- b9 / b13-#5 / #9
-          unaltered = has 2 || has 9                      -- natural 9 / 13
-          offsets
-            -- Altered dominant: V of a MINOR tonic. Reported in the
-            -- major pool, so the vote lands on the relative major
-            -- (root + 8), not the parallel major a fourth up.
-            | has 4 && has 10 && altered = [(8, 6), (5, 2)]
-            -- Unaltered extended dominant: mixolydian confirmed. A #11
-            -- disqualifies it — that is the lydian-dominant / tritone-sub
-            -- colour, the one extension arguing AGAINST a plain V-of-a-
-            -- fourth-up reading, so those fall through to the plain V7
-            -- vote below rather than the strongest one in the function.
-            | has 4 && has 10 && unaltered && not (has 6) = [(5, 7)]
-            | has 4 && has 10            = [(5, 6)]                    -- V7
-            -- #11 over a major seventh is lydian colour: the chord is
-            -- the tonic of its own key, never the subdominant.
-            | has 4 && has 11 && has 6 && has 7 = [(0, 5)]
-            | has 4 && has 11            = [(0, 4), (7, 2)]            -- Imaj7 / IVmaj7
-            | has 3 && has 6 && not (has 4) = [(1, 4)]                 -- vii (half-dim pool)
-            | has 3                      = [(10, 4), (3, 3), (8, 2)]   -- ii / vi / iii, minor triad
-            | has 4                      = [(0, 4), (7, 2), (5, 2)]    -- major triad: I / IV / V
-            | otherwise                  = []
-      in [ ((r + off) `mod` 12, w) | (off, w) <- offsets ]
-
-    -- Distinct bar indices only: on progressions shorter than the window
-    -- the cyclic wrap must not count any bar's votes twice.
-    windowVotes i =
-      let idxs = Set.toList (Set.fromList [ (i + d) `mod` n | d <- [-2 .. 2] ])
-      in concat [ votesFor (bars V.! j) | j <- idxs ]
-
-    bestFor i =
-      let votes     = windowVotes i
-          total key = sum [ w | (k, w) <- votes, k == key ]
-      in snd (minimum [ (negate (total key) :: Integer, key) | key <- [0 .. 11 :: Int] ])
+-- The vote-window key detector ('inferKeyCentre') and its palette reader
+-- ('paletteSetsFor') retired in favour of the whole-progression key-area
+-- analysis in "Harmonic.Evaluation.Analysis.KeyArea" ('barPalettes') —
+-- one detector now feeds the walk's palettes AND the chordscale S/M
+-- layers, so the bass walks the same sets the layers display. The Markov
+-- boundary is unchanged: the analysis is a pure, derived quantity over a
+-- finished progression and never feeds back into generation.
 
 -------------------------------------------------------------------------------
 -- Pass 1 — Beat 1s (skeleton)
@@ -662,7 +594,7 @@ data B3Tiers = B3Tiers
   , b3Strong  :: V.Vector (Set Int)  -- ^ legal anchors ('kappaB3NonTarget')
   , b3Passing :: V.Vector (Set Int)  -- ^ favourable passing ('kappaB3Passing')
   , b3Avoid   :: V.Vector (Set Int)  -- ^ excluded from the pool entirely
-  , b3Palette :: V.Vector (Set Int)  -- ^ regional palette ('kappaB3NonChord')
+  , b3Palette :: V.Vector (Set Int)  -- ^ key-area palette ('kappaB3NonChord')
   , b3Fifth   :: V.Vector Int        -- ^ THE fifth's PC per bar, priced as a fifth
   }
 
@@ -775,7 +707,7 @@ connectorPool scale target =
 scoreConnector
   :: ConnectorPos
   -> Int            -- tension licence percentage (scales chromatic bonus)
-  -> Set Int        -- regional-key major-scale PCs (Minor Thirds Rule)
+  -> Set Int        -- key-area scale PCs (Minor Thirds Rule)
   -> Set Int        -- localScale_i (cyclic)
   -> Set Int        -- chord-tone gate (bass vocabulary: strong + passing)
   -> Set Int        -- strong-tier PCs (full beat-2 preference)
@@ -871,7 +803,7 @@ scoreConnector pos tensionPct keySet scale chord anchors l r isStatic isSymmetri
 -- | Fill beats 2 and 4 per bar.
 pass3Connectors
   :: Int                  -- tension licence percentage
-  -> V.Vector (Set Int)   -- regional-key major-scale PCs per bar
+  -> V.Vector (Set Int)   -- key-area scale PCs per bar
   -> V.Vector (Set Int)   -- local scales
   -> V.Vector Bool        -- per-bar symmetric-chord flags (raw chord sets)
   -> V.Vector (Set Int)   -- chord-tone gate PCs (bass vocabulary per bar)
@@ -962,7 +894,7 @@ walkLineDyn mDyn voiceFn prog
     dupOdd    = dupOddFlags barsV
     (biasV, dropV) = dynVectors nBars mDyn
     b1s       = pass1Beat1s biasV dropV pcs1 p5PCs dupOdd
-    keySetsV  = paletteSetsFor prog
+    keySetsV  = barPalettes prog
 
     symV      = V.map isSymmetricChord chordPCsV
     emptyV    = V.replicate nBars Set.empty
@@ -970,49 +902,6 @@ walkLineDyn mDyn voiceFn prog
     tiers     = B3Tiers chordPCsV chordPCsV emptyV emptyV keySetsV p5PCs
     b3s       = pass2Beat3s consPct symV tiers b1s fundPCs
     (b2s, b4s) = pass3Connectors tensionPct keySetsV localsV symV chordPCsV chordPCsV p5PCs b1s b3s fundPCs seed e
-
--- | Per-bar tonal palette (derived, walk-internal). Minor-turnaround
--- bars modulate internally, so chord QUALITY overrides the regional
--- key: a half-diminished bar takes the harmonic minor of the tonic a
--- whole step below (ii of minor); an altered dominant (b9/#9) takes
--- its altered scale (melodic minor a semitone up); a plain dominant
--- resolving up a fourth to a minor chord takes the target's harmonic
--- minor. All other bars take the major scale of the regional centre
--- from 'inferKeyCentre'. Purely local and deterministic — the Markov
--- boundary of 'inferKeyCentre' applies to the palettes too.
-paletteSetsFor :: Pr.Progression -> V.Vector (Set Int)
-paletteSetsFor prog =
-  V.fromList [ barPalette i k | (i, k) <- zip [0 ..] (inferKeyCentre prog) ]
-  where
-    barsV = V.fromList (toList (Pr.unProgression prog))
-    nBars = V.length barsV
-    barPalette i k =
-      let cs      = barsV V.! i
-          r       = rootPCInt cs
-          ivs     = Set.fromList
-                      [ Pt.unPitchClass iv `mod` 12
-                      | iv <- Hm.cadenceIntervals (Hm.stateCadence cs) ]
-          has     = (`Set.member` ivs)
-          nextCs  = barsV V.! ((i + 1) `mod` nBars)
-          nextR   = rootPCInt nextCs
-          nextIvs = Set.fromList
-                      [ Pt.unPitchClass iv `mod` 12
-                      | iv <- Hm.cadenceIntervals (Hm.stateCadence nextCs) ]
-          scaleAt base steps = Set.fromList [ (base + st) `mod` 12 | st <- steps ]
-          harmMinor t = scaleAt t [0, 2, 3, 5, 7, 8, 11]
-          altered     = scaleAt r [0, 1, 3, 4, 6, 8, 10]
-          domToMinor  = has 4 && has 10
-                        && (nextR - r) `mod` 12 == 5
-                        && 3 `Set.member` nextIvs
-      -- The half-diminished branch requires the absence of a major 3rd:
-      -- altered dominants that carry both #9 and #11 (3 and 6) belong to
-      -- the altered branch, not the minor-ii family.
-      in if | has 3 && has 6 && not (has 4) -> harmMinor ((r - 2) `mod` 12)
-            | has 4 && has 10
-                && (has 1 || has 3)         -> altered
-            | domToMinor                    -> harmMinor ((r + 5) `mod` 12)
-            | otherwise                     -> scaleAt (Pt.unPitchClass k)
-                                                 [0, 2, 4, 5, 7, 9, 11]
 
 -------------------------------------------------------------------------------
 -- Octatripentatonic-aware variant
@@ -1320,14 +1209,18 @@ walkLineJDyn mDyn voiceFn prog vocabs
     (biasV, dropV) = dynVectors nBars mDyn
     b1s       = pass1Beat1s biasV dropV pcs1 p5PCs dupOdd
     -- Two palettes, deliberately different widths. The WIDE one feeds the
-    -- beat-3 pool: the bar's own extensions join the inferred scale so a
-    -- colour tone stays reachable even when the scale would exclude it
-    -- (avoid tones are subtracted inside pass2Beat3s). The NARROW one is
-    -- the inferred key itself, and is what Pass 3's minor-thirds rule
-    -- must see — that rule pays full price only for the regional-diatonic
-    -- fill, so feeding it the widened set would let a b9 or #11 collect a
-    -- bonus meant for a scale tone.
-    keyNarrowV = paletteSetsFor prog
+    -- beat-3 pool: the bar's own chord tones join the key-area scale so
+    -- notated colour stays reachable even on a gap bar whose set cannot
+    -- contain the whole chord (avoid tones are subtracted inside
+    -- pass2Beat3s). The NARROW one — the bar's key-area scale itself
+    -- (its key form, or the override mode where the chord escapes every
+    -- form) — is what Pass 3's minor-thirds rule sees: on that bar those
+    -- tones ARE the scale, so the fill bonus is theirs, while fully
+    -- chromatic midpoints still pay the entropy-scaled price. Spot-tested
+    -- against a pure-form narrow variant (archive/analysis/mt_narrow.md):
+    -- zero walked beats distinguish the two on override-heavy material,
+    -- so the single palette source is kept.
+    keyNarrowV = barPalettes prog
     keyWideV   = V.zipWith Set.union keyNarrowV chordPCsV
     tiers     = B3Tiers targetV strongV passV avoidV keyWideV p5PCs
     b3s       = pass2Beat3s consPct symV tiers b1s fundPCs

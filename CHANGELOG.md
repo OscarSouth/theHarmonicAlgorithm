@@ -7,6 +7,30 @@ ________________________________________________________________________________
 The cumulative modernisation release: each block below lands as it completes;
 the version tags once the sweep is done.
 
+### Chordscale layers — key areas, modes and pentatonics for gen / genJ
+
+gen and genJ results now carry real S and M layers, derived by chord-scale
+analysis of the finished progression: a cyclic Viterbi walk over 24 key
+areas (12 major, 12 composite minor — one tonic realised per bar as its
+natural / harmonic / melodic form, so a minor ii-V-i reads as ONE key)
+segments the progression with probe-calibrated switch penalties and
+boundary bonuses, the M layer expresses each bar's key as the mode on its
+root, and the S layer carries the anhemitonic pentatonic that best covers
+the bar's guide tones with the fewest changes across the progression —
+allowed outside the key only where the harmony demands it. The layers
+voice through the same chroma engine as genP (degree semantics under
+`arrange`), print as mode names, and leave scoring, provenance and the
+genE / genP families untouched. `chordscale` applies the analysis to
+hand-built contexts; `chordscaleReport` prints the per-bar key / form /
+mode / pentatonic. Behaviour change to note: every non-T layer selector
+on a gen / genJ context (S, M, the combinations, PT) now plays the
+derived sets with degree semantics instead of degrading to the triad
+progression under the user's voicing function. The walking bass now consumes the same detector — the
+bass walks the sets the layers display — retiring the old vote-window
+key inference (every golden walk line survived the swap unchanged).
+Viability study and calibration: archive/analysis/keyarea.md, penta.md,
+walk_diff.md.
+
 ### Four families, one contract
 
 A pre-release consistency pass over gen / genE / genJ / genP. Progression
@@ -22,7 +46,13 @@ diagnostics and prints once for the attempt winner, `len` is clamped, and
 `seek "none"` is refused before any connection is opened. Jazz scoring
 keys the cue bar through the jazz namer, jazz regen keeps its layers
 duplicated at the seam, and `fund` returns the stored anchor on extended
-chords so every bass path agrees. Voicing no longer reroutes a whole jazz
+chords so every bass path agrees. `genP` draws its own starting chord from inside the
+stratum it names, so `genI`..`genXI` work uncued like every other family —
+they inherited the whole-corpus random cue, which a five-tone stratum
+almost never admits, and returned an empty progression in 86 of 88 measured
+draws. A cue you supply yourself is still never overridden, and one that
+escapes the stratum still earns the diagnostic listing the triads that
+would have fitted. Voicing no longer reroutes a whole jazz
 progression over one 13th chord (the scale-cluster guard is now measured
 against big-bar density), overlapped bars are renamed from the merged set,
 and combination-layer selectors are synthesized once at cache build, never
@@ -42,7 +72,14 @@ chooses freely per bar between the two geometries the algebra admits
 whole-layer dissonance. The `Layer` selectors grow to
 `T | S | M | TS | TM | SM | TSM | PT` — pairs, the pentad, and the pivot
 tones — and work through every instrument and `arrange` unchanged, on every
-family. `genFrom` regenerates polytonal contexts with the partner chains
+family. `attempt` ranks polytonal walks on all three layers — half the weight on
+the foundation, a quarter on each partner — plus a **divergence** axis
+measuring how far apart the layers stand: how often the partners take the
+base-anchored geometry rather than sharing a dyad, and how widely the three
+roots spread. Divergence is what the family is for, so it competes with
+quality rather than being a tiebreak; raising K now raises both. At Verbose
+the scoreboard shows the trade in its own columns. `genFrom` regenerates
+polytonal contexts with the partner chains
 seeded from the kept bars; `genEReport` prints every layer view at the REPL;
 the design is documented in `documents/POLYTONAL.md` with the full viability
 study in `archive/analysis/poly_viability.md`. The retired fusion machinery

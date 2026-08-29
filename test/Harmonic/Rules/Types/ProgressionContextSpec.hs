@@ -150,7 +150,7 @@ layerSpec = describe "layer — combination selectors" $ do
     mapM_ (\sel -> all zfOK (barsOf (PC.layer sel polyCtx)) `shouldBe` True)
           [PC.TS, PC.TM, PC.SM, PC.TSM, PC.PT]
 
-  it "degrades to the stored progression when all layers duplicate it (plain gen)" $ do
+  it "degrades to the stored progression when all layers duplicate it (raw hand-built)" $ do
     let genCtx = PC.fromProgression
           (Prog.fromCadenceStates [mkCS 0 [0,4,7], mkCS 7 [0,3,7]])
     mapM_ (\sel -> map absPCs (barsOf (PC.layer sel genCtx))

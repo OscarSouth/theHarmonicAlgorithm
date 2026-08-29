@@ -69,9 +69,10 @@ is total: under a crushing context the foundation degrades exactly as
   unions per bar rooted on the lowest constituent layer (T before S
   before M — the foundation owns a merged bass); `PT` synthesizes the
   pivot tones all three layers share (a dyad on common-dyad bars, the
-  single hub tone on base-anchored bars). Total for every family:
-  duplicated layers make every selector collapse to the stored
-  progression.
+  single hub tone on base-anchored bars). Total for every family; on
+  gen/genJ the layers are chordscale-derived (S a pentatonic, M a mode —
+  [CHORDSCALE.md](CHORDSCALE.md)), and only raw hand-built contexts
+  still collapse every selector to the stored progression.
 
 ### Generation (`Harmonic.Framework.Builder.PolyGen`)
 
@@ -104,6 +105,49 @@ is total: under a crushing context the foundation degrades exactly as
   combination selectors work everywhere with no signature changes. A
   layer used alone keeps its own roots and bass; the walking bass over
   an `FPoly` context walks the foundation (T) layer.
+
+### Voicing: the layers are harmony, not scales
+
+Every polytonal layer selection is voiced by the caller's `VoiceFunction` —
+the cyclic voice-leading DP under `flow` or `grid` — including the `SM` and
+`TSM` unions, which are five pitch classes on every bar.
+
+This is deliberate, and it is where genE parts company with the other
+families. In `gen`, `genP` and `genJ` the S and M layers are a pentatonic
+and a mode: scale forms, which take horizontal treatment (`strataModeFlow`'s
+degree semantics, register anchored to bar 0) because vertical
+chord-to-chord minimisation is the wrong question to ask of a key
+signature. A genE pentad is not a scale form. It is three stacked triads
+sounding at once — a polytonal *sonority* — so smooth vertical voice
+leading is exactly what it wants. `Bridge.layerForVoicing` excludes `FPoly`
+whole for this reason, and `hasBigChroma` correctly declines to reroute a
+uniform 5-PC progression.
+
+### Ranking: quality and divergence
+
+`attempt` scores a polytonal walk as three progressions rather than one.
+Each layer is scored in its own right and blended — **0.5** foundation,
+**0.25** each partner — because the foundation owns the bass and the
+harmonic spine while the partners colour it.
+
+A second axis measures **divergence**: how far the three layers stand
+apart, averaged over bars, from two readings —
+
+- *geometry* — partners sharing exactly two tones is the common-dyad
+  shape; anything else is base-anchored, where S and M sound the full
+  pentad against each other. The same test as `pdGeometry`, so the ranked
+  number and the printed label cannot disagree;
+- *root spread* — summed interval-class distance between the three roots,
+  normalised.
+
+Divergence is the purpose of the family, so it competes with quality
+rather than breaking ties: `total = 0.6 × quality + 0.4 × divergence`.
+The weight was calibrated against the requirement that raising `attempt`'s
+K must raise *both* means. At zero weight the selection's divergence
+actually falls as K rises — quality alone decides. Measured over two
+independent pools of 60 walks, divergence climbs 0.689 → 0.733 → 0.752 for
+K = 1 → 4 → 12 at the shipped weight, while quality still climbs 0.128.
+`genE''` prints the trade in its own scoreboard columns.
 
 ## Cross-references
 

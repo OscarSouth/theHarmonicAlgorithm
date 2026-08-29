@@ -961,6 +961,14 @@ hush
 -- (`?`, euclidean, sub-bar values) fall back to stored order
 -- with a printed notice.
 --
+-- Connector tones on beats 2/4 draw on the KEY-AREA palette —
+-- the same whole-progression analysis behind the chordscale
+-- S/M layers (Section 19): under a plain selection the bass
+-- walks the sets those layers display. Under a reordering
+-- selection the walk re-analyses the performed sequence
+-- (deliberately — it hears what is actually played), and its
+-- lines add chromatic approach tones beyond any stored set.
+--
 --   lineHarmony d k voiceFn patterns
 --     d        — dynamics: applied once inside lineHarmony (do
 --                NOT also |* vel d outside — that squares it).
@@ -1183,7 +1191,7 @@ hush
 
 
 -- ══════════════════════════════════════════════════════════
--- SECTION 19 — The three layers (T/S/M) & genP
+-- SECTION 19 — The three layers (T/S/M): genP & chordscale
 -- ══════════════════════════════════════════════════════════
 -- documents/OCTATRIPENTATONICS.md                       (the framework reference)
 -- src/Harmonic/Rules/Types/Scale.hs           (strata vocabulary)
@@ -1201,16 +1209,25 @@ hush
 -- (pairs), TSM (all three) and PT (the tones every layer shares),
 -- rooted on the lowest constituent layer — the foundation owns a
 -- merged bass. On genE contexts (SECTION 20) S and M are partner
--- TRIADS and the pairs are 4-note structures; on plain gen every
--- selector degrades to the triad progression.
--- Plain `gen` fills all three with the triad; the strata-first
--- generator `genP` populates them for real, by walking eleven
--- canonical pentatonic STRATA (I–XI) grouped into twelve curated
--- TRISTRATA whose pairwise unions are diatonic modes. Full
--- theory: documents/OCTATRIPENTATONICS.md.
+-- TRIADS and the pairs are 4-note structures.
+-- The strata-first generator `genP` populates the layers by
+-- walking eleven canonical pentatonic STRATA (I–XI) grouped into
+-- twelve curated TRISTRATA whose pairwise unions are diatonic
+-- modes (documents/OCTATRIPENTATONICS.md). gen and genJ DERIVE
+-- theirs by chordscale analysis: the whole progression segments
+-- into key areas (major, or composite minor), M = the key as the
+-- mode on each bar's root, S = the pentatonic that best covers
+-- the bar's guide tones with the fewest changes. The walking
+-- bass reads the SAME analysis, so it walks what the layers
+-- display.
 --
 --   genP <label>  — seed the walk at a strata; 33 aliases:
 --   genI..genXI (+ ' standard / '' verbose diagnostics)
+--
+-- genP picks its own starting chord from INSIDE the stratum it
+-- names, so genI..genXI work uncued. Pass `cue` for a particular
+-- door in; a chord that escapes the stratum is reported with the
+-- triads that would have fitted, never silently swapped.
 
 start <- lead "E min"
 
@@ -1247,6 +1264,18 @@ pcAbs <- seek "*" $ cue start $ absStrata "I V X" $ genI'
 
 -- Provenance + triads in one report:
 genPReport pcAbs
+
+-- ── CHORDSCALE LAYERS (gen / genJ) ──
+
+-- The same p19 selectors work on gen/genJ results — S plays the
+-- analysis pentatonics, M the detected modes. The report prints
+-- key | form | mode | pentatonic per bar, with boundary (<),
+-- override (!) and out-of-key (*) flags:
+pcCS <- seek "*" $ cue start $ len 8 $ entropy 0.5 $ gen
+chordscaleReport pcCS
+
+-- Hand-built material opts in explicitly:
+handCS = chordscale (fromChords [[0,4,7], [9,0,4], [2,5,9], [7,11,2]])
 
 -- ── CONTINUITY BOOSTS ──
 -- The walk prefers staying put. Three multipliers bias it
@@ -1306,6 +1335,23 @@ p20
 genEReport pc20
 
 -- ── COMPOSES LIKE EVERYTHING ELSE ──
+--
+-- Two things differ here from the other three families.
+--
+-- EVERY LAYER VOICES AS HARMONY — the caller's flow/grid solve,
+-- SM and TSM pentads included. A genE pentad is three stacked
+-- triads sounding at once, a polytonal SONORITY rather than a
+-- scale form, so vertical voice leading is the right question;
+-- the pentatonic/modal layers of gen/genP/genJ take degree
+-- semantics instead precisely because they are not that.
+--
+-- ATTEMPT RANKS ALL THREE LAYERS — half the weight on the
+-- foundation, a quarter on each partner — plus a DIVERGENCE axis:
+-- how often the partners take the base-anchored geometry, and how
+-- widely the three roots spread. Divergence is the point of the
+-- family, so it competes with quality rather than breaking ties.
+-- Raising K raises both; genE'' shows the trade in its own
+-- scoreboard columns.
 pc20'' <- seek "*" $ cue start $ len 8 $ attempt 3 12 $ entropy 0.4 $ genE''
 
 -- Regeneration is family-aware: the partner chains regenerate
@@ -1389,6 +1435,10 @@ p21 = do
 
 p21
 
+-- genJ results carry chordscale S/M layers like every gen
+-- result (Section 19) — the analysis view:
+chordscaleReport pc21
+
 -- ── TRY THIS ──
 -- The guided tour with live database probes is
 -- live/JAZZ_DIAGNOSTIC.tidal — work down it section by section.
@@ -1432,7 +1482,7 @@ hush
 -- ── THE PREFIX INDEX (live/snippets.cson) ──
 --   session      transport · state (a full launch block) ·
 --                movement (a full suite-movement skeleton)
---   generation   lead · ctx · gen · formless · dance
+--   generation   lead · ctx · gen · gene · chordscale · formless · dance
 --   launcher     launch · p · rrange · slate · minimal · deeptech
 --   groove/lines subk · walk
 --   motifs       mpanel · motif · develop
@@ -1469,6 +1519,8 @@ hush
 --   USER_GUIDE.md                — readable version of this guide
 --   CHANGELOG.md                 — V3 feature summary
 --   documents/OCTATRIPENTATONICS.md        — strata/tristrata reference
+--   documents/POLYTONAL.md                 — genE polytonal framework
+--   documents/CHORDSCALE.md                — key areas & chordscale layers
 --   documents/ALGORITHMIC_ORCHESTRATION.md — virtual orchestra
 --   documents/ARCHITECTURE.md              — R→E→T, layers, graph schema
 --
@@ -1495,6 +1547,10 @@ hush
 --   pc <- seek "*" $ cue start $ len 8 $ genVI'    -- genI..genXI ·'·''
 --   hcTristrata "5" · relStrata "1 2 3" · absStrata "I V X"
 --   sameBoost/flipBoost/triBoost N · genPReport pc
+--
+-- Chordscale (gen / genJ — automatic S/M layers):
+--   chordscaleReport s        -- key | form | mode | penta per bar
+--   chordscale ctx            -- opt a hand-built context in
 --
 -- Context modifiers (compose with $, right-to-left):
 --   hContext, hcOvertones, hcKey, hcRoots, hcPedal,
@@ -1528,8 +1584,9 @@ hush
 -- Explicit: fromChords [[0,4,7], ...] · prog (notesToPCs <$> [[C,E,G]])
 --           fromCadenceStates [initCadenceState mov "Root" [ints], ...]
 --
--- Snippets (Pulsar): transport · state · lead · ctx · gen ·
---   formless · dance · launch · p · rrange · slate · minimal ·
---   deeptech · subk · walk · mpanel · motif · develop · cc · disp
+-- Snippets (Pulsar): transport · state · movement · lead · ctx ·
+--   gen · gene · chordscale · formless · dance · launch · p ·
+--   rrange · slate · minimal · deeptech · subk · walk · mpanel ·
+--   motif · develop · cc · disp
 
 hush

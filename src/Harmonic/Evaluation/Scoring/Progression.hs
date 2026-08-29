@@ -37,6 +37,13 @@ module Harmonic.Evaluation.Scoring.Progression
   , cadenceFavFromMap
   , scoreProgressionOnline
   , scoreProgressionJazz
+    -- * Polytonal scoring (genE)
+  , PolyScore(..)
+  , polyLayerWeights
+  , polyDivergenceWeight
+  , polyDivergence
+  , scorePoly
+  , scorePolyOnline
   , jazzChangeKey
   , TransitionCache
   , newTransitionCache
@@ -208,9 +215,11 @@ scoreVoiceLeading prog
 -- |Fraction of bars whose mode-layer cardinality is 7 (i.e. 'Harmonic.Rules.Types.Scale.ModeOk' shape).
 --
 -- For walk-generated 'Harmonic.Framework.Builder.genP' contexts (pcProvenance = Just) the Phase 1
--- invariant guarantees @1.0@. For legacy 'Harmonic.Framework.Builder.gen' contexts (pcProvenance =
--- Nothing) the mode layer duplicates the triad layer (3 PCs), so this
--- check is not meaningful — returns @1.0@.
+-- invariant guarantees @1.0@. The gate is PROVENANCE, not layer content:
+-- contexts without it (gen\/genJ chordscale-derived layers — 7-PC by
+-- construction — genE partner triads, hand-built material) return @1.0@
+-- because the strata mode-validity contract only exists where a strata
+-- walk produced the layers.
 scoreModeValidity :: PC.ProgressionContext -> Double
 scoreModeValidity pc =
   case PC.pcProvenance pc of
@@ -232,6 +241,142 @@ totalScore w ps =
   + wVoiceLeading w * psVoiceLeading ps
   + wCadenceFav   w * psCadenceFav   ps
   + wModeValidity w * psModeValidity ps
+
+-------------------------------------------------------------------------------
+-- Polytonal scoring (genE)
+-------------------------------------------------------------------------------
+
+-- |Composite score for a polytonal ('PC.FPoly') context. The other three
+-- families are one progression wearing three hats; genE is genuinely three
+-- progressions, so ranking its attempts on the foundation alone would leave
+-- the partner chains — the whole point of the family — unselected.
+data PolyScore = PolyScore
+  { pyT          :: !ProgressionScore  -- ^ Foundation layer, scored alone
+  , pyS          :: !ProgressionScore  -- ^ First partner chain
+  , pyM          :: !ProgressionScore  -- ^ Second partner chain
+  , pyQuality    :: !Double            -- ^ Weighted blend of the three, @[0, 1]@
+  , pyDivergence :: !Double            -- ^ How far apart the layers stand, @[0, 1]@
+  , pyTotal      :: !Double            -- ^ Ranking value, @[0, 1]@
+  } deriving (Show, Eq)
+
+-- |Layer weights for 'pyQuality': foundation, then each partner. The
+-- foundation owns the bass and the harmonic spine, so it carries half; the
+-- partners colour it and split the rest.
+polyLayerWeights :: (Double, Double, Double)
+polyLayerWeights = (0.5, 0.25, 0.25)
+
+-- |Share of 'pyTotal' carried by 'pyDivergence' rather than 'pyQuality'.
+--
+-- A weighted sum rather than a multiplier: quality still leads, and
+-- divergence discriminates between walks that are otherwise equally good.
+--
+-- Calibrated 2026-08-29 against the requirement that raising @attempt@'s K
+-- must raise BOTH the mean quality and the mean divergence of the selection.
+-- Two independent offline pools of 60 genE walks (len 6, entropy 0.4), 20k
+-- selection trials per cell, means of the selected attempt:
+--
+-- @
+-- weight   divergence K=1 -> 4 -> 12      quality gain K=1->12
+--  0.00    0.685  0.696  0.682  (FALLS)          +0.143
+--  0.25    0.690  0.714  0.730  (+0.040)         +0.137
+--  0.40    0.689  0.733  0.752  (+0.063)         +0.128
+--  0.50    0.691  0.744  0.764  (+0.074)         +0.118
+-- @
+--
+-- At zero the selection's divergence actually falls as K rises — quality
+-- alone decides, which is the failure this axis exists to prevent. 0.25
+-- rises but flattens between K=4 and K=12. 0.40 is the knee: it buys 57%
+-- more divergence gain than 0.25 for less than a hundredth of quality gain,
+-- and both means climb monotonically. Past 0.50 the quality gain erodes
+-- faster than divergence improves.
+polyDivergenceWeight :: Double
+polyDivergenceWeight = 0.40
+
+-- |Absolute pitch classes of a bar, deduplicated.
+barPCs :: H.CadenceState -> [Int]
+barPCs cs =
+  let r   = P.unPitchClass (P.pitchClass (H.stateCadenceRoot cs))
+      ivs = map P.unPitchClass (H.cadenceIntervals (H.stateCadence cs))
+  in nub [ (iv + r) `mod` 12 | iv <- ivs ]
+
+-- |Bar root as an absolute pitch class.
+barRootPC :: H.CadenceState -> Int
+barRootPC = P.unPitchClass . P.pitchClass . H.stateCadenceRoot
+
+-- |How far a polytonal context's three layers stand apart, @[0, 1]@,
+-- averaged over bars. Two equally-weighted readings:
+--
+-- * GEOMETRY — the partners sharing exactly two tones is the common-dyad
+--   shape; anything else is base-anchored, where S and M sound the full
+--   pentad against each other. Deliberately the same test as @PolyGen@'s
+--   @pdGeometry@, so the number the ranker optimises and the label the
+--   diagnostics print can never disagree.
+--
+-- * ROOT SPREAD — summed interval-class distance between the three roots,
+--   normalised by its maximum. Three triads on distant roots read as more
+--   polytonal than three sharing a neighbourhood.
+polyDivergence :: PC.ProgressionContext -> Double
+polyDivergence pc =
+  let bars = zip3 (toList (Prog.unProgression (PC.triadLayer  pc)))
+                  (toList (Prog.unProgression (PC.strataLayer pc)))
+                  (toList (Prog.unProgression (PC.modeLayer   pc)))
+  in case bars of
+       [] -> 0.0
+       _  -> sum (map barDivergence bars) / fromIntegral (length bars)
+
+-- |Per-bar term of 'polyDivergence'.
+barDivergence :: (H.CadenceState, H.CadenceState, H.CadenceState) -> Double
+barDivergence (t, s, m) =
+  let sPCs   = barPCs s
+      shared = length (filter (`elem` barPCs m) sPCs)
+      geom   = if shared == 2 then 0.0 else 1.0
+      ic a b = let d = abs (a - b) in fromIntegral (min d (12 - d)) :: Double
+      spread = (ic (barRootPC t) (barRootPC s)
+              + ic (barRootPC t) (barRootPC m)
+              + ic (barRootPC s) (barRootPC m)) / 18.0
+  in 0.5 * geom + 0.5 * spread
+
+-- |A layer read as a progression in its own right, so the ordinary scorers
+-- apply to it unchanged.
+layerAlone :: (PC.ProgressionContext -> Prog.Progression)
+           -> PC.ProgressionContext -> PC.ProgressionContext
+layerAlone sel = PC.fromProgression . sel
+
+-- |Assemble a 'PolyScore' from three per-layer scores and a divergence.
+assemblePoly :: ProgressionScoreWeights
+             -> ProgressionScore -> ProgressionScore -> ProgressionScore
+             -> Double -> PolyScore
+assemblePoly w t s m d =
+  let (wt, ws, wm) = polyLayerWeights
+      q  = wt * totalScore w t + ws * totalScore w s + wm * totalScore w m
+      wd = polyDivergenceWeight
+  in PolyScore
+       { pyT = t, pyS = s, pyM = m
+       , pyQuality = q
+       , pyDivergence = d
+       , pyTotal = (1 - wd) * q + wd * d
+       }
+
+-- |Pure polytonal score — all three layers on the offline components.
+scorePoly :: ProgressionScoreWeights -> PC.ProgressionContext -> PolyScore
+scorePoly w pc =
+  assemblePoly w
+    (scoreProgression (layerAlone PC.triadLayer  pc))
+    (scoreProgression (layerAlone PC.strataLayer pc))
+    (scoreProgression (layerAlone PC.modeLayer   pc))
+    (polyDivergence pc)
+
+-- |Online polytonal score. Each partner bar is a real graph continuation of
+-- its own chain, so cadence favourability is as meaningful for the partners
+-- as for the foundation and all three are fetched. The shared
+-- 'TransitionCache' keeps the extra passes cheap across a K-attempt loop.
+scorePolyOnline :: TransitionCache -> Text -> ProgressionScoreWeights
+                -> PC.ProgressionContext -> DbActionT PolyScore
+scorePolyOnline cache blend w pc = do
+  t <- scoreProgressionOnline cache blend (layerAlone PC.triadLayer  pc)
+  s <- scoreProgressionOnline cache blend (layerAlone PC.strataLayer pc)
+  m <- scoreProgressionOnline cache blend (layerAlone PC.modeLayer   pc)
+  pure (assemblePoly w t s m (polyDivergence pc))
 
 -------------------------------------------------------------------------------
 -- Cadence-favourability aggregation (pure helper for Phase 5)

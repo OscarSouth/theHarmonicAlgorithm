@@ -174,7 +174,7 @@ do
 Three concepts:
 - **`at time kinetics dynamics progression`** ([`Form.hs`](src/Harmonic/Interface/Tidal/Form.hs)) — a form node. With one node the signals are constant. (`at` has siblings — `at'` snaps, `rh`/`rh'` take bars; [§13](#13-kinetics-form-programmed-arc).)
 - **`iK tempo formNodes chordSelection`** — bundles everything a launcher needs into one `IK` context.
-- **`arrange (lo,hi) k (-9,9) T voicing modifier [patterns]`** ([`Bridge.hs`](src/Harmonic/Interface/Tidal/Bridge.hs)) — maps patterns of voicing *degrees* across the progression. `(0,1)` is the kinetics gate, `(-9,9)` the register, `T` the progression layer (triads; `S`/`M` arrive in [§19](#19-the-three-layers-tsm--genp)).
+- **`arrange (lo,hi) k (-9,9) T voicing modifier [patterns]`** ([`Bridge.hs`](src/Harmonic/Interface/Tidal/Bridge.hs)) — maps patterns of voicing *degrees* across the progression. `(0,1)` is the kinetics gate, `(-9,9)` the register, `T` the progression layer (triads; `S`/`M` arrive in [§19](#19-the-three-layers-tsm-genp--chordscale)).
 
 `rep s 1` auto-derives one-chord-per-bar from the progression length. One cycle is one beat; bar-length patterns carry `/4`.
 
@@ -316,7 +316,7 @@ arrange (0, 1) k (-9, 9) T root (overlapF 0) ["~", "[0]/1"]       # ch 01 |- oct
 
 **How** — the voicing function is the 5th argument of `arrange` (after the layer). Everything else stays identical. Stack multiple `arrange` calls with different voicings in one launcher to build a full texture.
 
-Two behaviors worth knowing: **mixed chord sizes voice-lead for real** — a triad flowing into a 4-note chord (a `lead'` cue, hand-built material) is costed by aligning the larger chord's outer and inner voices onto the smaller, so seams hold common tones instead of jumping register; and **scale-sized bars route themselves** — any bar with 6+ pitch classes gets `strataModeFlow`'s degree semantics (the engine built for the S/M chroma layers) rather than a chord-voice-leading solve that would be both slow and the wrong musical question. Everything harmony-sized (up to 5 voices) gets the full cyclic DP.
+Two behaviors worth knowing: **mixed chord sizes voice-lead for real** — a triad flowing into a 4-note chord (a `lead'` cue, hand-built material) is costed by aligning the larger chord's outer and inner voices onto the smaller, so seams hold common tones instead of jumping register; and **chroma layers route themselves** — the S/M layers of genP and of chordscale-derived gen/genJ contexts always take `strataModeFlow`'s degree semantics through `arrange`, as does any bar with 6+ pitch classes, rather than a chord-voice-leading solve that would be both slow and the wrong musical question. Everything harmony-sized (up to 5 voices) gets the full cyclic DP — including a bare 5-PC pentatonic layer voiced DIRECTLY with `flow (layer S s)` outside `arrange`, so prefer the `arrange` layer argument for degree semantics.
 
 **Try it** — compare `flow` and `grid` on a long progression. Add a second `arrange` with `root` and an octave offset for a bass line.
 
@@ -419,6 +419,12 @@ interleave s (transposeP 5 s)
 transposeP 7 $ rotate 3 $ s                              -- chains
 ```
 
+**Chordscale staleness** — bar-aligned combinators (`rotate`, `excerpt`, `reverse`, `expandP`, `interleave`, octave `transposeP`) carry each bar's derived S/M layers with it, but the key *boundaries* they encode reflect the pre-edit whole-progression analysis; bar-substituting edits (`insert`, `switch`, `clone`) mix cardinalities and drop the layers out of chroma routing entirely. Re-run the analysis for a fresh reading:
+
+```haskell
+chordscale $ rotate 2 s
+```
+
 **Try it** — `expandP 2 s` to slow the harmonic rhythm. `progOverlapF 1 s` for natural sustain. `insert (extract 5 sOther) 5 s` borrows a bar from another progression. `genGrid` in a seek chain skips traversal entirely and prints the raw candidate grid.
 
 > **▶ VIDEO — Pure transformations**
@@ -489,7 +495,7 @@ s8' <- seek "*" $ entropy 0.5 $ genFrom s8 3 4          -- bars 3–4 only
 s8'' <- seek "*" $ attempt 3 12 $ entropy 0.5 $ genFrom s8 3 4  -- ranked patch
 ```
 
-`genFrom s a b` regenerates bars `a..b` (1-indexed, **wrap-aware**: on a 5-bar progression, `genFrom s 4 2` walks bars 4, 5, 1, 2 and keeps 3). The cue is auto-inferred from the bar before `a` so the new material connects; override with `cue`. The printed grid is always the **full spliced progression** — the source with the new bars in place.
+`genFrom s a b` regenerates bars `a..b` (1-indexed, **wrap-aware**: on a 5-bar progression, `genFrom s 4 2` walks bars 4, 5, 1, 2 and keeps 3). The cue is auto-inferred from the bar before `a` so the new material connects; override with `cue`. The printed grid is always the **full spliced progression** — the source with the new bars in place. On gen/genJ results the chordscale S/M layers are re-derived over the whole spliced progression (key boundaries are a global property, so a patch can legitimately move them).
 
 Diagnostic variants mirror `gen`: `genFrom'` (standard trace), `genFrom''` (verbose; scoreboard under `attempt`). Composes with the whole modifier chain.
 
@@ -637,9 +643,9 @@ ___
 
 ## 16. Walking lines (`walk` / `lineHarmony`)
 
-**Why** — a walking bassline synthesised from the progression: consonant anchors on the strong beats (root on 1; P5/root/3rds on 3), weighted connectors on beats 2 and 4 preferring sandwich motion and approach tones, and a soft direction-persistence bias on the beat-1 contour. The walk follows the **performed** bar order — warp/rep selections resolve at eval time, repeated bars walk as neighbours (root–fifth alternation), approach tones aim at the bar that actually comes next; non-periodic selections fall back to stored order with a printed notice. Jazz progressions (`genJ`) walk from a per-quality **bass vocabulary** rather than the raw corpus set: the fifth a 13th chord omits is restored, an altered dominant's #5 replaces the natural 5 it does not contain, notated colours (b9, #9, #11, b13) stay off strong beats while remaining available as weak-beat tension, and the 9th and 11th act as favourable passing tones. `genP` walks its strata chroma as before; `gen` walks the plain tone sets, and `genE` walks its foundation (T) layer — the layer that owns the bass.
+**Why** — a walking bassline synthesised from the progression: consonant anchors on the strong beats (root on 1; P5/root/3rds on 3), weighted connectors on beats 2 and 4 preferring sandwich motion and approach tones, and a soft direction-persistence bias on the beat-1 contour. The walk follows the **performed** bar order — warp/rep selections resolve at eval time, repeated bars walk as neighbours (root–fifth alternation), approach tones aim at the bar that actually comes next; non-periodic selections fall back to stored order with a printed notice. Jazz progressions (`genJ`) walk from a per-quality **bass vocabulary** rather than the raw corpus set: the fifth a 13th chord omits is restored, an altered dominant's #5 replaces the natural 5 it does not contain, notated colours (b9, #9, #11, b13) stay off strong beats while remaining available as weak-beat tension, and the 9th and 11th act as favourable passing tones. `genP` walks its strata chroma as before; `gen` walks the plain tone sets, and `genE` walks its foundation (T) layer — the layer that owns the bass. Connector tones on beats 2/4 draw on the **key-area palette** — the same whole-progression analysis behind the chordscale S/M layers (§19), so under a plain selection the bass walks the sets those layers display. Under a reordering selection the walk re-analyses the performed sequence (deliberately — it hears what is actually played), and its lines add chromatic approach tones beyond any stored set.
 
-**What** — [`LineHarmony.hs`](src/Harmonic/Interface/Tidal/LineHarmony.hs), [`WalkingBass.hs`](src/Harmonic/Traversal/WalkingBass.hs)
+**What** — [`LineHarmony.hs`](src/Harmonic/Interface/Tidal/LineHarmony.hs), [`WalkingBass.hs`](src/Harmonic/Traversal/WalkingBass.hs), [`KeyArea.hs`](src/Harmonic/Evaluation/Analysis/KeyArea.hs)
 
 ```haskell
 walk f k d = p "lineHarmony"
@@ -658,7 +664,7 @@ do
 
 The patterns are 1-indexed **beat positions** (which beats of each bar the line sounds on), not voicing degrees. The list length N partitions the kinetics signal into N `kinPick` windows and only the window holding the current signal plays — a leading `"~"` silences the low-kinetics half. The `d` argument is applied once inside `lineHarmony`; do **not** also `|* vel d` outside (that squares the dynamic). Dynamics also steer the walk: bars quieter than the piece's own mean bias the register arc upward, louder bars downward, and a sudden drop (0.25+ between bars) resets the line to its lowest note — only eval-time-sampleable dynamics count (the `d` argument and form-node dynamics; live control signals and downstream `|* vel` are walk-neutral). The line is fixed to a 21-semitone double-bass register (E1–C3 at the default patch; the absolute octave depends on the synth via `tidalNoteOffset`); `voiceFn` (`root` or `fund`) anchors beat 1. Sparser feels compose like any Tidal pattern: `"[1 3]/4"` (two-feel), `"[1 2 ~ 4]/4"`, `"[1 [2 2] 3 4]/4"` (eighth-note fill).
 
-For octatripentatonic progressions ([§19](#19-the-three-layers-tsm--genp)) the line's connector pool automatically reweights toward the 5-PC strata set — the walk speaks the same dialect as the harmony.
+For octatripentatonic progressions ([§19](#19-the-three-layers-tsm-genp--chordscale)) the line's connector pool automatically reweights toward the 5-PC strata set — the walk speaks the same dialect as the harmony.
 
 **Try it** — mute the pad and listen to the line alone: the strong beats carry the changes by themselves.
 
@@ -779,22 +785,22 @@ otherwise a perfectly good `rev` reads as a no-op:
 
 ___
 
-## 19. The three layers (T/S/M) & `genP`
+## 19. The three layers (T/S/M): `genP` & chordscale
 
 **Why** — every progression carries three bar-aligned layers, and patterns choose which to read:
 
-| Layer | genP content | genE content | Practice analogue |
-|---|---|---|---|
-| `T` | the triads (3 PCs) | the foundation triads | chord playing |
-| `S` | a pentatonic per bar (5 PCs) | the less dissonant partner triad | pattern playing |
-| `M` | a diatonic mode per bar (7 PCs) | the more dissonant partner triad | scale/modal playing |
-| `TS` `TM` `SM` | layer unions | 4-note pair structures | comping voicings |
-| `TSM` | full union | the 5-tone pentad | tutti verticals |
-| `PT` | (the triad) | the pivot tones all three layers share | pedal/anchor lines |
+| Layer | genP content | gen / genJ content | genE content | Practice analogue |
+|---|---|---|---|---|
+| `T` | the triads (3 PCs) | the chords | the foundation triads | chord playing |
+| `S` | a pentatonic per bar (5 PCs) | the best-fit pentatonic per bar (5 PCs) | the less dissonant partner triad | pattern playing |
+| `M` | a diatonic mode per bar (7 PCs) | the detected key as the mode on the bar root (7 PCs) | the more dissonant partner triad | scale/modal playing |
+| `TS` `TM` `SM` | layer unions | layer unions | 4-note pair structures | comping voicings |
+| `TSM` | full union | full union (= M) | the 5-tone pentad | tutti verticals |
+| `PT` | (the triad) | the chord tones the pentatonic keeps | the pivot tones all three layers share | pedal/anchor lines |
 
-Every selector works on every context: combination bars are pointwise unions rooted on the lowest constituent layer (T before S before M — the foundation owns the merged bass), and on plain `gen` contexts every selector degrades to the triad progression. Plain `gen` fills all three stored layers with the triad. The strata-first generator **`genP`** populates them by walking eleven canonical pentatonic **strata** (I–XI) grouped into twelve curated **tristrata** whose pairwise unions are diatonic modes (full theory: [`OCTATRIPENTATONICS.md`](documents/OCTATRIPENTATONICS.md)); the polytonal generator **`genE`** fills them with independent partner triad chains (§20, [`POLYTONAL.md`](documents/POLYTONAL.md)).
+Every selector works on every context: combination bars are pointwise unions rooted on the lowest constituent layer (T before S before M — the foundation owns the merged bass). The strata-first generator **`genP`** populates the layers by walking eleven canonical pentatonic **strata** (I–XI) grouped into twelve curated **tristrata** whose pairwise unions are diatonic modes (full theory: [`OCTATRIPENTATONICS.md`](documents/OCTATRIPENTATONICS.md)); the polytonal generator **`genE`** fills them with independent partner triad chains (§20, [`POLYTONAL.md`](documents/POLYTONAL.md)). **`gen` and `genJ` derive theirs by chordscale analysis**: the whole progression is segmented into key areas (major, or composite minor — one tonic realised per bar as natural / harmonic / melodic form), the M layer is the key expressed as the mode on each bar's root, and the S layer is the anhemitonic pentatonic that best covers the bar's guide tones with the fewest changes across the progression — out-of-key pentatonics allowed only where the harmony demands one. The same analysis feeds the walking bass (§16), so the bass walks the sets the layers display. `chordscale` applies it by hand to `lead'`-built contexts; `chordscaleReport` prints the per-bar key / form / mode / pentatonic with boundary (`<`), override (`!`) and out-of-key (`*`) flags.
 
-**What** — [`Builder.hs`](src/Harmonic/Framework/Builder.hs), [`Strata.hs`](src/Harmonic/Framework/Builder/Strata.hs)
+**What** — [`Builder.hs`](src/Harmonic/Framework/Builder.hs), [`Strata.hs`](src/Harmonic/Framework/Builder/Strata.hs), [`KeyArea.hs`](src/Harmonic/Evaluation/Analysis/KeyArea.hs), [`ChordscaleT.hs`](src/Harmonic/Interface/Tidal/ChordscaleT.hs) — full theory: [`CHORDSCALE.md`](documents/CHORDSCALE.md)
 
 ```haskell
 -- 33 aliases: genI..genXI × {plain, ', ''}
@@ -806,7 +812,12 @@ arrange (0,1) k (-9,9) S flow (overlapF 0) ["~", "[0 1 2 3]/4"]   -- strata
 arrange (0,1) k (-9,9) M flow (overlapF 0) ["~", "[0 1 2 3]/4"]   -- modes
 ```
 
-`genP'` prints a per-bar block: triad selection + active strata (5 PCs) + classified mode (7 PCs) + tristrata identity — the full anatomy, in one coherent spelling system.
+`genP'` prints a per-bar block: triad selection + active strata (5 PCs) + classified mode (7 PCs) + tristrata identity — the full anatomy, in one coherent spelling system. For gen / genJ contexts the analysis view is:
+
+```haskell
+pcCS <- seek "*" $ cue start $ len 8 $ entropy 0.5 $ gen
+chordscaleReport pcCS               -- key | form | mode | pentatonic per bar
+```
 
 **Steering the walk:**
 
@@ -818,6 +829,8 @@ genPReport pc                       -- provenance + triads in one report
 ```
 
 **Continuity boosts** — the walk prefers staying put; three multipliers bias it (defaults 0.90/0.80/0.70; `1.0` disables): `sameBoost` (same strata as last bar), `flipBoost` (same as two bars ago), `triBoost` (same tristrata).
+
+`genP` picks its own starting chord from inside the stratum it names, so `genI`..`genXI` work uncued; pass `cue` when you want a particular door in, and a chord that escapes the stratum is reported with the triads that would have fitted rather than silently swapped.
 
 **Try it** — `S`-layer patterns under a soloist is pentatonic practice with moving ground. `attempt 3 12 $ … $ genVI''` ranks whole walks. The walking bass (§16) reweights automatically over `genP` progressions.
 
@@ -842,6 +855,8 @@ s <- seek "*" $ cue start $ len 8 $ entropy 0.3 $ genE'   -- genE / genE' / genE
 ```
 
 Cues are triadic (a 4-note cue is refused — the combined structures come from the layers). The zero-prime output prints the foundation grid plus the combined `TSM` grid; `genE'` adds a per-bar table (partners, pair structures, pentad, pivot tones); `genE''` adds the selection facts (geometry, pool tier and size, own-list ranks). At the REPL, `genEReport s` prints every layer view a pattern can select.
+
+Two things behave differently here from the other three families. **Every layer voices as harmony** — the caller's `flow`/`grid` solve, `SM` and `TSM` pentads included. A genE pentad is three stacked triads sounding at once, a polytonal sonority rather than a scale form, so vertical voice leading is the right question to ask of it; the pentatonic and modal layers of `gen`/`genP`/`genJ` take degree semantics instead precisely because they are *not* that (§19). And **`attempt` ranks all three layers** — half the weight on the foundation, a quarter on each partner — plus a **divergence** axis measuring how far apart they stand: how often the partners take the base-anchored geometry, and how widely the three roots spread. Divergence is the point of the family, so it competes with quality rather than breaking ties, and raising K raises both. `genE''` shows the trade in its own scoreboard columns.
 
 ```haskell
 arrange (0,1) k (-9,9) T   flow (overlapF 0) ["~", "[0 1 2 3]/4"]  -- foundation alone
@@ -908,7 +923,7 @@ s' <- seek "*" $ entropy 0.6 $ genFrom s 3 4
 s2 <- seek "*" $ attempt 3 8 $ cue start $ len 8 $ genJ''   -- scoreboard
 ```
 
-Output is an ordinary `ProgressionContext`: `flow`/`grid` voice the 3–6-tone chords, `arrange` and the walking bass play them unchanged.
+Output is an ordinary `ProgressionContext`: `flow`/`grid` voice the 3–6-tone chords, `arrange` and the walking bass play them unchanged — and it carries chordscale S/M layers like every gen result (`chordscaleReport s` prints the detected keys, modes and pentatonics; §19).
 
 **Try it** — the guided tour with live database probes is [`live/JAZZ_DIAGNOSTIC.tidal`](live/JAZZ_DIAGNOSTIC.tidal); work down it section by section.
 
@@ -938,7 +953,7 @@ None is "more correct" — they trade immediacy against decidedness. A performan
 | Group | Prefixes |
 |---|---|
 | Session | `transport` · `state` · `movement` |
-| Generation | `lead` · `ctx` · `gen` · `formless` · `dance` |
+| Generation | `lead` · `ctx` · `gen` · `gene` · `chordscale` · `formless` · `dance` |
 | Launchers | `launch` · `p` · `rrange` · `slate` · `minimal` · `deeptech` |
 | Groove & lines | `subk` · `walk` |
 | Motifs | `mpanel` · `motif` · `develop` |
@@ -987,13 +1002,15 @@ s <- seek "bach:30 debussy:70" $ ... $ gen'                  -- blend + diagnost
 s <- seek "none" $ ... $ gen                                 -- offline fallback
 ```
 
-**Rank & select** — `attempt N K` (best of K, stop at N viable), `viability T` (floor, default 0.5); scoreboard under `gen''`.
+**Rank & select** — `attempt N K` (best of K, stop at N viable), `viability T` (floor, default 0.5); scoreboard under `gen''`. Polytonal walks rank on all three layers plus divergence (§20).
 
 **Regenerate in place** — `genFrom s a b` (wrap-aware, cue auto-inferred), `genFrom'`/`genFrom''`.
 
 **Strata-first (T/S/M)** — `genI..genXI` (+`'`/`''`); `hcTristrata "5"`, `relStrata "1 2 3"`, `absStrata "I V X"`, `sameBoost`/`flipBoost`/`triBoost N`, `genPReport`.
 
 **Polytonal (genE)** — `genE`/`genE'`/`genE''`: foundation walk + two partner triad chains; layer selectors `TS`/`TM`/`SM`/`TSM`/`PT` for pairs, the pentad and the pivot tones; `genEReport s` prints every layer view.
+
+**Chordscale (gen / genJ)** — automatic S (pentatonic) / M (mode) layers from key-area analysis; `chordscale` opts hand-built contexts in; `chordscaleReport s` prints key / form / mode / pentatonic per bar.
 
 **Context modifiers** — compose with `$`, right-to-left: `hContext`, `hcOvertones`, `hcKey`, `hcRoots`, `hcPedal`, `consonant`, `dissonant`, `invSkip`, `hcTristrata`.
 
@@ -1020,7 +1037,7 @@ arrange' (lo,hi) k (-9,9) LAYER voicing modifier [patterns] # ch N   -- squeeze 
 
 **Explicit** — `fromChords [[0,4,7], …]`; `prog (notesToPCs <$> [[C,E,G], …])`; `fromCadenceStates [initCadenceState mov "Root" [ints], …]`.
 
-**Snippets (Pulsar)** — `transport` · `state` · `movement` · `lead` · `ctx` · `gen` · `formless` · `dance` · `launch` · `p` · `rrange` · `slate` · `minimal` · `deeptech` · `subk` · `walk` · `mpanel` · `motif` · `develop` · `cc` · `disp`.
+**Snippets (Pulsar)** — `transport` · `state` · `movement` · `lead` · `ctx` · `gen` · `gene` · `chordscale` · `formless` · `dance` · `launch` · `p` · `rrange` · `slate` · `minimal` · `deeptech` · `subk` · `walk` · `mpanel` · `motif` · `develop` · `cc` · `disp`.
 
 ___
 

@@ -60,6 +60,7 @@ import qualified Harmonic.Rules.Types.Progression as Prog
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import           Harmonic.Rules.Import.Graph (connectNeo4j)
 import           Harmonic.Framework.Builder.Types
+import           Harmonic.Evaluation.Analysis.KeyArea (chordscale)
 import           Harmonic.Framework.Builder.Core (matchesContextWithTarget)
 import           Harmonic.Traversal.Probabilistic (gammaIndexScaledWith)
 
@@ -103,7 +104,7 @@ runJazzGen gc = do
   traceLines <- drainTrace env
   let allStates = cue0 : states
       prog      = Prog.fromCadenceStates allStates
-      pc        = (PC.fromProgression prog) { PC.pcFamily = PC.FJazz }
+      pc        = chordscale ((PC.fromProgression prog) { PC.pcFamily = PC.FJazz })
   pure (pc, jazzDiag gc cue0 prog traceLines)
 
 -- | Regenerate bars @s..e@ (1-indexed, wrap-aware; @len@ expands the
@@ -127,12 +128,13 @@ runJazzGenFrom srcPC s _e gc = do
   traceLines <- drainTrace env
   let insertPC = (PC.fromProgression (Prog.fromCadenceStates newBars))
                    { PC.pcFamily = PC.FJazz }
-      -- FJazz layers duplicate one progression; rebuilding from the
-      -- movement-fixed triad splice keeps that invariant at the seam
-      -- (pcSplice would leave stale movement metadata on the duplicates).
-      spliced  = (PC.fromProgression
+      -- Rebuild from the movement-fixed triad splice (pcSplice would leave
+      -- stale movement metadata on the duplicated layers), then re-derive
+      -- the chordscale S/M layers over the WHOLE spliced progression — key
+      -- boundaries are a global property, so a regen recomputes them.
+      spliced  = chordscale ((PC.fromProgression
                     (PC.triadLayer (PC.pcSplice srcPC s effE insertPC)))
-                   { PC.pcFamily = PC.FJazz }
+                   { PC.pcFamily = PC.FJazz })
   pure (spliced, jazzDiag gc cue0 (PC.triadLayer spliced) traceLines)
 
 -- Reverse-accumulated trace back into emission order.
