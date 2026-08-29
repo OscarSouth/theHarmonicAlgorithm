@@ -22,10 +22,13 @@ description:         |
   == Generating
 
   * "Harmonic.Framework.Builder" — the generative engine. Modifier-based API
-    (@gen@, @genP@, @genFrom@), composer blending, and multi-attempt
-    rank-and-select.
+    (@gen@, @genE@, @genJ@, @genP@, @genFrom@), composer blending, and
+    multi-attempt rank-and-select.
   * "Harmonic.Rules.Types.ProgressionContext" — the three-layer progression
-    value (triad, strata, mode) that the @genP@ paradigm produces.
+    value carried by every family: @genP@ fills the layers with strata and
+    mode chromas, @genE@ with polytonal partner triads, @gen@ and @genJ@
+    with chordscale pentatonics and modes from key-area analysis
+    ("Harmonic.Evaluation.Analysis.KeyArea").
 
   == Playing
 
@@ -36,7 +39,11 @@ description:         |
   * "Harmonic.Interface.Tidal.Form" — the form and kinetics framework.
   * "Harmonic.Interface.Tidal.Orchestra" — 15 orchestral instruments with
     built-in range clipping and divisi.
-  * "Harmonic.Interface.Tidal.Groove" — sub-bass and kick patterns.
+  * "Harmonic.Interface.Tidal.Groove" — sub-bass, kick patterns and the
+    clave\/cascara grids.
+  * "Harmonic.Interface.Tidal.Motif" — motivic development operators.
+  * "Harmonic.Interface.Tidal.Devices.JV1010" — drum map and continuo bank
+    addressing; @Devices.S1@ and @Devices.P6@ carry the Roland AIRA CC maps.
   * "Harmonic.Traversal.WalkingBass" — walking-bass line generation.
 
   == Music theory primitives
@@ -62,7 +69,7 @@ default-extensions:
   - OverloadedStrings
 
 dependencies:
-  - base >= 4.14 && < 5
+  - base >= 4.20 && < 5   # Prelude foldl' (GHC 9.10+)
   - text
   - bytestring
   - containers
@@ -99,6 +106,7 @@ library:
     - Harmonic.Framework.Builder.JazzGen
     - Harmonic.Framework.Builder.Modifiers
     - Harmonic.Framework.Builder.StrataGen
+    - Harmonic.Framework.Builder.PolyGen
     # Rules (R Component + Layer A)
     - Harmonic.Rules.Types.Pitch
     - Harmonic.Rules.Types.Harmony
@@ -119,6 +127,7 @@ library:
     - Harmonic.Evaluation.Scoring.Progression
     - Harmonic.Evaluation.Database.Query
     - Harmonic.Evaluation.Analysis.Markov
+    - Harmonic.Evaluation.Analysis.KeyArea
     # Traversal (T Component + Layer C)
     - Harmonic.Traversal.Probabilistic
     - Harmonic.Traversal.WalkingBass
@@ -131,7 +140,14 @@ library:
     - Harmonic.Interface.Tidal.Instruments
     - Harmonic.Interface.Tidal.Orchestra
     - Harmonic.Interface.Tidal.Utils
+    - Harmonic.Interface.Tidal.Motif
+    - Harmonic.Interface.Tidal.Display
+    - Harmonic.Interface.Tidal.Devices.S1
+    - Harmonic.Interface.Tidal.Devices.P6
+    - Harmonic.Interface.Tidal.Devices.JV1010
     - Harmonic.Interface.Tidal.OctatripentatonicT
+    - Harmonic.Interface.Tidal.PolytonalT
+    - Harmonic.Interface.Tidal.ChordscaleT
   source-dirs: src
   ghc-options:
     - -Wall

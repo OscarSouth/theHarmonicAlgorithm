@@ -28,6 +28,7 @@ import           Harmonic.Framework.Builder
   , GenConfig(..), defaultGenConfig, GenMode(..), Verbosity(..)
   )
 import qualified Harmonic.Framework.Builder.Strata as Strata
+import qualified Harmonic.Interface.Tidal.Arranger as ArrC
 import qualified Harmonic.Evaluation.Scoring.Progression as PS
 import           Control.Monad (replicateM)
 import qualified Data.List
@@ -385,6 +386,15 @@ spec = describe "genP paradigm" $ do
       let gc = attempt 0 (-5) defaultGenConfig
       _gcViableTarget gc `shouldBe` 1
       _gcMaxAttempts gc  `shouldBe` 1
+
+    it "genFrom after rotate works (aligned combinators keep provenance)" $ do
+      s  <- seek "none" $ cue start $ len 6 $ genVI
+      let rotated = ArrC.rotate 1 s
+      PC.pcFamily rotated `shouldBe` PC.FStrata
+      s' <- seek "none" $ entropy 0.4 $ genFrom rotated 3 4
+      PC.pcFamily s' `shouldBe` PC.FStrata
+      PC.pcLength s' `shouldBe` 6
+      fmap length (fmap toList (PC.pcProvenance s')) `shouldBe` Just 6
 
     it "strata-aware genFrom keeps untouched bars intact" $ do
       let cueE = H.initCadenceState 0 "E" [0,3,7]

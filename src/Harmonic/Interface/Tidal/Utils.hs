@@ -21,29 +21,40 @@ module Harmonic.Interface.Tidal.Utils (
 
     -- * Note-length constants
     hemidemisemiquaver, demisemiquaver, semiquaver, quaver, crotchet, minim,
+
+    -- * Swing
+    swing8, swing16,
+
+    -- * Selection
+    over, (-->),
+
+    -- * Random gating
+    binaryrange,
 ) where
 
 import Sound.Tidal.Context
 
 -- | Transpose by whole octaves. @oct 1@ is up an octave, @oct (-1)@ down.
+-- The shift is a pattern, so it can move across the cycle: @|+ oct "[0 1]*2"@.
 --
 -- Add onto a pattern:
 --
 -- @, cello T (0,1) k vl grid Bass |+ oct (-1)@
-oct :: Int -> Pattern ValueMap
-oct k = note (fromIntegral (12 * k))
+oct :: Pattern Note -> Pattern ValueMap
+oct k = note (12 * k)
 
 -- | Rotate a pattern earlier ('pullBy') or later ('pushBy') in time.
 -- Function forms of the TidalCycles @\<~@ and @~>@ operators, so they compose
--- in a modifier chain rather than needing parentheses.
+-- in a modifier chain rather than needing parentheses. The amount is a
+-- pattern, so the rotation can itself vary across the cycle.
 --
 -- @, pushBy (1\/8) $ harp T (0,1) k vl flow Alto@
-pullBy :: Time -> Pattern a -> Pattern a
-pullBy t pat = (pure t) <~ pat
+pullBy :: Pattern Time -> Pattern a -> Pattern a
+pullBy = (<~)
 
 -- | Rotate a pattern later in time. See 'pullBy'.
-pushBy :: Time -> Pattern a -> Pattern a
-pushBy t pat = (pure t) ~> pat
+pushBy :: Pattern Time -> Pattern a -> Pattern a
+pushBy = (~>)
 
 -- | Random per-event velocity jitter, for a less mechanical feel. The argument
 -- scales the spread: @humanise 1@ varies @amp@ by up to ±0.09. The value
@@ -79,3 +90,37 @@ semiquaver = 1/16
 quaver = 1/8
 crotchet = 1/4
 minim = 1/2
+
+-- | Swing by musical PROPORTION: @0.5@ is straight, @0.667@ triplet. Places
+-- the swung note at exactly that proportion of its subdivision.
+--
+-- One cycle is one beat here, so 'swing8' swings eighth-notes (the \"&\") and
+-- 'swing16' swings sixteenths (the \"e\"\/\"a\"). Jazz eighth-feel —
+-- spang-a-lang, offbeat eighths — takes 'swing8'; a sixteenth shuffle (funk,
+-- UK garage, house, phonk, fusion) takes 'swing16'.
+--
+-- @f = swing8 0.6@
+swing8, swing16 :: Pattern Time -> Pattern a -> Pattern a
+swing8  x = swingBy (x - 0.5) 1
+swing16 x = swingBy (x - 0.5) 2
+
+-- | Step through a list under a 0-1 control signal: the signal's range is
+-- divided evenly among the elements, so a knob sweeps through them in order.
+-- An empty list is silence.
+--
+-- @, over qlink1 [flow, grid, lite]@
+over :: Pattern Double -> [a] -> Pattern a
+over _ [] = silence
+over ctrl xs =
+  let count = length xs
+      step  = 1 / fromIntegral count
+  in fmap (\x -> xs !! max 0 (floor (min (fromIntegral (count - 1)) (x / step)))) ctrl
+
+-- | Operator form of 'over'.
+(-->) :: Pattern Double -> [a] -> Pattern a
+(-->) = over
+
+-- | A boolean gate whose density wanders between two step counts, via
+-- 'binary' over a random integer in @[lo, hi)@.
+binaryrange :: Pattern Int -> Pattern Int -> Pattern Bool
+binaryrange lo hi = binary $ lo |+ irand (hi - lo)

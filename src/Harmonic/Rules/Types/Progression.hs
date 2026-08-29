@@ -35,9 +35,12 @@ module Harmonic.Rules.Types.Progression
   
     -- * Manipulation (ported from legacy Arranger.hs)
   , rotateProgression
+  , rotateSeq
   , excerptProgression
+  , excerptSeq
   , insertProgression
   , fuseProgression
+  , interleaveSeq
   , transposeProgression
   , overlapProgression
   , expandProgression
@@ -207,21 +210,32 @@ getChordState prog idx = do
 -- Positive n rotates left (first elements move to end)
 -- Negative n rotates right (last elements move to front)
 rotateProgression :: Int -> Progression -> Progression
-rotateProgression n (Progression sq)
-  | Seq.null sq = Progression sq
-  | otherwise = 
+rotateProgression n (Progression sq) = Progression (rotateSeq n sq)
+
+-- |Element-agnostic core of 'rotateProgression', shared with the
+-- provenance sequence so layers and provenance permute in lockstep.
+rotateSeq :: Int -> Seq.Seq a -> Seq.Seq a
+rotateSeq n sq
+  | Seq.null sq = sq
+  | otherwise =
     let len = Seq.length sq
         n' = n `mod` len
         (front, back) = Seq.splitAt n' sq
-    in Progression (back >< front)
+    in back >< front
 
 -- |Extract a subsequence from a progression
 -- Start and end are 1-indexed, inclusive
 excerptProgression :: Int -> Int -> Progression -> Progression
 excerptProgression start end (Progression sq) =
+  Progression (excerptSeq start end sq)
+
+-- |Element-agnostic core of 'excerptProgression' (1-indexed inclusive,
+-- clamped, no wrap), shared with the provenance sequence.
+excerptSeq :: Int -> Int -> Seq.Seq a -> Seq.Seq a
+excerptSeq start end sq =
   let start' = max 0 (start - 1)
       len = max 0 (end - start + 1)
-  in Progression $ Seq.take len $ Seq.drop start' sq
+  in Seq.take len (Seq.drop start' sq)
 
 -- |Insert a progression at a specific position (1-indexed)
 insertProgression :: Int -> Progression -> Progression -> Progression
@@ -233,11 +247,16 @@ insertProgression pos insert (Progression target) =
 -- |Fuse (interleave) two progressions
 fuseProgression :: Progression -> Progression -> Progression
 fuseProgression (Progression a) (Progression b) =
-  Progression $ Seq.fromList $ interleave (toList a) (toList b)
+  Progression (interleaveSeq a b)
+
+-- |Element-agnostic core of 'fuseProgression' (alternating merge, longer
+-- tail appended), shared with the provenance sequence.
+interleaveSeq :: Seq.Seq a -> Seq.Seq a -> Seq.Seq a
+interleaveSeq a b = Seq.fromList (go (toList a) (toList b))
   where
-    interleave [] ys = ys
-    interleave xs [] = xs
-    interleave (x:xs) (y:ys) = x : y : interleave xs ys
+    go [] ys = ys
+    go xs [] = xs
+    go (x:xs) (y:ys) = x : y : go xs ys
 
 -- |Transpose a progression by n semitones
 transposeProgression :: Int -> Progression -> Progression

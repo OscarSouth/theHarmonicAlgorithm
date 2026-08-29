@@ -157,6 +157,25 @@
         $ gen
     '''
 
+  'genE block (polytonal)':
+    'prefix': 'gene'
+    'body': '''
+      s <- lead "$1" >>=
+        \\composer -> seek "$2"
+        $ cue composer
+        $ tonal ctx
+        $ len 4
+        $ entropy 0.5
+        $ attempt 2 6
+        $ genE
+    '''
+
+  'chordscale report':
+    'prefix': 'chordscale'
+    'body': '''
+      chordscaleReport $1
+    '''
+
   # ── Form ──────────────────────────────────────────────────
 
   'form: single state':
@@ -410,10 +429,10 @@
   'arrange layer':
     'prefix': 'rrange'
     'body': '''
-      arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"
-        ,$1
+      arrange (0,1) k (-9,9) ${1:T} flow (overlapF 0) ["~"
+        ,$2
       ]# o |* vel 1
-       -- --
+       -- layer: T S M | TS TM SM TSM PT (genE combinations)
     '''
 
 

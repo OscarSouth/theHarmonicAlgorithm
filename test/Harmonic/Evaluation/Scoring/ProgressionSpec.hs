@@ -174,25 +174,25 @@ spec = do
             ]
       cadenceFavFromMap srcMap prog `shouldBe` 1.0
 
-    it "a fused 4-note chain scores identically to its triad walk shadow (genE)" $ do
+    it "a hand-built 4-note chain scores identically to its triad walk shadow" $ do
       -- Same alpha/beta walk, but each bar carries maj7 (triad + added 11)
-      -- as genE emits. walkTriadCadence must project the keys back to the
+      -- as hand-built lead' material carries. walkTriadCadence must project the keys back to the
       -- plain maj cadences — otherwise the map misses and the score is 0.
-      let fuse4 (m, r, ints) =
+      let extend4 (m, r, ints) =
             let base = H.initCadenceState m r ints
                 cad  = H.stateCadence base
                 cad4 = cad { H.cadenceFunctionality = "maj7"
                            , H.cadenceIntervals = map mkPitchClass (ints ++ [11]) }
             in base { H.stateCadence = cad4 }
-          fusedProg = Prog.Progression (Seq.fromList (map fuse4 [alphaSig, betaSig]))
+          extendedProg = Prog.Progression (Seq.fromList (map extend4 [alphaSig, betaSig]))
           triadProg = mkProg [alphaSig, betaSig]
           srcMap = Map.fromList
             [ (T.pack (show cAlpha), [(T.pack (show cBeta),  1.0)])
             , (T.pack (show cBeta),  [(T.pack (show cAlpha), 1.0)])
             ]
-      cadenceFavFromMap srcMap fusedProg
+      cadenceFavFromMap srcMap extendedProg
         `shouldBe` cadenceFavFromMap srcMap triadProg
-      cadenceFavFromMap srcMap fusedProg `shouldBe` 1.0
+      cadenceFavFromMap srcMap extendedProg `shouldBe` 1.0
 
     it "edge with no matching destination → contributes 0" $ do
       -- alpha→beta edge, but the map only has alpha→gamma. beta→alpha wraps

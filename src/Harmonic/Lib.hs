@@ -128,8 +128,26 @@ module Harmonic.Lib (
 
   -- ** Triadic generation
   gen, gen', gen'',
-  genE, genE', genE'', quad,
-  genGrid, genFrom, genFrom', genFrom'',
+  genGrid, genGrid', genGrid'', genFrom, genFrom', genFrom'',
+
+  -- ** Chordscale layers (gen \/ genJ)
+  -- | gen and genJ contexts carry derived S\/M layers: whole-progression
+  -- key-area analysis assigns every bar a key (major, or composite minor)
+  -- and realises it as the mode on the bar's root (M, 7 tones) and the
+  -- best-fitting anhemitonic pentatonic (S, 5 tones). Automatic at
+  -- generation; apply 'chordscale' by hand to 'lead''-built contexts.
+  -- 'chordscaleReport' prints the per-bar key \/ form \/ mode \/ pentatonic.
+  chordscale,
+  renderChordscaleReport, chordscaleReport,
+
+  -- ** The genE paradigm (polytonal)
+  -- | Three simultaneous triad progressions from one walk: a foundation
+  -- (T) plus two partner chains (S\/M) sharing 2 pitch classes with it per
+  -- bar and unioning to 5. Read pairs, the pentad and the pivot tones
+  -- through the Layer selectors (TS\/TM\/SM\/TSM\/PT); 'genEReport' prints
+  -- every view. See USER_GUIDE section 20 and documents\/POLYTONAL.md.
+  genE, genE', genE'',
+  polyLayerViews, genEReport,
 
   -- ** The genJ paradigm (jazz Change graph)
   -- | Generation over the jazz corpus graph: variable-arity leadsheet
@@ -139,8 +157,10 @@ module Harmonic.Lib (
 
   -- ** The genP paradigm (strata-first)
   -- | Three-layer generation (triad \/ strata \/ mode). The roman-numeral
-  -- aliases pin the starting tristrata.
+  -- aliases pin the starting tristrata; 'genPReport' prints the per-bar
+  -- provenance.
   genP, genP', genP'',
+  renderTristrataReport, genPReport,
   genI,   genII,   genIII,   genIV,   genV,   genVI,   genVII,   genVIII,   genIX,   genX,   genXI,
   genI',  genII',  genIII',  genIV',  genV',  genVI',  genVII',  genVIII',  genIX',  genX',  genXI',
   genI'', genII'', genIII'', genIV'', genV'', genVI'', genVII'', genVIII'', genIX'', genX'', genXI'',
@@ -166,7 +186,6 @@ module Harmonic.Lib (
   -- @ctx = invSkip 1 $ hcOvertones "E A D G" $ hcPedal "E?" $ hContext@
   HarmonicContext(..), harmonicContext, hContext,
   Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, hcPedal, hcTristrata,
-  GeneratorConfig(..), defaultConfig,
 
   -- * Core music types
   module Harmonic.Rules.Types.Pitch,
@@ -228,6 +247,8 @@ module Harmonic.Lib (
 
   -- ** Groove interface (drums and sub bass)
   subKick, fund, noteoff,
+  son32, son23, rumba32, rumba23, bossa32, bossa23,
+  bellpat32, bellpat23,
 
   -- ** Walking-bass line interface
   lineHarmony,
@@ -242,18 +263,20 @@ module Harmonic.Lib (
   module Harmonic.Interface.Tidal.Instruments,
   module Harmonic.Interface.Tidal.Orchestra,
   module Harmonic.Interface.Tidal.Utils,
-  renderTristrataReport, genPReport,
+  module Harmonic.Interface.Tidal.Motif,
+  module Harmonic.Interface.Tidal.Display,
+  module Harmonic.Interface.Tidal.Devices.S1,
+  module Harmonic.Interface.Tidal.Devices.P6,
+  module Harmonic.Interface.Tidal.Devices.JV1010,
   module Harmonic.Config,
 
   -- * Internal (advanced use only)
   -- | Tuple-returning versions for manual diagnostics extraction.
-  generate, generateWith, genWith,
-  generate', genWith',
-  generate'', genWith'',
+  generate, generateWith,
+  generate', generate'',
   printDiagnostics,
   StepDiagnostic(..), GenerationDiagnostics(..),
   TransformTrace(..), AdvanceTrace(..),
-  genSilent', genStandard', genVerbose'
 ) where
 
 -- Phase B: Core Music Types
@@ -274,8 +297,8 @@ import Harmonic.Traversal.Probabilistic
 import Harmonic.Framework.Builder (
     -- Modifier-based API
     gen, gen', gen'',
-    genE, genE', genE'', quad,
-    genGrid, genFrom, genFrom', genFrom'',
+    genE, genE', genE'',
+    genGrid, genGrid', genGrid'', genFrom, genFrom', genFrom'',
     -- genJ paradigm (jazz Change graph)
     genJ, genJ', genJ'',
     -- genP paradigm (strata-first)
@@ -291,16 +314,13 @@ import Harmonic.Framework.Builder (
     defaultGenConfig, execGenConfig, execGenConfigPC,
     -- Positional API
     genPrint, genPrint', genPrint'',
-    generate, generateWith, genWith,
-    generate', genWith',
-    generate'', genWith'',
+    generate, generateWith,
+    generate', generate'',
     genSilent, genStandard, genVerbose,
-    genSilent', genStandard', genVerbose',
     printDiagnostics,
     -- Context & types
     HarmonicContext(..), harmonicContext, hContext,
     Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, hcPedal, hcTristrata,
-    GeneratorConfig(..), defaultConfig,
     StepDiagnostic(..), GenerationDiagnostics(..), TransformTrace(..), AdvanceTrace(..)
   )
 import Harmonic.Rules.Constraints.Filter (overtones, key, funds, tuning, wildcard, parseOvertones, parseKey, parseFunds, parseTuning, isWildcard, parseTuningNamed)
@@ -324,7 +344,10 @@ import Harmonic.Interface.Tidal.Arranger (
     ScaleSource(..), melodyStateFrom,
     lead, lead', leadJ, parseLeadTokens, LeadToken(..)
   )
-import Harmonic.Interface.Tidal.Groove (subKick, fund, noteoff)
+import Harmonic.Interface.Tidal.Groove
+  ( subKick, fund, noteoff
+  , son32, son23, rumba32, rumba23, bossa32, bossa23
+  , bellpat32, bellpat23 )
 import Harmonic.Interface.Tidal.LineHarmony (lineHarmony)
 import Harmonic.Interface.Tidal.Form (
     FormNode(..), FormTime(..), Transition(..), Kinetics(..), IK,
@@ -334,5 +357,13 @@ import Harmonic.Interface.Tidal.Form (
 import Harmonic.Interface.Tidal.Instruments
 import Harmonic.Interface.Tidal.Orchestra
 import Harmonic.Interface.Tidal.Utils
+import Harmonic.Interface.Tidal.Motif
+import Harmonic.Interface.Tidal.Display
+import Harmonic.Interface.Tidal.Devices.S1
+import Harmonic.Interface.Tidal.Devices.P6
+import Harmonic.Interface.Tidal.Devices.JV1010
 import Harmonic.Interface.Tidal.OctatripentatonicT (renderTristrataReport, genPReport)
+import Harmonic.Interface.Tidal.PolytonalT (polyLayerViews, genEReport)
+import Harmonic.Evaluation.Analysis.KeyArea (chordscale)
+import Harmonic.Interface.Tidal.ChordscaleT (renderChordscaleReport, chordscaleReport)
 import Harmonic.Config

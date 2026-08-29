@@ -4,7 +4,6 @@
 --
 -- Validates the Phase C Builder module:
 --   * HarmonicContext: CSF R constraint structures
---   * GeneratorConfig: Configuration defaults and bounds
 --   * Filter parsing integration (validates parsed pitch-class sets)
 --
 -- The filter notation uses the legacy Overtone.hs system:
@@ -26,7 +25,7 @@ import qualified Data.Text as T
 import Data.Text (Text)
 import Data.List (sort)
 
-import Harmonic.Framework.Builder (HarmonicContext(..), GeneratorConfig(..), defaultConfig, Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, TransformTrace(..), AdvanceTrace(..), StepDiagnostic(..), harmonicContext, parseComposersWithOrder, makePortmanteau, extractByPosition, takeFromBeginning, takeFromEnd, takeFromMiddle, GenConfig(..), GenMode(..), Verbosity(..), defaultGenConfig, gen, gen', gen'', genGrid, genFrom, cue, len, seek, entropy, tonal, hContext, genSilent, genE, quad, genP, genJ, genJ', genJ'', steer)
+import Harmonic.Framework.Builder (HarmonicContext(..), Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, TransformTrace(..), AdvanceTrace(..), StepDiagnostic(..), harmonicContext, parseComposersWithOrder, makePortmanteau, extractByPosition, takeFromBeginning, takeFromEnd, takeFromMiddle, GenConfig(..), GenMode(..), Verbosity(..), defaultGenConfig, gen, gen', gen'', genGrid, genGrid', genGrid'', genFrom, cue, len, seek, entropy, tonal, hContext, genSilent, genE, genP, attempt, genJ, genJ', genJ'', steer)
 import Harmonic.Framework.Builder.Core (applyDriftFilter, matchesContextWithTarget)
 import Harmonic.Framework.Builder.Types (parseContextOnce, keySpellingOf)
 import Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
@@ -138,12 +137,6 @@ spec = do
         sort (parseOvertones $ _hcOvertones ctx) `shouldBe` [0..11]
         sort (parseKey $ _hcKey ctx) `shouldBe` [0..11]
         sort (parseFunds $ _hcRoots ctx) `shouldBe` [1, 2, 4, 6, 7, 9, 11]
-
-  describe "GeneratorConfig" $ do
-
-    describe "defaultConfig" $ do
-      it "defaults to the plain gen family (quad off)" $ do
-        defaultConfig `shouldBe` GeneratorConfig { gcQuad = False }
 
   describe "Wildcard matching" $ do
     
@@ -912,69 +905,28 @@ spec = do
       prog <- seek "none" $ cue start $ len 4 $ gen
       PC.pcLength prog `shouldBe` 4
 
-  describe "genE family (offline)" $ do
-    let intervalsOf pc =
-          [ H.cadenceIntervals (H.stateCadence cs)
-          | cs <- toList (Prog.unProgression (PC.triadLayer pc)) ]
-
-    it "every bar carries 4 distinct pitch classes (cue fused)" $ do
-      let start = H.initCadenceState 0 "C" [0,4,7]
-      pc <- seek "none" $ cue start $ len 6 $ entropy 0.3 $ genE
-      PC.pcLength pc `shouldBe` 6
-      mapM_ (\ivs -> length ivs `shouldBe` 4) (intervalsOf pc)
-
-    it "a 4-note cue passes through unfused" $ do
-      let start = H.mkCadenceStatePCs P.Eb H.Unison [0,3,7,10]
-      pc <- seek "none" $ cue start $ len 4 $ genE
-      head (intervalsOf pc) `shouldBe` [P.P 0, P.P 3, P.P 7, P.P 10]
-
-    it "added tones respect the tonal palette (R adherence)" $ do
-      let ctx = hcKey "0#" hContext  -- no sharps/flats: PCs {0,2,4,5,7,9,11}
-          start = H.initCadenceState 0 "C" [0,4,7]
-      pc <- seek "none" $ cue start $ len 6 $ entropy 0.5 $ tonal ctx $ genE
-      let allowed = [0,2,4,5,7,9,11] :: [Int]
-          absPCsOf cs =
-            let r = P.unPitchClass (P.pitchClass (H.stateCadenceRoot cs))
-            in [ (P.unPitchClass i + r) `mod` 12
-               | i <- H.cadenceIntervals (H.stateCadence cs) ]
-      mapM_ (\cs -> mapM_ (\p -> p `shouldSatisfy` (`elem` allowed))
-                          (absPCsOf cs))
-            (toList (Prog.unProgression (PC.triadLayer pc)))
-
-    it "consonant drift keeps fused-bar dissonance non-increasing" $ do
-      let start = H.initCadenceState 0 "C" [0,4,7]
-      pc <- seek "none" $ cue start $ len 8 $ entropy 0.0 $ tonal (consonant hContext) $ genE
-      let disses = [ dissonanceScore (map P.unPitchClass ivs)
-                   | ivs <- intervalsOf pc ]
-      -- advisory: non-increasing except where the filter had to relax;
-      -- at entropy 0 with a full palette relaxation is not expected
-      and (zipWith (>=) disses (tail disses)) `shouldBe` True
-
-    it "quad on genP errors (family separation)" $ do
-      let runIt = seek "none" $ quad $ genP Sc.I
-      runIt `shouldThrow` anyErrorCall
-
   describe "genFrom family uniformity (regen never mixes families)" $ do
     let barSizes pc =
           [ length (H.cadenceIntervals (H.stateCadence cs))
           | cs <- toList (Prog.unProgression (PC.triadLayer pc)) ]
 
-    it "genFrom on a genE source regenerates 4-note bars" $ do
-      let start = H.initCadenceState 0 "C" [0,4,7]
-      src <- seek "none" $ cue start $ len 5 $ genE
+    it "genFrom on a hand-built 4-note source keeps untouched bars, regens as triads" $ do
+      let src = PC.fromProgression $ Prog.fromCadenceStates
+            [ H.mkCadenceStatePCs r H.Unison ivs
+            | (r, ivs) <- [ (P.C,  [0,4,7,10]), (P.F,  [0,3,7,10])
+                          , (P.Bb, [0,4,7,11]), (P.Eb, [0,3,7,10])
+                          , (P.Ab, [0,4,7,10]) ] ]
+      PC.pcFamily src `shouldBe` PC.FExtended
       out <- seek "none" $ genFrom src 2 3
-      barSizes out `shouldBe` replicate 5 4
+      -- Extended sources regenerate triadic (with a printed notice); the
+      -- kept 4-note bars are untouched.
+      barSizes out `shouldBe` [4, 3, 3, 4, 4]
 
     it "genFrom on a triad source regenerates 3-note bars" $ do
       let start = H.initCadenceState 0 "C" [0,4,7]
       src <- seek "none" $ cue start $ len 5 $ gen
       out <- seek "none" $ genFrom src 2 3
       barSizes out `shouldBe` replicate 5 3
-
-    it "explicit quad on a triad source fails fast" $ do
-      let start = H.initCadenceState 0 "C" [0,4,7]
-      src <- seek "none" $ cue start $ len 4 $ gen
-      seek "none" (quad (genFrom src 2 3)) `shouldThrow` anyErrorCall
 
   describe "corpusFunctionality (graph keyspace naming)" $ do
     it "names inversion forms as the corpus stores them" $ do
@@ -1028,8 +980,21 @@ spec = do
     it "seek \"none\" is refused — the jazz graph has no offline mode" $
       seek "none" genJ `shouldThrow` anyErrorCall
 
-    it "quad never applies to the jazz family" $
-      seek "*" (quad genJ) `shouldThrow` anyErrorCall
+    it "seek \"none\" under attempt is refused BEFORE any connection (ErrorCall, not IO)" $
+      seek "none" (attempt 3 8 genJ) `shouldThrow` anyErrorCall
+
+    it "len 0 is safe for the offline families (cue-only floor, no hang)" $ do
+      let start = H.initCadenceState 0 "C" [0,4,7]
+      t <- seek "none" $ cue start $ len 0 $ gen
+      PC.pcLength t `shouldSatisfy` (<= 1)
+      e <- seek "none" $ cue start $ len 0 $ genE
+      PC.pcLength e `shouldSatisfy` (<= 1)
+      p <- seek "none" $ cue (H.initCadenceState 4 "E" [0,3,7]) $ len 0 $ genP Sc.VI
+      PC.pcLength p `shouldSatisfy` (<= 1)
+
+    it "genGrid has verbosity primes like every other entry point" $ do
+      _gcVerbosity genGrid'  `shouldBe` Standard
+      _gcVerbosity genGrid'' `shouldBe` Verbose
 
     it "steer clamps below at zero and defaults to 3.0" $ do
       _gcSteer genJ `shouldBe` 3.0
@@ -1042,4 +1007,3 @@ spec = do
           jazzSrc = (PC.fromProgression mini) { PC.pcFamily = PC.FJazz }
           isJazzRegen m = case m of { FromProgJ {} -> True; _ -> False }
       isJazzRegen (_gcMode (genFrom jazzSrc 2 3)) `shouldBe` True
-      _gcQuad (genFrom jazzSrc 2 3) `shouldBe` False

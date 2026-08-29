@@ -1,0 +1,12 @@
+# Evaluation keys for .tidal buffers — a reference copy of the author's
+# ~/.pulsar/keymap.cson bindings, not a file to install as-is.
+#
+# The plugin ships no keymap of its own; without bindings, evaluation is only
+# reachable from Packages → TidalCycles. These three are bound to the same
+# command so the gesture works whichever modifier the hand reaches for.
+
+'atom-workspace atom-text-editor[data-grammar~="tidalcycles"]':
+  'ctrl-cmd-enter': 'tidalcycles:eval-multi-line'
+  'ctrl-enter': 'tidalcycles:eval-multi-line'
+  'cmd-enter': 'tidalcycles:eval-multi-line'
+  'cmd-shift-enter': 'tidalcycles:eval-whole-editor'

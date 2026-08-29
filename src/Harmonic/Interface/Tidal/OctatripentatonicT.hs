@@ -46,15 +46,16 @@ renderTristrataReport pc = do
     indexedTristratas = zip Sc.validTristrata [1 :: Int ..]
     pad n s = s ++ replicate (max 0 (n - length s)) ' '
 
--- |Live-coding helper: execute a 'Harmonic.Framework.Builder.genP'-style 'IO ProgressionContext' and
--- print a pretty tristrata report alongside the standard 'Show' output.
--- Useful at the REPL for sanity-checking a strata walk.
-genPReport :: IO PC.ProgressionContext -> IO ()
-genPReport action = do
-  pc <- action
+-- |Live-coding helper: print a pretty tristrata report for a
+-- 'Harmonic.Framework.Builder.genP' result alongside the standard 'Show'
+-- output. Takes the bound context directly, mirroring
+-- 'Harmonic.Interface.Tidal.PolytonalT.genEReport'. Useful at the REPL
+-- for sanity-checking a strata walk.
+genPReport :: PC.ProgressionContext -> IO ()
+genPReport pc = do
   putStrLn ""
   case renderTristrataReport pc of
     Just report -> putStr report
-    Nothing     -> putStrLn "[no provenance — legacy gen result]"
+    Nothing     -> putStrLn "[no strata provenance — genPReport applies to genP results]"
   putStrLn ""
   print pc

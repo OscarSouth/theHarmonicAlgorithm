@@ -35,6 +35,10 @@ exposed as `Harmonic.Rules.Types.Scale.PentaFamily`:
 | `Iwato`      | `[0, 1, 5, 6, 10]`       |
 | `Kumoi`      | `[0, 2, 3, 7, 9]`        |
 
+`MajorPenta` is the vocabulary of the chordscale S layer (gen/genJ —
+see [CHORDSCALE.md](CHORDSCALE.md)); the other three families remain
+reference vocabulary.
+
 ### Eleven canonical strata (Roman I–XI)
 
 | Label | Prime-form chroma   | Dissonance |
@@ -351,6 +355,10 @@ flag only fires inside `runStrataGen`.
 
 Deferred follow-ups:
 
-* **`gen` self-derivation.** Teach the legacy `gen` family to derive
-  strata and mode layers from its own triad sequence, replacing the
-  duplicated-layer default.
+* **`gen` self-derivation.** SHIPPED 2026-08-29 — `gen` (and `genJ`)
+  derive S and M layers from their own triad sequences via chordscale
+  key-area analysis ([CHORDSCALE.md](CHORDSCALE.md)). The shipped design
+  is deliberately chord-scale rather than strata-based: the derived S
+  layer is an anhemitonic pentatonic (the `MajorPenta` family below) and
+  the M layer the detected key's mode per bar, not members of the
+  octatripentatonic strata tables.

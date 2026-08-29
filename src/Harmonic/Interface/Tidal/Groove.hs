@@ -29,6 +29,8 @@ module Harmonic.Interface.Tidal.Groove
   ( fund
   , subKick
   , noteoff
+    -- * Clave and cascara grids
+  , son32, son23, rumba32, rumba23, bossa32, bossa23, bellpat32, bellpat23
   ) where
 
 import qualified Harmonic.Rules.Types.Pitch as Pitch
@@ -42,18 +44,27 @@ import Data.Foldable (toList)
 import Sound.Tidal.Context
 
 -- | Extract harmonic roots regardless of inversion.
--- Always returns the fundamental root note from CadenceState.
+-- Triads go through inversion detection (a first-inversion bar reports
+-- its harmonic root, not its bass). Bars of more than three tones keep
+-- their STORED root: jazz and hand-built extended chords store the
+-- anchor directly, and the triad-reduction path would re-derive a root
+-- from the most-consonant embedded triad — a different answer from the
+-- one 'Harmonic.Interface.Tidal.Arranger.root' and the walking bass give
+-- for the same bar.
 fund :: P.Progression -> [[Int]]
 fund prog =
   let cadenceStates = toList (P.unProgression prog)
   in map fundToInt cadenceStates
   where
     fundToInt :: H.CadenceState -> [Int]
-    fundToInt cs =
-      let chord = H.fromCadenceState cs
-          rootNoteName = H.chordNoteName chord
-          rootPc = Pitch.pitchClass rootNoteName
-      in [Pitch.unPitchClass rootPc]
+    fundToInt cs
+      | length (H.cadenceIntervals (H.stateCadence cs)) > 3 =
+          [Pitch.unPitchClass (Pitch.pitchClass (H.stateCadenceRoot cs))]
+      | otherwise =
+          let chord = H.fromCadenceState cs
+              rootNoteName = H.chordNoteName chord
+              rootPc = Pitch.pitchClass rootNoteName
+          in [Pitch.unPitchClass rootPc]
 
 -- | Truncate each gate onset's note length to at most @1\/n@ of a bar (bar = 4
 --   cycles), else extend it to the next onset. Only @True@ onsets sound; a
@@ -215,3 +226,20 @@ subKickCoreP (normPitches, nChords) subOnPat subOffPat kickPat chordPat dyn k ma
     pedalUp = mask (fmap (< 0.1) (kSignal (fst k))) $ segment 1 (midiCC 64 0) # thru
 
   in stack [subGroup, kickGroup, pedalUp]
+
+-- | Explicit 16-step (2-bar) boolean grids, one stroke per position, for
+-- clave and cascara feels. Use with @struct@ or @mask@ on any instrument or
+-- drum part.
+--
+-- @32@ is the 3-2 orientation; @23@ is the 2-3 rotation (@2 \<~@ over the
+-- @\/4@ two-bar span swaps the halves). Onset positions are 1-indexed.
+son32, son23, rumba32, rumba23, bossa32, bossa23,
+  bellpat32, bellpat23 :: Pattern Bool
+son32     = "[1 0 0 1 0 0 1 0 0 0 1 0 1 0 0 0]/4"   -- son clave 3-2:   1 4 7 11 13
+son23     = 2 <~ son32
+rumba32   = "[1 0 0 1 0 0 0 1 0 0 1 0 1 0 0 0]/4"   -- rumba clave 3-2: 1 4 8 11 13
+rumba23   = 2 <~ rumba32
+bossa32   = "[1 0 0 1 0 0 0 1 0 0 1 0 0 1 0 0]/4"   -- bossa clave 3-2: 1 4 8 11 14
+bossa23   = 2 <~ bossa32
+bellpat32 = "[1 0 1 0 1 1 0 1 1 0 1 1 0 1 0 1]/4"   -- bell / cascara:  1 3 5 6 8 9 11 12 14 16
+bellpat23 = 2 <~ bellpat32

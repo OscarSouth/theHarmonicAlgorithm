@@ -12,8 +12,8 @@ import re, subprocess, sys, pathlib, glob
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 
-EXPECT_MODULES        = 41
-MAX_OUT_OF_SCOPE      = 2    # residue: 'gen'/'genP' resolved via Lib re-export
+EXPECT_MODULES        = 50   # 46 at baseline set; +2 uncounted after the polytonal release, +KeyArea +ChordscaleT (2026-08-29)
+MAX_OUT_OF_SCOPE      = 4    # residue: 'gen'/'genP' (Progression) + 'gen'/'genFrom' (PolyGen), resolved via Lib re-export
 MAX_DANGLING_INTERNAL = 2    # residue: Filter's local `type PitchClass = Int`
 
 def sh(cmd, **kw):

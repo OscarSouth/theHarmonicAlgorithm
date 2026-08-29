@@ -219,3 +219,22 @@ spec = do
       runFam PC.FTriad `shouldBe`
         [ fromIntegral m - 48 | bar <- walkLine root prog13, m <- bar ]
       runFam PC.FTriad `shouldNotBe` runFam PC.FJazz
+
+  describe "FPoly routing (the walk reads the foundation)" $ do
+    it "an FPoly context walks its triad layer exactly like a plain context on that layer" $ do
+      let mkT nn ivs = H.mkCadenceStatePCs nn
+            (H.toMovement (Pt.mkPitchClass 0) (Pt.mkPitchClass 0)) ivs
+          foundation = P.fromCadenceStates
+            [ mkT Pt.C [0,4,7], mkT Pt.F [0,4,7], mkT Pt.G [0,4,7], mkT Pt.A [0,3,7] ]
+          partnersS = P.fromCadenceStates
+            [ mkT Pt.A [0,3,7], mkT Pt.D [0,3,7], mkT Pt.E [0,3,7], mkT Pt.C [0,4,7] ]
+          partnersM = P.fromCadenceStates
+            [ mkT Pt.E [0,3,7], mkT Pt.A [0,4,7], mkT Pt.B [0,3,7], mkT Pt.F [0,4,7] ]
+          polyCtx = PC.ProgressionContext foundation partnersS partnersM Nothing PC.FPoly
+          plainCtx = PC.fromProgression foundation
+          runCtx ctx =
+            let kin = Kinetics (pure 1.0) (pure 1.0) (pure ctx) [ctx] 0 0
+                result = lineHarmony (pure 1.0) (kin, rep ctx 1) root
+                           [parseBP_E "[1 2 3 4]/4"]
+            in [ n | (_, n) <- queryOnsets result (Arc 0 16) ]
+      runCtx polyCtx `shouldBe` runCtx plainCtx

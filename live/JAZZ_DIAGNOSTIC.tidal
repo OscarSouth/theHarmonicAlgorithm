@@ -294,7 +294,7 @@ flow (triadLayer sj)
 
 grid (triadLayer sj)
 
-pcj = fromProgression (triadLayer sj)
+pcj = sj   -- genJ output already carries its chordscale S/M layers
 
 kj = iK 120 [at 0 1 1 pcj] (rep pcj 1)
 

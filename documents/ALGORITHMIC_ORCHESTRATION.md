@@ -111,7 +111,7 @@ Every block (section or blend) has the same two-part structure:
 ```
 
 1. **Voice declaration** (`vl`): `voiceLines` with optional overrides
-2. **Instrument stack**: each line is an instrument with layer (`T`/`S`/`M`), kinetics range, IK context, voice lines, voicing paradigm, voice assignment
+2. **Instrument stack**: each line is an instrument with layer (`T`/`S`/`M`, or a combination `TS`/`TM`/`SM`/`TSM`/`PT`), kinetics range, IK context, voice lines, voicing paradigm, voice assignment
 
 ## Instrument Functions
 

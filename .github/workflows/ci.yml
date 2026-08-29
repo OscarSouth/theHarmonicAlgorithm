@@ -94,6 +94,17 @@ jobs:
           set -o pipefail
           python3 scripts/ci/check_guide.py | tee guide.log
 
+      # The guide is written to the API as documented; the performance files are
+      # written to the API as it behaves. They drift apart silently — `oct` was
+      # declared `Int -> Pattern ValueMap` while every arrangement called it with
+      # a mini-notation pattern. Blocks are bound, never evaluated. Files under
+      # live/local are the performer's own and not in the repo, so they are
+      # skipped here and checked on their machine.
+      - name: Type-check performance files
+        run: |
+          set -o pipefail
+          python3 scripts/ci/check_corpus.py | tee corpus.log
+
       - name: Summarise
         if: always()
         run: |
@@ -101,6 +112,10 @@ jobs:
             echo "### User guide type-check"
             echo '```'
             cat guide.log 2>/dev/null || echo "(no output)"
+            echo '```'
+            echo "### Performance file type-check"
+            echo '```'
+            cat corpus.log 2>/dev/null || echo "(no output)"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 

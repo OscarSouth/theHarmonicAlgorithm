@@ -13,7 +13,8 @@ module Harmonic.Framework.Builder.Modifiers
   ( defaultGenConfig
   , gen, gen', gen''
   , genGrid
-  , quad
+  , genGrid'
+  , genGrid''
   , genE, genE', genE''
   , genJ, genJ', genJ''
   , genFrom, genFrom', genFrom''
@@ -55,6 +56,7 @@ import           Harmonic.Framework.Builder.Types
 defaultGenConfig :: GenConfig
 defaultGenConfig = GenConfig
   { _gcCue         = defaultCue
+  , _gcCueExplicit = False
   , _gcLen         = 4
   , _gcSeek        = "*"
   , _gcEntropy     = 0.2
@@ -71,7 +73,6 @@ defaultGenConfig = GenConfig
   , _gcBoostSame   = 0.90
   , _gcBoostFlip   = 0.80
   , _gcBoostTri    = 0.70
-  , _gcQuad        = False
   , _gcSteer       = 3.0
   , _gcMaxAttempts  = 1
   , _gcViableTarget = 1
@@ -114,37 +115,37 @@ gen'' = defaultGenConfig { _gcVerbosity = Verbose }
 genGrid :: GenConfig
 genGrid = defaultGenConfig { _gcMode = GridMode }
 
--- |Switch on the genE family: every generated bar carries a 4-note chord.
---
--- Each step first selects a triad exactly as plain 'gen' (graph + fallback,
--- R filters, gamma draw), then fuses in one more R-valid palette tone —
--- ranked consonant-first by full-chord dissonance, drawn at the same
--- entropy. The walk continues from the fused chord's most-consonant
--- embedded triad, so the added tone can reinterpret the harmony and steer
--- the next step, while every graph key stays corpus-shaped (generation
--- stays online). A triad cue is fused once so output is uniformly 4-note;
--- a 4-note 'Harmonic.Interface.Tidal.Arranger.lead'' cue passes through untouched.
---
--- Composes with the usual modifier chain. Never applies to the strata
--- family ('genP') — strata progressions stay 3-5-7.
---
--- @s <- seek "*" $ cue start $ entropy 0.4 $ quad gen'@
-quad :: GenConfig -> GenConfig
-quad gc = gc { _gcQuad = True }
+-- |'genGrid' with compact musical summary.
+genGrid' :: GenConfig
+genGrid' = genGrid { _gcVerbosity = Standard }
 
--- |genE family sugar: 'quad' pre-applied to 'gen' \/ 'gen'' \/ 'gen'''.
+-- |'genGrid' with verbose diagnostic traces.
+genGrid'' :: GenConfig
+genGrid'' = genGrid { _gcVerbosity = Verbose }
+
+-- |The genE paradigm: polytonal three-layer generation. The T layer is a
+-- foundation walk byte-identical to 'gen' (all R constraints apply to it
+-- alone — the foundation owns the bass); the S\/M layers are partner triad
+-- chains, each a corpus-valid walk of its own, sharing exactly 2 pitch
+-- classes with the foundation per bar and unioning to exactly 5. The
+-- traversal chooses freely per bar between the two admitted geometries —
+-- common-dyad (every layer pair sounds 4 tones) and base-anchored (pairs
+-- with the foundation sound 4, S+M sounds the pentad). Partners honour
+-- key\/roots\/overtones but never direction specs or strata machinery.
+-- Combine layers at the pattern surface via the 'PC.Layer' selectors
+-- (@TS@\/@TM@\/@SM@\/@TSM@\/@PT@). Cues are triadic.
 --
 -- @s <- seek "*" $ len 8 $ entropy 0.3 $ genE'@
 genE :: GenConfig
-genE = quad gen
+genE = defaultGenConfig { _gcMode = PolyMode }
 
--- |'genE' with compact musical summary.
+-- |'genE' with compact musical summary (per-bar layer table).
 genE' :: GenConfig
-genE' = quad gen'
+genE' = genE { _gcVerbosity = Standard }
 
--- |'genE' with verbose diagnostic traces.
+-- |'genE' with verbose diagnostic traces (adds partner pool\/tier trace).
 genE'' :: GenConfig
-genE'' = quad gen''
+genE'' = genE { _gcVerbosity = Verbose }
 
 -- |Generate over the jazz (Change) graph: the genJ family. Same
 -- modifier chain as 'gen' (@seek "*" \$ cue start \$ len 8 \$ entropy 0.3 \$ genJ@);
@@ -171,16 +172,26 @@ genJ'' = genJ { _gcVerbosity = Verbose }
 
 -- |Regenerate a range of bars within an existing progression.
 -- The cue is inferred from the bar before the start position (wrapping).
+-- A 'cue' override applies to every family EXCEPT 'PC.FStrata': the strata
+-- regen must seed from the source's own bar to keep the walk-graph seam
+-- valid, so it ignores the override.
 --
--- FAMILY-AWARE: regeneration always produces uniform states of the family
--- the source progression already is — families never mix.
+-- FAMILY-AWARE: regeneration produces states of the family the source
+-- progression already is — families never mix. The one downgrade is
+-- deliberate: hand-built extended ('PC.FExtended') sources regenerate as
+-- triads (with a printed notice), so the result re-infers as mixed
+-- material rather than pretending the fusion family still exists.
 --
 -- * @pcProvenance = Just _@ — strata-aware path: regenerates all three
 --   layers + provenance in lockstep, with one-step lookahead at the
 --   @e → e+1@ seam to keep the spliced bar sequence walk-graph valid
 --   under 'Harmonic.Framework.Builder.Strata.allowedNext'.
--- * uniform 4-note triad layer (genE source) — regen bars come out 4-note
---   ('_gcQuad' set automatically).
+-- * 'PC.FPoly' (genE source) — polytonal path: regenerates the foundation
+--   range plus both partner chains, seeded from the kept partner bars
+--   before the range; the S\/M labelling of the source is preserved
+--   (chains are never reordered by a partial regen).
+-- * uniform 4-note hand-built material — regenerated bars come back as
+--   plain triads with a printed notice.
 -- * uniform 3-note (gen source) — plain triad regen.
 -- * hand-mixed cardinalities — regenerated as plain triads with a printed
 --   notice (hand-mixed material is the human aberration channel; regen
@@ -195,10 +206,10 @@ genFrom :: PC.ProgressionContext -> Int -> Int -> GenConfig
 genFrom pc s e = defaultGenConfig
   { _gcCue  = inferCue
   , _gcLen  = rSize
-  , _gcQuad = PC.pcFamily pc == PC.FExtended
   , _gcMode = case PC.pcFamily pc of
       PC.FStrata -> FromProgPC pc s e
       PC.FJazz   -> FromProgJ pc s e
+      PC.FPoly   -> FromProgPoly pc s e
       _          -> FromProg (PC.triadLayer pc) s e
   }
   where
@@ -232,7 +243,7 @@ genFrom'' pc s e = (genFrom pc s e) { _gcVerbosity = Verbose }
 --
 -- @s <- seek "*" $ cue start $ gen@
 cue :: H.CadenceState -> GenConfig -> GenConfig
-cue start gc = gc { _gcCue = pure start }
+cue start gc = gc { _gcCue = pure start, _gcCueExplicit = True }
 
 -- |Set progression length (number of chords).
 --
@@ -266,6 +277,13 @@ steer x gc = gc { _gcSteer = max 0 x }
 -- 'PS.defaultWeightsOffline'.
 --
 -- @s <- seek "*" $ attempt 3 24 $ entropy 0.4 $ gen@   -- best of up to 24
+--
+-- Polytonal ('Harmonic.Framework.Builder.genE') attempts rank differently,
+-- because they are three progressions rather than one: each layer is scored
+-- in its own right (half the weight on the foundation, a quarter on each
+-- partner) and a divergence axis rewards the layers standing apart — the
+-- point of the family. See 'PS.PolyScore'. Raising @maxAttempts@ raises both
+-- the quality and the divergence of what comes back.
 --
 -- Defaults are @attempt 1 1@ — i.e. the modifier is a no-op when omitted,
 -- preserving legacy single-pass behaviour.
@@ -346,6 +364,13 @@ triBoost x gc = gc { _gcBoostTri = x }
 -- a 'PC.ProgressionContext' with distinct triad, strata, and mode layers and
 -- @pcProvenance = Just …@.
 --
+-- Uncued, the starting chord is drawn from inside the stratum itself — a
+-- five-tone set admits few triads, and the ordinary whole-corpus cue almost
+-- never lands in one. A cue you pass with @cue@ is honoured as given; one
+-- that escapes the stratum is reported with the triads that would have
+-- fitted, rather than silently replaced.
+--
+-- @s <- seek "none" $ len 6 $ genP VI@
 -- @s <- seek "none" $ cue start $ len 6 $ genP VI@
 genP :: Sc.StrataLabel -> GenConfig
 genP s = defaultGenConfig { _gcMode = StrataMode s }

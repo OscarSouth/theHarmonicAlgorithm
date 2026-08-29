@@ -10,6 +10,7 @@ module Harmonic.Framework.Builder.Diagnostics
     printDiagnostics
   , printHeader
   , printStrataDiagnostics
+  , printPolyDiagnostics
 
     -- * Chord Tracing
   , computeChordTrace
@@ -111,14 +112,6 @@ printDiagnostics verbosity diag = do
     -- Rendered chord (verbosity 1+)
     case sdRenderedChord step of
       Just chord -> putStrLn $ "  Chord: " ++ chord
-      Nothing -> return ()
-
-    -- genE fusion (added-tone draw)
-    case sdFusion step of
-      Just fd -> putStrLn $ "  Fusion: +PC" ++ show (fdAddedPC fd)
-                            ++ " → " ++ fdFusedName fd
-                            ++ "  [rank " ++ show (fdGammaIdx fd + 1)
-                            ++ "/" ++ show (fdPoolK fd) ++ "]"
       Nothing -> return ()
 
     -- Transform trace (verbosity 2+)
@@ -244,6 +237,73 @@ printStrataDiagnostics barLabel verbosity diag = do
       forM_ steps $ \step -> renderStrataStep barLabel verbosity step
       putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
       putStrLn ""
+
+-- |Per-bar trace for the polytonal genE family. Verbosity 1 prints the
+-- musical table (partner chords, pair structures, pentad, pivot tones);
+-- verbosity 2 adds the selection facts (geometry, pool tier and size,
+-- own-list ranks). Noop when no step carries 'sdPoly', so it's safe to
+-- call unconditionally on any diagnostics value.
+printPolyDiagnostics :: (Int -> String) -> Int -> GenerationDiagnostics -> IO ()
+printPolyDiagnostics barLabel verbosity diag = do
+  let steps = gdSteps diag
+  if not (any (\s -> sdPoly s /= Nothing) steps)
+    then pure ()
+    else do
+      putStrLn ""
+      putStrLn $ "Polytonal layers: " ++ gdStartRoot diag
+                 ++ " → " ++ show (gdActualLen diag) ++ " bars (entropy "
+                 ++ show (gdEntropy diag) ++ ")"
+      putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      forM_ steps $ \step -> renderPolyStep barLabel verbosity step
+      putStrLn "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      putStrLn ""
+
+-- Per-bar block: header row shared with the classical trace layout, a
+-- partners row, a combined-structures row, and (verbosity 2) the
+-- selection facts.
+renderPolyStep :: (Int -> String) -> Int -> StepDiagnostic -> IO ()
+renderPolyStep barLabel verbosity step = case sdPoly step of
+  Nothing -> pure ()
+  Just pd -> do
+    let isStarter = sdSelectedFrom step == "starter"
+        motion
+          | isStarter = "— → " ++ sdPosteriorRoot step
+          | otherwise = sdPriorRoot step ++ " → " ++ sdPosteriorRoot step
+        src
+          | isStarter = "[starter]"
+          | otherwise = "[" ++ sdSelectedFrom step ++ "] γ=" ++ show (sdGammaIndex step)
+    let chord = case sdRenderedChord step of
+          Just c  -> c
+          Nothing -> sdPosteriorRoot step
+    putStrLn $ indent
+               ++ pad labelWidth (barLabel (sdStepNumber step) ++ ":")
+               ++ pad identWidth motion
+               ++ pad infoWidth chord
+               ++ src
+    putStrLn $ indent
+               ++ pad labelWidth "partners"
+               ++ pad identWidth ("S " ++ pdSName pd)
+               ++ pad infoWidth ("M " ++ pdMName pd)
+               ++ ("pivot " ++ pdDyad pd)
+    putStrLn $ indent
+               ++ pad labelWidth "combined"
+               ++ pad identWidth ("TS " ++ pdPairTS pd)
+               ++ pad infoWidth ("TM " ++ pdPairTM pd)
+               ++ ("SM " ++ pdPairSM pd ++ "   TSM " ++ pdPentad pd)
+    when (verbosity >= 2) $
+      putStrLn $ indent
+                 ++ pad labelWidth "poly"
+                 ++ pad identWidth (pdGeometry pd)
+                 ++ pad infoWidth ("tier " ++ pdTier pd ++ " pool " ++ show (pdPoolK pd))
+                 ++ ("ranks S:" ++ rank (pdSRank pd) ++ " M:" ++ rank (pdMRank pd))
+    putStrLn ""
+  where
+    rank (Just r) = show r
+    rank Nothing  = "enum"
+    indent     = "    "
+    labelWidth = 11
+    identWidth = 20
+    infoWidth  = 24
 
 -- |Per-bar renderer. Layout is a three-line block (header + strata +
 -- mode) sharing a common indent (4 spaces) and four column widths:
@@ -385,6 +445,7 @@ printAttemptScoreboard floorT diags = do
   let viableCount  = length (filter adViable diags)
       totalCount   = length diags
       sorted       = sortBy (comparing (Down . adTotal)) diags
+      isPoly       = any (\a -> case adPoly a of { Just _ -> True; Nothing -> False }) diags
       barLine      = replicate 91 '═'
       sepLine      = replicate 91 '─'
   putStrLn ""
@@ -392,10 +453,18 @@ printAttemptScoreboard floorT diags = do
   printf "Multi-attempt rank-and-select  (%d viable in %d attempts, floor T=%.2f)\n"
          viableCount totalCount floorT
   putStrLn barLine
-  printf "   %-3s %-6s %-6s %-6s %-6s %-7s %-6s %s\n"
-         ("#" :: String) ("rm" :: String) ("vl" :: String)
-         ("cf" :: String) ("mv" :: String)
-         ("total" :: String) ("viable" :: String) ("chords" :: String)
+  -- genE ranks on three layers plus their divergence, so its scoreboard
+  -- trades the mode-validity column (structurally 1.0 there) for the
+  -- composite quality and the divergence that competes with it.
+  if isPoly
+    then printf "   %-3s %-6s %-6s %-6s %-6s %-6s %-7s %-6s %s\n"
+           ("#" :: String) ("rm" :: String) ("vl" :: String)
+           ("cf" :: String) ("qual" :: String) ("div" :: String)
+           ("total" :: String) ("viable" :: String) ("chords" :: String)
+    else printf "   %-3s %-6s %-6s %-6s %-6s %-7s %-6s %s\n"
+           ("#" :: String) ("rm" :: String) ("vl" :: String)
+           ("cf" :: String) ("mv" :: String)
+           ("total" :: String) ("viable" :: String) ("chords" :: String)
   putStrLn ("   " ++ sepLine)
   forM_ sorted (renderRow)
   putStrLn ("   " ++ sepLine)
@@ -411,16 +480,30 @@ printAttemptScoreboard floorT diags = do
           viableMk  = if adViable a then "✓" else "·"
           pickedMk  = if adPicked a then "  ← PICK" else ""
           chordPrev = truncateChords 8 (adChords a)
-      printf "  %2d   %.3f  %.3f  %.3f  %.3f  %.3f  %-6s  %s%s\n"
-             (adIndex a)
-             (PS.psRootMotion ps)
-             (PS.psVoiceLeading ps)
-             (PS.psCadenceFav ps)
-             (PS.psModeValidity ps)
-             (adTotal a)
-             (viableMk :: String)
-             chordPrev
-             (pickedMk :: String)
+      case adPoly a of
+        Just py ->
+          printf "  %2d   %.3f  %.3f  %.3f  %.3f  %.3f  %.3f  %-6s  %s%s\n"
+                 (adIndex a)
+                 (PS.psRootMotion   (PS.pyT py))
+                 (PS.psVoiceLeading (PS.pyT py))
+                 (PS.psCadenceFav   (PS.pyT py))
+                 (PS.pyQuality py)
+                 (PS.pyDivergence py)
+                 (adTotal a)
+                 (viableMk :: String)
+                 chordPrev
+                 (pickedMk :: String)
+        Nothing ->
+          printf "  %2d   %.3f  %.3f  %.3f  %.3f  %.3f  %-6s  %s%s\n"
+                 (adIndex a)
+                 (PS.psRootMotion ps)
+                 (PS.psVoiceLeading ps)
+                 (PS.psCadenceFav ps)
+                 (PS.psModeValidity ps)
+                 (adTotal a)
+                 (viableMk :: String)
+                 chordPrev
+                 (pickedMk :: String)
 
     truncateChords :: Int -> [String] -> String
     truncateChords _ []     = "(empty)"

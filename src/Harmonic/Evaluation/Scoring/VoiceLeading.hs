@@ -58,6 +58,8 @@ import Data.List (sort, nub, minimumBy)
 import qualified Data.List as List
 import Data.Function (on)
 import Data.Maybe (catMaybes)
+import Data.IORef (IORef, newIORef, readIORef, atomicModifyIORef')
+import System.IO.Unsafe (unsafePerformIO)
 import qualified Data.Map.Strict as Map
 import Data.Map.Strict (Map)
 import qualified Data.Set as Set
@@ -444,12 +446,64 @@ solveCyclicDP filterCandidates rootPCs rawChords =
 
   in result
 
+-------------------------------------------------------------------------------
+-- Solver memo
+-------------------------------------------------------------------------------
+
+-- | Entries retained before the table is cleared wholesale. A set changes
+-- progression tens of times, not thousands; this bounds the memo without
+-- needing an eviction policy.
+solveMemoCap :: Int
+solveMemoCap = 64
+
+-- | Memo table for the cyclic-DP solvers, keyed on (root-mode, chords).
+--
+-- The solvers are pure functions, so memoising them cannot change a result —
+-- it only stops the same solve being repeated. That matters because a score
+-- realises one progression once per instrument: a 15-instrument launcher
+-- called 'solveFlow' on identical input 15 times, costing 3.6 s and 3.6 GB
+-- for a 16-bar four-note progression, all on the thread installing the
+-- pattern. Tidal queries every orbit from one clock thread, so that burst
+-- starves the scheduler and drops audio outright.
+--
+-- Memoising here rather than in 'Harmonic.Interface.Tidal.Arranger.flow'
+-- also catches the walking bass, which reaches these solvers through
+-- 'Harmonic.Traversal.WalkingBass.beat1PCs' whenever a launcher passes
+-- @grid@ as its beat-1 voice function.
+{-# NOINLINE solveMemoRef #-}
+solveMemoRef :: IORef (Map (Bool, [[Int]]) [[Int]])
+solveMemoRef = unsafePerformIO (newIORef Map.empty)
+
+-- | Look up, or compute and record, a solve. The stored value is the
+-- solver's thunk, so the first consumer to force it does the work and later
+-- callers share the result. Two capabilities racing the same key may each
+-- compute it — harmless, the value is identical.
+memoSolve :: Bool -> ([[Int]] -> [[Int]]) -> [[Int]] -> [[Int]]
+memoSolve rootMode solver chords = unsafePerformIO $ do
+  let key = (rootMode, chords)
+  table <- readIORef solveMemoRef
+  case Map.lookup key table of
+    Just cached -> pure cached
+    Nothing     -> do
+      let solved = solver chords
+      atomicModifyIORef' solveMemoRef $ \t ->
+        ( if Map.size t >= solveMemoCap
+            then Map.singleton key solved
+            else Map.insert key solved t
+        , () )
+      pure solved
+
 -- |Solve with root always in bass (root paradigm).
 -- Filters candidates at each position to only those where bass note mod 12 == root PC.
 -- Result is normalized so first chord's root is in [-12,-1].
+-- Memoised: see @memoSolve@.
 solveRoot :: [[Int]] -> [[Int]]
 solveRoot [] = []
-solveRoot chords =
+solveRoot chords = memoSolve True solveRootRaw chords
+
+-- | 'solveRoot' without the memo. Behaviour of record; call 'solveRoot'.
+solveRootRaw :: [[Int]] -> [[Int]]
+solveRootRaw chords =
   let rootPCs = map bassPC chords
       -- The fallback below is provably unreachable for non-empty chords: a
       -- root-in-bass candidate always exists, because every non-root PC
@@ -472,9 +526,14 @@ solveRoot chords =
 -- predictable and 'normalizeByFirstRoot' has a stable anchor.
 -- Voice crossings permitted in subsequent bars for optimal smoothness.
 -- Result is normalized so first chord's root is in [-12, -1].
+-- Memoised: see @memoSolve@.
 solveFlow :: [[Int]] -> [[Int]]
 solveFlow [] = []
-solveFlow chords =
+solveFlow chords = memoSolve False solveFlowRaw chords
+
+-- | 'solveFlow' without the memo. Behaviour of record; call 'solveFlow'.
+solveFlowRaw :: [[Int]] -> [[Int]]
+solveFlowRaw chords =
   let rootPCs = map bassPC chords
       noFilter _ cands = cands  -- No filtering, all inversions allowed
       solved = solveCyclicDP noFilter rootPCs chords

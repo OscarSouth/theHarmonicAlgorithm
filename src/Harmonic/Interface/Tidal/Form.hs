@@ -54,6 +54,7 @@ module Harmonic.Interface.Tidal.Form
   , formK
 
     -- * Primitives
+  , beatsPerBar
   , ki
   , slate
   , kinPick

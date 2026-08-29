@@ -9,6 +9,9 @@ import Harmonic.Interface.Tidal.Arranger (parseLeadTokens, LeadToken(..), lead, 
 import Harmonic.Rules.Types.Harmony (CadenceState(..), Cadence(..), Movement(..), stateCadenceRoot, stateCadence, stateSpelling, cadenceIntervals, cadenceFunctionality, cadenceMovement, EnharmonicSpelling(..), mkCadenceStatePCs)
 import Harmonic.Rules.Types.Progression (fromCadenceStates, unProgression)
 import Harmonic.Rules.Types.ProgressionContext (triadLayer)
+import qualified Harmonic.Rules.Types.ProgressionContext as PC
+import qualified Harmonic.Rules.Types.Scale as Sc
+import qualified Data.Sequence as Seq
 import qualified Data.Foldable
 import Data.List (sort, nub)
 import Harmonic.Rules.Types.Pitch (NoteName(..), PitchClass(..), pitchClass)
@@ -151,6 +154,54 @@ spec = do
                          (Data.Foldable.toList (unProgression (triadLayer pc')))
       ivsOf' (transposeP 2 p4) `shouldBe` ivsOf' p4
       length (rootsOf (transposeP 2 p4)) `shouldBe` 4
+
+  describe "combinator provenance policy (per-family)" $ do
+    let t1 = Sc.tristrataIndex 1
+        t5 = Sc.tristrataIndex 5
+        bar r = mkCadenceStatePCs r Unison [0, 4, 7]
+        prog3 = fromCadenceStates [bar C, bar D, bar E]
+        strataCtx = PC.ProgressionContext
+          { PC.triadLayer   = prog3
+          , PC.strataLayer  = prog3
+          , PC.modeLayer    = prog3
+          , PC.pcProvenance = Just (Seq.fromList [(t1, Sc.I), (t1, Sc.V), (t5, Sc.X)])
+          , PC.pcFamily     = PC.FStrata
+          }
+        polyCtx = PC.ProgressionContext
+          { PC.triadLayer   = prog3
+          , PC.strataLayer  = fromCadenceStates [bar A, bar B, bar C]
+          , PC.modeLayer    = fromCadenceStates [bar E, bar F, bar G]
+          , PC.pcProvenance = Nothing
+          , PC.pcFamily     = PC.FPoly
+          }
+        provOf pc = Data.Foldable.toList <$> PC.pcProvenance pc
+
+    it "rotate/reverse/excerpt/expandP permute provenance in lockstep, family kept" $ do
+      provOf (rotate 1 strataCtx) `shouldBe` Just [(t1, Sc.V), (t5, Sc.X), (t1, Sc.I)]
+      PC.pcFamily (rotate 1 strataCtx) `shouldBe` PC.FStrata
+      provOf (excerpt 2 3 strataCtx) `shouldBe` Just [(t1, Sc.V), (t5, Sc.X)]
+      fmap length (provOf (expandP 2 strataCtx)) `shouldBe` Just 6
+      PC.pcFamily (rotate 2 polyCtx) `shouldBe` PC.FPoly
+
+    it "interleave carries provenance when both sides have it" $ do
+      let both = interleave strataCtx strataCtx
+      fmap length (provOf both) `shouldBe` Just 6
+      PC.pcFamily both `shouldBe` PC.FStrata
+      -- one side without provenance: drops + normalizes honestly
+      let mixed = interleave strataCtx (rotate 0 polyCtx)
+      PC.pcProvenance mixed `shouldBe` Nothing
+      PC.pcFamily mixed `shouldBe` PC.FTriad
+
+    it "insert/switch/clone downgrade FStrata and FPoly (bar substitution)" $ do
+      PC.pcFamily (insert (bar A) 2 strataCtx) `shouldBe` PC.FTriad
+      PC.pcFamily (switch 1 2 strataCtx) `shouldBe` PC.FTriad
+      PC.pcFamily (clone 1 3 polyCtx) `shouldBe` PC.FTriad
+
+    it "transposeP keeps strata identity only on octave shifts (absolute chroma)" $ do
+      PC.pcFamily (transposeP 12 strataCtx) `shouldBe` PC.FStrata
+      provOf (transposeP 12 strataCtx) `shouldBe` provOf strataCtx
+      PC.pcFamily (transposeP 2 strataCtx) `shouldBe` PC.FTriad
+      PC.pcProvenance (transposeP 2 strataCtx) `shouldBe` Nothing
 
   describe "voicing strategies (structure properties)" $ do
     let prog = triadLayer (fromChords [[0,4,7], [5,9,0], [7,11,2]])

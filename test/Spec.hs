@@ -37,12 +37,14 @@ import qualified Harmonic.Rules.Import.MergeSpec as MergeSpec
 import qualified Harmonic.Rules.Import.GraphSpec as GraphSpec
 import qualified Harmonic.Rules.Import.JazzSpec as JazzSpec
 import qualified Harmonic.Evaluation.Scoring.DissonanceSpec as DissonanceSpec
+import qualified Harmonic.Evaluation.Analysis.KeyAreaSpec as KeyAreaSpec
 
 -- Phase C: Interactive Behaviour
 import qualified Harmonic.Traversal.ProbabilisticSpec as ProbabilisticSpec
 import qualified Harmonic.Traversal.WalkingBassSpec as WalkingBassSpec
 import qualified Harmonic.Framework.BuilderSpec as BuilderSpec
 import qualified Harmonic.Framework.BuilderPSpec as BuilderPSpec
+import qualified Harmonic.Framework.PolyGenSpec as PolyGenSpec
 import qualified Harmonic.Evaluation.Database.QuerySpec as QuerySpec
 import qualified Harmonic.Interface.Tidal.BridgeSpec as InterfaceSpec
 import qualified Harmonic.Interface.Tidal.LineHarmonySpec as LineHarmonySpec
@@ -68,12 +70,14 @@ main = hspec $ do
   describe "Harmonic.Rules.Import.Graph" GraphSpec.spec
   describe "Harmonic.Rules.Import.Jazz" JazzSpec.spec
   describe "Harmonic.Evaluation.Scoring.Dissonance" DissonanceSpec.spec
+  describe "Harmonic.Evaluation.Analysis.KeyArea" KeyAreaSpec.spec
   -- Phase C
   describe "Harmonic.Evaluation.Database.Query" QuerySpec.spec
   describe "Harmonic.Traversal.Probabilistic" ProbabilisticSpec.spec
   describe "Harmonic.Traversal.WalkingBass" WalkingBassSpec.spec
   describe "Harmonic.Framework.Builder" BuilderSpec.spec
   describe "Harmonic.Framework.Builder (genP)" BuilderPSpec.spec
+  describe "Harmonic.Framework.Builder (genE polytonal)" PolyGenSpec.spec
   describe "Harmonic.Interface.Tidal.Bridge" InterfaceSpec.spec
   describe "Harmonic.Interface.Tidal.Groove" GrooveSpec.spec
   describe "Harmonic.Interface.Tidal.Form" FormSpec.spec
