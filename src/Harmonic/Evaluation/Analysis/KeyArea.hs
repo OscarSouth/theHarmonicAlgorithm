@@ -479,7 +479,9 @@ barPalettes = V.fromList . map baModeSet . analyzeProgression
 -- mode OF the bar — every tier of the override ladder contains it); the S
 -- bar is rooted on the PENTATONIC's own root — a pentatonic legitimately
 -- excludes the chord root (the pent-on-the-fifth over a maj7 does so by
--- design), and degree 0 = pentatonic root is how a player names the set.
+-- design), and the set is named from its own root. (Bar roots seed only
+-- bar 0's lattice in the chroma engine; pattern indices then track their
+-- lattice slot, not the bar root.)
 -- Provenance stays 'Nothing' (provenance is strata-specific and gates
 -- strata regen \/ scoring).
 --

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Guard the Haddock documentation quality won during the docs pass.
 
-Baselines were established 2026-08-23: all 35 modules at 100% coverage, zero accidental
+Baselines were established 2026-08-23 and moved with the library: every module at 100%
+coverage (see EXPECT_MODULES below), zero accidental
 italics, zero unlinked identifier refs beyond a known residue, and no module missing a
 Description header. This re-measures the same things so a regression is visible.
 

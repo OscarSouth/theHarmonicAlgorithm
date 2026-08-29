@@ -8,7 +8,7 @@ synopsis:            "Real-time harmonic progression generation for TidalCycles 
 description:         |
   A live performance instrument for generating and shaping harmonic
   progressions in real time while patterning musical data within them, trained
-  on over 460 composers from the Yale Classical Archives Corpus. It integrates
+  on 488 composers from the Yale Classical Archives Corpus. It integrates
   with TidalCycles via a kinetics framework handling form, five voicing
   strategies, a launcher paradigm \'conducting\' the musical abstracts
   reactively, and a preconfigured virtual orchestra mapping based on
@@ -35,9 +35,9 @@ description:         |
   * "Harmonic.Interface.Tidal.Bridge" — @arrange@, the bridge from a
     progression to a playable pattern.
   * "Harmonic.Interface.Tidal.Arranger" — voicing strategies (@grid@, @flow@,
-    @lite@, @root@) and progression manipulation.
+    @lite@, @literal@, @root@) and progression manipulation.
   * "Harmonic.Interface.Tidal.Form" — the form and kinetics framework.
-  * "Harmonic.Interface.Tidal.Orchestra" — 15 orchestral instruments with
+  * "Harmonic.Interface.Tidal.Orchestra" — 16 orchestral instruments with
     built-in range clipping and divisi.
   * "Harmonic.Interface.Tidal.Groove" — sub-bass, kick patterns and the
     clave\/cascara grids.

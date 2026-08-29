@@ -59,7 +59,7 @@ arithmetic is handled); reach the internal sets with `presetA` / `presetB`.
 | `guitarV` | Orchestral 185 Classical Gt | — |
 | `organV` | internal `presetA 18` | organ weight (Mars) |
 
-Definitions live in `live/BootTidal.hs` beside the MIDI helpers. Two constants
+Definitions live in `Harmonic.Interface.Tidal.Devices.JV1010`. Two constants
 need confirming against the device the first time this is used: `orchLSB` (the
 expansion card's bank) and the `organV` patch number.
 
@@ -162,7 +162,7 @@ tamtam   pat = struct pat $ midinote 31 # ch 11 # sustain 0.5
 
 Tidal note 0 = MIDI 60 = middle C. Ranges are enforced by `clip` inside each instrument function.
 
-### Range review (pending — do before v3.1.0 close-out)
+### Range review (pending — a practical pass at the instrument)
 
 The numeric bounds above are tuned to the range limits of the **actual
 JV1010 sampler patches**, not textbook instrument ranges — the numbers are
@@ -401,7 +401,7 @@ The classic developments are just TidalCycles; only inversion and combination ar
 
 `>:<` (= `struct`) gates a fragment with a rhythm — the rhythm's onsets sample the contour's pitches.
 `mirror axis d = 2*axis - d`. The clave/bell rhythm shorthands (`son32`, `rumba32`, `bossa32`,
-`bellpat32`, and their `23` rotations) live in `BootTidal.hs`.
+`bellpat32`, and their `23` rotations) live in `Harmonic.Interface.Tidal.Groove`.
 
 ### The motif panel (per-piece swap)
 
@@ -510,8 +510,10 @@ As kinetics rises from 0→1, instruments enter progressively.
 ## Suite Movement Structure
 
 Every movement file in a suite follows the same eight-part skeleton. The
-reference implementation is `Orpheus/scene2/09_pas_de_deux.tidal`; all 57
-movements across the six suites conform.
+reference implementation is `live/local/Suites/Orpheus/scene2/09_pas_de_deux.tidal`;
+all 57 movements across the six suites conform. The suites are the author's
+own repertoire and are not distributed with the repository — the skeleton
+below is the part that transfers.
 
 | # | Part | Notes |
 |---|---|---|

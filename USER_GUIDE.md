@@ -10,7 +10,7 @@ This system outputs MIDI on TidalCycles channels 1–16 (`d01`–`d16`). **Every
 
 ### The graph
 
-Generation draws on a Neo4j graph of harmonic transitions learned from 460+ composers (the Yale Classical Archives Corpus). Start it before you begin:
+Generation draws on a Neo4j graph of harmonic transitions learned from 488 composers (the Yale Classical Archives Corpus). Start it before you begin:
 
 ```bash
 docker compose up -d neo4j
@@ -31,7 +31,7 @@ docker compose up -d neo4j        # graph backend
 stack run                         # one-time: populate the graph
 ```
 
-See [`live/BootTidal.hs`](live/BootTidal.hs) for all available helpers (`ch`, `vel`, `oct`, the `d01`–`d16` MIDI streams, `hush`/`panic`, the drum patterns).
+The MIDI streams (`d01`–`d16`) and the `hush`/`panic` family live in [`live/BootTidal.hs`](live/BootTidal.hs); the helpers themselves are library modules — `ch`/`vel` in `Harmonic.Interface.Tidal.Instruments`, `oct` in `.Utils`, the drum map in `.Devices.JV1010`.
 
 ### Known exceptions
 
@@ -84,7 +84,7 @@ print s
 
 `lead` ([`Arranger.hs`](src/Harmonic/Interface/Tidal/Arranger.hs)) parses a readable string: `"C maj"`, `"E min"`, `"Bb 7 (7)"` — root, quality, optional ascending movement. Use `initCadenceState 0 "C" [0,4,7]` for explicit interval control.
 
-**How** — `lead` returns `IO CadenceState`, so bind with `<-`. The `seek` terminal runs the whole modifier chain; `"*"` aggregates the full corpus. `cue` sets the starting state, `len` the chord count, `entropy` (0.0–1.0+) dials between the familiar and the surprising.
+**How** — `lead` returns `IO CadenceState`, so bind with `<-`. The `seek` terminal runs the whole modifier chain; `"*"` aggregates the full corpus. `cue` sets the starting state, `len` the chord count, `entropy` (0.0–1.0+) dials between the familiar and the surprising: the value times ten is the rank the sampler *aims* at in the candidate list, so `0.2` reaches for roughly the second-ranked continuation and `0.9` for the ninth. It is a target, not a script — the draw is a distribution around it.
 
 **Try it** — change `"C maj"` to `"E min"` or `"Bb 7 (7)"`. Swap `entropy 0.5` for `0.2` (conventional, cadence-hungry) or `0.9` (adventurous, distant modulations). Regenerate a few times at each — entropy is a distribution, not a script.
 
@@ -178,7 +178,7 @@ Three concepts:
 
 `rep s 1` auto-derives one-chord-per-bar from the progression length. One cycle is one beat; bar-length patterns carry `/4`.
 
-**Try it** — change `"[0 1 2 3]/4"` to `"[0 1 2 3 4 5 6 7]/8"` (double density) or `"[0 2 1 3]/4"` (new contour).
+**Try it** — change `"[0 1 2 3]/4"` to `"[0 1 2 3 4 5 6 7]/8"` (double density) or `"[0 2 1 3]/4"` (new contour). The whole launcher arrives prepared from the `launch` snippet (§22).
 
 > **▶ VIDEO — First sound**
 > _~30s: define the launcher, launch, hear the cycle; double the pattern density and relaunch._
@@ -305,6 +305,7 @@ ___
 | `flow` | Any inversion | Smoothest (cyclic DP, globally optimal) | Pads, harmonic beds |
 | `grid` | Root locked | Smooth upper voices | Grounded chords |
 | `lite` | Any | None (raw intervals) | Direct control |
+| `literal` | Any | None; register-normalised only | Hand-built material, as written |
 | `root` | Root PC only | N/A | Bass lines, mono |
 | `fund` | Harmonic fundamental | N/A | Sub bass, kick drums |
 
@@ -316,7 +317,7 @@ arrange (0, 1) k (-9, 9) T root (overlapF 0) ["~", "[0]/1"]       # ch 01 |- oct
 
 **How** — the voicing function is the 5th argument of `arrange` (after the layer). Everything else stays identical. Stack multiple `arrange` calls with different voicings in one launcher to build a full texture.
 
-Two behaviors worth knowing: **mixed chord sizes voice-lead for real** — a triad flowing into a 4-note chord (a `lead'` cue, hand-built material) is costed by aligning the larger chord's outer and inner voices onto the smaller, so seams hold common tones instead of jumping register; and **chroma layers route themselves** — the S/M layers of genP and of chordscale-derived gen/genJ contexts always take `strataModeFlow`'s degree semantics through `arrange`, as does any bar with 6+ pitch classes, rather than a chord-voice-leading solve that would be both slow and the wrong musical question. Everything harmony-sized (up to 5 voices) gets the full cyclic DP — including a bare 5-PC pentatonic layer voiced DIRECTLY with `flow (layer S s)` outside `arrange`, so prefer the `arrange` layer argument for degree semantics.
+Two behaviors worth knowing: **mixed chord sizes voice-lead for real** — a triad flowing into a 4-note chord (a `lead'` cue, hand-built material) is costed by aligning the larger chord's outer and inner voices onto the smaller, so seams hold common tones instead of jumping register; and **chroma layers route themselves** — the S/M layers of genP and of chordscale-derived gen/genJ contexts always take `strataModeFlow`'s lattice semantics through `arrange` (a fixed pitch lattice grounded on bar 0 — a held index pedals its pitch and inflects by accidental as the key area moves, instead of transposing with each bar's root), as does any bar with 6+ pitch classes, rather than a chord-voice-leading solve that would be both slow and the wrong musical question. Everything harmony-sized (up to 5 voices) gets the full cyclic DP — including a bare 5-PC pentatonic layer voiced DIRECTLY with `flow (layer S s)` outside `arrange`, so prefer the `arrange` layer argument for lattice semantics.
 
 **Try it** — compare `flow` and `grid` on a long progression. Add a second `arrange` with `root` and an octave offset for a bass line.
 
@@ -553,7 +554,7 @@ The upper voice has kinetics range `(0.7, 1)` — it exists only during the clim
 
 Mix them freely in one form. **Form templates** (inlined in the .tidal, §13): `narrative` — the ~7m24s spectral arc (10 nodes, scale the times to taste); `popForm` — verse-chorus-bridge in bars.
 
-**Try it** — stretch the arc to 5 minutes or compress to 20s. Change the upper gate to `(0, 0.3)` — it becomes the lead-in. Flip `rh' 8` to `rh 8` — the hard cut becomes a ramp.
+**Try it** — the `dance` snippet (§22) expands a full symmetric arc to edit rather than build. Stretch it to 5 minutes or compress to 20s. Change the upper gate to `(0, 0.3)` — it becomes the lead-in. Flip `rh' 8` to `rh 8` — the hard cut becomes a ramp.
 
 > **▶ VIDEO — The arc**
 > _~60s: launch the 60-second arc — kinetics rising on screen, the progression switching at the peak, the upper line entering at 0.7 and leaving on the way down._
@@ -594,7 +595,7 @@ d10 $ stack
   ]
 ```
 
-**Try it** — replace the LFO with `slow 16 $ lfo sine 0 1` or `segment 8 $ perlin`. `withForm k f` gives a custom pattern function the active progression reactively.
+**Try it** — the `slate` snippet (§22) inserts one gated layer. Replace the LFO with `slow 16 $ lfo sine 0 1` or `segment 8 $ perlin`. `withForm k f` gives a custom pattern function the active progression reactively.
 
 > **▶ VIDEO — Performed kinetics**
 > _~45s: an LFO sweeping the arc hands-free; then the drum stack assembling itself as the signal climbs._
@@ -645,7 +646,7 @@ ___
 
 **Why** — a walking bassline synthesised from the progression: consonant anchors on the strong beats (root on 1; P5/root/3rds on 3), weighted connectors on beats 2 and 4 preferring sandwich motion and approach tones, and a soft direction-persistence bias on the beat-1 contour. The walk follows the **performed** bar order — warp/rep selections resolve at eval time, repeated bars walk as neighbours (root–fifth alternation), approach tones aim at the bar that actually comes next; non-periodic selections fall back to stored order with a printed notice. Jazz progressions (`genJ`) walk from a per-quality **bass vocabulary** rather than the raw corpus set: the fifth a 13th chord omits is restored, an altered dominant's #5 replaces the natural 5 it does not contain, notated colours (b9, #9, #11, b13) stay off strong beats while remaining available as weak-beat tension, and the 9th and 11th act as favourable passing tones. `genP` walks its strata chroma as before; `gen` walks the plain tone sets, and `genE` walks its foundation (T) layer — the layer that owns the bass. Connector tones on beats 2/4 draw on the **key-area palette** — the same whole-progression analysis behind the chordscale S/M layers (§19), so under a plain selection the bass walks the sets those layers display. Under a reordering selection the walk re-analyses the performed sequence (deliberately — it hears what is actually played), and its lines add chromatic approach tones beyond any stored set.
 
-**What** — [`LineHarmony.hs`](src/Harmonic/Interface/Tidal/LineHarmony.hs), [`WalkingBass.hs`](src/Harmonic/Traversal/WalkingBass.hs), [`KeyArea.hs`](src/Harmonic/Evaluation/Analysis/KeyArea.hs)
+**What** — [`LineHarmony.hs`](src/Harmonic/Interface/Tidal/LineHarmony.hs), [`WalkingBass.hs`](src/Harmonic/Traversal/WalkingBass.hs), [`KeyArea.hs`](src/Harmonic/Evaluation/Analysis/KeyArea.hs). The `walk` snippet (§22) expands the block below.
 
 ```haskell
 walk f k d = p "lineHarmony"
@@ -661,6 +662,17 @@ do
     , walk id k 0.9
     ]
 ```
+
+The same walk over a jazz progression reads the chart rather than the raw tone set — the fifth a 13th omits is restored, an altered dominant walks its ♯5, and the notated colours stay off the strong beats:
+
+```haskell
+sJ <- seek "*" $ len 8 $ entropy 0.4 $ genJ
+do
+  let k = iK tempo [at 0 1 1 sJ] (rep sJ 1)
+  mapM_ id [hush, setbpm tempo, walk id k 0.9]
+```
+
+Nothing in the block changes — the family the progression came from is what changes the line. `genP` walks its strata chroma the same way, and `genE` walks its foundation layer, the one that owns the bass.
 
 The patterns are 1-indexed **beat positions** (which beats of each bar the line sounds on), not voicing degrees. The list length N partitions the kinetics signal into N `kinPick` windows and only the window holding the current signal plays — a leading `"~"` silences the low-kinetics half. The `d` argument is applied once inside `lineHarmony`; do **not** also `|* vel d` outside (that squares the dynamic). Dynamics also steer the walk: bars quieter than the piece's own mean bias the register arc upward, louder bars downward, and a sudden drop (0.25+ between bars) resets the line to its lowest note — only eval-time-sampleable dynamics count (the `d` argument and form-node dynamics; live control signals and downstream `|* vel` are walk-neutral). The line is fixed to a 21-semitone double-bass register (E1–C3 at the default patch; the absolute octave depends on the synth via `tidalNoteOffset`); `voiceFn` (`root` or `fund`) anchors beat 1. Sparser feels compose like any Tidal pattern: `"[1 3]/4"` (two-feel), `"[1 2 ~ 4]/4"`, `"[1 [2 2] 3 4]/4"` (eighth-note fill).
 
@@ -695,7 +707,21 @@ p01satb f k d = d01 $ do
     ] |* vel d
 ```
 
-Four voices — soprano, alto, tenor, bass — each an `arrange` call with a different degree and octave offset.
+Four voices — soprano, alto, tenor, bass — each an `arrange` call with a different degree and octave offset. The `orchsec` snippet (§22) expands this shape; `instr` inserts a single line into an existing stack.
+
+The layer argument (the 4th) is where the other families arrive. On a `genP` context the `S` layer is that bar's five-note strata and `M` its seven-note mode, so the same call becomes pentatonic or modal material over the same harmony — degrees, not chord tones:
+
+```haskell
+sP <- seek "*" $ len 8 $ entropy 0.4 $ genVI
+do
+  let k = iK tempo [at 0 1 1 sP] (rep sP 1)
+  mapM_ id [hush, setbpm tempo
+    , (d01 $ arrange (0, 1) k (-9, 9) T grid (overlapF 0) ["~", "[0]/1"]       # ch 01 |- oct 1 |* vel 0.8)
+    , (d02 $ arrange (0, 1) k (-9, 9) S flow (overlapF 0) ["~", "[0 2 4 6]/2"] # ch 02 |+ oct 1 |* vel 0.5)
+    ]
+```
+
+Swap `S` for `M` for the mode, or `TS`/`TSM` for the unions. Every layer works on every family (§19-§21).
 
 ### Divisi
 
@@ -726,7 +752,7 @@ ___
 
 **Why** — name the recurring material a piece is built from, and develop it with the classic tools instead of retyping strings.
 
-**What** — [`BootTidal.hs`](live/BootTidal.hs) (`>:<`, `mirror`, clave library). Motifs are plain patterns: a `Pattern Bool` **rhythm** and a `Pattern Int` **contour** (voicing degrees — realised against the harmony by `arrange`, so a contour tracks the chords). One statement binds all three names:
+**What** — `Harmonic.Interface.Tidal.Motif` (`>:<`, `mirror`, `retro`) and `.Groove` (the clave library). Motifs are plain patterns: a `Pattern Bool` **rhythm** and a `Pattern Int` **contour** (voicing degrees — realised against the harmony by `arrange`, so a contour tracks the chords). One statement binds all three names:
 
 ```haskell
 (rhythm, contour, motif) =
@@ -774,7 +800,7 @@ otherwise a perfectly good `rev` reads as a no-op:
 
 **How** — a contour is voicing-index degrees, so it re-realises against whatever chord is sounding; restate an idea at a new pitch by transposing the *harmony* beneath a fixed contour. `mirror axis d = 2*axis - d`.
 
-**Try it** — re-execute the panel with `contour = "[0 1 2 3]/4"` or `rhythm = bossa32` and hear the piece reprogram in one step. Claves: `son32`, `rumba32`, `bossa32`, `bellpat32` (+ 2-3 rotations: `son23` …).
+**Try it** — the `mpanel` snippet (§22) expands the panel with its type annotation. Re-execute it with `contour = "[0 1 2 3]/4"` or `rhythm = bossa32` and hear the piece reprogram in one step. Claves: `son32`, `rumba32`, `bossa32`, `bellpat32` (+ 2-3 rotations: `son23` …).
 
 > **▶ VIDEO — One idea, developed**
 > _~45s: the motif stated, then inverted against itself, then re-rhythm'd with one panel edit._
@@ -856,7 +882,7 @@ s <- seek "*" $ cue start $ len 8 $ entropy 0.3 $ genE'   -- genE / genE' / genE
 
 Cues are triadic (a 4-note cue is refused — the combined structures come from the layers). The zero-prime output prints the foundation grid plus the combined `TSM` grid; `genE'` adds a per-bar table (partners, pair structures, pentad, pivot tones); `genE''` adds the selection facts (geometry, pool tier and size, own-list ranks). At the REPL, `genEReport s` prints every layer view a pattern can select.
 
-Two things behave differently here from the other three families. **Every layer voices as harmony** — the caller's `flow`/`grid` solve, `SM` and `TSM` pentads included. A genE pentad is three stacked triads sounding at once, a polytonal sonority rather than a scale form, so vertical voice leading is the right question to ask of it; the pentatonic and modal layers of `gen`/`genP`/`genJ` take degree semantics instead precisely because they are *not* that (§19). And **`attempt` ranks all three layers** — half the weight on the foundation, a quarter on each partner — plus a **divergence** axis measuring how far apart they stand: how often the partners take the base-anchored geometry, and how widely the three roots spread. Divergence is the point of the family, so it competes with quality rather than breaking ties, and raising K raises both. `genE''` shows the trade in its own scoreboard columns.
+Two things behave differently here from the other three families. **Every layer voices as harmony** — the caller's `flow`/`grid` solve, `SM` and `TSM` pentads included. A genE pentad is three stacked triads sounding at once, a polytonal sonority rather than a scale form, so vertical voice leading is the right question to ask of it; the pentatonic and modal layers of `gen`/`genP`/`genJ` take lattice semantics instead precisely because they are *not* that (§19). And **`attempt` ranks all three layers** — half the weight on the foundation, a quarter on each partner — plus a **divergence** axis measuring how far apart they stand: how often the partners take the base-anchored geometry, and how widely the three roots spread. Divergence is the point of the family, so it competes with quality rather than breaking ties, and raising K raises both. `genE''` shows the trade in its own scoreboard columns.
 
 ```haskell
 arrange (0,1) k (-9,9) T   flow (overlapF 0) ["~", "[0 1 2 3]/4"]  -- foundation alone
@@ -948,6 +974,8 @@ ___
 
 None is "more correct" — they trade immediacy against decidedness. A performance can move along the gradient: open from a state file, develop by snippet, end blank-page.
 
+**What earns a prefix.** A snippet prepares a *repeated, fiddly* syntax path around a musical action, so the hands reach for music rather than boilerplate — it is not one block per feature. Fewer prefixes is better, because there is less to recall mid-performance. Anything short and memorable lives here in the guide instead: switching generation family is four characters (`$ gen` → `$ genJ`), and the verbosity primes are one. If a body is a line you would type faster than you would remember the prefix, it should not be a snippet.
+
 **The prefix index:**
 
 | Group | Prefixes |
@@ -989,7 +1017,7 @@ ___
 - [`ARCHITECTURE.md`](documents/ARCHITECTURE.md) — R→E→T pipeline, four-layer architecture, graph schema
 
 **Drum patterns** —
-- [`live/drumpats/`](live/drumpats/) — genre pattern library (kick/snare/hh helpers in BootTidal)
+- [`live/drumpats/`](live/drumpats/) — genre pattern library (kick/snare/hh helpers in `Harmonic.Interface.Tidal.Devices.JV1010`)
 
 ### Quick reference
 
@@ -1006,7 +1034,7 @@ s <- seek "none" $ ... $ gen                                 -- offline fallback
 
 **Regenerate in place** — `genFrom s a b` (wrap-aware, cue auto-inferred), `genFrom'`/`genFrom''`.
 
-**Strata-first (T/S/M)** — `genI..genXI` (+`'`/`''`); `hcTristrata "5"`, `relStrata "1 2 3"`, `absStrata "I V X"`, `sameBoost`/`flipBoost`/`triBoost N`, `genPReport`.
+**Strata-first (T/S/M)** — `genI..genXI`, one alias per stratum, each in the usual three verbosities (bare silent, `'` standard, `''` verbose) — so `genIII''` is the verbose walk from stratum III; `hcTristrata "5"`, `relStrata "1 2 3"`, `absStrata "I V X"`, `sameBoost`/`flipBoost`/`triBoost N`, `genPReport`.
 
 **Polytonal (genE)** — `genE`/`genE'`/`genE''`: foundation walk + two partner triad chains; layer selectors `TS`/`TM`/`SM`/`TSM`/`PT` for pairs, the pentad and the pivot tones; `genEReport s` prints every layer view.
 
@@ -1014,9 +1042,17 @@ s <- seek "none" $ ... $ gen                                 -- offline fallback
 
 **Context modifiers** — compose with `$`, right-to-left: `hContext`, `hcOvertones`, `hcKey`, `hcRoots`, `hcPedal`, `consonant`, `dissonant`, `invSkip`, `hcTristrata`.
 
-**Voicing** — `flow`, `grid`, `lite`, `root`, `fund`.
+**Voicing** — `flow`, `grid`, `lite`, `literal`, `root`, `fund`; `voiceRange` clips a line to an instrument's compass.
 
 **Chord selection** — `rep s 1`, `warp "[1 2 3 4]/4"`.
+
+**Pattern helpers** (`Harmonic.Interface.Tidal.Utils`) — `swing8`/`swing16` (swing by proportion: `0.5` straight, `0.667` triplet), `humanise n` (velocity jitter, combine with `|+`), `oct n`, `pullBy`/`pushBy` (rotate earlier/later), `binaryrange lo hi` (wandering boolean gate), `over`/`-->` (step a list under a 0-1 control), and the note-length constants `hemidemisemiquaver` … `minim`.
+
+**Claves** (`Harmonic.Interface.Tidal.Groove`) — `son32`, `rumba32`, `bossa32`, `bellpat32` and their 2-3 rotations `son23`, `rumba23`, `bossa23`, `bellpat23`; `noteoff` releases a held sub. Use with `struct` or `mask`.
+
+**Melody source** — `melodyStateFrom` builds a starting state from a `ScaleSource`, for lines that follow a scale rather than the corpus.
+
+**Display feed** — `displayClock`/`displayClock'` build the 12 Step's LED CC pattern (elapsed seconds, or bar number); the launcher wraps them as `display k` / `display' k`.
 
 **Arrangement** —
 
@@ -1037,7 +1073,7 @@ arrange' (lo,hi) k (-9,9) LAYER voicing modifier [patterns] # ch N   -- squeeze 
 
 **Explicit** — `fromChords [[0,4,7], …]`; `prog (notesToPCs <$> [[C,E,G], …])`; `fromCadenceStates [initCadenceState mov "Root" [ints], …]`.
 
-**Snippets (Pulsar)** — `transport` · `state` · `movement` · `lead` · `ctx` · `gen` · `gene` · `chordscale` · `formless` · `dance` · `launch` · `p` · `rrange` · `slate` · `minimal` · `deeptech` · `subk` · `walk` · `mpanel` · `motif` · `develop` · `cc` · `disp`.
+**Snippets (Pulsar)** — `transport` · `state` · `movement` · `lead` · `ctx` · `gen` · `gene` · `chordscale` · `formless` · `dance` · `launch` · `p` · `rrange` · `slate` · `minimal` · `deeptech` · `subk` · `walk` · `mpanel` · `motif` · `develop` · `cc` · `disp`. The rig-specific ones (`orchsec`, `orchblend`, `tutti`, `instr`, `divisi`, `divisidesk`, `k909`, `kmpc`, `kgrv`, `m32`, `mdf`) are in §22's full index — they assume the MIDI orchestra this guide stops short of.
 
 ___
 

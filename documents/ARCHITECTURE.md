@@ -12,7 +12,7 @@ newer subsystems, [OCTATRIPENTATONICS.md](OCTATRIPENTATONICS.md) and
 ## 1. Overview
 
 theHarmonicAlgorithm generates harmonic progressions from transitions
-learned across 460+ composers of the Yale Classical Archives Corpus
+learned across 488 composers of the Yale Classical Archives Corpus
 (YCACL), and plays them through TidalCycles. Generation:
 
 1. Cadence transitions are stored in Neo4j as a weighted graph.
@@ -220,17 +220,26 @@ progression indefinitely.
 
 ## 4. Module Structure
 
+**Toolchain.** Stackage **lts-24.56** / **GHC 9.10.3**, language edition
+GHC2021 with a project-wide `OverloadedStrings` default, building against
+**TidalCycles 1.10.3** and **Neo4j 5.26** over the HTTP Query API.
+`stack.yaml` sets `system-ghc: true`, so the compiler on PATH is the one
+used. The library compiles warning-clean under `-Wall`.
+
+
 ```
 src/Harmonic/
 │
 ├── Lib.hs                      [public API re-export]
 ├── Config.hs                   [Neo4j connection + corpus paths]
+├── Database.hs                 [HTTP Query API transport]
 │
 ├── Framework/                  [R→E→T orchestration]
 │   ├── Builder.hs              [facade; gen/genE/genP/genJ/genFrom families]
 │   └── Builder/
 │       ├── Types.hs            [HarmonicContext, GenConfig, diagnostics types]
 │       ├── Core.hs             [chain building, candidate pools, filtering]
+│       ├── Modifiers.hs        [the modifier chain: cue/len/seek/entropy/…]
 │       ├── Strata.hs           [strata-walk placement + adjacency]
 │       ├── StrataGen.hs        [the genP runner]
 │       ├── JazzGen.hs          [the genJ runner]
@@ -252,6 +261,8 @@ src/Harmonic/
 │       ├── CSV.hs              [YCACL CSV parsing]
 │       ├── Transform.hs        [ChordSlice → Cadence]
 │       ├── Types.hs            [import data types]
+│       ├── Jazz.hs             [jazz chord-symbol parser + bass vocabulary]
+│       ├── Merge.hs            [transition-count merging]
 │       └── Graph.hs            [Neo4j schema writes]
 │
 ├── Evaluation/                 [E component]
@@ -559,7 +570,7 @@ resolve `r.weights` against the caller's composer blend — `"*"` sums
 across the corpus, a name selects one, `"bach:30 debussy:70"` mixes with
 those coefficients.
 
-**Corpus**: Yale Classical Archives Corpus, 460+ composers. Ingestion
+**Corpus**: Yale Classical Archives Corpus, 488 composers. Ingestion
 extracts the fundamental of each slice and ranks its most consonant
 triad interpretations with per-slice normalised weights. Transitions
 are counted over slice TRIPLES — the cadence `a -> b` followed by
@@ -605,9 +616,11 @@ strictly-scoped:
   moving alternatives but can no longer beat stillness.
 - **Chroma routing.** genP-provenance S/M layers, and the chordscale-
   derived S/M layers of gen/genJ contexts, are always voiced by
-  `strataModeFlow` (degree/"key-signature" semantics; octave placement
-  chosen by common-tone MIDI overlap, so shared tones pedal in
-  register); combination selectors over those contexts take the same
+  `strataModeFlow` (lattice semantics: a fixed pitch lattice grounded
+  on bar 0, each slot inflected onto the current bar's set by the
+  minimum-cost bijection, so a held pattern index pedals its pitch and
+  key changes arrive as accidentals, never as a jump to the new root);
+  combination selectors over those contexts take the same
   route. Derived-layer detection requires a distinct mode layer whose
   every bar is chroma-sized (≥5 PCs) — so a substitution-downgraded genE
   context and a bar-substituted derived context both fall back honestly.

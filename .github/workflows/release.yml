@@ -31,6 +31,15 @@ jobs:
           # anything with a suffix (-rc1, -beta) ships as a prerelease
           if [[ "$TAG" == *-* ]]; then echo "prerelease=true" >> "$GITHUB_OUTPUT";
           else echo "prerelease=false" >> "$GITHUB_OUTPUT"; fi
+          # The tag is the only version input, so a typo would otherwise publish a
+          # release named for a version the code does not claim — and slice the
+          # wrong CHANGELOG section, or none.
+          BASE="${TAG#v}"; BASE="${BASE%%-*}"
+          MANIFEST=$(grep -m1 '^version:' package.yaml | awk '{print $2}')
+          if [[ "$BASE" != "$MANIFEST" ]]; then
+            echo "::error::tag $TAG implies version $BASE but package.yaml says $MANIFEST"
+            exit 1
+          fi
 
       - uses: haskell-actions/setup@v2
         with:

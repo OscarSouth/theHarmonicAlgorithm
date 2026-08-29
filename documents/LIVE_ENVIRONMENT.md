@@ -288,6 +288,17 @@ the repository somewhere without spaces in the path.
 wrapper should ever be given `-fobject-code`, and only with `-odir` pinned; if objects
 have leaked into `src/`, `find src -name '*.o' -o -name '*.hi' -delete` clears them.
 
+**`renameFile … .o.tmp … does not exist` mid-boot, then `Failed, N modules added` and
+hidden-package errors.** Two interpreters compiled into `live-odir` at once. The plugin
+itself spawns the wrapper twice on every boot — the REPL plus a second instance it uses
+to `:browse` for autocomplete — and after a source edit both would recompile the same
+dirtied modules into the shared odir, racing each other's temp-file renames. The wrapper
+now serialises this with a PID lock inside the odir: the first instance owns the object
+cache, and any concurrent instance (the autocomplete browser, or a reboot over a live
+session) silently falls back to a plain bytecode GHCi, which writes nothing. Recover
+from an already-poisoned odir with `rm -rf .stack-work/live-odir` (this clears the lock
+too) and reboot — the next boot recompiles everything once.
+
 **The controller is dead and nothing is wrong.** An orphaned ghci from a previous session
 is still holding port 6010, so `cF` values never update and every knob reads its default.
 `lsof -nP -iUDP:6010` names the process.

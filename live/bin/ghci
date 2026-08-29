@@ -16,6 +16,17 @@
 # plain `stack ghci`, CI, anything -- links those objects instead of compiling,
 # which after a source edit is an ABI mismatch.
 #
+# ONE OBJECT-CODE SESSION AT A TIME. The plugin spawns this command TWICE per
+# boot -- the REPL, plus a second instance it uses to :browse for autocomplete
+# -- and two compilers sharing an -odir race each other's .o.tmp renames
+# ("renameFile ... does not exist" mid-boot) and strand mixed-ABI objects.
+# The first instance to claim the PID lock gets the object cache; any other
+# concurrent instance (the autocomplete browser, or an accidental reboot over
+# a live session) falls back to a plain bytecode GHCi, which writes nothing
+# and needs no lock. The lock lives inside the odir, so wiping a poisoned
+# odir (rm -rf .stack-work/live-odir) also clears it; a crashed session's
+# stale lock is ignored via a liveness check.
+#
 # Pulsar raises anything the interpreter writes to stderr as an editor error
 # notification, so stack's own progress logging is turned down to errors only;
 # GHC's compile output goes to stdout and still reaches the console view.
@@ -28,9 +39,31 @@ set -e
 
 repo=$(cd "$(dirname "$0")/../.." && pwd)
 odir="$repo/.stack-work/live-odir"
+lock="$odir/.session.pid"
 
 export GHCRTS="-N2 -qg"
 
+bytecode() {
+  exec stack --verbosity=error --stack-yaml "$repo/stack.yaml" \
+    ghci theHarmonicAlgorithm:lib
+}
+
+# Another live instance holds the object cache -> bytecode fallback.
+if [ -f "$lock" ] && kill -0 "$(cat "$lock" 2>/dev/null)" 2>/dev/null; then
+  bytecode
+fi
+
+mkdir -p "$odir"
+echo $$ > "$lock"
+# Two instances start near-simultaneously on every boot; whoever's PID
+# survives the write-then-verify owns the odir, the loser goes bytecode.
+[ "$(cat "$lock" 2>/dev/null)" = "$$" ] || bytecode
+
+# A crash mid-compile can strand .tmp files; they are never valid input.
+find "$odir" -name '*.tmp' -delete 2>/dev/null || true
+
+# exec keeps this PID for the whole GHCi session, so the lock stays live
+# exactly as long as the session does and goes stale (ignorable) with it.
 exec stack --verbosity=error --stack-yaml "$repo/stack.yaml" \
   ghci theHarmonicAlgorithm:lib \
   --ghci-options "-fobject-code -O2 -odir $odir -hidir $odir"

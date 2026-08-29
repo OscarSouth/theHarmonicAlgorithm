@@ -263,7 +263,7 @@ steptrig pat = mono $ midinote (toScale [-1, 0, 2, 4, 5, 7, 9, 10] $ (((pat-1) `
 --   * lite/literal: Literal intervals, no voice leading applied
 --   * root: bass pitch class per bar (bass-line extraction; no DP)
 --   * fund: harmonic fundamental per bar, inversion-invariant (sub/kick)
---   (>=6-PC bars auto-route to strataModeFlow's degree semantics)
+--   (>=6-PC bars auto-route to strataModeFlow's bar-0 lattice semantics)
 --
 -- All types are Phase B (MusicData has been deprecated).
 -------------------------------------------------------------------------------

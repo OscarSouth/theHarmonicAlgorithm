@@ -3,6 +3,16 @@
   # ══════════════════════════════════════════════════════════
   # ALGORITHMIC ORCHESTRATION SNIPPETS
   # ══════════════════════════════════════════════════════════
+  #
+  # A snippet prepares a REPEATED, FIDDLY syntax path around a musical
+  # action — so the hands reach for music, not boilerplate. It is not a
+  # place to keep one block per library feature.
+  #
+  # Fewer prefixes is better: there is less to remember mid-performance.
+  # Anything short and memorable — switching generation family, a
+  # verbosity prime — belongs in the user guide, not here. If a body is
+  # one line you would type faster than you would recall the prefix, it
+  # should not be a snippet.
 
   # ── Session ───────────────────────────────────────────────
 
@@ -128,7 +138,7 @@
   'lead':
     'prefix': 'lead'
     'body': '''
-      start <- lead "$1"
+      start <- ${1:lead} "$2"          -- lead | lead' | leadJ
     '''
 
 
@@ -140,6 +150,7 @@
         $ hcKey "$2"
         $ hcRoots "$2"
         -- $ hcPedal "$3"
+        -- $ hcTristrata "$4"     -- genP: lock the walk to one tristrata
         $ hContext
     '''
 
@@ -151,12 +162,21 @@
         \\composer -> seek "$2"
         $ cue composer
         $ tonal ctx
+        -- $ relStrata "1 2 3" -- genP: bar count comes from the list, so it
+        --                     --       must sit ABOVE len (the chain applies
+        --                     --       bottom-up and len clears the override).
+        --                     --       Also absStrata, sameBoost/flipBoost/triBoost.
         $ len 4
         $ entropy 0.5
         $ attempt 2 6
-        $ gen
+        -- $ viability 0.5     -- attempt's floor (default 0.5)
+        -- $ steer 3           -- genJ: pull toward the classical blend
+        $ ${3:gen}             -- gen | genE | genJ | genP II
     '''
 
+  # REVIEW — remove? `gen` now carries the family as a tab-stop, so this
+  #   body differs from it by nothing at all. Family switching is four
+  #   characters and belongs in the guide (§20), not a second prefix.
   'genE block (polytonal)':
     'prefix': 'gene'
     'body': '''
@@ -170,6 +190,8 @@
         $ genE
     '''
 
+  # REVIEW — remove? One line. `chordscaleReport s` is faster to type than
+  #   the prefix is to recall; §19 already shows it.
   'chordscale report':
     'prefix': 'chordscale'
     'body': '''
@@ -178,6 +200,8 @@
 
   # ── Form ──────────────────────────────────────────────────
 
+  # REVIEW — merge into `state`? Three lines, no tab-stops, and a verbatim
+  #   substring of the `state` body.
   'form: single state':
     'prefix': 'formless'
     'body': '''
@@ -273,6 +297,8 @@
     '''
 
 
+  # REVIEW — merge into `orchsec`? Identical but for the Bass8vb line.
+  #   Deleting one line is a keystroke; remembering a second prefix is not.
   'orchestral blend':
     'prefix': 'orchblend'
     'body': '''
@@ -332,6 +358,8 @@
 
   # ── Divisi ────────────────────────────────────────────────
 
+  # REVIEW — merge into `instr`? Both emit a leading-comma stack line;
+  #   the difference is a `divisi N` prefix and a tag.
   'divisi (auto-wrap N desks)':
     'prefix': 'divisi'
     'body': '''
@@ -339,6 +367,8 @@
     '''
 
 
+  # REVIEW — merge into `instr`? This is `instr` twice with a `# divisi2`
+  #   tag on the pair.
   'divisi desks (hand-built + tags)':
     'prefix': 'divisidesk'
     'body': '''
@@ -363,6 +393,8 @@
     '''
 
 
+  # REVIEW — remove? A subset of `mpanel`: same binding, same type
+  #   annotation, three fewer comment lines.
   'motif':
     'prefix': 'motif'
     'body': '''
@@ -374,6 +406,8 @@
     '''
 
 
+  # REVIEW — remove? Six lines, all comments — nothing executes. This is a
+  #   reference card, which is what §18 of the guide is for.
   'motif develop (transforms)':
     'prefix': 'develop'
     'body': '''
@@ -388,6 +422,8 @@
 
   # ── Display ───────────────────────────────────────────────
 
+  # REVIEW — remove? These four lines already appear verbatim inside
+  #   `launch`, where they are actually reached for.
   'display':
     'prefix': 'disp'
     'body': '''
@@ -426,6 +462,8 @@
     '''
 
 
+  # REVIEW — marginal. Duplicates the arrange block already inside `p`,
+  #   `m32` and `mdf`; earns its keep only through the layer-selector note.
   'arrange layer':
     'prefix': 'rrange'
     'body': '''
@@ -533,6 +571,7 @@
     '''
 
 
+  # REVIEW — marginal. One line, nine characters of typing.
   'cc modulation line':
     'prefix': 'cc'
     'body': '''
@@ -608,6 +647,8 @@
     '''
 
 
+  # REVIEW — marginal. No tab-stops, and it depends on kickpat/snarepat/…
+  #   already existing: it documents a convention more than it prepares one.
   'groove kit (swappable tuple)':
     'prefix': 'kgrv'
     'body': '''

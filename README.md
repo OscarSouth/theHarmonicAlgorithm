@@ -31,7 +31,7 @@ in performance and composition, utilising the overtones of the instrument.
 The Harmonic Algorithm takes the underpinning theoretical ideas from this
 research and realises them as a Haskell library with deep TidalCycles
 integration for live coding. Under the hood, harmonic transitions from over
-460 composers are stored in a Neo4j graph database. The system learns how
+488 composers are stored in a Neo4j graph database. The system learns how
 harmony moves — not just what chords exist, but how they lead into one
 another — and uses this knowledge to generate progressions that feel
 musically coherent while remaining endlessly surprising.
@@ -236,14 +236,14 @@ You can also explore in the REPL with `stack ghci`.
 
 ### 2. Add the composer graph
 
-The graph holds harmonic transitions learned from 460+ composers. Start
+The graph holds harmonic transitions learned from 488 composers. Start
 Neo4j, then load the pre-built database published with the
 [latest release](https://github.com/OscarSouth/theHarmonicAlgorithm/releases):
 
 ```bash
-# download the graph (14MB) and its checksum
-curl -LO https://github.com/OscarSouth/theHarmonicAlgorithm/releases/download/corpus-v2/ycacl-graph.dump
-curl -L https://github.com/OscarSouth/theHarmonicAlgorithm/releases/download/corpus-v2/SHA256SUMS | shasum -a 256 -c
+# download the graph (98MB) and its checksum
+curl -LO https://github.com/OscarSouth/theHarmonicAlgorithm/releases/download/corpus-v3/ycacl-graph.dump
+curl -L https://github.com/OscarSouth/theHarmonicAlgorithm/releases/download/corpus-v3/SHA256SUMS | shasum -a 256 -c
 
 # load it (the database must be offline), then start Neo4j
 docker compose stop neo4j
@@ -260,7 +260,7 @@ Every `seek` string then works: `"bach"`, `"debussy"`,
 
 `stack run` populates Neo4j from `data/artefacts/ycacl_sequences.csv`, which is not
 distributed with the repository. To produce it, obtain the Yale Classical
-Archives Corpus yourself (see [NOTICES](NOTICES) for provenance) and run
+Archives Corpus yourself (see [NOTICES.md](NOTICES.md) for provenance) and run
 the export helper documented in `scripts/README.md`:
 
 ```bash
