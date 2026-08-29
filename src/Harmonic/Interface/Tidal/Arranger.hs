@@ -106,17 +106,21 @@ import Data.List (minimumBy)
 -- Position\/Range Operations
 -------------------------------------------------------------------------------
 
--- |Rotate a progression by n bars (positive = left, negative = right)
+-- |Rotate a progression by n bars (positive = left, negative = right).
+-- Bar-aligned: provenance and family travel with the bars.
 rotate :: Int -> ProgressionContext -> ProgressionContext
-rotate n = liftPC (rotateProgression n)
+rotate n = PC.liftPCAligned (rotateSeq n)
 
--- |Extract bars start to end (1-indexed, inclusive)
+-- |Extract bars start to end (1-indexed, inclusive).
+-- Bar-aligned: provenance and family travel with the bars.
 excerpt :: Int -> Int -> ProgressionContext -> ProgressionContext
-excerpt s e = liftPC (excerptProgression s e)
+excerpt s e = PC.liftPCAligned (excerptSeq s e)
 
--- |Insert a CadenceState at position (1-indexed), replacing the existing one
+-- |Insert a CadenceState at position (1-indexed), replacing the existing one.
+-- Bar substitution: the foreign bar breaks strata\/polytonal invariants, so
+-- provenance drops and those families downgrade.
 insert :: CadenceState -> Int -> ProgressionContext -> ProgressionContext
-insert cs pos = liftPC (insertProg cs pos)
+insert cs pos = PC.liftPCSubst (insertProg cs pos)
   where
     insertProg :: CadenceState -> Int -> Progression -> Progression
     insertProg c p (Progression s)
@@ -129,9 +133,12 @@ insert cs pos = liftPC (insertProg cs pos)
              Seq.EmptyL -> Progression (before Seq.|> c)
              _ Seq.:< after -> Progression (before >< (c Seq.<| after))
 
--- |Switch two bars at positions m and n (1-indexed)
+-- |Switch two bars at positions m and n (1-indexed).
+-- Treated as substitution (drops provenance, downgrades strata\/polytonal
+-- families); promotable to the aligned tier via a lockstep 'Seq.update'
+-- pair if per-bar identity is ever wanted here.
 switch :: Int -> Int -> ProgressionContext -> ProgressionContext
-switch m n = liftPC (switchProg m n)
+switch m n = PC.liftPCSubst (switchProg m n)
   where
     switchProg :: Int -> Int -> Progression -> Progression
     switchProg a b progIn@(Progression s)
@@ -146,9 +153,10 @@ switch m n = liftPC (switchProg m n)
             s'  = Seq.update m' csN $ Seq.update n' csM s
         in Progression s'
 
--- |Clone bar m to position n (overwrites n with contents of m)
+-- |Clone bar m to position n (overwrites n with contents of m).
+-- Treated as substitution — see 'switch'.
 clone :: Int -> Int -> ProgressionContext -> ProgressionContext
-clone m n = liftPC (cloneProg m n)
+clone m n = PC.liftPCSubst (cloneProg m n)
   where
     cloneProg :: Int -> Int -> Progression -> Progression
     cloneProg a b progIn@(Progression s)
@@ -178,13 +186,21 @@ extract n pc
 -- Transformation Operations
 -------------------------------------------------------------------------------
 
--- |Transpose a progression by n semitones
+-- |Transpose a progression by n semitones. Strata provenance is anchored
+-- to ABSOLUTE pitch classes (the octatripentatonic universe has no
+-- transposition closure), so provenance and family survive only octave
+-- shifts; any other interval drops them.
 transposeP :: Int -> ProgressionContext -> ProgressionContext
-transposeP n = liftPC (transposeProgression n)
+transposeP n pc
+  | n `mod` 12 == 0 =
+      (liftPC (transposeProgression n) pc)
+        { PC.pcProvenance = PC.pcProvenance pc
+        , PC.pcFamily     = PC.pcFamily pc }
+  | otherwise = liftPC (transposeProgression n) pc
 
--- |Reverse a progression
+-- |Reverse a progression. Bar-aligned: provenance and family travel.
 reverse :: ProgressionContext -> ProgressionContext
-reverse = liftPC (\(Progression s) -> Progression (Seq.reverse s))
+reverse = PC.liftPCAligned Seq.reverse
 
 -- |Fuse multiple progressions into one (concatenation)
 fuse :: [ProgressionContext] -> ProgressionContext
@@ -197,18 +213,19 @@ fuse2 a b = a <> b
 -- |Interleave two progressions (alternating chords)
 -- Example: interleave [A,B,C] [X,Y,Z] = [A,X,B,Y,C,Z]
 interleave :: ProgressionContext -> ProgressionContext -> ProgressionContext
-interleave a b = PC.ProgressionContext
+interleave a b = PC.normalizeFamily PC.ProgressionContext
   { PC.triadLayer   = fuseProgression (PC.triadLayer a)  (PC.triadLayer b)
   , PC.strataLayer  = fuseProgression (PC.strataLayer a) (PC.strataLayer b)
   , PC.modeLayer    = fuseProgression (PC.modeLayer a)   (PC.modeLayer b)
-  , PC.pcProvenance = Nothing
+  , PC.pcProvenance = interleaveSeq <$> PC.pcProvenance a <*> PC.pcProvenance b
   , PC.pcFamily     = if PC.pcFamily a == PC.pcFamily b then PC.pcFamily a else PC.FTriad
   }
 
 -- |Expand a progression by repeating the WHOLE progression n times
--- (@expandP 2@ on C F G A yields C F G A C F G A)
+-- (@expandP 2@ on C F G A yields C F G A C F G A).
+-- Bar-aligned replication: provenance and family travel.
 expandP :: Int -> ProgressionContext -> ProgressionContext
-expandP n = liftPC (expandProgression n)
+expandP n = PC.liftPCAligned (\sq -> if n <= 0 then Seq.empty else mconcat (replicate n sq))
 
 -------------------------------------------------------------------------------
 -- Overlap Operations
@@ -222,7 +239,7 @@ expandP n = liftPC (expandProgression n)
 -- each bar's ABSOLUTE pitch classes back into 'cadenceIntervals', which
 -- the voicing layer then transposed by the root a second time (every
 -- non-C-rooted bar sounded shifted up by its own root), and 'toTriad'
--- reduced >3-note bars to a triad before merging (genE material lost its
+-- reduced >3-note bars to a triad before merging (extended material lost its
 -- fourth voice).
 progOverlapWith :: (Int -> (Int, Int)) -> Progression -> Progression
 progOverlapWith window (Progression sq)
@@ -267,7 +284,13 @@ rebuildCadenceState :: Cadence -> NoteName -> [Integer] -> CadenceState
 rebuildCadenceState cad rootName newIntervals =
   let -- Create a modified cadence with the new intervals (as PitchClasses)
       newPCs = map (\i -> mkPitchClass (fromIntegral i)) newIntervals
-      newCad = cad { cadenceIntervals = newPCs }
+      -- Rename from the merged set: an overlapped bar sounds the union,
+      -- so its displayed functionality must describe the union rather
+      -- than the pre-merge chord.
+      newName
+        | length newPCs <= 3 = toFunctionality newPCs
+        | otherwise          = toFunctionalityChord newPCs
+      newCad = cad { cadenceIntervals = newPCs, cadenceFunctionality = newName }
       -- Infer spelling from the new absolute pitches
       rootPC = pitchClass rootName
       absolutePitches = map (\i -> (fromIntegral i + unPitchClass rootPC) `mod` 12) newIntervals
@@ -380,19 +403,22 @@ shiftBar v0 cs =
       score v    = (negate (overlap v), dist v)
   in minimumBy (compare `on` score) candidates
 
--- |True iff any bar carries >= 6 pitch classes — scale-cluster territory
--- (hand-built mode sets; genP chroma layers route by provenance in Bridge
--- before reaching here). The cyclic DP on 6\/7-voice sets is both
--- prohibitively slow live (16-bar 7-PC ≈ 107 s as bytecode, ≈ 2.4 s compiled)
--- and musically the wrong tool ("voice leading" between scale-clusters), so
--- the routing holds whichever way the session is loaded; such material
--- gets the chroma engine's degree semantics as a safety fallback, not a
--- contract. Harmony-sized bars (<= 5 voices, mixed or uniform) always get
--- the real DP.
+-- |Scale-cluster routing guard for the cyclic DP. The cost driver is the
+-- DENSITY of big bars, not their presence — the DP's per-edge work is the
+-- product of adjacent bars' voicing candidates. Measured (bytecode,
+-- 16 bars): uniform 5-PC 2.3 s (always allowed); two 6-PC bars among
+-- 4-note harmony 1.85 s — CHEAPER than the allowed baseline, so a jazz
+-- progression is no longer re-routed by one 13th chord; adjacent 7-PC
+-- pair 10.3 s; uniform 6-PC 15.9 s; uniform 7-PC ≈ 107 s. Routing rule:
+-- any 7-PC bar (a full mode — degree semantics are the right tool for it
+-- musically as well as computationally), or 6-PC bars exceeding a quarter
+-- of the progression (cluster-dominant material). genP chroma layers
+-- route by provenance in Bridge before reaching here.
 hasBigChroma :: Progression -> Bool
 hasBigChroma progArg =
-  any (\cs -> length (cadenceIntervals (stateCadence cs)) >= 6)
-      (toList (unProgression progArg))
+  let sizes = map (length . cadenceIntervals . stateCadence)
+                  (toList (unProgression progArg))
+  in any (>= 7) sizes || 4 * length (filter (>= 6) sizes) > length sizes
 
 -- |Read a CadenceState's absolute PCs in cadence-interval order (NOT sorted).
 -- For genP strata\/mode layers (intervals start at 0 from harmonic root), this
@@ -653,7 +679,7 @@ lead input = do
 -- |Construct a 'CadenceState' from an explicit list of note names —
 -- the arbitrary-cardinality counterpart to 'lead'. The first note is the
 -- root\/bass; the rest become root-relative intervals (any count, so
--- 4-note cues for @genE@ and beyond are first-class). Never truncates:
+-- hand-built 4-note cues and beyond are first-class). Never truncates:
 -- builds via 'mkCadenceStatePCs', so all pitch content survives into the
 -- cue. Enharmonics follow the typed accidentals ("Eb" spells flat,
 -- "D#" sharp; double accidentals accepted and resolved). An optional

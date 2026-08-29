@@ -281,7 +281,7 @@ s <- seek "*" $ viability 0.0 $ attempt 3 12 $ cue start $ len 8 $ entropy 0.6 $
 
 With `gen''`, a full **scoreboard** prints — one row per attempt with per-term scores, a viability marker, the truncated chord sequence, and `← PICK` on the winner. It's a lesson in what "better" means to the evaluator.
 
-`attempt` wraps any generation chain — `gen`, `genFrom`, `genP` — uniformly. `attempt 1 1` is a no-op.
+`attempt` wraps any generation chain — `gen`, `genE`, `genJ`, `genP`, `genFrom` — uniformly. `attempt 1 1` is a no-op.
 
 **Try it** — raise entropy to 0.9 and watch the scoreboard: more attempts fail viability and the spread widens.
 
@@ -637,7 +637,7 @@ ___
 
 ## 16. Walking lines (`walk` / `lineHarmony`)
 
-**Why** — a walking bassline synthesised from the progression: consonant anchors on the strong beats (root on 1; P5/root/3rds on 3), weighted connectors on beats 2 and 4 preferring sandwich motion and approach tones, and a soft direction-persistence bias on the beat-1 contour. The walk follows the **performed** bar order — warp/rep selections resolve at eval time, repeated bars walk as neighbours (root–fifth alternation), approach tones aim at the bar that actually comes next; non-periodic selections fall back to stored order with a printed notice. Jazz progressions (`genJ`) walk from a per-quality **bass vocabulary** rather than the raw corpus set: the fifth a 13th chord omits is restored, an altered dominant's #5 replaces the natural 5 it does not contain, notated colours (b9, #9, #11, b13) stay off strong beats while remaining available as weak-beat tension, and the 9th and 11th act as favourable passing tones. `genP` walks its strata chroma as before; `gen` and `genE` are unchanged.
+**Why** — a walking bassline synthesised from the progression: consonant anchors on the strong beats (root on 1; P5/root/3rds on 3), weighted connectors on beats 2 and 4 preferring sandwich motion and approach tones, and a soft direction-persistence bias on the beat-1 contour. The walk follows the **performed** bar order — warp/rep selections resolve at eval time, repeated bars walk as neighbours (root–fifth alternation), approach tones aim at the bar that actually comes next; non-periodic selections fall back to stored order with a printed notice. Jazz progressions (`genJ`) walk from a per-quality **bass vocabulary** rather than the raw corpus set: the fifth a 13th chord omits is restored, an altered dominant's #5 replaces the natural 5 it does not contain, notated colours (b9, #9, #11, b13) stay off strong beats while remaining available as weak-beat tension, and the 9th and 11th act as favourable passing tones. `genP` walks its strata chroma as before; `gen` walks the plain tone sets, and `genE` walks its foundation (T) layer — the layer that owns the bass.
 
 **What** — [`LineHarmony.hs`](src/Harmonic/Interface/Tidal/LineHarmony.hs), [`WalkingBass.hs`](src/Harmonic/Traversal/WalkingBass.hs)
 
@@ -783,13 +783,16 @@ ___
 
 **Why** — every progression carries three bar-aligned layers, and patterns choose which to read:
 
-| Layer | Size | Content | Practice analogue |
+| Layer | genP content | genE content | Practice analogue |
 |---|---|---|---|
-| `T` | 3 PCs | the triads | chord playing |
-| `S` | 5 PCs | a pentatonic per bar | pattern/pentatonic playing |
-| `M` | 7 PCs | a diatonic mode per bar | scale/modal playing |
+| `T` | the triads (3 PCs) | the foundation triads | chord playing |
+| `S` | a pentatonic per bar (5 PCs) | the less dissonant partner triad | pattern playing |
+| `M` | a diatonic mode per bar (7 PCs) | the more dissonant partner triad | scale/modal playing |
+| `TS` `TM` `SM` | layer unions | 4-note pair structures | comping voicings |
+| `TSM` | full union | the 5-tone pentad | tutti verticals |
+| `PT` | (the triad) | the pivot tones all three layers share | pedal/anchor lines |
 
-Plain `gen` fills all three with the triad. The strata-first generator **`genP`** populates them for real, by walking eleven canonical pentatonic **strata** (I–XI) grouped into twelve curated **tristrata** whose pairwise unions are diatonic modes. Full theory: [`OCTATRIPENTATONICS.md`](documents/OCTATRIPENTATONICS.md).
+Every selector works on every context: combination bars are pointwise unions rooted on the lowest constituent layer (T before S before M — the foundation owns the merged bass), and on plain `gen` contexts every selector degrades to the triad progression. Plain `gen` fills all three stored layers with the triad. The strata-first generator **`genP`** populates them by walking eleven canonical pentatonic **strata** (I–XI) grouped into twelve curated **tristrata** whose pairwise unions are diatonic modes (full theory: [`OCTATRIPENTATONICS.md`](documents/OCTATRIPENTATONICS.md)); the polytonal generator **`genE`** fills them with independent partner triad chains (§20, [`POLYTONAL.md`](documents/POLYTONAL.md)).
 
 **What** — [`Builder.hs`](src/Harmonic/Framework/Builder.hs), [`Strata.hs`](src/Harmonic/Framework/Builder/Strata.hs)
 
@@ -811,7 +814,7 @@ arrange (0,1) k (-9,9) M flow (overlapF 0) ["~", "[0 1 2 3]/4"]   -- modes
 hcTristrata "5" hContext            -- lock to tristrata #5 (IV-VI-X)
 relStrata "1 1 2 2 3 3" $ genVI'    -- per-bar position in the active tristrata
 absStrata "I V X" $ genI'           -- per-bar absolute strata labels
-genPReport (pure pc)                -- provenance + triads in one report
+genPReport pc                       -- provenance + triads in one report
 ```
 
 **Continuity boosts** — the walk prefers staying put; three multipliers bias it (defaults 0.90/0.80/0.70; `1.0` disables): `sameBoost` (same strata as last bar), `flipBoost` (same as two bars ago), `triBoost` (same tristrata).
@@ -827,39 +830,47 @@ genPReport (pure pc)                -- provenance + triads in one report
 
 ___
 
-## 20. Four-note generation (`genE`)
+## 20. Polytonal generation (`genE`)
 
-**Why** — seventh-chord density with the same corpus-trained walk: every bar a 4-note chord, still steered by the composer graph.
+**Why** — three simultaneous triad progressions from one walk: a foundation plus two partner chains that share tones with it bar by bar, so any pair of layers sounds a 4-note structure and all three sound a 5-tone pentad. Independent patterns, coherent verticals.
 
-**What** — a third generator family alongside `gen` and `genP`. Each step selects a triad exactly as `gen` does (graph + fallback, R filters, gamma draw), then **fuses in one more tone** from the R-valid palette — candidates ranked most-consonant-first by full-chord dissonance, drawn at the same entropy. The walk then continues from the fused chord's *most consonant embedded triad*, so the added tone can reinterpret the harmony (a dim triad plus an added fifth walks on as minor) while every graph key stays corpus-shaped — generation stays online throughout.
+**What** — the T layer is a foundation walk byte-identical to `gen` (all R constraints — key, roots, rise/fall, drift, pedal — bind it alone: the foundation owns the bass). The S/M layers are partner triad chains, each a corpus-valid walk of its own: every partner bar continues from ITS OWN previous bar's transitions, filtered to share exactly 2 pitch classes with that bar's foundation triad and union to exactly 5. The traversal chooses freely per bar between the two geometries this admits — **common-dyad** (all three triads share one dyad; every layer pair sounds 4 tones) and **base-anchored** (the partners take different dyads of the foundation; T+S and T+M sound 4 tones, S+M sounds the full pentad). Partners honour the harmonic space (`hcKey`/`hcRoots` note-set/`tonal`) but ignore direction specs and drift — they stay free to diverge. S is the chain with the lower whole-run dissonance total; M the other.
 
 ```haskell
 start <- lead "C maj"
 s <- seek "*" $ cue start $ len 8 $ entropy 0.3 $ genE'   -- genE / genE' / genE''
 ```
 
-A triad cue is fused once, so output is uniformly 4-note from bar 1. For an explicit 4-note opening there is `lead'`, which takes note names directly (first note = root/bass; typed accidentals drive spelling; optional `(N)` movement like `lead`):
+Cues are triadic (a 4-note cue is refused — the combined structures come from the layers). The zero-prime output prints the foundation grid plus the combined `TSM` grid; `genE'` adds a per-bar table (partners, pair structures, pentad, pivot tones); `genE''` adds the selection facts (geometry, pool tier and size, own-list ranks). At the REPL, `genEReport s` prints every layer view a pattern can select.
+
+```haskell
+arrange (0,1) k (-9,9) T   flow (overlapF 0) ["~", "[0 1 2 3]/4"]  -- foundation alone
+arrange (0,1) k (-9,9) S   flow (overlapF 0) ["~", "[0 1 2 3]/4"]  -- a partner alone (its own roots)
+arrange (0,1) k (-9,9) TS  flow (overlapF 0) ["~", "[0 1 2 3]/4"]  -- 4-note pair
+arrange (0,1) k (-9,9) TSM flow (overlapF 0) ["~", "[0 1 2 3]/4"]  -- the 5-tone pentad
+arrange (0,1) k (-9,9) PT  flow (overlapF 0) ["~", "[0 1]/4"]      -- the pivot tones
+```
+
+A layer used alone keeps its own roots and bass; T owns the bass only inside merged selectors. Everything composes as usual, including regeneration:
+
+```haskell
+s  <- seek "*" $ attempt 3 12 $ entropy 0.4 $ genE''      -- rank-and-select (scores the foundation)
+s' <- seek "*" $ entropy 0.3 $ genFrom s 3 5              -- family-aware: partner chains regen too, seeded from the kept bars
+```
+
+Under a crushing context the foundation behaves exactly like `gen` (absorbing repetition at worst); partner selection can never fail — it relaxes from the corpus lists to a pure enumeration that always holds valid pairs. Full theory and the study behind the design: [`POLYTONAL.md`](documents/POLYTONAL.md).
+
+For an explicit 4-note opening in HAND-BUILT material there is still `lead'`, which takes note names directly (first note = root/bass; typed accidentals drive spelling; optional `(N)` movement like `lead`) — such material plays and walks as-is; regenerating it produces triads with a printed notice:
 
 ```haskell
 start <- lead' "Eb Gb Bb Db"        -- Eb m7, printed and used as-is
 start <- lead' "A C E G (5)"        -- A m7, ascending-5th approach
 ```
 
-`quad` is the underlying modifier — `genE = quad gen` — so everything composes as usual, including regeneration:
+**Try it** — generate once, then play `T` on one instrument, `S` on another, `M` on a third: three independent progressions that lock into pentads. Swap a part to `TS` for comping density; put the walking bass (§16) on `T`.
 
-```haskell
-s  <- seek "*" $ attempt 3 12 $ entropy 0.4 $ genE''      -- rank-and-select
-s' <- seek "*" $ entropy 0.3 $ genFrom s 3 5              -- family-aware: regen bars 3-5 stay 4-note
-```
-
-The `genE'` trace adds one line per bar under the Candidates line: `fused: +Ab → F m7  [rank 2/9]` — which tone was added, the resulting name, and where the draw landed in the consonant-first ranking. R adherence is structural: the added tone always comes from the active palette (`tonal`/`hcKey` constraints), the bass never moves, and pedal tones can only gain members. `consonant`/`dissonant` drift governs both the triad skeleton *and* the fused surface.
-
-One boundary: `genE` and `genP` never mix. Strata progressions stay 3-5-7 by design; `quad` on a strata source fails fast with a message.
-
-**Try it** — run the same seed idea as `gen'` then `genE'` and compare the grids: same walk character, thicker sonorities. Then `arrange` with `"0 1 2 3"` — index 3 is now a real fourth chord tone, not the octave.
-
-> **▶ VIDEO — The fourth voice**
-> _~60s: one progression generated twice — gen' then genE' — same cue, same entropy; the fused: lines on screen as the second run plays._
+> **▶ VIDEO — Three progressions, one harmony**
+> _~60s: one genE' run played layer by layer — T, then S, then M — then together; the per-bar partner table on screen._
 >
 > `[ youtube link — TBD ]`
 >
@@ -871,7 +882,7 @@ ___
 
 **Why** — a second corpus, a second harmonic language: leadsheet changes (m7, 7#9, 13b9#11, slash chords) walked with the same modifier chain, trained on the Jazz-Chord-Progressions-Corpus (Bunks/Weyde/Dixon/Di Giorgi, ISMIR 2023 — 2,614 tunes).
 
-**What** — a fourth generator family. The jazz graph (`:Change`) lives beside the classical one in the same database; nodes are anchor-relative chord sets at corpus arity (3–6 tones), named by a jazz-specific namer, and there is deliberately **no consonance fallback** — the corpus is rich enough that the graph IS the pool (measured: ~219-candidate typical steps, zero dead ends). Cue with `leadJ`, which parses leadsheet symbols in their own quality namespace (triadic `lead`/`lead'` untouched); a notated slash bass is honoured exactly — unioned into the set and made the anchor:
+**What** — a generator family. The jazz graph (`:Change`) lives beside the classical one in the same database; nodes are anchor-relative chord sets at corpus arity (3–6 tones), named by a jazz-specific namer, and there is deliberately **no consonance fallback** — the corpus is rich enough that the graph IS the pool (measured: ~219-candidate typical steps, zero dead ends). Cue with `leadJ`, which parses leadsheet symbols in their own quality namespace (triadic `lead`/`lead'` untouched); a notated slash bass is honoured exactly — unioned into the set and made the anchor:
 
 ```haskell
 start <- leadJ "Cm7"                -- corpus workhorse
@@ -958,6 +969,7 @@ ___
 **Documentation** —
 - [`CHANGELOG.md`](CHANGELOG.md) — V3 feature summary
 - [`OCTATRIPENTATONICS.md`](documents/OCTATRIPENTATONICS.md) — strata/tristrata reference
+- [`POLYTONAL.md`](documents/POLYTONAL.md) — the polytonal genE framework
 - [`ALGORITHMIC_ORCHESTRATION.md`](documents/ALGORITHMIC_ORCHESTRATION.md) — virtual orchestra
 - [`ARCHITECTURE.md`](documents/ARCHITECTURE.md) — R→E→T pipeline, four-layer architecture, graph schema
 
@@ -981,6 +993,8 @@ s <- seek "none" $ ... $ gen                                 -- offline fallback
 
 **Strata-first (T/S/M)** — `genI..genXI` (+`'`/`''`); `hcTristrata "5"`, `relStrata "1 2 3"`, `absStrata "I V X"`, `sameBoost`/`flipBoost`/`triBoost N`, `genPReport`.
 
+**Polytonal (genE)** — `genE`/`genE'`/`genE''`: foundation walk + two partner triad chains; layer selectors `TS`/`TM`/`SM`/`TSM`/`PT` for pairs, the pentad and the pivot tones; `genEReport s` prints every layer view.
+
 **Context modifiers** — compose with `$`, right-to-left: `hContext`, `hcOvertones`, `hcKey`, `hcRoots`, `hcPedal`, `consonant`, `dissonant`, `invSkip`, `hcTristrata`.
 
 **Voicing** — `flow`, `grid`, `lite`, `root`, `fund`.
@@ -990,7 +1004,7 @@ s <- seek "none" $ ... $ gen                                 -- offline fallback
 **Arrangement** —
 
 ```haskell
-arrange  (lo,hi) k (-9,9) LAYER voicing modifier [patterns] # ch N   -- LAYER = T | S | M
+arrange  (lo,hi) k (-9,9) LAYER voicing modifier [patterns] # ch N   -- LAYER = T | S | M | TS | TM | SM | TSM | PT
 arrange' (lo,hi) k (-9,9) LAYER voicing modifier [patterns] # ch N   -- squeeze variant
 ```
 

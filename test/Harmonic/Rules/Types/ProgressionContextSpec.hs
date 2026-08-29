@@ -7,6 +7,7 @@ module Harmonic.Rules.Types.ProgressionContextSpec (spec) where
 import           Test.Hspec
 import qualified Data.Sequence as Seq
 import           Data.Foldable (toList)
+import           Data.List (nub, sort)
 
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Progression as Prog
@@ -45,6 +46,8 @@ roots pc = map H.stateCadenceRoot
 spec :: Spec
 spec = do
   familySpec
+  layerSpec
+  algebraSpec
 
   describe "pcSplice — non-wrapping range" $ do
     it "replaces bars 2..3 of a 4-bar progression" $ do
@@ -106,17 +109,112 @@ spec = do
           out   = PC.pcSplice src 1 1 ins
       PC.pcProvenance out `shouldBe` Nothing
 
+layerSpec :: Spec
+layerSpec = describe "layer — combination selectors" $ do
+  let mkCS r ivs = H.mkCadenceStatePCs
+        ([P.C, P.Db, P.D, P.Eb, P.E, P.F, P.Gb,
+          P.G, P.Ab, P.A, P.Bb, P.B] !! (r `mod` 12)) H.Unison ivs
+      absPCs cs =
+        let r = P.unPitchClass (P.pitchClass (H.stateCadenceRoot cs))
+        in sort [ (r + P.unPitchClass iv) `mod` 12
+                | iv <- H.cadenceIntervals (H.stateCadence cs) ]
+      barsOf p = toList (Prog.unProgression p)
+      -- Common-dyad polytonal bar: T = C maj {0,4,7}, S = A min {9,0,4},
+      -- M = E {4,11,0} — all three share the dyad {0,4}.
+      polyCtx = PC.ProgressionContext
+        { PC.triadLayer   = Prog.fromCadenceStates [mkCS 0 [0,4,7]]
+        , PC.strataLayer  = Prog.fromCadenceStates [mkCS 9 [0,3,7]]
+        , PC.modeLayer    = Prog.fromCadenceStates [mkCS 4 [0,7,8]]
+        , PC.pcProvenance = Nothing
+        , PC.pcFamily     = PC.FPoly
+        }
+      barPCs sel = map absPCs (barsOf (PC.layer sel polyCtx))
+
+  it "pairs union to 4 tones, all three to 5, pivot to the shared dyad" $ do
+    barPCs PC.TS  `shouldBe` [[0, 4, 7, 9]]
+    barPCs PC.TM  `shouldBe` [[0, 4, 7, 11]]
+    barPCs PC.TSM `shouldBe` [[0, 4, 7, 9, 11]]
+    barPCs PC.PT  `shouldBe` [[0, 4]]
+
+  it "merged bars root on the lowest constituent layer (T owns the bass; SM roots on S)" $ do
+    map H.stateCadenceRoot (barsOf (PC.layer PC.TS polyCtx))  `shouldBe` [P.C]
+    map H.stateCadenceRoot (barsOf (PC.layer PC.TSM polyCtx)) `shouldBe` [P.C]
+    map H.stateCadenceRoot (barsOf (PC.layer PC.SM polyCtx))  `shouldBe` [P.A]
+    -- SM = S ∪ M as a set (both partners share the same dyad here)
+    barPCs PC.SM `shouldBe` [[0, 4, 9, 11]]
+
+  it "keeps the zero-form invariant on synthesized bars" $ do
+    let zfOK cs = case map P.unPitchClass (H.cadenceIntervals (H.stateCadence cs)) of
+          []        -> False
+          ivs@(i:_) -> i == 0 && ivs == sort (nub ivs)
+    mapM_ (\sel -> all zfOK (barsOf (PC.layer sel polyCtx)) `shouldBe` True)
+          [PC.TS, PC.TM, PC.SM, PC.TSM, PC.PT]
+
+  it "degrades to the stored progression when all layers duplicate it (plain gen)" $ do
+    let genCtx = PC.fromProgression
+          (Prog.fromCadenceStates [mkCS 0 [0,4,7], mkCS 7 [0,3,7]])
+    mapM_ (\sel -> map absPCs (barsOf (PC.layer sel genCtx))
+                     `shouldBe` map absPCs (barsOf (PC.triadLayer genCtx)))
+          [PC.TS, PC.TM, PC.SM, PC.TSM, PC.PT]
+
+algebraSpec :: Spec
+algebraSpec = describe "context algebra (Monoid identity + combinator provenance)" $ do
+  let t1 = Sc.tristrataIndex 1
+      t5 = Sc.tristrataIndex 5
+      strataCtx = mkProvCtx
+        [ (("C", [0,4,7]), (t1, Sc.I))
+        , (("D", [0,4,7]), (t1, Sc.V))
+        , (("E", [0,4,7]), (t5, Sc.X))
+        ]
+      provOf pc = toList <$> PC.pcProvenance pc
+      mkCS r ivs = H.mkCadenceStatePCs r H.Unison ivs
+      polyCtx = PC.ProgressionContext
+        { PC.triadLayer   = Prog.fromCadenceStates [mkCS P.C [0,4,7], mkCS P.F [0,4,7]]
+        , PC.strataLayer  = Prog.fromCadenceStates [mkCS P.A [0,3,7], mkCS P.D [0,3,7]]
+        , PC.modeLayer    = Prog.fromCadenceStates [mkCS P.E [0,7,8], mkCS P.A [0,4,7]]
+        , PC.pcProvenance = Nothing
+        , PC.pcFamily     = PC.FPoly
+        }
+
+  it "mempty is a true identity (family and provenance survive fuse of one or two)" $ do
+    (strataCtx <> mempty) `shouldBe` strataCtx
+    (mempty <> strataCtx) `shouldBe` strataCtx
+    let fused = mconcat [strataCtx]
+    PC.pcFamily fused `shouldBe` PC.FStrata
+    provOf fused `shouldBe` provOf strataCtx
+    let both = mconcat [strataCtx, strataCtx]
+    PC.pcFamily both `shouldBe` PC.FStrata
+    fmap length (provOf both) `shouldBe` Just 6
+    (mconcat [] :: PC.ProgressionContext) `shouldBe` mempty
+    PC.pcFamily (mconcat [polyCtx]) `shouldBe` PC.FPoly
+
+  it "liftPC drops provenance and normalizes FStrata to FTriad (deliberate)" $ do
+    let out = PC.liftPC id strataCtx
+    PC.pcProvenance out `shouldBe` Nothing
+    PC.pcFamily out `shouldBe` PC.FTriad
+
+  it "liftPCAligned permutes provenance in lockstep and keeps the family" $ do
+    let rev = PC.liftPCAligned Seq.reverse strataCtx
+    PC.pcFamily rev `shouldBe` PC.FStrata
+    provOf rev `shouldBe` fmap reverse (provOf strataCtx)
+    -- FPoly (no provenance): alignment keeps the family
+    PC.pcFamily (PC.liftPCAligned Seq.reverse polyCtx) `shouldBe` PC.FPoly
+
+  it "liftPCSubst downgrades FPoly and (via normalize) provenance-less FStrata" $ do
+    PC.pcFamily (PC.liftPCSubst id polyCtx) `shouldBe` PC.FTriad
+    PC.pcFamily (PC.liftPCSubst id strataCtx) `shouldBe` PC.FTriad
+
 familySpec :: Spec
 familySpec = describe "pcFamily" $ do
   let triadProg = Prog.fromCadenceStates
         [ H.initCadenceState m "C" [0,4,7] | m <- [0, 5] ]
-      quadProg = Prog.fromCadenceStates
+      extendedProg = Prog.fromCadenceStates
         [ H.mkCadenceStatePCs P.C H.Unison [0,4,7,10]
         , H.mkCadenceStatePCs P.F H.Unison [0,3,7,10] ]
 
   it "fromProgression infers FTriad for triads, FExtended for uniform 4-note" $ do
     PC.pcFamily (PC.fromProgression triadProg) `shouldBe` PC.FTriad
-    PC.pcFamily (PC.fromProgression quadProg) `shouldBe` PC.FExtended
+    PC.pcFamily (PC.fromProgression extendedProg) `shouldBe` PC.FExtended
 
   it "explicit stamps survive liftPC and pcSplice" $ do
     let jazzPC = (PC.fromProgression triadProg) { PC.pcFamily = PC.FJazz }

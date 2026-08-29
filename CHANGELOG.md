@@ -7,6 +7,53 @@ ________________________________________________________________________________
 The cumulative modernisation release: each block below lands as it completes;
 the version tags once the sweep is done.
 
+### Four families, one contract
+
+A pre-release consistency pass over gen / genE / genJ / genP. Progression
+combinators now keep each family honest: `fuse` of matching contexts
+preserves the family and genP's provenance (a Monoid-law defect silently
+downgraded everything before), the bar-aligned combinators (`rotate`,
+`excerpt`, `reverse`, `expandP`, `interleave`, octave `transposeP`) carry
+provenance with the bars — so `genFrom` after `rotate` on a genP result
+works instead of crashing — and the bar-substituting ones (`insert`,
+`switch`, `clone`) downgrade the family tag rather than letting it lie.
+genJ now emits like every other family: its walk trace travels with the
+diagnostics and prints once for the attempt winner, `len` is clamped, and
+`seek "none"` is refused before any connection is opened. Jazz scoring
+keys the cue bar through the jazz namer, jazz regen keeps its layers
+duplicated at the seam, and `fund` returns the stored anchor on extended
+chords so every bass path agrees. Voicing no longer reroutes a whole jazz
+progression over one 13th chord (the scale-cluster guard is now measured
+against big-bar density), overlapped bars are renamed from the merged set,
+and combination-layer selectors are synthesized once at cache build, never
+on the audio thread.
+
+### genE is reborn as the polytonal family
+
+`genE` no longer fuses a fourth tone into each bar — it now generates three
+simultaneous triad progressions from one walk. The T layer is a foundation
+walk byte-identical to `gen`, and the only carrier of R constraints — the
+foundation owns the bass. The S and M layers are partner triad chains, each
+a corpus-valid walk of its own, sharing exactly two pitch classes with the
+foundation per bar and unioning to exactly five, so any pair of layers
+sounds a 4-note structure and all three sound a 5-tone pentad. The traversal
+chooses freely per bar between the two geometries the algebra admits
+(common-dyad and base-anchored); S/M identity is settled once at the end by
+whole-layer dissonance. The `Layer` selectors grow to
+`T | S | M | TS | TM | SM | TSM | PT` — pairs, the pentad, and the pivot
+tones — and work through every instrument and `arrange` unchanged, on every
+family. `genFrom` regenerates polytonal contexts with the partner chains
+seeded from the kept bars; `genEReport` prints every layer view at the REPL;
+the design is documented in `documents/POLYTONAL.md` with the full viability
+study in `archive/analysis/poly_viability.md`. The retired fusion machinery
+(`quad`, `fuseState`) is gone; hand-built 4-note material (`lead'`) still
+plays and walks as-is and regenerates as triads with a printed notice.
+Also removed from the public surface: `GeneratorConfig`/`defaultConfig`
+(no generation path read them), the `genWith` family, and the primed
+positional variants `genSilent'`/`genStandard'`/`genVerbose'` — the
+unprimed `genSilent`/`genStandard`/`genVerbose` remain. `genPReport` now
+takes the bound context directly, like `genEReport`.
+
 ### The boot file moves into the library
 
 `live/BootTidal.hs` was 766 lines, and most of it was code the compiler never

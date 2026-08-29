@@ -715,8 +715,8 @@ spec = do
       walkLine fund progGoldGen `shouldBe`
         [[36,33,31,32],[33,36,40,39],[38,41,45,44],[43,40,38,37]]
 
-    it "genE (four-note)" $
-      walkLine fund progGoldGenE `shouldBe`
+    it "extended (four-note, hand-built)" $
+      walkLine fund progGoldExtended `shouldBe`
         [[36,33,31,32],[33,36,40,39],[38,41,45,44],[43,41,38,37]]
 
     it "genP (strata chroma)" $
@@ -730,10 +730,10 @@ spec = do
 
 -- Golden-line fixtures: fixed material per family, deliberately plain so
 -- the pinned lines stay readable.
-progGoldGen, progGoldGenE, progGoldJazz :: Progression
+progGoldGen, progGoldExtended, progGoldJazz :: Progression
 progGoldGen = fromCadenceStates
   [ cMaj, aMin, dMin, gMaj ]
-progGoldGenE = fromCadenceStates
+progGoldExtended = fromCadenceStates
   [ mkCS C [0,4,7,11], mkCS A [0,3,7,10], mkCS D [0,3,7,10], mkCS G [0,4,7,10] ]
 progGoldJazz = fromCadenceStates
   [ mkCS C [0,2,4,9,10], mkCS C [0,2,4,9,10]

@@ -22,10 +22,11 @@ description:         |
   == Generating
 
   * "Harmonic.Framework.Builder" — the generative engine. Modifier-based API
-    (@gen@, @genP@, @genFrom@), composer blending, and multi-attempt
-    rank-and-select.
+    (@gen@, @genE@, @genJ@, @genP@, @genFrom@), composer blending, and
+    multi-attempt rank-and-select.
   * "Harmonic.Rules.Types.ProgressionContext" — the three-layer progression
-    value (triad, strata, mode) that the @genP@ paradigm produces.
+    value carried by every family: @genP@ fills the layers with strata and
+    mode chromas, @genE@ with polytonal partner triads.
 
   == Playing
 
@@ -103,6 +104,7 @@ library:
     - Harmonic.Framework.Builder.JazzGen
     - Harmonic.Framework.Builder.Modifiers
     - Harmonic.Framework.Builder.StrataGen
+    - Harmonic.Framework.Builder.PolyGen
     # Rules (R Component + Layer A)
     - Harmonic.Rules.Types.Pitch
     - Harmonic.Rules.Types.Harmony
@@ -141,6 +143,7 @@ library:
     - Harmonic.Interface.Tidal.Devices.P6
     - Harmonic.Interface.Tidal.Devices.JV1010
     - Harmonic.Interface.Tidal.OctatripentatonicT
+    - Harmonic.Interface.Tidal.PolytonalT
   source-dirs: src
   ghc-options:
     - -Wall

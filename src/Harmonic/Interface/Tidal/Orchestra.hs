@@ -212,9 +212,13 @@ instrument bounds chan lyr ki k vl vf v =
 --
 -- Every pitched instrument takes a prepended 'Layer' argument — 'T' to voice
 -- the triad layer (default harmonic behaviour), 'S' for the strata layer,
--- 'M' for the diatonic-mode layer:
+-- 'M' for the diatonic-mode layer, or a combination selector ('TS'\/'TM'\/
+-- 'SM' pairs, 'TSM' the full union, 'PT' the shared pivot tones — on a
+-- polytonal genE context these are the 4-note structures, the pentad and
+-- the pivot-tone line):
 --
 -- @d1 $ flute T (0,1) k voiceLines flow Soprano@
+-- @d1 $ flute TS (0,1) k voiceLines flow Soprano   -- genE pair@
 -- RANGE-REVIEW NOTE (2026-08-25): the numeric bounds are tuned to the
 -- range limits of the actual JV1010 sampler patches and are authoritative;
 -- the note-name comments drift from them in four places (bassoon, horn,

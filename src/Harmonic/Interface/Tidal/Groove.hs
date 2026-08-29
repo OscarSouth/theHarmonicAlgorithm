@@ -44,18 +44,27 @@ import Data.Foldable (toList)
 import Sound.Tidal.Context
 
 -- | Extract harmonic roots regardless of inversion.
--- Always returns the fundamental root note from CadenceState.
+-- Triads go through inversion detection (a first-inversion bar reports
+-- its harmonic root, not its bass). Bars of more than three tones keep
+-- their STORED root: jazz and hand-built extended chords store the
+-- anchor directly, and the triad-reduction path would re-derive a root
+-- from the most-consonant embedded triad — a different answer from the
+-- one 'Harmonic.Interface.Tidal.Arranger.root' and the walking bass give
+-- for the same bar.
 fund :: P.Progression -> [[Int]]
 fund prog =
   let cadenceStates = toList (P.unProgression prog)
   in map fundToInt cadenceStates
   where
     fundToInt :: H.CadenceState -> [Int]
-    fundToInt cs =
-      let chord = H.fromCadenceState cs
-          rootNoteName = H.chordNoteName chord
-          rootPc = Pitch.pitchClass rootNoteName
-      in [Pitch.unPitchClass rootPc]
+    fundToInt cs
+      | length (H.cadenceIntervals (H.stateCadence cs)) > 3 =
+          [Pitch.unPitchClass (Pitch.pitchClass (H.stateCadenceRoot cs))]
+      | otherwise =
+          let chord = H.fromCadenceState cs
+              rootNoteName = H.chordNoteName chord
+              rootPc = Pitch.pitchClass rootNoteName
+          in [Pitch.unPitchClass rootPc]
 
 -- | Truncate each gate onset's note length to at most @1\/n@ of a bar (bar = 4
 --   cycles), else extend it to the next onset. Only @True@ onsets sound; a

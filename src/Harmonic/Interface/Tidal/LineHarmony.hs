@@ -87,9 +87,10 @@ tidalNoteOffset = 48
 -- carries a 'Harmonic.Rules.Import.Jazz.BassVocab' derived from its chord
 -- symbol, so the line reads the harmony as a bass player does — the fifth
 -- a 13th chord omits is restored, an altered dominant's \#5 replaces the
--- natural 5, and notated colour alterations stay off strong beats. For
+-- natural 5, and notated colour alterations stay off strong beats.
 -- 'Harmonic.Framework.Builder.gen' and 'Harmonic.Framework.Builder.genE'
--- progressions the line is byte-identical to the previous behaviour.
+-- progressions walk their plain per-bar tone sets (for genE that is the
+-- foundation layer — the layer that owns the bass).
 --
 -- Entropy is derived internally from the progression's harmonic character.
 lineHarmony

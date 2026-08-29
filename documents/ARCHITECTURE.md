@@ -227,11 +227,14 @@ src/Harmonic/
 ├── Config.hs                   [Neo4j connection + corpus paths]
 │
 ├── Framework/                  [R→E→T orchestration]
-│   ├── Builder.hs              [facade; gen/genP/genFrom families]
+│   ├── Builder.hs              [facade; gen/genE/genP/genJ/genFrom families]
 │   └── Builder/
 │       ├── Types.hs            [HarmonicContext, GenConfig, diagnostics types]
 │       ├── Core.hs             [chain building, candidate pools, filtering]
 │       ├── Strata.hs           [strata-walk placement + adjacency]
+│       ├── StrataGen.hs        [the genP runner]
+│       ├── JazzGen.hs          [the genJ runner]
+│       ├── PolyGen.hs          [the genE runner (polytonal partner pass)]
 │       ├── Diagnostics.hs      [diagnostic rendering]
 │       └── Portmanteau.hs      [composer-name blending]
 │
@@ -271,6 +274,7 @@ src/Harmonic/
     ├── LineHarmony.hs          [walking bass as a Tidal interface]
     ├── Orchestra.hs            [instruments, voices, divisi, sections]
     ├── OctatripentatonicT.hs   [strata provenance reporting helpers]
+    ├── PolytonalT.hs           [polytonal layer-view reporting (genEReport)]
     ├── Instruments.hs          [MIDI channel routing helpers]
     ├── Motif.hs                [motivic development: >:<, mirror, retro]
     ├── Display.hs              [12 Step LED feed: bar/seconds CC arithmetic]
@@ -393,60 +397,80 @@ richer `ProgressionContext` (`Rules/Types/ProgressionContext.hs`) carries
 three bar-aligned layers plus optional provenance:
 
 ```haskell
-data Layer = T | S | M          -- triad, strata, mode
+data Layer = T | S | M | TS | TM | SM | TSM | PT
 
 data ProgressionContext = ProgressionContext
   { triadLayer   :: Progression
   , strataLayer  :: Progression
   , modeLayer    :: Progression
   , pcProvenance :: Maybe (Seq (Tristrata, StrataLabel))
+  , pcFamily     :: Family
   }
 ```
 
 `arrange` takes the layer as an argument, so the same pattern can read
-chords, pentatonics or modes from one generated result. The legacy
-`gen` family fills all three layers with the triad; the strata-first
-`genP` family populates them distinctly; the `genE` family (below)
-fills all three with the 4-note progression.
+any view of one generated result. `T`/`S`/`M` project the stored
+layers; `TS`/`TM`/`SM`/`TSM` synthesize pointwise pitch-class unions
+per bar, rooted on the lowest constituent layer (T before S before M —
+the foundation owns a merged bass); `PT` synthesizes the pivot tones
+every layer shares. The legacy `gen` family fills all three layers with
+the triad (every selector degrades to it); the strata-first `genP`
+family populates them with strata/mode chromas; the polytonal `genE`
+family (below) fills them with independent partner triad chains.
 
-### 5.3a The genE family (4-note generation)
+### 5.3a The genE family (polytonal generation)
 
-A third, distinct generator family (`quad`, `genE`/`genE'`/`genE''`,
-family-aware `genFrom`; `lead'` for explicit N-note cues). It never touches the
-strata family — strata progressions stay 3-5-7, and `quad` on a strata
-source fails fast.
+A distinct generator family (`genE`/`genE'`/`genE''`, family-aware
+`genFrom`, `Harmonic.Framework.Builder.PolyGen`, family tag `FPoly`).
+Full theory and the viability study behind the design:
+`documents/POLYTONAL.md` and `archive/analysis/poly_viability.md`.
 
-Each step is **two-stage**: (1) select a triad through the unchanged
-R→E→T pipeline; (2) fuse in one more tone from the R-valid palette.
-The fusion is state-local set theory: every R-valid triad sharing
-exactly two pitches with the selected triad T unions to T ∪ {x} with
-x ∈ palette \ T, so the candidate list is simply the palette's
-remaining tones — ranked most-consonant-first by full-chord
-`dissonanceScore` and drawn by the same entropy-scaled gamma as the
-walk. R adherence is structural (x is in the palette; the bass never
-moves; pedal sets only gain members), and `consonant`/`dissonant`
-drift advisorily filters the fused surface against the previous fused
-bar as well as the triad stage.
+The **foundation walk** (T layer) is byte-identical to `gen` — the same
+chain builder, and the only place R constraints (key, roots, rise/fall
+direction, drift, pedal, inversion spacing) apply: the foundation owns
+the bass. The **partner pass** then walks two partner triad chains over
+the finished foundation. Each partner bar continues from its OWN
+previous bar's transition list (every partner bar is a real graph edge
+of its own layer's history), filtered to the overlap rules against that
+bar's foundation triad: share exactly 2 pitch classes with it, union of
+all three exactly 5. Those rules admit two per-bar geometries — the
+traversal chooses freely between them: **common-dyad** (all three
+triads share one dyad; every layer pair sounds 4 tones) and
+**base-anchored** (partners take different foundation dyads; T-pairs
+sound 4 tones, S+M the pentad). Partners honour the harmonic space
+(key / allowed roots / overtones, via the same R predicate with no bass
+target) but never the direction specs or strata machinery.
 
-The corpus graph is 3-set only, so the walk uses a **shadow
-projection** (`walkTriadCadence`): every state is projected to its
-most-consonant *rooted* embedded triad for graph fetch keys, R
-filters, and drift comparisons — identity for all ≤3-interval states.
-The chain state is the fused chord itself, so the added tone feeds
-back: a dim triad plus an added fifth walks on as minor. Graph keys
-stay corpus-shaped throughout — genE generation is fully online.
-Corpus-shaped means `corpusFunctionality`'s 55-form table (Harmony.hs),
-transcribed from the live graph: the database was ingested under
-legacy naming (e.g. `[0,3,8]` → `maj_1stInv`), which the modernised
-zero-form namers deliberately diverge from, so fetch keys cannot be
-derived from them. The same table fixed a latent bug in `gen` itself:
-`constructCadence` previously read inversions back under modern names,
-so every graph-selected inversion silently dropped the walk to
-fallback for one step.
+Jointly valid (S, M) pairs are ranked by summed own-list rank and drawn
+with one entropy-scaled gamma over the pair pool; supply relaxes from
+the corpus lists through a space-constrained pure enumeration over all
+220 absolute 3-PC sets to an unconstrained enumeration floor, so
+partner selection is total — under a crushing context the foundation
+degrades exactly as `gen` does (absorbing repetition), never the
+partners. S/M identity is assigned once at the end (lower whole-layer
+dissonance total = S); a partial regen (`genFrom`) preserves the
+source's labelling and seeds the partner chains from the kept bars.
 
-Attempt scoring projects each bar through the same shadow before
-keying the corpus map (`cadenceFavFromMap`), and voice-leading scoring
-evaluates the triad skeleton (uniform 3-note comparisons, by design).
+The corpus graph is 3-set only; the **shadow projection**
+(`walkTriadCadence` — every state projected to its most-consonant
+rooted embedded triad for graph fetch keys, R filters, and drift
+comparisons; identity for all ≤3-interval states) remains for the
+places >3-note material still enters a walk: regen cues over hand-built
+`lead'` progressions, and the genJ classical steer. Corpus-shaped
+means `corpusFunctionality`'s 55-form table (Harmony.hs), transcribed
+from the live graph: the database was ingested under legacy naming
+(e.g. `[0,3,8]` → `maj_1stInv`), which the modernised zero-form namers
+deliberately diverge from, so fetch keys cannot be derived from them.
+The same table fixed a latent bug in `gen` itself: `constructCadence`
+previously read inversions back under modern names, so every
+graph-selected inversion silently dropped the walk to fallback for one
+step.
+
+Attempt scoring reads the foundation (triad) layer — a plain classical
+walk, so genE attempts rank comparably with `gen`'s — and
+`cadenceFavFromMap` projects any >3-note bar through the same shadow
+before keying the corpus map; voice-leading scoring evaluates the triad
+skeleton (uniform 3-note comparisons, by design).
 
 ### 5.4 HarmonicContext
 
@@ -559,7 +583,11 @@ strictly-scoped:
 - **Strict-context routing.** genP-provenance S/M layers are always
   voiced by `strataModeFlow` (degree/"key-signature" semantics; octave
   placement now chosen by common-tone MIDI overlap, so shared tones
-  pedal in register). The general `flow`/`grid` DP handles all
+  pedal in register); combination selectors over genP contexts union to
+  ≥6 PCs and take the same route. genE contexts carry no provenance, so
+  every selector — partners, pairs, the pentad, the pivot tones —
+  honours the user's `VoiceFunction` through the real voice-leading DP.
+  The general `flow`/`grid` DP handles all
   harmony-sized material — bars of ≤5 voices, uniform or mixed; ≥6-PC
   bars (hand-built scale sets) safety-route to the chroma engine
   (a 16-bar 7-PC DP costs ~107 s as bytecode and ~2.4 s compiled —
@@ -641,7 +669,9 @@ line.
 | **Entropy** | Dial (≥ 0) targeting rank `entropy·10` in the scored pool (gamma shape `entropy·10 + 0.5`, capped at pool size); how far down the ranking traversal reaches |
 | **Form node** | A timed point carrying kinetics, dynamics and a progression |
 | **Kinetics** | Continuous 0–1 intensity signal driving range-gated arrangement |
-| **Layer (T/S/M)** | Triad, strata or mode density of one progression context |
+| **Layer (T/S/M/TS/TM/SM/TSM/PT)** | A view of one progression context: stored layer, pairwise/threefold union, or the shared pivot tones |
+| **Partner chain** | A genE S/M layer: an independent corpus walk sharing tones with the foundation per bar |
+| **Pivot tones (PT)** | The pitch classes common to all three layers of a bar (a dyad on common-dyad bars, the hub tone on base-anchored bars) |
 | **Modulo wrap** | Index wrapping that lets infinite patterns run over finite progressions |
 | **Movement** | Classified root motion between two chords |
 | **Strata / Tristrata** | Canonical pentatonic set / curated group of three whose pair-unions are diatonic |

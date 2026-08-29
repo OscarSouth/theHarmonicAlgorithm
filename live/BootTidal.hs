@@ -255,7 +255,7 @@ steptrig pat = mono $ midinote (toScale [-1, 0, 2, 4, 5, 7, 9, 10] $ (((pat-1) `
 --   * PitchClass, NoteName, Chord, Cadence, CadenceState (Core types)
 --   * initCadenceState, fromCadenceStates (Construction)
 --   * generate, generateWith (Phase C database generation)
---   * HarmonicContext, GeneratorConfig (Context/config)
+--   * HarmonicContext (R constraints); Layer selectors T/S/M + TS/TM/SM/TSM/PT
 --
 -- Voicing paradigms:
 --   * grid: Cyclic DP, root always in bass, smooth compact voice leading

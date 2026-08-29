@@ -14,6 +14,7 @@ module Harmonic.Framework.Builder.StrataGen
   , runStrataGenFrom
   , printInvalidCueError
   , viableTriadLines
+  , mkStarterDiag
   ) where
 
 import qualified Data.Text as T
@@ -160,14 +161,20 @@ runStrataGen sStart gc = do
             ivs = map P.unPitchClass (H.cadenceIntervals (H.stateCadence start))
         in [ (iv + rpc) `mod` 12 | iv <- ivs ]
       s0PCs      = map P.unPitchClass (Sc.strataChroma s0)
-      cueValid   = all (`elem` s0PCs) startAbsPCs
+      -- The strata triad layer is triadic by contract (3-5-7): a wider
+      -- cue would put a tetrad into an FStrata triad layer, so cue
+      -- cardinality is bounded alongside chroma containment.
+      cueValid   = length startAbsPCs == 3 && all (`elem` s0PCs) startAbsPCs
 
   if not cueValid
     then do
       -- Inside a multi-attempt loop every emission is suppressed (the
       -- winner is emitted once); the invalid-cue warning would otherwise
       -- print up to K times. Single-pass keeps the full block.
-      when (_gcMaxAttempts gc <= 1) $ printInvalidCueError start s0
+      when (_gcMaxAttempts gc <= 1) $ do
+        when (length startAbsPCs /= 3) $
+          putStrLn "genP cues are triadic (the 3-5-7 layer contract) — reduce the cue to three tones inside the stratum:"
+        printInvalidCueError start s0
       let emptyPC = PC.ProgressionContext
             { PC.triadLayer   = mempty
             , PC.strataLayer  = mempty
@@ -183,6 +190,7 @@ runStrataGen sStart gc = do
             , gdEntropy      = _gcEntropy gc
             , gdSteps        = []
             , gdProgression  = mempty
+            , gdJazzTrace    = []
             }
       pure (emptyPC, emptyDiag)
     else runStrataGenBody sStart gc start rng s0 t0 barSeq pctxAt boostFor n
@@ -214,7 +222,7 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
         Standard -> Just 1
         Verbose  -> Just 2
   source <- sourceFor (T.pack (_gcSeek gc))
-  (chain, rawDiags) <- buildChainWith source defaultConfig rng verbArg
+  (chain, rawDiags) <- buildChainWith source rng verbArg
                          (_gcEntropy gc) (_gcTonal gc) pctxAtStep start (max 0 (n - 1))
 
   -- Assemble ProgressionContext. The triadLayer is the R→E→T chain.
@@ -360,6 +368,7 @@ runStrataGenBody _sStart gc start rng _s0 _t0 barSeq pctxAt boostFor n = do
         , gdEntropy      = _gcEntropy gc
         , gdSteps        = attachedDiags
         , gdProgression  = PC.triadLayer resultPC
+        , gdJazzTrace    = []
         }
 
   -- No inline printing; diagnostics and footer are emitted by the
@@ -412,7 +421,7 @@ mkStarterDiag cs =
        , sdParentKey               = Nothing
        , sdModeResult              = Nothing
        , sdBarSpelling             = Nothing
-       , sdFusion                  = Nothing
+       , sdPoly                    = Nothing
        }
 
 -------------------------------------------------------------------------------

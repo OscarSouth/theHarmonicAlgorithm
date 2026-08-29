@@ -37,6 +37,7 @@ module Harmonic.Evaluation.Scoring.Progression
   , cadenceFavFromMap
   , scoreProgressionOnline
   , scoreProgressionJazz
+  , jazzChangeKey
   , TransitionCache
   , newTransitionCache
   , resolveJazzBlend
@@ -61,6 +62,7 @@ import qualified Harmonic.Rules.Types.Progression as Prog
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as P
+import qualified Harmonic.Rules.Import.Jazz as J
 import qualified Harmonic.Evaluation.Scoring.Dissonance as D
 import qualified Harmonic.Evaluation.Scoring.VoiceLeading as VL
 import qualified Harmonic.Evaluation.Database.Query as Q
@@ -159,8 +161,11 @@ scoreRootMotion prog =
 --
 -- Anchor calibration (2026-08-20, data-driven): 36-sample online probe —
 -- gen \/ genE \/ genVI × len {8, 16} × entropy {0.2, 0.4, 0.6}, two runs
--- each (genVI cued in-strata; its random-cue empties excluded). Observed
--- per-edge cyclic costs: gen 2.5–5.75, genE 3.25–12.0, genVI 3.0–7.1;
+-- each (genVI cued in-strata; its random-cue empties excluded). The genE
+-- column predates the polytonal rewrite (it measured the retired fused
+-- 4-note surface; today's genE scores its foundation, a plain classical
+-- walk in gen's band) — anchors stand pending re-measurement. Observed
+-- per-edge cyclic costs: gen 2.5–5.75, genE(fused) 3.25–12.0, genVI 3.0–7.1;
 -- combined p10 ≈ 3.0, p90 ≈ 7.1. Anchors set at 3.0 (excellent) \/ 8.0
 -- (poor) — p90 plus margin, so only genuinely rough runs bottom out.
 -- (The previous 10\/30 anchors were calibrated against the old
@@ -187,14 +192,14 @@ scoreVoiceLeading prog
     -- mod-12-wrapped pseudo-voicings via the toTriad reduction (an
     -- A-rooted [0,4,7] bar read as [9,1,4], so C→A root motion measured
     -- 9 semitones instead of 3 — the old 10\/30 anchors were calibrated
-    -- against that artefact). genE chains now score the heard 4-note
+    -- against that artefact). Hand-built 4-note chains score the heard
     -- surface; mixed-cardinality bars score real alignment costs.
     honestVoicing cs =
       let r = P.unPitchClass (P.pitchClass (H.stateCadenceRoot cs))
       in sort [ (P.unPitchClass i + r) `mod` 12
               | i <- H.cadenceIntervals (H.stateCadence cs) ]
     -- Anchors recalibrated 2026-08-20 against the honest measurement:
-    -- online probe gen\/genVI\/genE × len 8\/16 × entropy {0.2,0.4,0.6},
+    -- online probe gen\/genVI\/genE(fused, pre-rewrite) × len 8\/16 × entropy {0.2,0.4,0.6},
     -- per-edge cyclic costs of sorted absolute-PC voicings. See the
     -- calibration values below (updated by the probe in the VL pass).
     vlLowAnchor  = vlLowAnchorCal
@@ -253,9 +258,9 @@ type TransitionMap = Map Text [(Text, Double)]
 -- the 'show' instance projects to @(movement, functionality)@ only.
 cadenceFavFromMap :: TransitionMap -> Prog.Progression -> Double
 cadenceFavFromMap srcMap prog =
-  -- Project each bar through the genE walk shadow ('walkTriadCadence',
+  -- Project each bar through the triad walk shadow ('walkTriadCadence',
   -- identity for triads) so 4-note chains score the same corpus edges the
-  -- walk actually followed; without this a fused chain's keys miss the
+  -- walk actually followed; without this a hand-built extended chain's keys miss the
   -- map entirely and psCadenceFav collapses to 0.
   cadenceFavFromKeys srcMap
     (map (T.pack . show . H.walkTriadCadence . H.stateCadence)
@@ -380,6 +385,20 @@ fetchCached cache k fetch = do
       liftIO (modifyIORef' cache (Map.insert k v))
       pure v
 
+-- |Jazz analogue of 'H.walkTriadCadence': project a bar onto its
+-- Change-graph node key. Identity for walk-generated bars (their
+-- functionality was already set by the jazz namer); maps a lead-produced
+-- cue onto the node the walk itself started from, so the cyclic
+-- favourability score no longer charges both cue edges as misses. Sets
+-- outside the jazz vocabulary keep their raw key and score 0 — honest.
+jazzChangeKey :: H.CadenceState -> Text
+jazzChangeKey cs =
+  let cad = H.stateCadence cs
+      set = map P.unPitchClass (H.cadenceIntervals cad)
+  in case J.jazzFunctionality set of
+       Just nm -> "( " <> T.pack (show (H.cadenceMovement cad)) <> " -> " <> nm <> " )"
+       Nothing -> T.pack (show cad)
+
 -- |Jazz-family variant of 'scoreProgressionOnline': pure components are
 -- identical (they are arity-agnostic); 'psCadenceFav' is computed against
 -- the @Change@ graph under the seek spec's JAZZ half — the spec is split
@@ -395,8 +414,7 @@ scoreProgressionJazz
 scoreProgressionJazz cache jazzBlend pc = do
   let basePure = scoreProgression pc
       prog     = PC.triadLayer pc
-      keys     = map (T.pack . show . H.stateCadence)
-                     (toList (Prog.unProgression prog))
+      keys     = map jazzChangeKey (toList (Prog.unProgression prog))
   pairs <- forM (nub keys) $ \k -> do
     resolved <- fetchCached cache k $
       if Map.null jazzBlend

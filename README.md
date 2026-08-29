@@ -282,6 +282,10 @@ hands-on tutorial with examples you can run directly in TidalCycles.
 **[Octatripentatonics](documents/OCTATRIPENTATONICS.md)** — the theory frontier:
 strata, tristrata, and the three-layer harmony system, in full.
 
+**[Polytonal](documents/POLYTONAL.md)** — the genE framework: a foundation
+walk plus two partner triad chains, the overlap algebra behind the layer
+selectors, and the viability study the design rests on.
+
 **[Algorithmic Orchestration](documents/ALGORITHMIC_ORCHESTRATION.md)** — scoring for
 a virtual orchestra: instrument catalogue, voice lines, divisi, sections,
 blends, and the subKick groove interface.
@@ -291,7 +295,7 @@ and SuperCollider rig the project is performed on: Pulsar configuration, the
 compiled-session wrapper, MIDI routing, and the failure modes worth recognising.
 
 **[API Reference](https://docs.theharmonicalgorithm.com/)** — generated Haddock
-documentation for all 46 modules, with worked examples on every user-facing
+documentation for all 48 modules, with worked examples on every user-facing
 entry point. Start at `Harmonic.Lib`.
 
 **[Architecture Guide](documents/ARCHITECTURE.md)** — the technical deep dive into

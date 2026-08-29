@@ -39,6 +39,7 @@
 module Harmonic.Framework.Builder.JazzGen (
     runJazzGen,
     runJazzGenFrom,
+    jazzGuardSeek,
 ) where
 
 import qualified Data.Map.Strict as Map
@@ -47,6 +48,7 @@ import           Data.Char (toLower)
 import           Data.List (sortBy)
 import           Data.Ord (Down(..), comparing)
 import           Control.Monad (when)
+import           Data.IORef (IORef, newIORef, readIORef, modifyIORef')
 import           System.Random.MWC (GenIO, createSystemRandom)
 
 import           Harmonic.Database (DbConn, runDb)
@@ -71,7 +73,22 @@ data JazzEnv = JazzEnv
   , jeEntropy  :: Double
   , jePctx     :: ParsedContext      -- ^ Parsed 'HarmonicContext' (R filter).
   , jeVerbose  :: Bool
+  , jeSingle   :: Bool               -- ^ Single-pass run (no attempt loop): warnings may print immediately.
+  , jeTrace    :: IORef [String]     -- ^ Walk-trace accumulator (reversed); drained into 'gdJazzTrace' so only the attempt winner's trace is emitted.
   }
+
+-- Collect one trace line; emitFinalised prints the winner's collected
+-- lines exactly once, restoring the emit-once contract under attempt.
+trace' :: JazzEnv -> String -> IO ()
+trace' env l = modifyIORef' (jeTrace env) (l :)
+
+-- |Refuse @seek "none"@ before any Neo4j contact: the jazz graph IS the
+-- generator — there is no offline fallback. Exported so the attempt loop
+-- can guard before opening its scoring connection.
+jazzGuardSeek :: GenConfig -> IO ()
+jazzGuardSeek gc =
+  when (map toLower (_gcSeek gc) == "none") $
+    error "genJ: seek \"none\" has no meaning here — the jazz graph IS the generator (no offline fallback exists). Use seek \"*\" or a composer spec."
 
 -- | Execute a 'JazzMode' 'GenConfig': fresh jazz generation. The cue is
 -- honoured as bar 1 (the human aberration channel, as in every family)
@@ -82,11 +99,12 @@ runJazzGen gc = do
   env  <- mkEnv gc
   cue0 <- _gcCue gc
   startKey <- resolveStart env cue0
-  states <- jazzWalk env startKey cue0 (_gcLen gc - 1)
+  states <- jazzWalk env startKey cue0 (max 1 (_gcLen gc) - 1)
+  traceLines <- drainTrace env
   let allStates = cue0 : states
       prog      = Prog.fromCadenceStates allStates
       pc        = (PC.fromProgression prog) { PC.pcFamily = PC.FJazz }
-  pure (pc, jazzDiag gc cue0 prog)
+  pure (pc, jazzDiag gc cue0 prog traceLines)
 
 -- | Regenerate bars @s..e@ (1-indexed, wrap-aware; @len@ expands the
 -- range like the classical 'Harmonic.Framework.Builder.genFrom') of a
@@ -103,23 +121,33 @@ runJazzGenFrom srcPC s _e gc = do
   cue0 <- _gcCue gc
   startKey <- resolveStart env cue0
   let n     = PC.pcLength srcPC
-      rSize = _gcLen gc
+      rSize = max 1 (_gcLen gc)
       effE  = ((s - 1 + rSize - 1) `mod` n) + 1
   newBars <- jazzWalk env startKey cue0 rSize
+  traceLines <- drainTrace env
   let insertPC = (PC.fromProgression (Prog.fromCadenceStates newBars))
                    { PC.pcFamily = PC.FJazz }
-      spliced  = PC.pcSplice srcPC s effE insertPC
-  pure (spliced, jazzDiag gc cue0 (PC.triadLayer spliced))
+      -- FJazz layers duplicate one progression; rebuilding from the
+      -- movement-fixed triad splice keeps that invariant at the seam
+      -- (pcSplice would leave stale movement metadata on the duplicates).
+      spliced  = (PC.fromProgression
+                    (PC.triadLayer (PC.pcSplice srcPC s effE insertPC)))
+                   { PC.pcFamily = PC.FJazz }
+  pure (spliced, jazzDiag gc cue0 (PC.triadLayer spliced) traceLines)
+
+-- Reverse-accumulated trace back into emission order.
+drainTrace :: JazzEnv -> IO [String]
+drainTrace env = Prelude.reverse <$> readIORef (jeTrace env)
 
 -- Shared construction of the per-generation environment: connection,
 -- RNG, seek split (with the Verbose resolution report), parsed tonal
 -- context.
 mkEnv :: GenConfig -> IO JazzEnv
 mkEnv gc = do
-  when (map toLower (_gcSeek gc) == "none") $
-    error "genJ: seek \"none\" has no meaning here — the jazz graph IS the generator (no offline fallback exists). Use seek \"*\" or a composer spec."
+  jazzGuardSeek gc
   conn <- connectNeo4j
   gen  <- createSystemRandom
+  traceRef <- newIORef []
   let blend   = Q.parseComposerWeights (T.pack (_gcSeek gc))
       verbose = _gcVerbosity gc /= Silent
   (jazzBlend, steerBlend) <-
@@ -128,19 +156,22 @@ mkEnv gc = do
       else do
         keys <- runDb conn Q.fetchJazzComposers
         pure (Q.splitSeekByCorpus keys blend)
+  let env = JazzEnv
+        { jeConn = conn, jeGen = gen
+        , jeBlend = jazzBlend, jeSteer = steerBlend
+        , jeStrength = _gcSteer gc
+        , jeEntropy  = _gcEntropy gc
+        , jePctx     = parseContextOnce (_gcTonal gc)
+        , jeVerbose  = verbose
+        , jeSingle   = _gcMaxAttempts gc <= 1
+        , jeTrace    = traceRef
+        }
   when (verbose && not (Map.null blend)) $ do
-    putStrLn $ "genJ seek resolution: jazz blend " ++ showBlend jazzBlend
-             ++ " | classical steer " ++ showBlend steerBlend
+    trace' env $ "genJ seek resolution: jazz blend " ++ showBlend jazzBlend
+               ++ " | classical steer " ++ showBlend steerBlend
     when (Map.null jazzBlend) $
-      putStrLn "  (no jazz composers named — jazz walk runs on \"*\", classical names steer)"
-  pure JazzEnv
-    { jeConn = conn, jeGen = gen
-    , jeBlend = jazzBlend, jeSteer = steerBlend
-    , jeStrength = _gcSteer gc
-    , jeEntropy  = _gcEntropy gc
-    , jePctx     = parseContextOnce (_gcTonal gc)
-    , jeVerbose  = verbose
-    }
+      trace' env "  (no jazz composers named — jazz walk runs on \"*\", classical names steer)"
+  pure env
   where
     showBlend m
       | Map.null m = "(none)"
@@ -157,7 +188,8 @@ resolveStart env cue0 = do
       exactKey nm = "( " <> T.pack (show cueMv) <> " -> " <> nm <> " )"
   case J.jazzFunctionality cueSet of
     Nothing -> do
-      putStrLn "genJ: cue chord is outside the jazz vocabulary — starting from ( pedal -> m7 )"
+      let notice = "genJ: cue chord is outside the jazz vocabulary — starting from ( pedal -> m7 )"
+      if jeSingle env then putStrLn notice else trace' env notice
       orDefault conn (pure Nothing)
     Just nm -> do
       probe <- runDb conn (Q.fetchChangeAggregate (exactKey nm))
@@ -165,8 +197,8 @@ resolveStart env cue0 = do
         then pure (exactKey nm)
         else do
           when (jeVerbose env) $
-            putStrLn $ "genJ: no jazz node " ++ T.unpack (exactKey nm)
-                     ++ " — resolving by functionality"
+            trace' env $ "genJ: no jazz node " ++ T.unpack (exactKey nm)
+                       ++ " — resolving by functionality"
           orDefault conn (runDb conn (Q.resolveChangeCue nm))
   where
     orDefault conn action = do
@@ -193,8 +225,8 @@ jazzWalk env = go
           cands <- runDb conn (Q.fetchChangeTransitions key)
           pure (filter ((> 0) . snd) (Q.resolveWeights (jeBlend env) cands))
       pool1 <- if not (null pool0) then pure pool0 else do
-        when verbose $ putStrLn $ "  genJ: composer subgraph dead-ends at "
-                                ++ T.unpack key ++ " — widening to \"*\" for this step"
+        when verbose $ trace' env $ "  genJ: composer subgraph dead-ends at "
+                                  ++ T.unpack key ++ " — widening to \"*\" for this step"
         runDb conn (Q.fetchChangeAggregate key)
       when (null pool1) $
         error ("genJ: no outgoing transitions from " ++ T.unpack key)
@@ -206,8 +238,8 @@ jazzWalk env = go
           rPassed = [ p | p@(c, _) <- pool1
                         , matchesContextWithTarget Nothing (jePctx env) prevState (asCadence c) ]
       pool2 <- if not (null rPassed) then pure rPassed else do
-        when verbose $ putStrLn $ "  genJ: tonal constraints exclude every candidate at "
-                                ++ T.unpack key ++ " — relaxed for this step"
+        when verbose $ trace' env $ "  genJ: tonal constraints exclude every candidate at "
+                                  ++ T.unpack key ++ " — relaxed for this step"
         pure pool1
       -- E: classical steer.
       pool <- if Map.null (jeSteer env) then pure pool2 else do
@@ -228,7 +260,7 @@ jazzWalk env = go
             boosted = map boost pool2
             nBoosted = length [ () | ((_, b), (_, o)) <- zip boosted pool2, b > o ]
         when verbose $
-          putStrLn $ "  steer: classical recs " ++ show (length recs)
+          trace' env $ "  steer: classical recs " ++ show (length recs)
                    ++ ", boosted " ++ show nBoosted ++ "/" ++ show (length pool2) ++ " candidates"
         pure (sortBy (comparing (Down . snd)) boosted)
       -- T: the shared entropy dial.
@@ -246,16 +278,17 @@ jazzWalk env = go
                   { H.cadenceFunctionality = T.unpack nm } }
             Nothing -> nextState0
       when verbose $
-        putStrLn $ "  " ++ T.unpack key ++ " -> " ++ T.unpack (Q.ccShow cand)
+        trace' env $ "  " ++ T.unpack key ++ " -> " ++ T.unpack (Q.ccShow cand)
                  ++ "  [pick " ++ show (idx + 1) ++ "/" ++ show (length pool)
                  ++ ", score " ++ show (fromIntegral (round (score * 100) :: Int) / 100 :: Double) ++ "]"
       rest <- go (Q.ccShow cand) nextState (remaining - 1 :: Int)
       pure (nextState : rest)
 
--- Minimal diagnostics record: the jazz walk prints its own trace, so
--- gdSteps stays empty and emitFinalised renders header + grid only.
-jazzDiag :: GenConfig -> H.CadenceState -> Prog.Progression -> GenerationDiagnostics
-jazzDiag gc cue0 prog = GenerationDiagnostics
+-- Minimal diagnostics record: the jazz walk renders its trace during
+-- generation into 'gdJazzTrace'; gdSteps stays empty and emitFinalised
+-- prints header + collected trace + grid — once, for the attempt winner.
+jazzDiag :: GenConfig -> H.CadenceState -> Prog.Progression -> [String] -> GenerationDiagnostics
+jazzDiag gc cue0 prog traceLines = GenerationDiagnostics
   { gdStartCadence = show (H.stateCadence cue0)
   , gdStartRoot    = show (H.stateCadenceRoot cue0)
   , gdRequestedLen = _gcLen gc
@@ -263,4 +296,5 @@ jazzDiag gc cue0 prog = GenerationDiagnostics
   , gdEntropy      = _gcEntropy gc
   , gdSteps        = []
   , gdProgression  = prog
+  , gdJazzTrace    = traceLines
   }

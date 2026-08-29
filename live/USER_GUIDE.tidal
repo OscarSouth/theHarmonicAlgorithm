@@ -1008,6 +1008,9 @@ hush
 -- connector pool automatically reweights toward the 5-PC strata
 -- set — the walk speaks the same dialect as the harmony.
 --
+-- For polytonal progressions (Section 20) the walk reads the
+-- foundation (T) layer — the layer that owns the bass.
+--
 -- For jazz progressions (Section 21) each bar is read through its
 -- chord symbol's bass vocabulary: the fifth a 13th chord omits is
 -- restored, an altered dominant's #5 stands in for the natural 5,
@@ -1190,10 +1193,16 @@ hush
 -- GOAL: Every progression carries three bar-aligned layers:
 --
 --   T  triad layer   3 PCs   the chords
---   S  strata layer  5 PCs   a pentatonic per bar
---   M  mode layer    7 PCs   a diatonic mode per bar
+--   S  strata layer  5 PCs   a pentatonic per bar (genP)
+--   M  mode layer    7 PCs   a diatonic mode per bar (genP)
 --
 -- The `arrange` layer argument selects which one patterns read.
+-- Combination selectors synthesize unions per bar: TS / TM / SM
+-- (pairs), TSM (all three) and PT (the tones every layer shares),
+-- rooted on the lowest constituent layer — the foundation owns a
+-- merged bass. On genE contexts (SECTION 20) S and M are partner
+-- TRIADS and the pairs are 4-note structures; on plain gen every
+-- selector degrades to the triad progression.
 -- Plain `gen` fills all three with the triad; the strata-first
 -- generator `genP` populates them for real, by walking eleven
 -- canonical pentatonic STRATA (I–XI) grouped into twelve curated
@@ -1237,7 +1246,7 @@ pcRel <- seek "*" $ cue start $ relStrata "1 1 2 2 3 3" $ genVI'
 pcAbs <- seek "*" $ cue start $ absStrata "I V X" $ genI'
 
 -- Provenance + triads in one report:
-genPReport (pure pcAbs)
+genPReport pcAbs
 
 -- ── CONTINUITY BOOSTS ──
 -- The walk prefers staying put. Three multipliers bias it
@@ -1257,68 +1266,69 @@ hush
 
 
 -- ══════════════════════════════════════════════════════════
--- SECTION 20 — Four-note generation (genE)
+-- SECTION 20 — Polytonal generation (genE)
 -- ══════════════════════════════════════════════════════════
--- src/Harmonic/Framework/Builder.hs        (quad, genE family)
--- src/Harmonic/Framework/Builder/Core.hs   (fuseState)
+-- src/Harmonic/Framework/Builder/PolyGen.hs      (the runner)
+-- src/Harmonic/Interface/Tidal/PolytonalT.hs     (genEReport)
 --
--- GOAL: Seventh-chord density with the same corpus-trained walk.
--- A third generator family alongside gen and genP: each step
--- picks a triad exactly as gen does, then FUSES one more tone
--- from the R-valid palette (most-consonant-first ranking, same
--- entropy dial). The walk continues from the fused chord's most
--- consonant embedded triad, so the added tone can reinterpret
--- the harmony — while every graph key stays corpus-shaped and
--- generation stays online.
+-- GOAL: Three simultaneous triad progressions from one walk.
+-- The T layer is a foundation walk byte-identical to gen (all
+-- R constraints bind it alone — the foundation owns the bass).
+-- S and M are partner triad chains, each a corpus-valid walk
+-- of its own, sharing exactly 2 pitch classes with that bar's
+-- foundation triad and unioning to exactly 5 — so any pair of
+-- layers sounds a 4-note structure and all three the pentad.
+-- The traversal picks freely per bar between the two admitted
+-- geometries: common-dyad (every pair = 4 tones) and
+-- base-anchored (T-pairs = 4 tones, S+M = the pentad).
 
 start <- lead "C maj"
 
--- A triad cue is fused once — output is uniformly 4-note.
--- Watch the new trace line under each bar's Candidates:
---   fused: +Ab → F m7  [rank 2/9]
--- (which tone was added, the fused name, where the draw landed
--- in the consonant-first ranking).
+-- Zero prime prints the foundation grid plus the combined TSM
+-- grid; genE' adds a per-bar table (partners, pair structures,
+-- pentad, pivot tones); genE'' adds the selection facts.
 pc20 <- seek "*" $ cue start $ len 8 $ entropy 0.3 $ genE'
 
--- Play it. Degree 3 in the pattern is now a real fourth chord
--- tone, not the octave wrap.
+-- Play the layers: T alone, a partner alone (its own roots and
+-- bass), a 4-note pair, the full pentad, the pivot-tone line.
 p20 = do
   let k = iK tempo [at 0 1 1 pc20] (rep pc20 1)
   mapM_ id [hush, setbpm tempo
-    , (d01 $ arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~", "[0 1 2 3]/4"] # ch 01 |* vel 0.7 |= legato 1.2)
+    , (d01 $ arrange (0, 1) k (-9, 9) TS flow (overlapF 0) ["~", "[0 1 2 3]/4"] # ch 01 |* vel 0.7 |= legato 1.2)
     , (d01 $ arrange (0, 1) k (-9, 9) T root (overlapF 0) ["~", "[0]/1"] # ch 01 |- oct 2 |* vel 0.7 |= legato 3.6)
     ]
 
 p20
 
--- ── EXPLICIT 4-NOTE CUES: lead' ──
--- lead' takes note names directly. First note = root/bass; typed
--- accidentals drive the spelling (Eb → flat, D# → sharp);
--- optional (N) fixes the approach movement, like lead.
-start' <- lead' "Eb Gb Bb Db"        -- Eb m7, used as-is (no fuse)
-pc20' <- seek "*" $ cue start' $ len 8 $ entropy 0.3 $ genE'
+-- Swap the TS above for S, M, TM, SM, TSM or PT and re-evaluate:
+-- same progression, different vertical density. Every layer view
+-- at the REPL:
+genEReport pc20
 
 -- ── COMPOSES LIKE EVERYTHING ELSE ──
--- quad is the underlying modifier (genE = quad gen):
 pc20'' <- seek "*" $ cue start $ len 8 $ attempt 3 12 $ entropy 0.4 $ genE''
 
--- Regeneration is family-aware: a uniform 4-note source regenerates
--- 4-note bars automatically (families never mix; quad is inferred):
+-- Regeneration is family-aware: the partner chains regenerate
+-- with the foundation range, seeded from the kept bars:
 pc20r <- seek "*" $ entropy 0.3 $ genFrom pc20 3 5
 
--- R adherence is structural: the added tone always comes from
--- the active palette (tonal / hcKey), the bass never moves, and
--- consonant/dissonant drift governs BOTH the triad skeleton and
--- the fused surface:
+-- Partners honour the harmonic space (key / roots / overtones)
+-- but ignore rise/fall direction specs and drift — those bind
+-- the foundation alone, and the partner lines stay free:
 pc20k <- seek "*" $ cue start $ len 8 $ tonal (hcKey "0#" $ consonant hContext) $ genE'
 
--- One boundary: genE and genP never mix — strata progressions
--- stay 3-5-7 by design. quad on a strata source fails fast.
+-- Cues are triadic (a 4-note cue is refused — the combined
+-- structures come from the layers). Hand-built 4-note material
+-- still enters via lead' and plays as-is; regenerating it
+-- produces triads with a printed notice:
+start' <- lead' "Eb Gb Bb Db"        -- Eb m7, hand-built, plays as-is
+pcHand <- seek "*" $ cue start' $ len 4 $ genGrid
+pcHandR <- seek "*" $ entropy 0.3 $ genFrom pcHand 2 3   -- prints the triad-downgrade notice
 
 -- ── TRY THIS ──
--- Generate the same cue with gen' then genE' and compare grids:
--- same walk character, thicker sonorities. Then play pc20 with
--- lite instead of flow and listen to the register difference.
+-- Put T, S and M on three different instruments: three
+-- independent progressions that lock into pentads. Then walk
+-- the bass (§16) over T while a pattern reads PT.
 
 hush
 
@@ -1484,7 +1494,7 @@ hush
 -- Strata-first (T/S/M layers):
 --   pc <- seek "*" $ cue start $ len 8 $ genVI'    -- genI..genXI ·'·''
 --   hcTristrata "5" · relStrata "1 2 3" · absStrata "I V X"
---   sameBoost/flipBoost/triBoost N · genPReport (pure pc)
+--   sameBoost/flipBoost/triBoost N · genPReport pc
 --
 -- Context modifiers (compose with $, right-to-left):
 --   hContext, hcOvertones, hcKey, hcRoots, hcPedal,

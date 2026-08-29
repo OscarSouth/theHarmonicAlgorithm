@@ -18,9 +18,6 @@ module Harmonic.Framework.Builder.Core
   , buildChainWith
   , stepChainWith
 
-    -- * Step primitives
-  , fuseState
-
     -- * Conversion
   , chainToProgression
   , extractCadence
@@ -33,7 +30,7 @@ module Harmonic.Framework.Builder.Core
 import qualified Data.Text as T
 import qualified Data.IntSet as IntSet
 import           Control.Monad (foldM)
-import           Data.List (sort, sortBy)
+import           Data.List (sortBy)
 import           Data.Function (on)
 import           Data.Ord (Down(..))
 import           System.Random.MWC (GenIO, uniform, uniformR)
@@ -145,7 +142,6 @@ spellcheckFetches = 3
 -- logic to @stepChainBody@ (pool = graph candidates + unlimited
 -- consonance fallback).
 buildChainWith :: TransitionSource
-               -> GeneratorConfig
                -> GenIO                    -- ^ Shared random generator
                -> Maybe Int                -- ^ Diagnostics verbosity (Nothing \/ Just 1 \/ Just 2)
                -> Double                   -- ^ Entropy (>= 0; rank-target dial)
@@ -154,17 +150,16 @@ buildChainWith :: TransitionSource
                -> H.CadenceState           -- ^ Starting state
                -> Int                      -- ^ Number of steps to generate
                -> IO ([H.CadenceState], [StepDiagnostic])
-buildChainWith source config gen mVerbosity ent context pctxAt start totalSteps = do
+buildChainWith source gen mVerbosity ent context pctxAt start totalSteps = do
   let initCounter = if H.isInversion (H.stateCadence start) then 0 else 1
   ((_current, revChain, _counter), revDiags) <-
-    foldM (\acc i -> stepChainWith source config gen mVerbosity ent context (pctxAt i) acc i)
+    foldM (\acc i -> stepChainWith source gen mVerbosity ent context (pctxAt i) acc i)
           ((start, [start], initCounter), [])
           [1..totalSteps]
   pure (reverse revChain, reverse revDiags)
 
 -- |One step against a 'TransitionSource': fetch, then @stepChainBody@.
 stepChainWith :: TransitionSource
-              -> GeneratorConfig
               -> GenIO
               -> Maybe Int
               -> Double
@@ -173,9 +168,9 @@ stepChainWith :: TransitionSource
               -> ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
               -> Int
               -> IO ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
-stepChainWith source config gen mVerbosity ent context pctx acc@((current, _, _), _) stepNum = do
+stepChainWith source gen mVerbosity ent context pctx acc@((current, _, _), _) stepNum = do
   scored <- source (T.pack $ show (extractCadence (H.walkTriadState current)))
-  stepChainBody config gen mVerbosity ent context pctx acc stepNum scored
+  stepChainBody gen mVerbosity ent context pctx acc stepNum scored
 
 
 -- |Resolve a 'BassDirectionSpec' into a concrete 'BassDirection' for a
@@ -215,8 +210,7 @@ resolveBassDirection gen stepNum (Just spec) = do
 -- Used by 'stepChainWith' for every family and mode (the source argument
 -- decides online vs offline).
 -- When transitions is empty (offline mode), generation relies entirely on the consonance fallback.
-stepChainBody :: GeneratorConfig
-              -> GenIO
+stepChainBody :: GenIO
               -> Maybe Int        -- ^ Nothing = no diagnostics, Just n = verbosity level
               -> Double           -- ^ Entropy [0,1]
               -> HarmonicContext
@@ -225,11 +219,12 @@ stepChainBody :: GeneratorConfig
               -> Int
               -> [(H.Cadence, Double)]   -- ^ Pre-scored transitions, sorted desc (empty for offline)
               -> IO ((H.CadenceState, [H.CadenceState], Int), [StepDiagnostic])
-stepChainBody config gen mVerbosity ent _context pctx ((current, revChain, nonInvCount), revDiags) stepNum transitions = do
-  -- Walk shadow (genE): all stage-1 machinery runs against the current
-  -- state's most-consonant rooted embedded triad, so drift comparisons stay
+stepChainBody gen mVerbosity ent _context pctx ((current, revChain, nonInvCount), revDiags) stepNum transitions = do
+  -- Walk shadow: all stage-1 machinery runs against the current state's
+  -- most-consonant rooted embedded triad, so drift comparisons stay
   -- triad-vs-triad and graph keys stay corpus-shaped. Identity for every
-  -- <=3-interval state, i.e. all plain gen\/genP steps.
+  -- <=3-interval state — it bites only when a >3-note bar seeds a walk
+  -- (regen of hand-built extended material via 'genFrom').
   let walkCur = H.walkTriadState current
 
   -- Resolve bass direction for this step (may consume randomness for
@@ -328,7 +323,7 @@ stepChainBody config gen mVerbosity ent _context pctx ((current, revChain, nonIn
                     , sdParentKey = Nothing
                     , sdModeResult = Nothing
                     , sdBarSpelling = Nothing
-                    , sdFusion = Nothing
+                    , sdPoly = Nothing
                     }
               in diag : revDiags
       pure ((current, current : revChain, nonInvCount), diags)
@@ -338,14 +333,7 @@ stepChainBody config gen mVerbosity ent _context pctx ((current, revChain, nonIn
           (newState, advTrace) = advanceStateTraced (pcKeySpelling pctx) walkCur nextCadence
           newCounter = if H.isInversion nextCadence then 0 else nonInvCount + 1
 
-      -- genE: fuse one palette tone into the selected triad; the fused
-      -- state becomes the emitted bar AND the next walk state (whose
-      -- stage-1 shadow is its most-consonant embedded triad — the added
-      -- tone can reinterpret the harmony and steer the next step).
-      (emitState, mFusion) <-
-        if gcQuad config
-          then fuseState gen ent pctx (Just current) newState
-          else pure (newState, Nothing)
+      let emitState = newState
 
           -- Build diagnostics only when requested
       let diags = case mVerbosity of
@@ -404,7 +392,7 @@ stepChainBody config gen mVerbosity ent _context pctx ((current, revChain, nonIn
                     , sdParentKey = Nothing
                     , sdModeResult = Nothing
                     , sdBarSpelling = Nothing
-                    , sdFusion = mFusion
+                    , sdPoly = Nothing
                     }
               in diag : revDiags
 
@@ -565,71 +553,6 @@ applyDriftFilter direction currentState pool =
         Consonant -> \(cad, _) -> candidateDiss cad <= currentDiss
       filtered = filter predicate pool
   in if null filtered then pool else filtered
-
--------------------------------------------------------------------------------
--- genE Fusion (add one R-valid tone to a selected triad)
--------------------------------------------------------------------------------
-
--- |Fuse one palette tone into a triad state, producing the 4-note bar the
--- genE family emits. State-local by construction: the candidate set is
--- @pcEffectiveOvertones \\ triadAbsPCs@ — the set-theoretic collapse of
--- "every R-valid triad sharing exactly 2 pitches with the selected triad,
--- unioned over the original root" (any such triad unions to T ∪ {x}).
--- R adherence is therefore automatic: the added tone is always in the
--- palette, the bass never moves, and pedal tones can only gain members.
---
--- Selection: candidates ranked consonant-first by 'dissonanceScore' of the
--- full 4-PC set, drawn by the same entropy-scaled gamma as the walk. When
--- drift is active and the previous FUSED bar is supplied, candidates are
--- first advisorily filtered by fused-chord dissonance against it
--- (consonant → <=, dissonant → >=), relaxing to the full set when empty —
--- mirroring 'applyDriftFilter'. The triad stage has already drift-filtered
--- triad-vs-triad, so both the skeleton and the heard surface obey the
--- modifier.
---
--- Degenerate palette (palette == triad, only possible under a 3-tone
--- tonal context): returns the input unchanged — a plain triad bar.
--- Root, movement, and spelling are preserved verbatim.
-fuseState :: GenIO
-          -> Double                  -- ^ Entropy [0,1]
-          -> ParsedContext
-          -> Maybe H.CadenceState    -- ^ Previous fused bar (drift reference); Nothing for the cue
-          -> H.CadenceState          -- ^ The selected triad state
-          -> IO (H.CadenceState, Maybe FusionDiag)
-fuseState gen ent pctx mPrev triadState = do
-  let rootPC   = P.unPitchClass (P.pitchClass (H.stateCadenceRoot triadState))
-      ivs      = map P.unPitchClass (H.cadenceIntervals (H.stateCadence triadState))
-      absPCs   = IntSet.fromList [ (i + rootPC) `mod` 12 | i <- ivs ]
-      cands    = IntSet.toList (pcEffectiveOvertones pctx IntSet.\\ absPCs)
-  if null cands
-    then pure (triadState, Nothing)
-    else do
-      let fusedOf x =
-            let interval = (x - rootPC) `mod` 12
-                zf       = sort (interval : ivs)
-            in (x, zf, dissonanceScore zf)
-          scoredAll = map fusedOf cands
-          -- advisory drift on the fused surface vs the previous fused bar
-          prevDiss = case mPrev of
-            Just prev | length (H.cadenceIntervals (H.stateCadence prev)) > 3 ->
-              Just (dissonanceScore
-                     (map P.unPitchClass (H.cadenceIntervals (H.stateCadence prev))))
-            _ -> Nothing
-          drifted = case (pcDrift pctx, prevDiss) of
-            (Consonant, Just d) -> filter (\(_, _, ds) -> ds <= d) scoredAll
-            (Dissonant, Just d) -> filter (\(_, _, ds) -> ds >= d) scoredAll
-            _                   -> scoredAll
-          pool   = if null drifted then scoredAll else drifted
-          ranked = sortBy (compare `on` (\(_, _, d) -> d)) pool
-      idx <- gammaIndexScaledWith gen ent (length ranked)
-      let (x, zf, _) = ranked !! idx
-          cad0  = H.stateCadence triadState
-          fused0 = H.mkCadenceStatePCs (H.stateCadenceRoot triadState)
-                     (H.cadenceMovement cad0) zf
-          -- keep the walk's spelling continuity decision for the bar
-          fused = fused0 { H.stateSpelling = H.stateSpelling triadState }
-          name  = H.cadenceFunctionality (H.stateCadence fused)
-      pure (fused, Just (FusionDiag x name idx (length ranked)))
 
 -------------------------------------------------------------------------------
 -- Pedal Tone Filter

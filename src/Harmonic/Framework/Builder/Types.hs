@@ -3,7 +3,7 @@
 -- Description : Types for the harmonic generation engine
 --
 -- Data types and configuration for the Builder module.
--- Includes HarmonicContext, GeneratorConfig, ParsedContext,
+-- Includes HarmonicContext, ParsedContext,
 -- and all diagnostic types.
 
 module Harmonic.Framework.Builder.Types
@@ -22,10 +22,6 @@ module Harmonic.Framework.Builder.Types
   , invSkip
   , hcPedal
   , hcTristrata
-
-    -- * Configuration
-  , GeneratorConfig(..)
-  , defaultConfig
 
     -- * Pre-parsed Context
   , ParsedContext(..)
@@ -47,7 +43,7 @@ module Harmonic.Framework.Builder.Types
   , TransformTrace(..)
   , AdvanceTrace(..)
   , StepDiagnostic(..)
-  , FusionDiag(..)
+  , PolyDiag(..)
   , GenerationDiagnostics(..)
   , AttemptDiagnostic(..)
   ) where
@@ -236,27 +232,8 @@ hcTristrata :: String -> HarmonicContext -> HarmonicContext
 hcTristrata t ctx = ctx { _hcTristrata = T.pack t }
 
 -------------------------------------------------------------------------------
--- Generator Configuration
+-- Pre-parsed Context
 -------------------------------------------------------------------------------
-
--- |Configuration for the progression generator.
---
--- @gcQuad@ switches on the genE family: after each triad selection, the
--- step fuses one R-valid palette tone into the chord (4-note output) and
--- the walk continues from the fused chord's most-consonant embedded triad
--- (see 'Harmonic.Framework.Builder.Core.fuseState').
---
--- Historical note: the former @gcPoolSize@ field was removed (2026-08-19)
--- because no generation path ever read it — the candidate pool is
--- deliberately unlimited (full 660-candidate fallback; see
--- 'Harmonic.Framework.Builder.Core').
-data GeneratorConfig = GeneratorConfig
-  { gcQuad :: !Bool  -- ^ genE: fuse a 4th tone into every generated bar (default False)
-  } deriving (Show, Eq)
-
--- |Default configuration.
-defaultConfig :: GeneratorConfig
-defaultConfig = GeneratorConfig { gcQuad = False }
 
 -- |Pre-parsed HarmonicContext for O(1) membership tests.
 -- Computed once per generation run, avoiding repeated text parsing.
@@ -398,6 +375,8 @@ data GenMode
   | StrataMode Sc.StrataLabel                  -- ^ 'Harmonic.Framework.Builder.genP' (strata-first, produces ProgressionContext)
   | JazzMode                                    -- ^ 'Harmonic.Framework.Builder.genJ' (walk over the jazz Change graph)
   | FromProgJ PC.ProgressionContext !Int !Int   -- ^ Regenerate range in a jazz-family context
+  | PolyMode                                    -- ^ 'Harmonic.Framework.Builder.genE' (polytonal: foundation walk + two partner triad chains)
+  | FromProgPoly PC.ProgressionContext !Int !Int -- ^ Regenerate range in a polytonal context (foundation + partner chains, seam-aware)
 
 -- |Configuration for the modifier-based generation API.
 --
@@ -420,7 +399,6 @@ data GenConfig = GenConfig
   , _gcBoostSame   :: Double              -- ^ same-strata continuity multiplier (default 0.90)
   , _gcBoostFlip   :: Double              -- ^ flip-flop bias multiplier        (default 0.80)
   , _gcBoostTri    :: Double              -- ^ same-tristrata bias multiplier   (default 0.70)
-  , _gcQuad        :: Bool                -- ^ genE family: fuse a 4th R-valid tone into every bar (default False)
   , _gcSteer       :: Double              -- ^ genJ classical-steer boost strength (default 3.0 — initial calibration; a fully-matched candidate is lifted ~(1+strength)x, several ranks up a Zipf-shaped pool)
   , _gcMaxAttempts   :: Int               -- ^ Maximum generation attempts in rank-and-select (default 1: single-pass behaviour)
   , _gcViableTarget  :: Int               -- ^ Stop early once this many viable attempts have been collected (default 1)
@@ -503,16 +481,25 @@ data StepDiagnostic = StepDiagnostic
   , sdParentKey       :: Maybe (P.PitchClass, Sc.ScaleFamily) -- ^ Parent key (root, family) of 'sdMode'
   , sdModeResult      :: Maybe Sc.ModeResult     -- ^ Raw mode classification result; 'Harmonic.Rules.Types.Scale.ModeInvalid' surfaces overlap PCs to the renderer
   , sdBarSpelling     :: Maybe H.EnharmonicSpelling -- ^ Single enharmonic spelling for the bar, derived via 'H.inferSpelling' on the mode chroma (triad-root-first). Reused across chord name, strata chroma, mode label, mode chroma, and parent-key tag so the block renders in one coherent accidental system.
-  , sdFusion          :: Maybe FusionDiag        -- ^ genE only: how the 4th tone was fused into this bar ('Nothing' for plain gen\/genP steps and palette-exhausted fallback bars)
+  , sdPoly            :: Maybe PolyDiag          -- ^ genE (polytonal) only: partner-layer selection for this bar ('Nothing' everywhere else)
   } deriving (Show, Eq)
 
--- |Diagnostic record for one genE fusion (the added-tone draw that turns
--- the selected triad into a 4-note chord).
-data FusionDiag = FusionDiag
-  { fdAddedPC   :: Int     -- ^ Absolute pitch class of the added tone
-  , fdFusedName :: String  -- ^ Functionality of the fused 4-note chord
-  , fdGammaIdx  :: Int     -- ^ Gamma-selected index into the consonant-first ranking (0 = most consonant)
-  , fdPoolK     :: Int     -- ^ Number of fusion candidates (palette \\ triad, post-drift)
+-- |Diagnostic record for one polytonal partner draw (the joint (S, M)
+-- selection made over a foundation bar). Names are pre-rendered with the
+-- bar's own spelling so the renderers stay presentation-only.
+data PolyDiag = PolyDiag
+  { pdGeometry :: String     -- ^ "common-dyad" (partners share one dyad) or "base-anchored" (different foundation dyads)
+  , pdTier     :: String     -- ^ Pool tier the pair came from: "list", "list+enum", "enum", or "free" (unconstrained floor)
+  , pdPoolK    :: Int        -- ^ Jointly valid pair count at that tier
+  , pdSRank    :: Maybe Int  -- ^ S partner's rank in its own transition list ('Nothing' = enumerated)
+  , pdMRank    :: Maybe Int  -- ^ M partner's rank in its own transition list
+  , pdSName    :: String     -- ^ Rendered S partner chord
+  , pdMName    :: String     -- ^ Rendered M partner chord
+  , pdDyad     :: String     -- ^ Rendered pivot tones (the PCs common to all three layers)
+  , pdPairTS   :: String     -- ^ Rendered T∪S structure
+  , pdPairTM   :: String     -- ^ Rendered T∪M structure
+  , pdPairSM   :: String     -- ^ Rendered S∪M structure
+  , pdPentad   :: String     -- ^ Rendered T∪S∪M structure
   } deriving (Show, Eq)
 
 -- |Complete diagnostics for a generation run
@@ -524,6 +511,7 @@ data GenerationDiagnostics = GenerationDiagnostics
   , gdEntropy         :: Double           -- ^ Entropy parameter used
   , gdSteps           :: [StepDiagnostic] -- ^ Per-step diagnostics
   , gdProgression     :: Prog.Progression -- ^ The generated progression
+  , gdJazzTrace       :: [String]         -- ^ genJ renders its walk trace during generation; emit-once requires the winner's lines to travel with its diagnostics ('[]' for every other family)
   } deriving (Show)
 
 -- |Per-attempt diagnostic record for the multi-attempt rank-and-select

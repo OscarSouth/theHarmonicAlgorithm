@@ -128,8 +128,16 @@ module Harmonic.Lib (
 
   -- ** Triadic generation
   gen, gen', gen'',
-  genE, genE', genE'', quad,
-  genGrid, genFrom, genFrom', genFrom'',
+  genGrid, genGrid', genGrid'', genFrom, genFrom', genFrom'',
+
+  -- ** The genE paradigm (polytonal)
+  -- | Three simultaneous triad progressions from one walk: a foundation
+  -- (T) plus two partner chains (S\/M) sharing 2 pitch classes with it per
+  -- bar and unioning to 5. Read pairs, the pentad and the pivot tones
+  -- through the Layer selectors (TS\/TM\/SM\/TSM\/PT); 'genEReport' prints
+  -- every view. See USER_GUIDE section 20 and documents\/POLYTONAL.md.
+  genE, genE', genE'',
+  polyLayerViews, genEReport,
 
   -- ** The genJ paradigm (jazz Change graph)
   -- | Generation over the jazz corpus graph: variable-arity leadsheet
@@ -139,8 +147,10 @@ module Harmonic.Lib (
 
   -- ** The genP paradigm (strata-first)
   -- | Three-layer generation (triad \/ strata \/ mode). The roman-numeral
-  -- aliases pin the starting tristrata.
+  -- aliases pin the starting tristrata; 'genPReport' prints the per-bar
+  -- provenance.
   genP, genP', genP'',
+  renderTristrataReport, genPReport,
   genI,   genII,   genIII,   genIV,   genV,   genVI,   genVII,   genVIII,   genIX,   genX,   genXI,
   genI',  genII',  genIII',  genIV',  genV',  genVI',  genVII',  genVIII',  genIX',  genX',  genXI',
   genI'', genII'', genIII'', genIV'', genV'', genVI'', genVII'', genVIII'', genIX'', genX'', genXI'',
@@ -166,7 +176,6 @@ module Harmonic.Lib (
   -- @ctx = invSkip 1 $ hcOvertones "E A D G" $ hcPedal "E?" $ hContext@
   HarmonicContext(..), harmonicContext, hContext,
   Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, hcPedal, hcTristrata,
-  GeneratorConfig(..), defaultConfig,
 
   -- * Core music types
   module Harmonic.Rules.Types.Pitch,
@@ -249,18 +258,15 @@ module Harmonic.Lib (
   module Harmonic.Interface.Tidal.Devices.S1,
   module Harmonic.Interface.Tidal.Devices.P6,
   module Harmonic.Interface.Tidal.Devices.JV1010,
-  renderTristrataReport, genPReport,
   module Harmonic.Config,
 
   -- * Internal (advanced use only)
   -- | Tuple-returning versions for manual diagnostics extraction.
-  generate, generateWith, genWith,
-  generate', genWith',
-  generate'', genWith'',
+  generate, generateWith,
+  generate', generate'',
   printDiagnostics,
   StepDiagnostic(..), GenerationDiagnostics(..),
   TransformTrace(..), AdvanceTrace(..),
-  genSilent', genStandard', genVerbose'
 ) where
 
 -- Phase B: Core Music Types
@@ -281,8 +287,8 @@ import Harmonic.Traversal.Probabilistic
 import Harmonic.Framework.Builder (
     -- Modifier-based API
     gen, gen', gen'',
-    genE, genE', genE'', quad,
-    genGrid, genFrom, genFrom', genFrom'',
+    genE, genE', genE'',
+    genGrid, genGrid', genGrid'', genFrom, genFrom', genFrom'',
     -- genJ paradigm (jazz Change graph)
     genJ, genJ', genJ'',
     -- genP paradigm (strata-first)
@@ -298,16 +304,13 @@ import Harmonic.Framework.Builder (
     defaultGenConfig, execGenConfig, execGenConfigPC,
     -- Positional API
     genPrint, genPrint', genPrint'',
-    generate, generateWith, genWith,
-    generate', genWith',
-    generate'', genWith'',
+    generate, generateWith,
+    generate', generate'',
     genSilent, genStandard, genVerbose,
-    genSilent', genStandard', genVerbose',
     printDiagnostics,
     -- Context & types
     HarmonicContext(..), harmonicContext, hContext,
     Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, hcPedal, hcTristrata,
-    GeneratorConfig(..), defaultConfig,
     StepDiagnostic(..), GenerationDiagnostics(..), TransformTrace(..), AdvanceTrace(..)
   )
 import Harmonic.Rules.Constraints.Filter (overtones, key, funds, tuning, wildcard, parseOvertones, parseKey, parseFunds, parseTuning, isWildcard, parseTuningNamed)
@@ -350,4 +353,5 @@ import Harmonic.Interface.Tidal.Devices.S1
 import Harmonic.Interface.Tidal.Devices.P6
 import Harmonic.Interface.Tidal.Devices.JV1010
 import Harmonic.Interface.Tidal.OctatripentatonicT (renderTristrataReport, genPReport)
+import Harmonic.Interface.Tidal.PolytonalT (polyLayerViews, genEReport)
 import Harmonic.Config

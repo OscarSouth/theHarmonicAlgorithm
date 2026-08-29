@@ -386,6 +386,36 @@ spec = do
           aT  = arrange (0,1) (kin, chordSel) (-24,24) T A.flow id [parseBP_E "[0 1 2]"]
       onsetNotes aS (Arc 0 1) `shouldBe` onsetNotes aT (Arc 0 1)
 
+  describe "combination selectors through layerForVoicing (per family)" $ do
+    let mk5' rootNote ints =
+          let pcs = map (Pitch.mkPitchClass . fromIntegral) (ints :: [Int])
+          in H.CadenceState (H.Cadence "" H.Unison pcs) rootNote H.FlatSpelling
+        strataFx = P.Progression $ Seq.fromList
+          [ mk5' Pitch.D [0, 2, 4, 7, 11], mk5' Pitch.D [0, 4, 5, 8, 11]
+          , mk5' Pitch.D [0, 1, 2, 5, 9],  mk5' Pitch.D [0, 2, 4, 7, 11] ]
+        modeFx = P.Progression $ Seq.fromList
+          [ mk5' Pitch.D [0, 2, 4, 5, 7, 9, 11], mk5' Pitch.D [0, 2, 4, 5, 7, 9, 11]
+          , mk5' Pitch.D [0, 2, 4, 5, 7, 9, 11], mk5' Pitch.D [0, 2, 4, 5, 7, 9, 11] ]
+        pcS = PC.ProgressionContext testProgression strataFx modeFx
+                (Just Seq.empty) PC.FStrata
+
+    it "genP-shaped contexts route every non-T selector to the chroma engine" $
+      map (\sel -> fst (layerForVoicing sel pcS))
+          [T, S, M, TS, TM, SM, TSM, PT]
+        `shouldBe` [False, True, True, True, True, True, True, True]
+
+    it "gen-shaped contexts route every selector to the user VoiceFunction" $ do
+      let pcT = PC.fromProgression testProgression
+      map (\sel -> fst (layerForVoicing sel pcT))
+          [T, S, M, TS, TM, SM, TSM, PT]
+        `shouldBe` replicate 8 False
+
+    it "arrange with a combination selector plays (genP TSM through the chroma engine)" $ do
+      let chordSel = parseBP_E "[1 2 3 4]/4" :: Pattern Int
+          kin = Kinetics (pure 1.0) (pure 1.0) (pure pcS) [pcS] 0 0
+          aC  = arrange (0,1) (kin, chordSel) (-24,24) TSM A.flow id [parseBP_E "[0 1 2 3]"]
+      length (onsetNotes aC (Arc 0 1)) `shouldSatisfy` (> 0)
+
   describe "lookupChordAt" $ do
 
     it "returns chord index at a given time" $ do
