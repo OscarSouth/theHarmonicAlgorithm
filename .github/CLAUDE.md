@@ -1,0 +1,535 @@
+<!-- The working agent instructions for this repository. The root-level
+CLAUDE.md is gitignored and holds one line — `@.github/CLAUDE.md` — so
+Claude Code loads this file via its import mechanism. On a fresh clone:
+`echo '@.github/CLAUDE.md' > CLAUDE.md` -->
+
+# theHarmonicAlgorithm - Agent Guidelines
+
+## Project Overview
+
+A Haskell library for generating harmonic progressions trained on the Yale Classical Archives Corpus (YCACL). Uses Neo4j graph database for storing cadence transitions and integrates with TidalCycles for live music coding.
+
+## Architecture
+
+Four-layer system following Wiggins' Creative Systems Framework (R→E→T). For the full architecture, see [documents/ARCHITECTURE.md](documents/ARCHITECTURE.md).
+
+Key directories:
+- `src/Harmonic/Rules/Types/` - Music theory primitives (Pitch, Harmony, Progression)
+- `src/Harmonic/Rules/Constraints/` - Filtering and validity rules (Filter, Overtone)
+- `src/Harmonic/Rules/Import/` - Data ingestion pipeline (CSV, Transform, Graph)
+- `src/Harmonic/Evaluation/` - Scoring and database queries (Dissonance, VoiceLeading, Query, Markov)
+- `src/Harmonic/Traversal/` - Probabilistic selection
+- `src/Harmonic/Framework/` - Builder (R→E→T orchestration)
+- `src/Harmonic/Interface/Tidal/` - TidalCycles interface (Bridge, Arranger, Groove, Instruments, Utils, Motif, Display, Devices/)
+- `test/` - HSpec + QuickCheck test suite
+- `live/` - TidalCycles scripts and boot configuration
+
+## Guiding Principles
+
+### 1. Minimize Code and Complexity
+The overarching goal is to minimize code and complexity while facilitating the core TidalCycles interfaces. Before adding code, ask:
+- Is this strictly necessary for the current functionality?
+- Can this be achieved more simply?
+
+### 2. Suspect All Existing Code
+Previous AI agents may have introduced:
+- Unnecessary/hallucinated logic
+- Stubbed-out required functionality
+- Incorrectly modernized implementations
+
+**Every detail of structure, design, and implementation should be examined.** Nothing is concrete until final completion.
+
+### 3. Tests Are Not Infallible
+Test suites should be **interrogated and changed** to accommodate actual requirements. Tests may:
+- Test incorrect behavior
+- Be missing critical cases
+- Have been added speculatively by previous agents
+
+### 4. Composer Specification
+Composer specification is fully implemented end-to-end:
+- `"*"` aggregates all composers (sum of edge weights)
+- `"bach"` or `"debussy"` filters by single composer
+- `"bach:30 debussy:70"` blends multiple composers with weighted scoring
+- **Composer names are case-insensitive** — `"Bach"`, `"BACH"`, `"bAcH"`, `"bach"` all match the corpus identically (case-folded at parse and lookup).
+- `parseComposerWeights` parses blend strings; `resolveWeights` multiplies blend × edge weights
+
+## Pre-Work Checklist
+
+**Before starting ANY work, execute these steps:**
+
+```bash
+# 1. Ensure Neo4j is running
+docker compose up -d neo4j
+
+# 2. Verify Neo4j is accessible
+curl -s http://localhost:7474 > /dev/null && echo "Neo4j OK" || echo "Neo4j FAILED - do not proceed"
+
+# 3. Verify project builds
+stack build
+
+# 4. Run test suite to establish baseline
+stack test
+```
+
+Only proceed if all checks pass.
+
+**For offline-only verification (no Neo4j):**
+
+```haskell
+-- In stack ghci:
+import Harmonic.Lib
+let start = initCadenceState 0 "C" [0,4,7]
+prog <- genSilent start 4 "none" 0.5 hContext
+print prog   -- Should show 4-chord progression
+-- Offline tests: stack test --test-arguments="--match offline"
+```
+
+## Memory Systems (MCP Servers)
+
+This project uses **two memory systems** to preserve knowledge across sessions. Both should be actively used throughout development.
+
+### System 1: mem0 (Conversational Memory)
+
+**Purpose**: Stores project context, user preferences, and workflow patterns as natural language memories.
+
+**When to use**:
+- At the **start of each session**: Query to recall project context
+- When discovering **new patterns or quirks** in the codebase
+- When the user expresses a **preference or constraint**
+- At the **end of a session**: Store key learnings
+
+**Query existing memories**:
+```
+Tool: mcp__mem0__search-memories
+- query: "Neo4j database" or "vertical slices" or "composer specification"
+- userId: "mem0-mcp-user"
+```
+
+**Add new memories**:
+```
+Tool: mcp__mem0__add-memory
+- content: "User prefers X approach for Y feature"
+- userId: "mem0-mcp-user"
+```
+
+**Current memories include**:
+- Neo4j connection requirements and startup
+- Vertical slice workflow preferences
+- Composer specification (fully implemented: single, weighted blend, wildcard)
+- Architecture layers and boundaries
+- Zero-form invariant
+- Code minimization principles
+
+### System 2: memory (Knowledge Graph)
+
+**Purpose**: Stores structured entities and relations representing the codebase architecture.
+
+**When to use**:
+- To understand **module dependencies** before making changes
+- When exploring how components **relate to each other**
+- To identify **which modules to check** when debugging
+- When **adding new modules** (create entities and relations)
+
+**Read the full graph**:
+```
+Tool: mcp__memory__read_graph
+```
+
+**Query specific nodes**:
+```
+Tool: mcp__memory__search_nodes
+- query: "Builder" or "TidalCycles" or "Layer B"
+```
+
+**Add new entities**:
+```
+Tool: mcp__memory__create_entities
+- entities: [{"name": "NewModule", "entityType": "CoreModule", "observations": ["description"]}]
+```
+
+**Add new relations**:
+```
+Tool: mcp__memory__create_relations
+- relations: [{"from": "ModuleA", "to": "ModuleB", "relationType": "depends-on"}]
+```
+
+**Current graph structure**:
+- **Entities**: Pitch, Harmony, VoiceLeading, Builder, Interface, Arranger, Neo4jDatabase
+- **Relations**: Shows dependency chains (e.g., Builder → Harmony → Pitch)
+
+### Memory Workflow
+
+**At session start**:
+1. Query mem0 for relevant project context: `search-memories` with your current task keywords
+2. Read knowledge graph to understand affected modules: `read_graph` or `search_nodes`
+3. Use retrieved knowledge to inform your approach
+
+**During development**:
+- When discovering new patterns → add to mem0
+- When creating new modules → add entities and relations to knowledge graph
+- When user states preferences → add to mem0
+
+**At session end** (or after major milestones):
+- Store key learnings in mem0
+- Update knowledge graph if architecture changed
+
+### Validation
+
+**Test memory systems are working**:
+```bash
+# mem0 test
+Tool: mcp__mem0__search-memories with query "Neo4j"
+# Should return: Neo4j connection info and requirements
+
+# Knowledge graph test
+Tool: mcp__memory__open_nodes with names ["Builder", "Interface"]
+# Should return: Entity details with observations and relations
+```
+
+## Development Workflow: Vertical Slices
+
+**CRITICAL**: All changes must be delivered in vertical slices - the minimum deliverable working and verifiable unit.
+
+### Slice Workflow
+
+1. **Identify** the smallest atomic change that can be independently verified
+2. **Implement** only that slice
+3. **Verify** using BOTH verification methods below
+4. **Commit** (if requested) only after verification passes
+5. **Repeat** for the next slice
+
+### What Constitutes a Slice
+
+- A single function implementation
+- A single type definition with its instances
+- A single test case addition
+- A single bug fix
+- A single refactor of one function
+
+**NOT a slice**: Multiple unrelated changes, or changes that span multiple modules without clear dependency.
+
+## Mandatory Verification
+
+**EVERY slice MUST be verified before moving to the next slice.**
+
+### Verification Method A: Test Suite
+
+Run the full test suite after every change:
+
+```bash
+stack test
+```
+
+Expected: All tests pass. Any failures must be fixed before proceeding.
+
+### Verification Method B: GHCi REPL
+
+For any code that affects runtime behavior, verify interactively:
+
+```bash
+cd /Users/oscarsouth/.stack/global-project && stack ghci << 'EOF'
+:set -XOverloadedStrings
+import Harmonic.Lib
+
+-- Example verification for Pitch module:
+import Harmonic.Rules.Types.Pitch
+transpose 5 (pc 7)  -- Should yield P 0 (wraps mod 12)
+
+-- Example verification for Harmony module:
+import Harmonic.Rules.Types.Harmony
+nameFuncTriad [0, 4, 7]  -- Should yield "maj"
+
+-- Example verification for generation:
+import Harmonic.Framework.Builder
+ctx <- harmonicContext "*" "*" "*"
+-- Further generation tests as needed
+
+:quit
+EOF
+```
+
+### REPL Verification Examples by Module
+
+#### Pitch (src/Harmonic/Rules/Types/Pitch.hs)
+```haskell
+import Harmonic.Rules.Types.Pitch
+pc 14           -- P 2 (wraps mod 12)
+transpose 7 (P 5)  -- P 0
+interval (P 3) (P 7)  -- 4
+```
+
+#### Harmony (src/Harmonic/Rules/Types/Harmony.hs)
+```haskell
+import Harmonic.Rules.Types.Harmony
+nameFuncTriad [0, 4, 7]   -- "maj"
+nameFuncTriad [0, 3, 7]   -- "min"
+nameFuncChord [0, 4, 7, 11]  -- "maj7"
+```
+
+#### VoiceLeading (src/Harmonic/Evaluation/Scoring/VoiceLeading.hs)
+```haskell
+import Harmonic.Evaluation.Scoring.VoiceLeading
+-- Test voice leading cost calculations
+```
+
+#### Progression (src/Harmonic/Rules/Types/Progression.hs)
+```haskell
+import Harmonic.Rules.Types.Progression
+-- Test progression combinators
+```
+
+#### Builder (src/Harmonic/Framework/Builder.hs)
+```haskell
+import Harmonic.Lib
+
+-- Create context and starting state
+let start = initCadenceState 0 "C" [0,4,7]
+
+-- Offline test (no Neo4j required)
+prog <- genSilent start 4 "none" 0.5 hContext
+print prog  -- Should show 4-chord progression
+
+-- Online test (requires Neo4j)
+prog <- genSilent start 4 "*" 0.5 hContext
+print prog  -- Should show 4-chord progression
+
+-- Test different verbosity levels (online)
+prog' <- genStandard start 4 "*" 0.5 hContext  -- With diagnostics
+prog'' <- genVerbose start 4 "*" 0.5 hContext  -- Full traces (shows Mode: online)
+
+-- genE family (4-note generation; distinct from gen and genP)
+s  <- seek "*" $ cue start $ len 8 $ entropy 0.3 $ genE'   -- every bar 4 PCs, trace adds "fused:" lines
+s' <- seek "*" $ entropy 0.3 $ genFrom s 3 5               -- family-aware: 4-note source regenerates 4-note
+c4 <- lead' "Eb Gb Bb Db"                                  -- explicit 4-note cue (Eb m7), used unfused
+-- Offline: seek "none" works identically (fallback-only walk).
+-- quad on genP / strata sources errors by design (families never mix).
+```
+
+#### Interface (src/Harmonic/Interface/Tidal/Bridge.hs)
+```haskell
+import Harmonic.Lib
+
+-- Generate a progression first (requires Neo4j)
+ctx <- harmonicContext "*" "*" "*"
+let start = initCadenceState 0 "C" [0,4,7]
+prog <- genSilent start 4 "*" 0.5 ctx
+
+-- Test voicing functions (Progression -> [[Int]])
+flow prog             -- smoothest voice leading, any inversion
+root prog             -- root pitch classes (bass line)
+fund prog             -- harmonic roots (inversion-invariant)
+
+-- Pattern lookup takes a ProgressionContext (modulo wrap)
+let pc = fromProgression prog
+lookupChord pc 0      -- First chord
+lookupChord pc 4      -- Wraps to index 0 (infinite cycling)
+
+-- Test arrange with kinetics (single-state form = constant signals)
+let k = iK 120 [at 0 1 1 pc] (rep pc 1)
+arrange (0,1) k (-9,9) T flow id ["0 1 2 3"]
+```
+
+#### Arranger (src/Harmonic/Interface/Tidal/Arranger.hs)
+```haskell
+import Harmonic.Lib
+
+-- Generate progression first
+ctx <- harmonicContext "*" "*" "*"
+let start = initCadenceState 0 "C" [0,4,7]
+prog <- genSilent start 8 "*" 0.5 ctx
+
+-- Test progression combinators
+rotate 2 prog         -- Rotate by 2 positions
+excerpt 0 4 prog      -- Extract first 4 chords
+fuse prog prog        -- Combine progressions
+
+-- Test voicing strategies
+grid prog             -- Root locked in bass, smooth uppers (cyclic DP)
+flow prog             -- Smoothest voice leading, any inversion (cyclic DP)
+lite prog             -- Literal intervals, register-normalized only
+root prog             -- Bass pitch class per bar (bass lines)
+```
+
+## Neo4j Database (REQUIRED)
+
+**Neo4j must be running for ALL verification.** Start before any work:
+
+```bash
+docker compose up -d neo4j
+```
+
+Connection: HTTP Query API at `http://localhost:7474` with credentials `neo4j/password` (override base URL per-process with `HA_NEO4J_URL`)
+
+Verify Neo4j is accessible before starting work:
+```bash
+curl -s http://localhost:7474 > /dev/null && echo "Neo4j running" || echo "Neo4j NOT running"
+```
+
+## Build Commands
+
+```bash
+stack build     # Compile library
+stack test      # Run test suite (MANDATORY after changes)
+stack ghci      # Interactive REPL for verification
+stack run       # Populate Neo4j (requires docker)
+```
+
+## Code Conventions
+
+### Zero-Form Invariant
+All Cadence objects store intervals in zero-form `[P 0, ...]` (relative, pitch-agnostic). This is enforced at:
+- Neo4j query results
+- `toCadence` conversion
+- Fallback generation
+
+### Type Safety
+- `PitchClass` is a newtype with Z12 algebra
+- Use `pc` or `mkPitchClass` constructors
+- Never use raw integers where `PitchClass` is expected
+
+### Layer Boundaries
+- Layer B (Brain) modules must not import from Layer C or D
+- Layer C (Hands) may import from B but not D
+- Layer D (Voice) may import from B and C
+
+## Test Organization
+
+Tests mirror source structure:
+- `test/Harmonic/Rules/Types/PitchSpec.hs` - Z12 algebra properties
+- `test/Harmonic/Rules/Types/HarmonySpec.hs` - Chord naming
+- `test/Harmonic/Rules/Types/ProgressionSpec.hs` - Progression monoid
+- `test/Harmonic/Rules/Constraints/FilterSpec.hs` - Filter constraints
+- `test/Harmonic/Rules/Constraints/OvertoneSpec.hs` - Overtone constraints
+- `test/Harmonic/Evaluation/Scoring/VoiceLeadingSpec.hs` - Voice leading costs
+- `test/Harmonic/Evaluation/Scoring/DissonanceSpec.hs` - Dissonance scoring
+- `test/Harmonic/Evaluation/Database/QuerySpec.hs` - Composer weight parsing
+- `test/Harmonic/Framework/BuilderSpec.hs` - Generation engine
+- `test/Harmonic/Interface/Tidal/BridgeSpec.hs` - Pattern interface
+- `test/Harmonic/Interface/Tidal/GrooveSpec.hs` - Groove interface
+- `test/Harmonic/Interface/Tidal/FormSpec.hs` - Form/Kinetics framework
+- `test/Harmonic/Traversal/ProbabilisticSpec.hs` - Probabilistic selection
+
+When adding new functionality:
+1. Add corresponding test in the appropriate Spec file
+2. Run `stack test` to verify the test initially fails (TDD) or passes
+3. Implement the feature
+4. Run `stack test` to verify all tests pass
+
+## Regenerate In Place
+
+V3.0.0 includes a strata-aware partial-regeneration flow: rebind a `ProgressionContext` from `genFrom s start end` to regenerate a contiguous range of bars in place while keeping every other bar exactly as it was. Worked live example: `live/local/perform/regen.tidal` (gitignored local material).
+
+### Semantics
+
+- **Range** `s e` is 1-indexed and wrap-aware. `genFrom s 4 2` on a 5-bar progression regenerates bars 4, 5, 1, 2 (in walk order) and keeps bar 3.
+- **Cue is auto-inferred** from the bar before `s` (wrap-aware: when `s = 1`, the cue is bar `N`). Override with `cue start $ genFrom s 3 4`.
+- **Dispatch** keys on `pcProvenance`:
+  - `Just _` → strata-aware path (`FromProgPC`): all three layers (triad / strata / mode) regenerate coherently; the `e → e+1` seam preserves walk-graph validity under `Strata.allowedNext` via a one-step lookahead on the final regenerated bar.
+  - `Nothing` → triad-first path (`FromProg`): regenerates the triad layer via the standard R→E→T pipeline; splices via `spliceProgression` with seam movement-fix, then re-derives the chordscale S/M layers over the WHOLE spliced progression (key boundaries are global). The jazz path (`FromProgJ`) does the same re-derivation after its splice.
+- Composes with the usual modifier chain (`cue`, `len`, `seek`, `entropy`, `tonal`, `attempt`).
+
+### Multi-attempt rank-and-select (`attempt N K`)
+
+`attempt N K` wraps any generation modifier chain in a rank-and-select pass: produces up to `K` attempts, stops early once `N` *viable* progressions have been collected, returns the single highest-scoring one. Applies uniformly to `gen`, `genI`/`genP`, `genFrom`, etc.
+
+A generation is **viable** iff `psModeValidity >= 1.0` (structural — always true for walk-generated progressions) AND `totalScore >= _gcViabilityFloor` (default `0.5`, exposed via the `viability T` modifier). Calibrated from a 30-sample online probe (remapped exactly when mode validity was demoted to gate-only: new = (old − 0.2)/0.8); T=0.5 catches the bottom ~20% of attempts while keeping `attempt 3 12` reliable.
+
+When `_gcSeek != "none"`, `generateBest` opens one shared `Bolt.Pipe`, scores each attempt via `scoreProgressionOnline` under the user's composer blend, and ranks with `defaultWeights` (cadence-favourability dominant: 0.5 cf, 0.25 each on rm/vl; mode validity is a hard gate, not a weight — it is structurally 1.0 on every walk output). When `_gcSeek == "none"`, scoring stays pure and uses `defaultWeightsOffline` (0.5 rm / 0.5 vl). Neo4j-unreachable while online surfaces the error directly — matching the existing generation pipeline.
+
+Per-edge cadence-favourability is a hybrid of corpus presence (0.5 base) plus within-source share (up to 0.5 bonus), so a transition that's in the corpus AT ALL contributes meaningfully even when it's one of many valid choices from its source. Calibration based on observed per-source-prior distribution from a live data probe (rationale documented in `Scoring/Progression.hs` `edgeScore`).
+
+When `attempt N K` is paired with Verbose verbosity (`gen''` and any `''`-suffixed alias: `genP''`, `genI''`, `genVI''` …), Builder prints a full multi-attempt scoreboard after generation — one row per attempt with rm/vl/cf/mv/total scores, viable marker, truncated chord sequence, and a `← PICK` marker on the winner. Silent (`gen`) and Standard (`gen'`) output is unchanged regardless of `attempt`; the scoreboard is suppressed for the no-op `attempt 1 1` even at Verbose.
+
+Multi-attempt mode prints **exactly one progression block** — the winner's — regardless of `K`, at the caller's verbosity (Silent → grid only; Standard → per-step musical context + grid; Verbose → verbose trace + grid + scoreboard). The K-attempt loop suppresses every per-attempt emission via `singlePassExecPCWithDiag`, and `emitFinalised` is called once on the chosen winner. For `genFrom` (both legacy `FromProg` and strata `FromProgPC`), the printed grid is the **full spliced progression**, not the regen segment — the caller sees the source with the new bars in place.
+
+Multi-attempt invocations open with a single `composing ..` line printed immediately (before the K-attempt loop blocks), so users get instant feedback while online generation runs. The loop collects per-step diagnostics at the caller's verbosity for every attempt and renders the winner's via `emitFinalised`, so the winner's `gen'` / `gen''` trace shows every bar — not just the starter.
+
+```haskell
+s  <- seek "*" $ attempt 3 12 $ entropy 0.4 $ genI
+s' <- seek "*" $ attempt 3 12 $ entropy 0.4 $ genFrom s 3 4
+s' <- seek "*" $ attempt 3 12 $ entropy 0.4 $ genFrom'  s 3 4  -- Standard trace
+s' <- seek "*" $ attempt 3 12 $ entropy 0.4 $ genFrom'' s 3 4  -- Verbose trace + scoreboard
+
+-- Tune the viability floor explicitly:
+s  <- seek "*" $ viability 0.7 $ attempt 5 24 $ gen   -- stricter, more searching
+
+-- Recover original "structural-only" viability:
+s  <- seek "*" $ viability 0.0 $ attempt 3 12 $ gen
+```
+
+### Mode-invariant note (Phase 1 background)
+
+Walk-driven generation is proven (via induction over `Strata.allowedNext` + `pickPartner`) to never produce `ModeInvalid`. The earlier arbitrary Aeolian fallback (substituting Aeolian-on-triad-root for non-classifying overlaps) has been removed. If a future code path produces a 6-PC overlap (only reachable via overrides that violate tristrata adjacency), it is stored faithfully in `modeLayer` as a 6-PC chroma — no masquerade. Downstream code (walking bass, voicings) consumes the chroma directly, so the failure mode is "one bar plays from a 6-PC mode set" rather than a runtime crash or a silent musical fabrication.
+
+## Common Verification Scenarios
+
+### After modifying Pitch.hs
+```bash
+stack test --test-arguments="--match Pitch"
+```
+Then REPL verify:
+```haskell
+import Harmonic.Rules.Types.Pitch
+-- Test your changes
+```
+
+### After modifying Builder.hs
+```bash
+stack test --test-arguments="--match Builder"
+```
+Then REPL verify with actual generation (requires Neo4j).
+
+### After modifying Bridge.hs
+```bash
+stack test --test-arguments="--match Bridge"
+```
+Then REPL verify pattern lookup behavior.
+
+## Example: Working Through a Slice
+
+**Task**: Add a new function `invertChord` to Harmony.hs
+
+**Slice 1**: Add the function signature and implementation
+```haskell
+-- In src/Harmonic/Rules/Types/Harmony.hs
+invertChord :: Chord -> Int -> Chord
+invertChord (Chord intervals) n = Chord (rotate n intervals)
+```
+
+**Verify Slice 1**:
+```bash
+# Test suite
+stack test
+
+# REPL verification
+cd /Users/oscarsouth/.stack/global-project && stack ghci << 'EOF'
+:set -XOverloadedStrings
+import Harmonic.Rules.Types.Harmony
+invertChord (Chord [P 0, P 4, P 7]) 1  -- Should show first inversion
+:quit
+EOF
+```
+
+**Slice 2**: Add test case (only after Slice 1 verified)
+```haskell
+-- In test/Harmonic/Rules/Types/HarmonySpec.hs
+it "inverts chord correctly" $
+  invertChord (Chord [P 0, P 4, P 7]) 1 `shouldBe` Chord [P 4, P 7, P 0]
+```
+
+**Verify Slice 2**:
+```bash
+stack test --test-arguments="--match invert"
+```
+
+Only after BOTH slices pass verification is the feature complete.
+
+## Checklist Before Completing Any Task
+
+- [ ] Change implemented in smallest possible slice
+- [ ] `stack test` passes
+- [ ] REPL verification confirms expected behavior
+- [ ] No unnecessary code or complexity added
+- [ ] No unrelated changes included
+- [ ] Layer boundaries respected
+- [ ] Tests updated if they were incorrect
