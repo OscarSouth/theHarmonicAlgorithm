@@ -225,7 +225,7 @@ import           Harmonic.Framework.Builder.Diagnostics
 import           Harmonic.Framework.Builder.Core
 import           Harmonic.Framework.Builder.Modifiers
 import           Harmonic.Framework.Builder.StrataGen (runStrataGen, runStrataGenFrom, strataStartCue)
-import           Harmonic.Framework.Builder.JazzGen (runJazzGen, runJazzGenFrom, jazzGuardSeek)
+import           Harmonic.Framework.Builder.JazzGen (runJazzGen, runJazzGenFrom, jazzGuardSeek, jazzStartCue)
 import           Harmonic.Framework.Builder.PolyGen (runPolyGen, runPolyGenFrom)
 
 -------------------------------------------------------------------------------
@@ -574,7 +574,10 @@ execGenConfig gc = PC.triadLayer <$> execGenConfigPC gc
 -- can be suppressed and only the winner's emitted.
 execGenConfigWithDiag :: GenConfig -> IO (Prog.Progression, GenerationDiagnostics)
 execGenConfigWithDiag gc = do
-  start <- _gcCue gc
+  start <- case _gcMode gc of
+    Fresh    | not (_gcCueExplicit gc) -> tonalStartCue gc
+    GridMode | not (_gcCueExplicit gc) -> tonalStartCue gc
+    _                                  -> _gcCue gc
   case _gcMode gc of
     JazzMode -> error "unreachable: JazzMode dispatches to runJazzGen before this case"
     FromProgJ {} -> error "unreachable: FromProgJ dispatches to runJazzGenFrom before this case"
@@ -817,6 +820,10 @@ generateBest gc0 = do
   -- attempt — the very thing freezing prevents.
   start0 <- case _gcMode gc0 of
     StrataMode sLbl | not (_gcCueExplicit gc0) -> strataStartCue sLbl gc0
+    JazzMode        | not (_gcCueExplicit gc0) -> jazzStartCue gc0
+    Fresh           | not (_gcCueExplicit gc0) -> tonalStartCue gc0
+    GridMode        | not (_gcCueExplicit gc0) -> tonalStartCue gc0
+    PolyMode        | not (_gcCueExplicit gc0) -> tonalStartCue gc0
     _                                          -> _gcCue gc0
   let gc = gc0 { _gcCue = pure start0, _gcCueExplicit = True }
       online = map toLower (_gcSeek gc) /= "none"

@@ -26,7 +26,7 @@ import Data.Text (Text)
 import Data.List (sort)
 
 import Harmonic.Framework.Builder (HarmonicContext(..), Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, TransformTrace(..), AdvanceTrace(..), StepDiagnostic(..), harmonicContext, parseComposersWithOrder, makePortmanteau, extractByPosition, takeFromBeginning, takeFromEnd, takeFromMiddle, GenConfig(..), GenMode(..), Verbosity(..), defaultGenConfig, gen, gen', gen'', genGrid, genGrid', genGrid'', genFrom, cue, len, seek, entropy, tonal, hContext, genSilent, genE, genP, attempt, genJ, genJ', genJ'', steer)
-import Harmonic.Framework.Builder.Core (applyDriftFilter, matchesContextWithTarget)
+import Harmonic.Framework.Builder.Core (applyDriftFilter, matchesContextWithTarget, tonalStartCue, rootPositionCue)
 import Harmonic.Framework.Builder.Types (parseContextOnce, keySpellingOf)
 import Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
 import qualified Data.Map.Strict as Map
@@ -970,6 +970,54 @@ spec = do
       keySpellingOf "*" `shouldBe` Nothing
     it "removal tokens do not vote" $ do
       keySpellingOf "1b -G" `shouldBe` Just H.FlatSpelling
+
+
+  describe "tonal auto-cue (uncued generation respects the R constraints)" $ do
+    let ebSet = [0,2,3,5,7,8,10] :: [Int]
+        barPCs cs =
+          let r = P.unPitchClass (P.pitchClass (H.stateCadenceRoot cs))
+          in [ (r + P.unPitchClass i) `mod` 12 | i <- H.cadenceIntervals (H.stateCadence cs) ]
+
+    it "hcKey constrains every uncued draw to the key set" $ do
+      let gc = (tonal (hcKey "3b" hContext) gen)
+      draws <- mapM (const (tonalStartCue gc)) [1 .. 20 :: Int]
+      all (all (`elem` ebSet) . barPCs) draws `shouldBe` True
+
+    it "hcRoots pins the cue root" $ do
+      let gc = (tonal (hcRoots "Eb" (hcKey "3b" hContext)) gen)
+      draws <- mapM (const (tonalStartCue gc)) [1 .. 10 :: Int]
+      let rootOf cs = P.unPitchClass (P.pitchClass (H.stateCadenceRoot cs))
+      map rootOf draws `shouldBe` replicate 10 3
+
+    it "a fully wildcard context defers to the legacy draw (major triad)" $ do
+      draws <- mapM (const (tonalStartCue gen)) [1 .. 10 :: Int]
+      let ivs cs = map P.unPitchClass (H.cadenceIntervals (H.stateCadence cs))
+      all ((== [0,4,7]) . ivs) draws `shouldBe` True
+
+    it "uncued offline gen opens in key end-to-end" $ do
+      s <- seek "none" $ len 1 $ tonal (hcKey "3b" hContext) $ gen
+      case Prog.getCadenceState (PC.triadLayer s) 1 of
+        Nothing -> expectationFailure "empty progression"
+        Just cs -> all (`elem` ebSet) (barPCs cs) `shouldBe` True
+
+    it "rootPositionCue rejects inversion shapes and passes root-position ones" $ do
+      let st ivs = H.initCadenceState 0 "C" ivs
+      -- maj/min 1st and 2nd inversion shapes (would display as slash chords)
+      map (rootPositionCue . st) [[0,3,8],[0,4,9],[0,5,9],[0,5,8]] `shouldBe` [False,False,False,False]
+      -- root position, including the sus2/4 names that carry a '/' character
+      map (rootPositionCue . st) [[0,4,7],[0,3,7],[0,2,7],[0,2,5],[0,5,7]] `shouldBe` [True,True,True,True,True]
+
+    it "no random cue is ever a slash chord (tonal pool, 40 draws)" $ do
+      let gc = (tonal (hcKey "3b" hContext) gen)
+      draws <- mapM (const (tonalStartCue gc)) [1 .. 40 :: Int]
+      all rootPositionCue draws `shouldBe` True
+
+    it "an explicit cue always wins over the context" $ do
+      let start = H.initCadenceState 0 "E" [0,4,7]
+      s <- seek "none" $ len 1 $ cue start $ tonal (hcKey "3b" hContext) $ gen
+      case Prog.getCadenceState (PC.triadLayer s) 1 of
+        Nothing -> expectationFailure "empty progression"
+        Just cs -> sort (barPCs cs) `shouldBe` [4,8,11]
 
   describe "genJ guards (offline)" $ do
     it "genJ aliases carry JazzMode at each verbosity" $ do

@@ -386,7 +386,7 @@ data GenMode
 -- s <- seek "*" $ cue start $ tonal ctx $ len 4 $ entropy 0.3 $ gen
 -- @
 data GenConfig = GenConfig
-  { _gcCue         :: IO H.CadenceState  -- ^ Starting state (default: random)
+  { _gcCue         :: IO H.CadenceState  -- ^ Starting state (default: random; uncued runs resolve it context-aware per family at run time)
   , _gcCueExplicit :: Bool                -- ^ True once @cue@ has been applied. Generators that need a cue from a restricted pool (genP's stratum) draw their own when this is False, and leave a deliberate cue alone when it is True
   , _gcLen         :: Int                 -- ^ Number of chords (default: 4)
   , _gcSeek        :: String              -- ^ Composer blend string (default: "*")

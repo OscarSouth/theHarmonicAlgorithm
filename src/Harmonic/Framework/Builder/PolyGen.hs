@@ -65,7 +65,7 @@ import           Harmonic.Traversal.Probabilistic (gammaIndexScaledWith)
 
 import           Harmonic.Framework.Builder.Types
 import           Harmonic.Framework.Builder.Core
-                   ( TransitionSource, sourceFor, buildChainWith
+                   ( TransitionSource, sourceFor, buildChainWith, tonalStartCue
                    , chainToProgression, extractCadence
                    , matchesContextWithTarget )
 import           Harmonic.Framework.Builder.StrataGen (mkStarterDiag)
@@ -279,7 +279,7 @@ diagLevel Verbose  = Just 2
 -- then the partner pass, then S\/M assignment.
 runPolyGen :: GenConfig -> IO (PC.ProgressionContext, GenerationDiagnostics)
 runPolyGen gc = do
-  start <- _gcCue gc
+  start <- if _gcCueExplicit gc then _gcCue gc else tonalStartCue gc
   when (length (H.cadenceIntervals (H.stateCadence start)) /= 3) $
     error "genE cues are exactly 3 tones — each layer is a triad by the overlap algebra; richer structures come from combining layers (TS/TM/SM/TSM), not from the cue"
   let pctx = parseContextOnce (_gcTonal gc)

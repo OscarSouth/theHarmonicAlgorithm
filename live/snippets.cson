@@ -1,18 +1,17 @@
 '.source.tidalcycles':
 
   # ══════════════════════════════════════════════════════════
-  # ALGORITHMIC ORCHESTRATION SNIPPETS
+  # LIVE PERFORMANCE SNIPPETS
   # ══════════════════════════════════════════════════════════
   #
-  # A snippet prepares a REPEATED, FIDDLY syntax path around a musical
-  # action — so the hands reach for music, not boilerplate. It is not a
-  # place to keep one block per library feature.
+  # A snippet prepares a repeated syntax path around a musical
+  # action -- avoiding spending performance typing boilerplate.
   #
-  # Fewer prefixes is better: there is less to remember mid-performance.
-  # Anything short and memorable — switching generation family, a
-  # verbosity prime — belongs in the user guide, not here. If a body is
-  # one line you would type faster than you would recall the prefix, it
-  # should not be a snippet.
+  # No need for 'one snippet per action', or capturing concrete
+  # musical statements in snippets, and many actions are highly
+  # flexible to context, so can be applied in many cases.
+  #
+  # They also shouldn't be too small (IE. single functions)
 
   # ── Session ───────────────────────────────────────────────
 
@@ -43,8 +42,8 @@
         $ cue composer
         $ tonal ctx
         $ len 4
-        $ entropy 0.5
-        $ attempt 2 6
+        $ entropy 0.2
+        -- $ attempt 2 6
         $ gen
 
       form = --    k      d
@@ -54,93 +53,23 @@
       do
         let
           r = warp "[1 2 3 4]/4"
-          f = (swingBy 0.02 2)
+          f = swing8 0.5
           d = (* 1)
           k = iK tempo form r -- (rep s 1)
         putStrLn "LAUNCH ¬¬"
         print s
         mapM_ id [hush, setbpm tempo
-          ,display k
+          -- ,display k
+          -- ,count k $d 0.1
+          -- ,metronome 4 $d 0.3
           -- ,strg f k  $ d 0.99
           -- ,wind f k  $ d 0.99
           -- ,brss f k  $ d 0.99
           -- ,perc f k  $ d 0.99
           ]
-
-      hush
     '''
-
-
-  'suite movement (full skeleton)':
-    'prefix': 'movement'
-    'body': '''
-      -- ============================================================================
-      -- $1
-      -- $2
-      -- ============================================================================
-      --
-      -- Super-structure position: $3
-      --
-      -- Programme note.
-      --
-      -- Adaptation: what this reimagination does differently.
-      -- ============================================================================
-
-      tempo = $4
-
-      start <- lead "$5"
-
-      let ctx = hcKey "$6"
-              $ hContext
-
-      s <- seek "$7" $ cue start $ tonal ctx $ len 8 $ entropy 0.25 $ attempt 2 6 $ gen
-
-      -- Form: ~370s loop (360s music + 10s silence)
-      -- Arc: opening -> development -> peak -> close
-      -- rh = bars (metrical) · at = seconds (narrative);  ' = snap, else smooth
-      form =
-        [ rh    0    0.0   0.0   s
-        , rh    2    0.5   0.5   s     -- opening
-        , rh  162    0.0   0.0   s
-        , rh  166    0.0   0.0   s     -- gap
-        ]
-
-      -- ── ORCHESTRAL BLOCKS ───────────────────────────────────
-
-      -- $8: one line on what this section does
-      $8 f k d = p "$8" $ do
-        let vl = voiceLines {_vl = "~"
-              , soprano = "[3 2 1 0]/4"
-              }
-        f
-          $ stack [silence
-              , $9 T (0, 1) k vl flow Soprano
-          ] |* vel d
-
-      -- ── LAUNCHER ────────────────────────────────────────────
-
-      do
-        let
-          f = id
-          d = (* 1)
-          k = iK tempo form (warp "[1 2 3 4]/4")
-        putStrLn "$1"
-        mapM_ id [hush, setbpm tempo
-          ,$8 f k  $ d 0.85
-          ]
-
-      hush''
-    '''
-
 
   # ── Generation ────────────────────────────────────────────
-
-  'lead':
-    'prefix': 'lead'
-    'body': '''
-      start <- ${1:lead} "$2"          -- lead | lead' | leadJ
-    '''
-
 
   'harmonic context':
     'prefix': 'ctx'
@@ -150,7 +79,6 @@
         $ hcKey "$2"
         $ hcRoots "$2"
         -- $ hcPedal "$3"
-        -- $ hcTristrata "$4"     -- genP: lock the walk to one tristrata
         $ hContext
     '''
 
@@ -159,49 +87,17 @@
     'prefix': 'gen'
     'body': '''
       s <- lead "$1" >>=
-        \\composer -> seek "$2"
-        $ cue composer
-        $ tonal ctx
-        -- $ relStrata "1 2 3" -- genP: bar count comes from the list, so it
-        --                     --       must sit ABOVE len (the chain applies
-        --                     --       bottom-up and len clears the override).
-        --                     --       Also absStrata, sameBoost/flipBoost/triBoost.
-        $ len 4
-        $ entropy 0.5
-        $ attempt 2 6
-        -- $ viability 0.5     -- attempt's floor (default 0.5)
-        -- $ steer 3           -- genJ: pull toward the classical blend
-        $ ${3:gen}             -- gen | genE | genJ | genP II
-    '''
-
-  # REVIEW — remove? `gen` now carries the family as a tab-stop, so this
-  #   body differs from it by nothing at all. Family switching is four
-  #   characters and belongs in the guide (§20), not a second prefix.
-  'genE block (polytonal)':
-    'prefix': 'gene'
-    'body': '''
-      s <- lead "$1" >>=
-        \\composer -> seek "$2"
-        $ cue composer
+        \\start -> seek "$2"
+        $ cue start
         $ tonal ctx
         $ len 4
-        $ entropy 0.5
+        $ entropy 0.2
         $ attempt 2 6
-        $ genE
-    '''
-
-  # REVIEW — remove? One line. `chordscaleReport s` is faster to type than
-  #   the prefix is to recall; §19 already shows it.
-  'chordscale report':
-    'prefix': 'chordscale'
-    'body': '''
-      chordscaleReport $1
+        $ gen$3
     '''
 
   # ── Form ──────────────────────────────────────────────────
 
-  # REVIEW — merge into `state`? Three lines, no tab-stops, and a verbatim
-  #   substring of the `state` body.
   'form: single state':
     'prefix': 'formless'
     'body': '''
@@ -252,7 +148,7 @@
       do
         let
           r = warp "[1 2 3 4]/4"
-          f = (swingBy 0.04 2)
+          f = swing8 0.5
           d = (* 1)
           -- k = lK exP exP s r
           k = iK tempo form r -- (rep s 1)
@@ -261,10 +157,6 @@
           ,display k
           -- ,metronome 4 $d 0.3
           -- ,count  k $d 0.6
-          -- ,strg f k $d 0.99
-          -- ,wind f k $d 0.99
-          -- ,brss f k $d 0.99
-          -- ,perc f k $d 0.99
           -- ,subk f k $d 0.99
           -- ,walk f k $d 0.99
           -- ,k909 f k $d 0.99
@@ -293,27 +185,6 @@
               , $3 T (0,1) k vl flow Alto
               , $4 T (0,1) k vl flow Tenor8vb
               , $5 T (0,1) k vl flow Bass8vb
-          ] |* vel d
-    '''
-
-
-  # REVIEW — merge into `orchsec`? Identical but for the Bass8vb line.
-  #   Deleting one line is a keystroke; remembering a second prefix is not.
-  'orchestral blend':
-    'prefix': 'orchblend'
-    'body': '''
-      $1 f k d = p "$1" $ do
-        let vl = voiceLines {_vl = "~"
-              -- , soprano = "3/4"
-              -- , alto    = "1/4"
-              -- , tenor   = "2/4"
-              -- , bass    = "0/4"
-              }
-        f
-          $ stack [silence
-              , $2 T (0,1) k vl flow Soprano
-              , $3 T (0,1) k vl flow Alto
-              , $4 T (0,1) k vl flow Tenor8vb
           ] |* vel d
     '''
 
@@ -352,49 +223,13 @@
   'instrument line':
     'prefix': 'instr'
     'body': '''
-      , $1 T ($2, 1) k vl $3 $4 # $5
-    '''
-
-
-  # ── Divisi ────────────────────────────────────────────────
-
-  # REVIEW — merge into `instr`? Both emit a leading-comma stack line;
-  #   the difference is a `divisi N` prefix and a tag.
-  'divisi (auto-wrap N desks)':
-    'prefix': 'divisi'
-    'body': '''
-      , divisi $1 $2 T (0, 1) k vl grid $3
-    '''
-
-
-  # REVIEW — merge into `instr`? This is `instr` twice with a `# divisi2`
-  #   tag on the pair.
-  'divisi desks (hand-built + tags)':
-    'prefix': 'divisidesk'
-    'body': '''
-      , $1 T (0, 1)   k vl flow $2   # divisi2
-      , $1 T (0.9, 1) k vl grid $2'  # divisi2
+      , $1 T ($2, 1) k vl $3 $4 #$5
     '''
 
 
   # ── Motifs ────────────────────────────────────────────────
 
-  'motif panel':
-    'prefix': 'mpanel'
-    'body': '''
-      -- ── MOTIFS ───────────────────────────────────────────────
-      -- One statement binds rhythm / contour / motif. Primed tiers
-      -- fall back to BootTidal defaults. Swap + re-exec to reprogram.
-      (rhythm, contour, motif) =
-        ( $1                    -- rhythm gate  (Pattern Bool)
-        , "$2"                  -- contour      (voicing degrees)
-        , rhythm >:< contour    -- combined     (rhythm gates contour)
-        ) :: (Pattern Bool, Pattern Int, Pattern Int)
-    '''
 
-
-  # REVIEW — remove? A subset of `mpanel`: same binding, same type
-  #   annotation, three fewer comment lines.
   'motif':
     'prefix': 'motif'
     'body': '''
@@ -406,41 +241,13 @@
     '''
 
 
-  # REVIEW — remove? Six lines, all comments — nothing executes. This is a
-  #   reference card, which is what §18 of the guide is for.
-  'motif develop (transforms)':
-    'prefix': 'develop'
-    'body': '''
-      -- motivic development — apply to a contour or motif:
-      --   retro contour        retrograde (whole bar; rev = per cycle)
-      --   mirror $1 contour     inversion about degree $1
-      --   slow 2 motif          augmentation      fast 2 motif   diminution
-      --   contour |+ $2         transposition
-      --   "<0 1>" <~ rhythm     rotation
-    '''
-
-
-  # ── Display ───────────────────────────────────────────────
-
-  # REVIEW — remove? These four lines already appear verbatim inside
-  #   `launch`, where they are actually reached for.
-  'display':
-    'prefix': 'disp'
-    'body': '''
-          ,display k              -- 12-step counter, seconds
-          -- ,display' k          -- same counter, bars (1-indexed)
-          -- ,count k     $ d 0.05
-          -- ,metronome 4 $ d 0.6
-    '''
-
-
   # ══════════════════════════════════════════════════════════
   # NORMAL SYNTH / MIDI TOOLBOX
   # Piloting specific digital/analogue instruments (AIRA blocks to follow).
   #
   # Methodology: `p` is a GENERIC interface on a fixed channel (`p07`-style);
   # the named rig blocks (k909/kmpc/walk/m32/mdf) are DEVICE-specific. Layers
-  # are added quickly with the insertion snippets — `rrange` drops a new
+  # are added quickly with the insertion snippets — `,rr` drops a new
   # arrange voice into a channel-voice stack, `slate` drops a new gated layer
   # into a drum kit, `cc` drops a modulation line onto a synth.
   # ══════════════════════════════════════════════════════════
@@ -456,22 +263,20 @@
             ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"
               ,$2
             ]# o |* vel 0.7 |+ oct 1 |= legato 0.9
-             -- --
+            $3 -- --
           ] |* vel d
-      $3
     '''
 
 
-  # REVIEW — marginal. Duplicates the arrange block already inside `p`,
-  #   `m32` and `mdf`; earns its keep only through the layer-selector note.
+  # Trigger at COLUMN 0 of a ` -- --` separator line (cmd-left, then
+  # `,rr` + Tab). The body carries its own absolute indentation, lays a
+  # fresh separator where the old one stood, and the old separator text
+  # rides the final newline down to close the new block. Works only from
+  # column 0: the engine re-indents body lines by the trigger line's
+  # leading whitespace, and at column 0 there is none.
   'arrange layer':
-    'prefix': 'rrange'
-    'body': '''
-      arrange (0,1) k (-9,9) ${1:T} flow (overlapF 0) ["~"
-        ,$2
-      ]# o |* vel 1
-       -- layer: T S M | TS TM SM TSM PT (genE combinations)
-    '''
+    'prefix': 'rr'
+    'body': " -- --\n,arrange (0,1) k (-9,9) ${1:T} flow (overlapF 0) [\"~\"\n  ,$2\n]# o |* vel 1\n"
 
 
   'slate layer (drum kit)':
@@ -571,14 +376,6 @@
     '''
 
 
-  # REVIEW — marginal. One line, nine characters of typing.
-  'cc modulation line':
-    'prefix': 'cc'
-    'body': '''
-      ,cc $1 $2 # o
-    '''
-
-
   'subkick block':
     'prefix': 'subk'
     'body': '''
@@ -644,20 +441,6 @@
               ]
              -- --
           ]# o # legato 0.01 |* vel d
-    '''
-
-
-  # REVIEW — marginal. No tab-stops, and it depends on kickpat/snarepat/…
-  #   already existing: it documents a convention more than it prepares one.
-  'groove kit (swappable tuple)':
-    'prefix': 'kgrv'
-    'body': '''
-      kgrv f k d = p "grooveKit"
-        $ f
-        $ stack [silence
-          ,kickpat ,snarepat ,clappat ,hhpat ,ridepat ,percpat
-       -- ,chpat ,ohpat   -- (separate closed/open; alt to combined hhpat)
-          ]# ch 9 |* vel d
     '''
 
 

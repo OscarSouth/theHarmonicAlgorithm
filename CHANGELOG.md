@@ -196,9 +196,18 @@ chords so every bass path agrees. `genP` draws its own starting chord from insid
 stratum it names, so `genI`..`genXI` work uncued like every other family —
 they inherited the whole-corpus random cue, which a five-tone stratum
 almost never admits, and returned an empty progression in 86 of 88 measured
-draws. A cue you supply yourself is still never overridden, and one that
-escapes the stratum still earns the diagnostic listing the triads that
-would have fitted. Voicing no longer reroutes a whole jazz
+draws. The same contract now holds for every family: an uncued
+`gen` / `genE` / grid run draws its opening chord inside the caller's
+tonal context (under `hcKey "3b"` the old whole-corpus draw opened out
+of key three times in four — R constraints filter transitions, never
+bar 1), and an uncued `genJ` draws its opening structure from the
+Change graph itself, weighted by outgoing corpus mass, with the root
+from the tonal context — a real jazz departure point instead of a
+random major triad. No family ever opens on a slash chord uncued —
+inversion shapes and chord-over-degree structures stay available to the
+walk, just never as bar 1. A cue you supply yourself is still never
+overridden, and one that escapes a stratum still earns the diagnostic
+listing the triads that would have fitted. Voicing no longer reroutes a whole jazz
 progression over one 13th chord (the scale-cluster guard is now measured
 against big-bar density), overlapped bars are renamed from the merged set,
 and combination-layer selectors are synthesized once at cache build, never

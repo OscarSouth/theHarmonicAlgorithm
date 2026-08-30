@@ -25,15 +25,19 @@ module Harmonic.Framework.Builder.Core
     -- * Filtering (exposed for testing)
   , matchesContextWithTarget
   , applyDriftFilter
+
+    -- * Context-aware starting cue
+  , tonalStartCue
+  , rootPositionCue
   ) where
 
 import qualified Data.Text as T
 import qualified Data.IntSet as IntSet
 import           Control.Monad (foldM)
-import           Data.List (sortBy)
+import           Data.List (sortBy, sort, nub, isInfixOf)
 import           Data.Function (on)
 import           Data.Ord (Down(..))
-import           System.Random.MWC (GenIO, uniform, uniformR)
+import           System.Random.MWC (GenIO, uniform, uniformR, createSystemRandom)
 import qualified System.Random.MWC.Distributions as Dist
 
 import qualified Harmonic.Rules.Types.Harmony as H
@@ -47,7 +51,7 @@ import           Harmonic.Evaluation.Database.Query (ComposerWeights)
 import qualified Harmonic.Evaluation.Database.Query as Q
 import           Harmonic.Traversal.Probabilistic (gammaIndexScaledWith)
 import           Harmonic.Rules.Constraints.Filter (nthAbove, nthBelow)
-import           Harmonic.Rules.Constraints.Overtone (overtoneSets)
+import           Harmonic.Rules.Constraints.Overtone (overtoneSets, possibleTriads)
 import           Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
 import qualified Harmonic.Evaluation.Scoring.Dissonance as D
 
@@ -723,3 +727,77 @@ extractCadence = H.stateCadence
 -- |Convert a chain of CadenceStates to a Progression
 chainToProgression :: [H.CadenceState] -> Prog.Progression
 chainToProgression = Prog.fromCadenceStates
+
+
+-------------------------------------------------------------------------------
+-- Context-aware starting cue
+-------------------------------------------------------------------------------
+
+-- |True when a state names as a root-position structure — its bass IS
+-- its named root. Triad-sized states re-name through the display seam's
+-- own chord builder ('H.fromCadenceState'), whose functionality carries
+-- an @Inv@ tag for every recognised inversion shape (maj\/min\/dim first
+-- and second inversions, the sus4 inversions) — the same tags that make
+-- 'Harmonic.Rules.Types.Progression.showTriad' render a slash chord. A
+-- bare @\'\/\'@ test would misfire: @sus2\/4@ names carry the character
+-- without being slash chords. Extended states pass — no triad-inversion
+-- vocabulary applies; the jazz cue filters its slash structures by node
+-- key instead. Every random-cue pool filters on this: an uncued bar 1
+-- never opens on a slash chord, and inversions enter a progression only
+-- by the walk's choice or the caller's explicit cue.
+rootPositionCue :: H.CadenceState -> Bool
+rootPositionCue cs
+  | length (H.cadenceIntervals (H.stateCadence cs)) > 3 = True
+  | otherwise = case H.fromCadenceState cs of
+      H.Chord _ fn _ -> not ("Inv" `isInfixOf` fn)
+
+-- |Draw a random starting chord INSIDE the caller's tonal context: the
+-- root from the resolved roots filter, the tones from the key-filtered
+-- overtone set (via 'possibleTriads', the same pool builder the strata
+-- cue uses), required pedal tones honoured where the pool allows —
+-- and filtered to root-position structures via 'rootPositionCue'. A
+-- fully wildcard context defers to the caller's '_gcCue' — plain
+-- @seek "*" $ gen@ is unchanged. The gen \/ genE \/ grid counterpart of
+-- 'Harmonic.Framework.Builder.StrataGen.strataStartCue': without it an
+-- uncued walk under @hcKey "3b"@ opens out of key three draws in four
+-- (only three major triads fit a seven-tone key set) and snaps into key
+-- from bar 2 — the R constraints filter transitions, never bar 1.
+--
+-- The root keeps the walk's own bass exemption (@pcStrictContainment@
+-- 'False'): a root named outside the key still cues, voiced over key
+-- tones. An unsatisfiable context (empty pool even after the pedal
+-- filter relaxes) falls back to the legacy draw rather than erroring —
+-- bar 1 is the human aberration channel, never a wall.
+tonalStartCue :: GenConfig -> IO H.CadenceState
+tonalStartCue gc
+  | pcIsKeyWild pctx && pcIsOvertonesWild pctx && pcIsRootsWild pctx
+      && IntSet.null (pcPedalRequired pctx) = _gcCue gc
+  | otherwise = do
+      rng <- createSystemRandom
+      let allowed = IntSet.toList (pcEffectiveOvertones pctx)
+          roots | pcIsRootsWild pctx = allowed
+                | otherwise          = IntSet.toList (pcAllowedBassNotes pctx)
+          probe (r, ivs) =
+            let nm = H.enharmonicFunc H.FlatSpelling (P.mkPitchClass r)
+            in H.initCadenceState 0 (show nm) ivs
+          pool0 = [ cand
+                  | r <- roots
+                  , pcs <- possibleTriads (r, nub (sort (r : allowed)))
+                  , let cand = (r, [ (p - r) `mod` 12 | p <- pcs ])
+                  , rootPositionCue (probe cand) ]
+          pedalOk (r, ivs) =
+            all (\p -> (p - r) `mod` 12 `elem` ivs)
+                (IntSet.toList (pcPedalRequired pctx))
+          pool = case filter pedalOk pool0 of
+                   [] -> pool0
+                   ps -> ps
+      case pool of
+        [] -> _gcCue gc
+        _  -> do
+          i <- uniformR (0, length pool - 1) rng
+          let (rootPC, ivs) = pool !! i
+              spelling = maybe H.FlatSpelling id (pcKeySpelling pctx)
+              rootName = H.enharmonicFunc spelling (P.mkPitchClass rootPC)
+          pure (H.initCadenceState 0 (show rootName) ivs)
+  where
+    pctx = parseContextOnce (_gcTonal gc)

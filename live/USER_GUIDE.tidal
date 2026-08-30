@@ -100,6 +100,10 @@ start <- lead "C maj"
 --              the second-ranked continuation, 0.9 for the ninth.
 --              A target, not a script: the draw is a distribution
 --              around it.
+-- Omit cue entirely and the opening chord is drawn to fit: inside
+-- the tonal context for gen/genE (uncued under hcKey "3b" opens in
+-- three flats), from inside the stratum for genP, and from the jazz
+-- graph's own most-travelled structures for genJ.
 s <- seek "*" $ cue start $ len 4 $ entropy 0.5 $ gen
 
 -- Print the progression: header, harmonic context, chord grid.
@@ -1532,16 +1536,13 @@ hush
 -- than you would remember the prefix, it is not a snippet.
 --
 -- ── THE PREFIX INDEX (live/snippets.cson) ──
---   session      transport · state (a full launch block) ·
---                movement (a full suite-movement skeleton)
---   generation   lead · ctx · gen · gene · chordscale · formless · dance
---   launcher     launch · p · rrange · slate · minimal · deeptech
+--   session      transport · state (a full launch block)
+--   generation   ctx · gen · formless · dance
+--   launcher     launch · p · ,rr · slate · minimal · deeptech
 --   groove/lines subk · walk
---   motifs       mpanel · motif · develop
---   control      cc · disp
---   orchestra*   orchsec · orchblend · tutti · instr · divisi ·
---                divisidesk
---   hardware*    k909 · kmpc · kgrv · m32 · mdf
+--   motifs       motif
+--   orchestra*   orchsec · tutti · instr
+--   hardware*    k909 · kmpc · m32 · mdf
 --   (* rig-specific — see KNOWN EXCEPTIONS)
 --
 -- The `state` snippet is the canonical prepared opening: tempo,
@@ -1636,9 +1637,8 @@ hush
 -- Explicit: fromChords [[0,4,7], ...] · prog (notesToPCs <$> [[C,E,G]])
 --           fromCadenceStates [initCadenceState mov "Root" [ints], ...]
 --
--- Snippets (Pulsar): transport · state · movement · lead · ctx ·
---   gen · gene · chordscale · formless · dance · launch · p ·
---   rrange · slate · minimal · deeptech · subk · walk · mpanel ·
---   motif · develop · cc · disp
+-- Snippets (Pulsar): transport · state · ctx · gen · formless ·
+--   dance · launch · p · ,rr · slate · minimal · deeptech ·
+--   subk · walk · motif
 
 hush

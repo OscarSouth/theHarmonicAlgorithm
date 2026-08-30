@@ -84,7 +84,7 @@ print s
 
 `lead` ([`Arranger.hs`](src/Harmonic/Interface/Tidal/Arranger.hs)) parses a readable string: `"C maj"`, `"E min"`, `"Bb 7 (7)"` — root, quality, optional ascending movement. Use `initCadenceState 0 "C" [0,4,7]` for explicit interval control.
 
-**How** — `lead` returns `IO CadenceState`, so bind with `<-`. The `seek` terminal runs the whole modifier chain; `"*"` aggregates the full corpus. `cue` sets the starting state, `len` the chord count, `entropy` (0.0–1.0+) dials between the familiar and the surprising: the value times ten is the rank the sampler *aims* at in the candidate list, so `0.2` reaches for roughly the second-ranked continuation and `0.9` for the ninth. It is a target, not a script — the draw is a distribution around it.
+**How** — `lead` returns `IO CadenceState`, so bind with `<-`. The `seek` terminal runs the whole modifier chain; `"*"` aggregates the full corpus. `cue` sets the starting state, `len` the chord count, `entropy` (0.0–1.0+) dials between the familiar and the surprising: the value times ten is the rank the sampler *aims* at in the candidate list, so `0.2` reaches for roughly the second-ranked continuation and `0.9` for the ninth. It is a target, not a script — the draw is a distribution around it. Omit `cue` entirely and the opening chord is drawn to fit: inside the `tonal` context for `gen`/`genE` (an uncued walk under `hcKey "3b"` opens in three flats), from inside the stratum for `genP`, and from the jazz graph's own most-travelled structures for `genJ`.
 
 **Try it** — change `"C maj"` to `"E min"` or `"Bb 7 (7)"`. Swap `entropy 0.5` for `0.2` (conventional, cadence-hungry) or `0.9` (adventurous, distant modulations). Regenerate a few times at each — entropy is a distribution, not a script.
 
@@ -800,7 +800,7 @@ otherwise a perfectly good `rev` reads as a no-op:
 
 **How** — a contour is voicing-index degrees, so it re-realises against whatever chord is sounding; restate an idea at a new pitch by transposing the *harmony* beneath a fixed contour. `mirror axis d = 2*axis - d`.
 
-**Try it** — the `mpanel` snippet (§22) expands the panel with its type annotation. Re-execute it with `contour = "[0 1 2 3]/4"` or `rhythm = bossa32` and hear the piece reprogram in one step. Claves: `son32`, `rumba32`, `bossa32`, `bellpat32` (+ 2-3 rotations: `son23` …).
+**Try it** — the `motif` snippet (§22) expands the panel with its type annotation. Re-execute it with `contour = "[0 1 2 3]/4"` or `rhythm = bossa32` and hear the piece reprogram in one step. Claves: `son32`, `rumba32`, `bossa32`, `bellpat32` (+ 2-3 rotations: `son23` …).
 
 > **▶ VIDEO — One idea, developed**
 > _~45s: the motif stated, then inverted against itself, then re-rhythm'd with one panel edit._
@@ -980,14 +980,13 @@ None is "more correct" — they trade immediacy against decidedness. A performan
 
 | Group | Prefixes |
 |---|---|
-| Session | `transport` · `state` · `movement` |
-| Generation | `lead` · `ctx` · `gen` · `gene` · `chordscale` · `formless` · `dance` |
-| Launchers | `launch` · `p` · `rrange` · `slate` · `minimal` · `deeptech` |
+| Session | `transport` · `state` |
+| Generation | `ctx` · `gen` · `formless` · `dance` |
+| Launchers | `launch` · `p` · `,rr` · `slate` · `minimal` · `deeptech` |
 | Groove & lines | `subk` · `walk` |
-| Motifs | `mpanel` · `motif` · `develop` |
-| Control | `cc` · `disp` |
-| Orchestra* | `orchsec` · `orchblend` · `tutti` · `instr` · `divisi` · `divisidesk` |
-| Hardware* | `k909` · `kmpc` · `kgrv` · `m32` · `mdf` |
+| Motifs | `motif` |
+| Orchestra* | `orchsec` · `tutti` · `instr` |
+| Hardware* | `k909` · `kmpc` · `m32` · `mdf` |
 
 (\* rig-specific — see Known exceptions.)
 
@@ -1073,7 +1072,7 @@ arrange' (lo,hi) k (-9,9) LAYER voicing modifier [patterns] # ch N   -- squeeze 
 
 **Explicit** — `fromChords [[0,4,7], …]`; `prog (notesToPCs <$> [[C,E,G], …])`; `fromCadenceStates [initCadenceState mov "Root" [ints], …]`.
 
-**Snippets (Pulsar)** — `transport` · `state` · `movement` · `lead` · `ctx` · `gen` · `gene` · `chordscale` · `formless` · `dance` · `launch` · `p` · `rrange` · `slate` · `minimal` · `deeptech` · `subk` · `walk` · `mpanel` · `motif` · `develop` · `cc` · `disp`. The rig-specific ones (`orchsec`, `orchblend`, `tutti`, `instr`, `divisi`, `divisidesk`, `k909`, `kmpc`, `kgrv`, `m32`, `mdf`) are in §22's full index — they assume the MIDI orchestra this guide stops short of.
+**Snippets (Pulsar)** — `transport` · `state` · `ctx` · `gen` · `formless` · `dance` · `launch` · `p` · `,rr` · `slate` · `minimal` · `deeptech` · `subk` · `walk` · `motif`. The rig-specific ones (`orchsec`, `tutti`, `instr`, `k909`, `kmpc`, `m32`, `mdf`) are in §22's full index — they assume the MIDI orchestra this guide stops short of.
 
 ___
 

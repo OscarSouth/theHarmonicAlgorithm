@@ -24,6 +24,7 @@ module Harmonic.Evaluation.Database.Query
   , ChangeCandidate(..)
   , fetchChangeTransitions
   , fetchChangeAggregate
+  , fetchChangeStarts
   , resolveChangeCue
   , fetchJazzComposers
   , splitSeekByCorpus
@@ -329,6 +330,26 @@ parseCandidate record = do
   mvmt     <- readMaybe (T.unpack mvmtStr)
   set      <- readMaybe (T.unpack chordStr)
   pure (ChangeCandidate showTxt mvmt set)
+
+-- | Every jazz start candidate with its outgoing corpus mass — the
+-- popularity-weighted pool the uncued 'Harmonic.Framework.Builder.genJ'
+-- cue draws from (structure only: Change nodes are zero-form, the root
+-- comes from the caller's tonal context). Nodes with no outgoing edges
+-- are excluded — a walk could not leave them.
+fetchChangeStarts :: DbActionT [(ChangeCandidate, Double)]
+fetchChangeStarts = do
+  let query = T.unlines
+        [ "MATCH (c:Change)-[r:NEXT]->(:Change)"
+        , "WITH c, sum(r.confidence) AS out"
+        , "RETURN c.show AS show, c.movement AS movement, c.chord AS chord, out AS out"
+        ]
+  records <- runQuery query
+  pure $ filter ((> 0) . snd) $ mapMaybe parseRow records
+  where
+    parseRow record = do
+      cand <- parseCandidate record
+      out  <- extractDouble =<< Map.lookup "out" record
+      pure (cand, out)
 
 -- | Resolve a cue functionality to a jazz walk-start node. Exact
 -- movement+name keys are the caller's own lookup; this finds the best

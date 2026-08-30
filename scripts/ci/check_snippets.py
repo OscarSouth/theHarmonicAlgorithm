@@ -28,7 +28,7 @@ def md_prefixes(text):
         if len(cells) < 3:
             continue
         # column 2 holds the prefixes; skip the header/separator rows
-        found |= set(re.findall(r'`([a-z0-9\']+)`', cells[2]))
+        found |= set(re.findall(r'`([a-z0-9\',]+)`', cells[2]))
     return sorted(found)
 
 def main():

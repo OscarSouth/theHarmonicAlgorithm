@@ -40,6 +40,7 @@ module Harmonic.Framework.Builder.JazzGen (
     runJazzGen,
     runJazzGenFrom,
     jazzGuardSeek,
+    jazzStartCue,
 ) where
 
 import qualified Data.Map.Strict as Map
@@ -49,7 +50,8 @@ import           Data.List (sortBy)
 import           Data.Ord (Down(..), comparing)
 import           Control.Monad (when)
 import           Data.IORef (IORef, newIORef, readIORef, modifyIORef')
-import           System.Random.MWC (GenIO, createSystemRandom)
+import           System.Random.MWC (GenIO, createSystemRandom, uniformRM)
+import qualified Data.IntSet as IntSet
 
 import           Harmonic.Database (DbConn, runDb)
 import qualified Harmonic.Evaluation.Database.Query as Q
@@ -61,7 +63,7 @@ import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import           Harmonic.Rules.Import.Graph (connectNeo4j)
 import           Harmonic.Framework.Builder.Types
 import           Harmonic.Evaluation.Analysis.KeyArea (chordscale)
-import           Harmonic.Framework.Builder.Core (matchesContextWithTarget)
+import           Harmonic.Framework.Builder.Core (matchesContextWithTarget, rootPositionCue)
 import           Harmonic.Traversal.Probabilistic (gammaIndexScaledWith)
 
 -- Everything one walk step needs, resolved once per generation.
@@ -98,7 +100,7 @@ jazzGuardSeek gc =
 runJazzGen :: GenConfig -> IO (PC.ProgressionContext, GenerationDiagnostics)
 runJazzGen gc = do
   env  <- mkEnv gc
-  cue0 <- _gcCue gc
+  cue0 <- if _gcCueExplicit gc then _gcCue gc else jazzStartCue gc
   startKey <- resolveStart env cue0
   states <- jazzWalk env startKey cue0 (max 1 (_gcLen gc) - 1)
   traceLines <- drainTrace env
@@ -300,3 +302,62 @@ jazzDiag gc cue0 prog traceLines = GenerationDiagnostics
   , gdProgression  = prog
   , gdJazzTrace    = traceLines
   }
+
+
+-- |Draw an uncued 'Harmonic.Framework.Builder.genJ' starting chord from
+-- the jazz graph itself: the STRUCTURE is sampled from the Change nodes
+-- proportionally to outgoing corpus mass (the corpus's own sense of a
+-- common departure point), and the ROOT comes from the caller's tonal
+-- context — Change nodes are zero-form, so the two are independent.
+-- Structure-in-key containment is preferred but relaxes when the
+-- context admits no node whole, mirroring the walk's own per-step
+-- relaxation; roots stay hard-filtered. Replaces the whole-corpus
+-- random major triad, which is not jazz vocabulary at all — and which
+-- @resolveStart@ then flagged as outside it on every uncued run.
+jazzStartCue :: GenConfig -> IO H.CadenceState
+jazzStartCue gc = do
+  jazzGuardSeek gc
+  conn <- connectNeo4j
+  rng  <- createSystemRandom
+  starts0 <- runDb conn Q.fetchChangeStarts
+  when (null starts0) $
+    error "genJ: jazz graph appears empty — run `stack run -- jazz` to ingest"
+  -- Never open on a slash structure: chord-over-degree nodes (a "/" in
+  -- the node key — 7/3, 69/4 …) stay walkable but are not departure
+  -- points, and a triad-sized node that would re-name as an inversion
+  -- is rejected the same way the classical pools reject it.
+  let notSlash (cand, _) =
+        not ("/" `T.isInfixOf` Q.ccShow cand)
+        && rootPositionCue (H.mkCadenceStatePCs P.C (Q.ccMovement cand) (Q.ccSet cand))
+      starts = case filter notSlash starts0 of
+                 [] -> starts0
+                 ss -> ss
+      pctx = parseContextOnce (_gcTonal gc)
+      keyConstrained = not (pcIsKeyWild pctx && pcIsOvertonesWild pctx)
+      allowed = pcEffectiveOvertones pctx
+      roots | not (pcIsRootsWild pctx) = IntSet.toList (pcAllowedBassNotes pctx)
+            | keyConstrained           = IntSet.toList allowed
+            | otherwise                = [0 .. 11]
+      inCtx r cand =
+        all (\i -> let p = (i + r) `mod` 12
+                   in p == r || p `IntSet.member` allowed)
+            (Q.ccSet cand)
+      pool0 = [ ((cand, r), w) | (cand, w) <- starts, r <- roots ]
+      pool  | not keyConstrained = pool0
+            | otherwise = case [ p | p@((cand, r), _) <- pool0, inCtx r cand ] of
+                            [] -> pool0
+                            ps -> ps
+      total = sum (map snd pool)
+  case pool of
+    [] -> error "genJ: no viable start (roots filter resolved to nothing?)"
+    (p0 : _) -> do
+      u <- uniformRM (0, total) rng
+      let walkTo _ []  = fst p0
+          walkTo _ [x] = fst x
+          walkTo acc (x@(_, w) : xs)
+            | acc + w >= u = fst x
+            | otherwise    = walkTo (acc + w) xs
+          (cand, rootPC) = walkTo 0 pool
+          spelling = maybe H.FlatSpelling id (pcKeySpelling pctx)
+          rootName = H.enharmonicFunc spelling (P.mkPitchClass rootPC)
+      pure (H.mkCadenceStatePCs rootName (Q.ccMovement cand) (Q.ccSet cand))
