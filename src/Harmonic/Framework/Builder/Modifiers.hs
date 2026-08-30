@@ -47,7 +47,10 @@ import           Harmonic.Framework.Builder.Types
 -- |Default generation configuration.
 --
 -- @
--- cue:     random root, major triad
+-- cue:     random root, major triad — but an uncued run resolves its cue
+--          context-aware at run time: inside the tonal context for gen \/
+--          genE \/ grid ('Harmonic.Framework.Builder.Core.tonalStartCue'),
+--          from the stratum for genP, from the Change graph for genJ
 -- len:     4
 -- seek:    "*" (all composers)
 -- entropy: 0.2

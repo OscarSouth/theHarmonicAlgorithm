@@ -2,61 +2,120 @@
 
 __________________________________________________________________________________
 
-## Version 3.1.0 — in progress (2026)
+## Version 3.1.0 (2026)
 
-The cumulative modernisation release: each block below lands as it completes;
-the version tags once the sweep is done.
+Three-one-zero is the release where the instrument grew a second musical mind
+and learned to keep quiet while it thinks.
 
-### Chordscale layers — key areas, modes and pentatonics for gen / genJ
+The corpus doubled in kind: alongside the classical transition graph, a jazz
+graph of its own, with its own parser, its own vocabulary and its own walk.
+Generation settled into four families, each with a musical identity of its
+own — `gen` and the new jazz walk `genJ` derive real pentatonic and modal
+layers by chord-scale analysis of the finished progression, `genP` walks its
+eleven strata, and `genE` was rebuilt from the ground up as a polytonal
+generator: three simultaneous triad progressions sharing tones bar by bar.
+The walking bass reads all four.
 
-gen and genJ results now carry real S and M layers, derived by chord-scale
-analysis of the finished progression: a cyclic Viterbi walk over 24 key
-areas (12 major, 12 composite minor — one tonic realised per bar as its
-natural / harmonic / melodic form, so a minor ii-V-i reads as ONE key)
-segments the progression with probe-calibrated switch penalties and
-boundary bonuses, the M layer expresses each bar's key as the mode on its
-root, and the S layer carries the anhemitonic pentatonic that best covers
-the bar's guide tones with the fewest changes across the progression —
-allowed outside the key only where the harmony demands it. The layers
-voice through the same chroma engine as genP (degree semantics under
-`arrange`), print as mode names, and leave scoring, provenance and the
-genE / genP families untouched. `chordscale` applies the analysis to
-hand-built contexts; `chordscaleReport` prints the per-bar key / form /
-mode / pentatonic. Behaviour change to note: every non-T layer selector
-on a gen / genJ context (S, M, the combinations, PT) now plays the
-derived sets with degree semantics instead of degrading to the triad
-progression under the user's voicing function. The walking bass now consumes the same detector — the
-bass walks the sets the layers display — retiring the old vote-window
-key inference (every golden walk line survived the swap unchanged).
-Viability study and calibration: archive/analysis/keyarea.md, penta.md,
-walk_diff.md.
+Underneath, the parts that had to stop being slow, stopped. Voicing solves are
+shared across a whole launcher instead of recomputed per instrument, the live
+session can load the library as compiled object code, and the boot file gave up
+four hundred lines to the library where the compiler can see them. Evaluating a
+launcher no longer interrupts the music.
 
-### Four families, one contract
+### The data model, rebuilt
 
-A pre-release consistency pass over gen / genE / genJ / genP. Progression
-combinators now keep each family honest: `fuse` of matching contexts
-preserves the family and genP's provenance (a Monoid-law defect silently
-downgraded everything before), the bar-aligned combinators (`rotate`,
-`excerpt`, `reverse`, `expandP`, `interleave`, octave `transposeP`) carry
-provenance with the bars — so `genFrom` after `rotate` on a genP result
-works instead of crashing — and the bar-substituting ones (`insert`,
-`switch`, `clone`) downgrade the family tag rather than letting it lie.
-genJ now emits like every other family: its walk trace travels with the
-diagnostics and prints once for the attempt winner, `len` is clamped, and
-`seek "none"` is refused before any connection is opened. Jazz scoring
-keys the cue bar through the jazz namer, jazz regen keeps its layers
-duplicated at the seam, and `fund` returns the stored anchor on extended
-chords so every bass path agrees. `genP` draws its own starting chord from inside the
-stratum it names, so `genI`..`genXI` work uncued like every other family —
-they inherited the whole-corpus random cue, which a five-tone stratum
-almost never admits, and returned an empty progression in 86 of 88 measured
-draws. A cue you supply yourself is still never overridden, and one that
-escapes the stratum still earns the diagnostic listing the triads that
-would have fitted. Voicing no longer reroutes a whole jazz
-progression over one 13th chord (the scale-cluster guard is now measured
-against big-bar density), overlapped bars are renamed from the merged set,
-and combination-layer selectors are synthesized once at cache build, never
-on the audio thread.
+The trained model itself got the upgrade this time. The ingestion pipeline was
+rebuilt end-to-end and the graph re-trained as **corpus-v2**.
+
+**Corpus-v2** — Transition counting is now consistent-path: every plausible
+reading of a musical moment still informs the model, but alternative readings
+of the *same* moment are never mistaken for movement. In corpus-v1 that
+artefact concentrated 57.7% of all probability mass onto self-loops; in
+corpus-v2 self-loops carry 2.3% — the genuine pedals — and the strongest
+learned patterns are real harmonic rhetoric (arrive by fifth, then hold).
+487 composers now carry weight (22 were silently lost to a normaliser
+mismatch; the graph stores 488 keys — one legacy name survives in two
+spellings), and ambiguous verticals no longer shout louder than plain triads.
+
+The published artefact is **corpus-v3**: the same consistent-path classical
+graph, now carrying the jazz `:Change` graph alongside it in one dump.
+
+**The rebuild pipeline** — now something you can actually run:
+`stack run` streams per composer (minutes, not tens of GB), writes in
+transactional parameterised batches, reports every refusal instead of
+dropping data silently, and reproduces the live keyspace exactly (write-side
+naming is routed through the same 55-form corpus table the read side uses,
+locked by tests). The whole analytic chain is documented in
+`documents/DATA_MODELLING.md`.
+
+__________________________________________________________________________________
+
+### Jazz corpus parser and the `:Change` graph
+
+The Bunks Jazz-Chord-Progressions-Corpus (2,612 tunes of leadsheet harmony,
+ISMIR 2023) now ingests into a jazz transition graph living alongside the
+classical one: same database, disjoint `:Change` label, one published dump.
+A curated table maps all 123 corpus chord qualities to canonical tone sets;
+symbols parse to variable-arity pitch-class sets (2–6 tones) honouring the
+notation exactly — slash basses are unioned in and become the anchor for
+zero-form and movement. Node names come from a specialised jazz namer:
+direct set lookup with corpus-preferred spelling, or rotation-derived slash
+names (`maj/5`, `m7/b7`) — the whole corpus names with zero refusals.
+Beatwise cadence extraction (sustained beats self-loop, `NC` bridges,
+per-composer edge weights) feeds the same batched idempotent write machinery
+as the classical ingest, via `stack run -- jazz`.
+
+`genJ` generates from it — the same modifier chain as every family
+(`seek "*" $ cue start $ len 8 $ entropy 0.3 $ genJ`, with `genJ'`/`genJ''`
+traces), walking the jazz graph with no consonance fallback (measured
+unnecessary: zero dead ends, ~219-candidate typical pools). One seek spec
+drives both corpora: jazz names blend by corpus weights (substring-matched,
+`"monk:60 coltrane:40"`), classical names steer — each step boosts jazz
+candidates containing the triads that composer would most plausibly move to —
+and the two combine freely. Output is an ordinary `ProgressionContext`:
+`flow`/`grid` voice the 3–6-tone chords and `arrange` plays them unchanged.
+`leadJ` cues genJ from a leadsheet symbol (`leadJ "Dm7/G"` — slash bass
+honoured as the anchor), in its own jazz-quality namespace beside `lead`.
+The full modifier surface applies: `tonal` constraints filter jazz candidates
+through the same R machinery as every family, `steer` dials the classical
+boost, `genFrom` regenerates ranges of jazz progressions in place (families
+are now first-class — `pcFamily` on every `ProgressionContext`), and
+`attempt N K` ranks candidates against the jazz graph's own cadence
+favourability.
+
+### Toolchain modernisation
+
+The build moved to Stackage **lts-24.56 / GHC 9.10.3** (from lts-22.44 /
+GHC 9.6.7), which carries the whole Tidal family natively — the four
+`extra-deps` pins are gone and TidalCycles upgraded to 1.10.3 along the way.
+The codebase now compiles under the **GHC2021** language edition with a
+single project-wide `OverloadedStrings` default (45 per-file pragmas
+removed), and the library builds warning-clean under **`-Wall`** — the
+burn-down deleted ten provably unreachable functions and thirty-odd
+redundant imports, and closed a latent non-exhaustive pattern over
+`Movement.Empty` in fallback scoring.
+
+### Entropy dial recalibration
+
+The entropy dial now means what it says: **`entropy * 10` is the rank the
+sampler targets** in the scored candidate pool. `entropy 0` usually (not
+always) takes the top-ranked candidate, `entropy 0.5` wanders around the
+5th, `entropy 1` around the 10th — and the dial is now **unbounded above**,
+so `entropy 2` reaches around rank 20 with proportionally wide variance.
+Previously the mapping rejected the top pick 37% of the time at entropy 0,
+and on small pools (chord-quality variants, genE added tones) high entropy
+collapsed onto the *worst-ranked* candidate almost deterministically; small
+pools are now explored across their whole range instead.
+
+### The genE rename and one chain builder
+
+The four-note fusion family is now `genE` (extended) — `genE`/`genE'`/
+`genE''` replace `gen4`/`gen4'`/`gen4''` throughout, completing the family
+naming scheme (`gen`, `genE`, `genP`, `genJ`). Generation families are
+first-class: every `ProgressionContext` carries its `pcFamily`, and
+`genFrom` dispatches on it. Under the hood, the eight online/offline chain
+builders collapsed into one `buildChainWith` running against a
+`TransitionSource` — online vs offline is now an argument, not a code path.
 
 ### genE is reborn as the polytonal family
 
@@ -90,6 +149,142 @@ Also removed from the public surface: `GeneratorConfig`/`defaultConfig`
 positional variants `genSilent'`/`genStandard'`/`genVerbose'` — the
 unprimed `genSilent`/`genStandard`/`genVerbose` remain. `genPReport` now
 takes the bound context directly, like `genEReport`.
+
+### Chordscale layers — key areas, modes and pentatonics for gen / genJ
+
+gen and genJ results now carry real S and M layers, derived by chord-scale
+analysis of the finished progression: a cyclic Viterbi walk over 24 key
+areas (12 major, 12 composite minor — one tonic realised per bar as its
+natural / harmonic / melodic form, so a minor ii-V-i reads as ONE key)
+segments the progression with probe-calibrated switch penalties and
+boundary bonuses, the M layer expresses each bar's key as the mode on its
+root, and the S layer carries the anhemitonic pentatonic that best covers
+the bar's guide tones with the fewest changes across the progression —
+allowed outside the key only where the harmony demands it. The layers
+voice through the same chroma engine as genP — lattice semantics under
+`arrange`: a fixed pitch lattice grounded on bar 0, each slot inflected
+onto the current bar's set by minimal accidental movement, so a held
+pattern index pedals its pitch across key changes instead of restarting
+on each bar's root — print as mode names, and leave scoring, provenance and the
+genE / genP families untouched. `chordscale` applies the analysis to
+hand-built contexts; `chordscaleReport` prints the per-bar key / form /
+mode / pentatonic. Behaviour change to note: every non-T layer selector
+on a gen / genJ context (S, M, the combinations, PT) now plays the
+derived sets with lattice semantics instead of degrading to the triad
+progression under the user's voicing function. The walking bass now consumes the same detector — the
+bass walks the sets the layers display — retiring the old vote-window
+key inference (every golden walk line survived the swap unchanged).
+Viability study and calibration: archive/analysis/keyarea.md, penta.md,
+walk_diff.md.
+
+### Four families, one contract
+
+A pre-release consistency pass over gen / genE / genJ / genP. Progression
+combinators now keep each family honest: `fuse` of matching contexts
+preserves the family and genP's provenance (a Monoid-law defect silently
+downgraded everything before), the bar-aligned combinators (`rotate`,
+`excerpt`, `reverse`, `expandP`, `interleave`, octave `transposeP`) carry
+provenance with the bars — so `genFrom` after `rotate` on a genP result
+works instead of crashing — and the bar-substituting ones (`insert`,
+`switch`, `clone`) downgrade the family tag rather than letting it lie.
+genJ now emits like every other family: its walk trace travels with the
+diagnostics and prints once for the attempt winner, `len` is clamped, and
+`seek "none"` is refused before any connection is opened. Jazz scoring
+keys the cue bar through the jazz namer, jazz regen keeps its layers
+duplicated at the seam, and `fund` returns the stored anchor on extended
+chords so every bass path agrees. `genP` draws its own starting chord from inside the
+stratum it names, so `genI`..`genXI` work uncued like every other family —
+they inherited the whole-corpus random cue, which a five-tone stratum
+almost never admits, and returned an empty progression in 86 of 88 measured
+draws. The same contract now holds for every family: an uncued
+`gen` / `genE` / grid run draws its opening chord inside the caller's
+tonal context (under `hcKey "3b"` the old whole-corpus draw opened out
+of key three times in four — R constraints filter transitions, never
+bar 1), and an uncued `genJ` draws its opening structure from the
+Change graph itself, weighted by outgoing corpus mass, with the root
+from the tonal context — a real jazz departure point instead of a
+random major triad. No family ever opens on a slash chord uncued —
+inversion shapes and chord-over-degree structures stay available to the
+walk, just never as bar 1. And the jazz walk now honours the whole tonal
+context, not just key and roots membership: the rise/fall bass-direction
+spec resolves per step exactly as it does classically (`hcRoots "3b
+fall1"` walks the bass stepwise down the key's roots), unreachable
+targets degrade down a direction-preserving ladder (larger fall, then
+colour tones freed) before any repeat is allowed, and the dissonance
+drift and pedal-tone filters ride the same shared machinery. Fresh jazz
+walks now depart from their cue functionality's HUB node (pedal arrival,
+most corpus mass) instead of the arrival-variant the cue's fictional
+bar-1 movement happened to name — rare qualities like m9 were stranding
+on one-edge nodes and opening with forced repeats; regen keeps the exact
+key, its cue movement being real. And `attempt` ranks
+direction-compliant walks first (score breaks ties; a `dv` marker in the
+verbose scoreboard shows why a rougher attempt won), so K buys rule
+character, not just polish — under the strict `fall1` the line converges
+on the stepwise descent, while `fall<1,2>` and `fall1?` remain the
+spellings for deliberate fuzz. Inversion
+spacing stays inert for jazz by design — slash structures there are graph
+vocabulary, not a voicing choice. Those structures now DISPLAY in chart
+convention — the grid prints "Bb 7/Ab" where the stored corpus name is
+"7/b7" on an Ab anchor, so triad and jazz slash names finally read the
+same way — and `fund` recovers their true harmonic root (Bb7/Ab → Bb),
+making the fund/root distinction uniform across every cardinality while
+`root` stays the sounding bass. A cue you supply yourself is still never
+overridden, and one that escapes a stratum still earns the diagnostic
+listing the triads that would have fitted. Voicing no longer reroutes a whole jazz
+progression over one 13th chord (the scale-cluster guard is now measured
+against big-bar density), overlapped bars are renamed from the merged set,
+and combination-layer selectors are synthesized once at cache build, never
+on the audio thread.
+
+### Walking bass across the four families
+
+The walk now reads jazz harmony as a bass player does. Corpus chord sets
+are working voicings, not bass vocabulary: 13th chords carry no 5th and no
+11th, altered qualities replace the 5th, and notated colours (b9 #9 #11
+b13) are not tones to land on. A curated `BassVocab` derives, per quality,
+the triadic TARGET tones a line aims at, the defining seventh, favourable
+passing extensions (the 9, and the 11 over the minor family only — over a
+major third the 11 is the classic avoid note), the avoid tones, and —
+decisively — *the* fifth, restored where the symbol implies one the
+voicing omits, and priced as a fifth on strong beats whichever semitone
+it occupies. Avoid tones are removed from the strong-beat pool outright
+rather than merely surcharged, so the guarantee is structural; they stay
+reachable as weak-beat tension. `genJ` progressions walk through all of
+it via a per-bar side-channel keyed on `pcFamily`, exactly as `genP`
+walks through its strata chroma.
+
+`gen`, `genE` and `genP` are byte-identical as generated. The one shared
+change is the progression-consonance curve for 5-and-6-tone bars, which
+previously saturated at the 75th percentile of real jazz usage and now
+spreads across the whole band — that affects any progression carrying
+such bars, including a hand-built one stamped as a plain triad family.
+
+Concretely: a C13 bar now anchors its restored G on beat 3 instead of
+wobbling back to the root, an altered dominant walks its #5 rather than
+the natural 5 it does not contain, and the beat-1 fifth alternation on
+repeated bars can no longer land a tone the chord lacks.
+
+That last guarantee now holds in **every** family, not just jazz. The walk
+used to reach for `root + 7` whatever the chord actually contained, so a
+diminished or augmented bar could alternate onto a fifth a semitone away
+from a tone it was sounding — and under genP it could leave the bar's
+chroma altogether, which the generator forbids so strictly that it
+disables the bass exemption to enforce it. One shared rule now derives the
+fifth from the chord read in root position, and the genP path admits it
+only when the bar's own strata or mode contains it; where they do not, the
+bar holds its root and a repeat displaces by octave. Pinned by an
+invariant test over all four beats — no genP line may leave its chroma,
+nor the octatripentatonic universe — plus a golden walked line per family,
+so future "this cannot move legacy output" claims are checked rather than
+asserted. Key inference
+learned to read above the seventh too — an altered dominant points at a
+minor tonic rather than the major key a fourth above, a #11 over a major
+seventh rules out the subdominant reading, and an unaltered 13 confirms
+mixolydian. `progConsonance`'s 5-6 tone anchors were recalibrated on the
+corpus census (frequency-weighted dissonance over the quality table), and
+`genJ`/`genJ'`/`genJ''` — documented in guide section 21 but never
+re-exported through `Harmonic.Lib` — are reachable from the live surface
+at last.
 
 ### The boot file moves into the library
 
@@ -164,87 +359,6 @@ whose per-bar dynamics never repeat within 128 bars can no longer spin
 forever searching for a period it will never be told about — that one
 could freeze a set.
 
-### Toolchain modernisation
-
-The build moved to Stackage **lts-24.56 / GHC 9.10.3** (from lts-22.44 /
-GHC 9.6.7), which carries the whole Tidal family natively — the four
-`extra-deps` pins are gone and TidalCycles upgraded to 1.10.3 along the way.
-The codebase now compiles under the **GHC2021** language edition with a
-single project-wide `OverloadedStrings` default (45 per-file pragmas
-removed), and the library builds warning-clean under **`-Wall`** — the
-burn-down deleted ten provably unreachable functions and thirty-odd
-redundant imports, and closed a latent non-exhaustive pattern over
-`Movement.Empty` in fallback scoring.
-
-### Hygiene close-out: warnings, tests, docs, jazz in the guide
-
-The library now compiles with ZERO warnings under bare `-Wall` plus GHC's
-default set — the deferred name-shadowing, x-partial, and type-defaults
-suppressions are gone (every `head`/`tail` on the hot paths replaced with
-total, semantics-preserving forms; ~60 shadowing binders renamed with the
-compiler verifying every site). The user guide gained **SECTION 21 — Jazz
-generation (genJ)** in both lockstep halves. A typo'd composer in a `seek`
-string is now reported after a few steps instead of silently degrading the
-walk. Test-suite repair: the key/roots filter tests now pin the live
-per-candidate path (the divergent unused copy is deleted), the two
-`mostConsonant` replicas are pinned to agreement, `alignVoices` is total on
-empty input, and `test/Spec.hs` labels match the real module names — so
-`--match Bridge` works again. `documents/ALGORITHMIC_ORCHESTRATION.md`
-carries a "Range review" section (JV1010 patch limits are authoritative; a
-practical per-instrument pass is queued). Repo hygiene: `archive/` staging
-per the manifest, Neo4j transaction-log retention capped in compose, stale
-doc claims corrected (Spec labels, app/README, module-header examples).
-
-### Walking bass across the four families
-
-The walk now reads jazz harmony as a bass player does. Corpus chord sets
-are working voicings, not bass vocabulary: 13th chords carry no 5th and no
-11th, altered qualities replace the 5th, and notated colours (b9 #9 #11
-b13) are not tones to land on. A curated `BassVocab` derives, per quality,
-the triadic TARGET tones a line aims at, the defining seventh, favourable
-passing extensions (the 9, and the 11 over the minor family only — over a
-major third the 11 is the classic avoid note), the avoid tones, and —
-decisively — *the* fifth, restored where the symbol implies one the
-voicing omits, and priced as a fifth on strong beats whichever semitone
-it occupies. Avoid tones are removed from the strong-beat pool outright
-rather than merely surcharged, so the guarantee is structural; they stay
-reachable as weak-beat tension. `genJ` progressions walk through all of
-it via a per-bar side-channel keyed on `pcFamily`, exactly as `genP`
-walks through its strata chroma.
-
-`gen`, `genE` and `genP` are byte-identical as generated. The one shared
-change is the progression-consonance curve for 5-and-6-tone bars, which
-previously saturated at the 75th percentile of real jazz usage and now
-spreads across the whole band — that affects any progression carrying
-such bars, including a hand-built one stamped as a plain triad family.
-
-Concretely: a C13 bar now anchors its restored G on beat 3 instead of
-wobbling back to the root, an altered dominant walks its #5 rather than
-the natural 5 it does not contain, and the beat-1 fifth alternation on
-repeated bars can no longer land a tone the chord lacks.
-
-That last guarantee now holds in **every** family, not just jazz. The walk
-used to reach for `root + 7` whatever the chord actually contained, so a
-diminished or augmented bar could alternate onto a fifth a semitone away
-from a tone it was sounding — and under genP it could leave the bar's
-chroma altogether, which the generator forbids so strictly that it
-disables the bass exemption to enforce it. One shared rule now derives the
-fifth from the chord read in root position, and the genP path admits it
-only when the bar's own strata or mode contains it; where they do not, the
-bar holds its root and a repeat displaces by octave. Pinned by an
-invariant test over all four beats — no genP line may leave its chroma,
-nor the octatripentatonic universe — plus a golden walked line per family,
-so future "this cannot move legacy output" claims are checked rather than
-asserted. Key inference
-learned to read above the seventh too — an altered dominant points at a
-minor tonic rather than the major key a fourth above, a #11 over a major
-seventh rules out the subdominant reading, and an unaltered 13 confirms
-mixolydian. `progConsonance`'s 5-6 tone anchors were recalibrated on the
-corpus census (frequency-weighted dissonance over the quality table), and
-`genJ`/`genJ'`/`genJ''` — documented in guide section 21 but never
-re-exported through `Harmonic.Lib` — are reachable from the live surface
-at last.
-
 ### Correctness sweep: generator, regen and live surface
 
 The regenerate-in-place seam is now walk-valid by construction — a range
@@ -280,84 +394,24 @@ split into facade +
 `Modifiers` + `StrataGen`; the subKick CC64/sustain mechanism is pinned
 by characterisation tests.
 
-### The genE rename and one chain builder
+### Hygiene close-out: warnings, tests, docs, jazz in the guide
 
-The four-note fusion family is now `genE` (extended) — `genE`/`genE'`/
-`genE''` replace `gen4`/`gen4'`/`gen4''` throughout, completing the family
-naming scheme (`gen`, `genE`, `genP`, `genJ`). Generation families are
-first-class: every `ProgressionContext` carries its `pcFamily`, and
-`genFrom` dispatches on it. Under the hood, the eight online/offline chain
-builders collapsed into one `buildChainWith` running against a
-`TransitionSource` — online vs offline is now an argument, not a code path.
-
-### Jazz corpus parser and the `:Change` graph
-
-The Bunks Jazz-Chord-Progressions-Corpus (2,612 tunes of leadsheet harmony,
-ISMIR 2023) now ingests into a jazz transition graph living alongside the
-classical one: same database, disjoint `:Change` label, one published dump.
-A curated table maps all 123 corpus chord qualities to canonical tone sets;
-symbols parse to variable-arity pitch-class sets (2–6 tones) honouring the
-notation exactly — slash basses are unioned in and become the anchor for
-zero-form and movement. Node names come from a specialised jazz namer:
-direct set lookup with corpus-preferred spelling, or rotation-derived slash
-names (`maj/5`, `m7/b7`) — the whole corpus names with zero refusals.
-Beatwise cadence extraction (sustained beats self-loop, `NC` bridges,
-per-composer edge weights) feeds the same batched idempotent write machinery
-as the classical ingest, via `stack run -- jazz`.
-
-`genJ` generates from it — the same modifier chain as every family
-(`seek "*" $ cue start $ len 8 $ entropy 0.3 $ genJ`, with `genJ'`/`genJ''`
-traces), walking the jazz graph with no consonance fallback (measured
-unnecessary: zero dead ends, ~219-candidate typical pools). One seek spec
-drives both corpora: jazz names blend by corpus weights (substring-matched,
-`"monk:60 coltrane:40"`), classical names steer — each step boosts jazz
-candidates containing the triads that composer would most plausibly move to —
-and the two combine freely. Output is an ordinary `ProgressionContext`:
-`flow`/`grid` voice the 3–6-tone chords and `arrange` plays them unchanged.
-`leadJ` cues genJ from a leadsheet symbol (`leadJ "Dm7/G"` — slash bass
-honoured as the anchor), in its own jazz-quality namespace beside `lead`.
-The full modifier surface applies: `tonal` constraints filter jazz candidates
-through the same R machinery as every family, `steer` dials the classical
-boost, `genFrom` regenerates ranges of jazz progressions in place (families
-are now first-class — `pcFamily` on every `ProgressionContext`), and
-`attempt N K` ranks candidates against the jazz graph's own cadence
-favourability.
-
-### Entropy dial recalibration
-
-The entropy dial now means what it says: **`entropy * 10` is the rank the
-sampler targets** in the scored candidate pool. `entropy 0` usually (not
-always) takes the top-ranked candidate, `entropy 0.5` wanders around the
-5th, `entropy 1` around the 10th — and the dial is now **unbounded above**,
-so `entropy 2` reaches around rank 20 with proportionally wide variance.
-Previously the mapping rejected the top pick 37% of the time at entropy 0,
-and on small pools (chord-quality variants, genE added tones) high entropy
-collapsed onto the *worst-ranked* candidate almost deterministically; small
-pools are now explored across their whole range instead.
-
-### The Data Model & corpus-v2
-
-The trained model itself got the upgrade this time. The ingestion pipeline was
-rebuilt end-to-end and the graph re-trained as **corpus-v2**.
-
-**Corpus-v2** — Transition counting is now consistent-path: every plausible
-reading of a musical moment still informs the model, but alternative readings
-of the *same* moment are never mistaken for movement. In corpus-v1 that
-artefact concentrated 57.7% of all probability mass onto self-loops; in
-corpus-v2 self-loops carry 2.3% — the genuine pedals — and the strongest
-learned patterns are real harmonic rhetoric (arrive by fifth, then hold).
-487 composers now carry weight (22 were silently lost to a normaliser
-mismatch), and ambiguous verticals no longer shout louder than plain triads.
-
-**The rebuild pipeline** — now something you can actually run:
-`stack run` streams per composer (minutes, not tens of GB), writes in
-transactional parameterised batches, reports every refusal instead of
-dropping data silently, and reproduces the live keyspace exactly (write-side
-naming is routed through the same 55-form corpus table the read side uses,
-locked by tests). The whole analytic chain is documented in
-`documents/DATA_MODELLING.md`.
-
-__________________________________________________________________________________
+The library now compiles with ZERO warnings under bare `-Wall` plus GHC's
+default set — the deferred name-shadowing, x-partial, and type-defaults
+suppressions are gone (every `head`/`tail` on the hot paths replaced with
+total, semantics-preserving forms; ~60 shadowing binders renamed with the
+compiler verifying every site). The user guide gained **SECTION 21 — Jazz
+generation (genJ)** in both lockstep halves. A typo'd composer in a `seek`
+string is now reported after a few steps instead of silently degrading the
+walk. Test-suite repair: the key/roots filter tests now pin the live
+per-candidate path (the divergent unused copy is deleted), the two
+`mostConsonant` replicas are pinned to agreement, `alignVoices` is total on
+empty input, and `test/Spec.hs` labels match the real module names — so
+`--match Bridge` works again. `documents/ALGORITHMIC_ORCHESTRATION.md`
+carries a "Range review" section (JV1010 patch limits are authoritative; a
+practical per-instrument pass is queued). Repo hygiene: `archive/` staging
+per the manifest, Neo4j transaction-log retention capped in compose, stale
+doc claims corrected (Spec labels, app/README, module-header examples).
 
 ## Version 3.0.0 is here! (2026)
 

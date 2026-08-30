@@ -72,6 +72,8 @@ import qualified Data.Char as Char
 import Harmonic.Rules.Types.Pitch (PitchClass(..), mkPitchClass, unPitchClass, NoteName(..), pitchClass)
 -- |Import zeroFormPC for zero-form normalization in toCadenceStateFromPair to match DB convention
 import Harmonic.Rules.Types.Harmony (Chord(..), Cadence(..), ChordState(..), CadenceState(..), fromCadenceState, Movement(..), toMovement, zeroFormPC, enharmonicFunc, inferSpelling, toFunctionalityChord)
+import qualified Harmonic.Rules.Import.Jazz as J
+import qualified Data.Text as T
 import qualified Harmonic.Rules.Types.Scale as Sc
 
 -------------------------------------------------------------------------------
@@ -445,4 +447,16 @@ showHarmony f cs@(CadenceState cad root _)
     storedF = cadenceFunctionality cad
     fn | null storedF = toFunctionalityChord ivs
        | otherwise    = storedF
-    chordName = show (f (pitchClass root)) ++ " " ++ fn
+    -- Jazz slash structures render in CHART convention: true root name +
+    -- quality, slash + bass note name ("Bb 7/Ab", not "Ab 7/b7" — the
+    -- stored anchor convention stays in the graph keys and traces, where
+    -- it IS the address). 'J.parseSlashName' is the exact inverse over
+    -- the closed corpus vocabulary, so only names the jazz namer wrote
+    -- can rewrite — a classical "sus2/4no5" fails its degree-label
+    -- membership and prints as stored. Both note names go through the
+    -- caller's enharmonic function, so key spelling holds.
+    chordName = case J.parseSlashName (T.pack fn) of
+      Just (quality, d) | d /= 0 ->
+        show (f (pitchClass root + P d)) ++ " " ++ T.unpack quality
+          ++ "/" ++ show (f (pitchClass root))
+      _ -> show (f (pitchClass root)) ++ " " ++ fn

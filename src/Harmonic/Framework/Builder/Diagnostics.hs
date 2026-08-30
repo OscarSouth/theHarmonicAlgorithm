@@ -478,7 +478,11 @@ printAttemptScoreboard floorT diags = do
     renderRow a = do
       let ps        = adScore a
           viableMk  = if adViable a then "✓" else "·"
-          pickedMk  = if adPicked a then "  ← PICK" else ""
+          -- Direction-violation marker: why a lower-scoring attempt can
+          -- outrank a smoother one under an active rise/fall spec.
+          dvMk      = if adDirViolations a > 0
+                        then " dv" ++ show (adDirViolations a) else ""
+          pickedMk  = (if adPicked a then "  ← PICK" else "") ++ dvMk
           chordPrev = truncateChords 8 (adChords a)
       case adPoly a of
         Just py ->

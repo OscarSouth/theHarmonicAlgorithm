@@ -39,8 +39,9 @@ renderChordscaleReport pc
       in if null bars then Nothing else Just (unlines (hdr : sep : rows))
   where
     renderBar i cs a =
-      let chord = show (H.stateCadenceRoot cs) ++ " "
-                    ++ H.cadenceFunctionality (H.stateCadence cs)
+      let -- The grid's display seam, so slash structures print in chart
+          -- convention here exactly as they do in the grid.
+          chord = Pr.showHarmony (H.enharmonicFunc (H.stateSpelling cs)) cs
           form  = case baForm a of
                     MajForm  -> "maj"
                     NatForm  -> "nat"

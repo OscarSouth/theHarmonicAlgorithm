@@ -358,6 +358,39 @@ spec = do
           fl  = A.flow strataFixture
       head smf `shouldBe` head fl
 
+    -- Root-motion lattice pins: pattern indices must track their lattice
+    -- slot (grounded on bar 0, inflected by accidental), NOT each bar's
+    -- root. The pre-lattice engine rebuilt every bar's stack from its own
+    -- root, so degree 0 over C Dorian | F Mixolydian | B Aeolian played
+    -- C-F-B; the lattice plays C-C-C#.
+
+    it "diatonic root motion: degree 0 pedals then inflects, never jumps to the bar root" $ do
+      let modes = P.Progression $ Seq.fromList
+            [ mk5 Pitch.C [0, 2, 3, 5, 7, 9, 10]   -- C Dorian   (Bb-major form)
+            , mk5 Pitch.F [0, 2, 4, 5, 7, 9, 10]   -- F Mixolydian (same form)
+            , mk5 Pitch.B [0, 2, 3, 5, 7, 8, 10]   -- B Aeolian  (D-major form)
+            ]
+          voicings = A.strataModeFlow modes
+          deg0PCs  = map ((`mod` 12) . head) voicings
+      -- F Mixolydian shares C Dorian's PC set: bar 2 pedals bar 1 exactly.
+      voicings !! 1 `shouldBe` head voicings
+      -- B Aeolian inflects the C slot upward to C# (global min-cost beats
+      -- the bar root B, which the old engine played here).
+      deg0PCs `shouldBe` [0, 0, 1]
+
+    it "pentatonic root motion: the whole lattice inflects consistently, no root jump" $ do
+      let pentas = P.Progression $ Seq.fromList
+            [ mk5 Pitch.Eb [0, 2, 4, 7, 9]         -- Eb F G Bb C
+            , mk5 Pitch.Eb [0, 2, 4, 7, 9]
+            , mk5 Pitch.D  [0, 2, 4, 7, 9]         -- D E F# A B (down a semitone)
+            ]
+          voicings = A.strataModeFlow pentas
+      -- Static bars pedal exactly.
+      voicings !! 1 `shouldBe` head voicings
+      -- The shifted pentatonic eases every slot down one semitone —
+      -- uniform accidental inflection, not a rebuild from the new root.
+      voicings !! 2 `shouldBe` map (subtract 1) (head voicings)
+
     it "arrange ... S A.flow ... and arrange ... S A.lite ... yield identical events over genP-style 5-PC layer" $ do
       let chordSel = parseBP_E "[1 2 3 4]/4" :: Pattern Int
           pcS = PC.ProgressionContext strataFixture strataFixture strataFixture

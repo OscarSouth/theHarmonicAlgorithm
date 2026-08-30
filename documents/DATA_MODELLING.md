@@ -140,10 +140,10 @@ available keys and query syntax.
 
 ## 7. Provenance
 
-- **Corpus**: Yale Classical Archives Corpus (`NOTICES` §1).
+- **Corpus**: Yale Classical Archives Corpus ([`NOTICES.md`](../NOTICES.md) §1).
 - **Artefact**: `data/artefacts/ycacl_sequences.csv`, produced by
   `scripts/export_ycacl.R` from `~/musicdata/YCACL`. The artefact is
   gitignored; the R script and this document are its provenance record.
-- **Dissonance ranking**: Hindemith (`NOTICES` §3).
-- **Published graph**: the `corpus-v2` release artefact (a Neo4j dump of the
+- **Dissonance ranking**: Hindemith ([`NOTICES.md`](../NOTICES.md) §4).
+- **Published graph**: the `corpus-v3` release artefact (a Neo4j dump of the
   live graph; `scripts/export_graph.sh`).

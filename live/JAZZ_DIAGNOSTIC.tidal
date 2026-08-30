@@ -108,7 +108,11 @@ J.jazzFunctionality [0,4,7]
 J.jazzFunctionality [0,3,7,10]
 
 -- Anything else is a slash shape: some ROTATION of the set is a
--- curated quality, and the name is quality/bass-degree.
+-- curated quality, and the CORPUS name is quality/bass-degree —
+-- that string is the graph node's identity and never changes.
+-- Grids translate it to chart convention at display time
+-- (stored "7/b7" on an Ab anchor prints as "Bb 7/Ab"), via
+-- parseSlashName, the exact inverse over this closed vocabulary.
 -- {0,5,9} rotated to its 5th is {0,4,7} — a major triad over
 -- its fifth, i.e. G/D:
 J.jazzFunctionality [0,5,9]

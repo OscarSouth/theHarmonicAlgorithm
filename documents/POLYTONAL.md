@@ -115,7 +115,8 @@ the cyclic voice-leading DP under `flow` or `grid` — including the `SM` and
 This is deliberate, and it is where genE parts company with the other
 families. In `gen`, `genP` and `genJ` the S and M layers are a pentatonic
 and a mode: scale forms, which take horizontal treatment (`strataModeFlow`'s
-degree semantics, register anchored to bar 0) because vertical
+bar-0-grounded lattice, each slot inflecting by accidental as the key
+area moves) because vertical
 chord-to-chord minimisation is the wrong question to ask of a key
 signature. A genE pentad is not a scale form. It is three stacked triads
 sounding at once — a polytonal *sonority* — so smooth vertical voice

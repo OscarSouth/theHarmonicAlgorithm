@@ -1,8 +1,11 @@
 # Composer Catalogue
 
-Every composer key carried by the corpus-v2 graph, and the syntax for using
-them. Keys are exactly as stored on the graph's edge weights — this list is
-the authority for spelling.
+Every composer key carried by the classical (`:Cadence`) graph, and the
+syntax for using them. Keys are exactly as stored on the graph's edge
+weights — this list is the authority for spelling. The jazz (`:Change`)
+graph carries its own, much larger key set (over 1,100 names, one per
+credited writer); `genJ` matches those by substring, and they are not
+catalogued here.
 
 ## Syntax
 
@@ -161,5 +164,5 @@ verbatim so this list stays the authority for what a query will match:
 
 *Deferred: per-composer harmonic analysis (signature cadences, dissonance
 profile, modal tendencies) and corpus density (pieces, slices, edge counts —
-how strongly each composer's voice is attested) land here as part of the
-3.1.0 release pass, once the codebase is in its final pre-launch state.*
+how strongly each composer's voice is attested) are the subject of a separate
+written analysis, published outside the release cycle.*

@@ -7,7 +7,7 @@ whose three-way union is exactly the eight-tone set `[1,2,4,6,7,9,10,11]`
 (omitting `[0,3,5,8]`, E-minor base).
 
 This document covers both the theory and the codebase surface introduced by
-the `genP` paradigm in V3.0.0.
+the `genP` paradigm.
 
 ## Theory
 
@@ -253,7 +253,7 @@ genPReport            :: IO ProgressionContext -> IO ()
 * `test/Harmonic/Framework/BuilderPSpec.hs` — invariant tests.
 * `test/Harmonic/Rules/Types/ScaleSpec.hs` — vocabulary tests.
 
-## Status (V3.0.0)
+## Status (V3.1.0)
 
 Landed:
 

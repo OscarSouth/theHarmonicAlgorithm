@@ -60,7 +60,7 @@ module Harmonic.Interface.Tidal.Arranger
   , lite   -- Literal, no transformation
   , literal -- Alias for lite
   , root   -- Root note only (root pitch class per chord)
-  , strataModeFlow  -- Per-voice tracking for non-triad chroma layers (key-signature semantic)
+  , strataModeFlow  -- Bar-0-grounded pitch lattice for non-triad chroma layers
 
     -- * Explicit Progression Construction
   , fromChords      -- Construct Progression from pitch-class lists
@@ -343,35 +343,40 @@ root progArg =
 literal :: Progression -> [[Int]]
 literal = lite
 
--- |STRATA-MODE-FLOW paradigm: each bar is the bar's chroma in
--- sorted-ascending compressed form rooted on its harmonic root, with the
--- whole voicing octave-shifted to minimise voice movement against the bar 0
--- anchor. Functions as a "key signature": pattern index @i@ in any bar plays
--- the i-th scale degree of that bar's strata \/ mode, so pattern increments
--- of 1 always ascend by one set member and decrements descend by one.
+-- |STRATA-MODE-FLOW paradigm: a fixed pitch LATTICE grounded on bar 0.
+-- Bar 0's chroma builds a compressed-ascending stack from its root
+-- ('initialCompact' + 'normalizeByFirstRoot', root anchored in [-12, -1]);
+-- every later bar keeps that lattice's slots in place and inflects each
+-- slot to the current bar's chroma — the key signature changes, the hand
+-- position does not. Pattern index @i@ addresses the i-th lattice slot,
+-- so a held index pedals its pitch across key areas (inflecting by
+-- accidental where the new set demands it) instead of transposing with
+-- each bar's root, and increments of 1 still ascend by one set member.
 --
--- Bar 0: 'initialCompact' + 'normalizeByFirstRoot' anchors the harmonic
--- root in the standard window ([-12, -1] note range). Span ≤ 12 semitones
--- from root upward.
+-- Bar n (equal cardinality — the normal case: S layers uniformly 5-PC,
+-- M layers uniformly 7-PC): the minimum-cost cyclic-monotone bijection
+-- from the anchor lattice onto the bar's PC set. Each of the n cyclic
+-- rotations of the bar's sorted PCs is realised monotonically against
+-- the anchor (slot 0 nearest bar 0's slot 0, each later slot the
+-- smallest pitch above its predecessor); the rotation minimising total
+-- @|placed_MIDI - anchor_MIDI|@ wins (tie-break: smaller net signed
+-- displacement). A bijection — not per-slot nearest-tone, which can
+-- collapse two slots onto one pitch — so every bar stays distinct,
+-- ascending, and surjective onto its chroma, and the octave-wrap
+-- identity in "Harmonic.Interface.Tidal.Bridge" (index n = slot 0 + 12)
+-- keeps working.
 --
--- Bar n+1: 'initialCompact' rooted on bar n+1's harmonic root produces a
--- "natural" compressed-ascending voicing; the whole voicing is then shifted
--- by the octave (k·12 for @k ∈ [-3..3]@) that minimises total
--- @|placed_MIDI - anchor_MIDI|@ across voices, where @anchor@ is bar 0's
--- voicing. The root is allowed to migrate octaves freely if that makes the
--- line closer to the anchor. Voicing remains sorted ascending after the
--- shift (uniform shift preserves order), so "ascend by 1 with idx+1" holds.
+-- Anchoring every bar to bar 0 (rather than chaining to the previous
+-- bar) bounds drift: each slot stays within a tritone of its anchor
+-- pitch, the pattern wrap (bar N-1 → bar 0) returns home, and a bar
+-- whose chroma equals bar 0's lands on bar 0's exact MIDI.
 --
--- Anchoring to bar 0 (rather than the previous bar) guarantees:
---   * No drift over long walks — every bar stays within ~6 semitones of the
---     anchor.
---   * Cyclic return to anchor at the pattern wrap (bar N-1 → bar 0).
---   * When chroma cycles back to bar 0's chroma (e.g. tristrata II-VI-X
---     repeating), the bar lands on bar 0's exact MIDI (shift = 0).
---
--- O(n × k) per bar where n = chroma cardinality and k = number of octave
--- candidates (~7). Sub-microsecond per bar; eager forcing in 'Bridge.arrange'
--- still hoists the work to REPL evaluation time.
+-- Bars whose cardinality differs from the anchor's (silent bars, 6-PC
+-- override edges, hand-built mixed material arriving via @hasBigChroma@)
+-- fall back to @shiftBar@ — slot identity is undefined across a
+-- slot-count change. O(n²) per bar, n ≤ 7; eager forcing in
+-- "Harmonic.Interface.Tidal.Bridge" hoists the work to REPL evaluation
+-- time.
 strataModeFlow :: Progression -> [[Int]]
 strataModeFlow progArg =
   case toList (unProgression progArg) of
@@ -380,12 +385,45 @@ strataModeFlow progArg =
       let firstPCs    = cadencePCs firstCS
           firstRootPC = case firstPCs of (p:_) -> p; [] -> 0
           v0          = initialCompact firstRootPC firstPCs
-          voicings    = v0 : map (shiftBar v0) restCSs
+          voicings    = v0 : map (latticeBar v0) restCSs
       in normalizeByFirstRoot voicings
 
--- |Build a bar's natural compressed-ascending voicing, then choose the
--- uniform octave shift that minimises total absolute MIDI distance to the
--- bar 0 anchor @v0@. Each bar is independently anchored so drift is bounded.
+-- |Inflect the bar-0 lattice @v0@ onto one bar's chroma: the minimum-cost
+-- cyclic-monotone bijection described at 'strataModeFlow'. Falls back to
+-- @shiftBar@ when the bar's distinct-PC count differs from the lattice's.
+latticeBar :: [Int] -> CadenceState -> [Int]
+latticeBar v0 cs =
+  let tgt = nub (sort (cadencePCs cs))
+      n   = length v0
+  in if null v0 || length tgt /= n
+       then shiftBar v0 cs
+       else
+         let rotations  = [ take n (drop k (cycle tgt)) | k <- [0 .. n - 1] ]
+             candidates = map (realizeAgainst v0) rotations
+             cost v     = sum (zipWith (\y a -> abs (y - a)) v v0)
+             net v      = abs (sum (zipWith (-) v v0))
+             score v    = (cost v, net v)
+         in minimumBy (compare `on` score) candidates
+
+-- |Monotone realisation of an assigned PC sequence against the anchor:
+-- slot 0 takes the pitch with its PC nearest the anchor's slot 0 (ties
+-- resolve upward); each later slot takes the smallest pitch above its
+-- predecessor carrying its PC. Output is strictly ascending and spans
+-- less than an octave, like the anchor itself.
+realizeAgainst :: [Int] -> [Int] -> [Int]
+realizeAgainst v0 pcs = case (v0, pcs) of
+  (a0 : _, p0 : ps) ->
+    let d  = (p0 - a0) `mod` 12
+        y0 = if d <= 6 then a0 + d else a0 + d - 12
+        step prev p = prev + 1 + ((p - (prev + 1)) `mod` 12)
+    in scanl step y0 ps
+  _ -> []
+
+-- |Build a bar's natural compressed-ascending voicing rooted on its own
+-- harmonic root, then choose the uniform octave shift that maximises
+-- exact-MIDI common tones with (then minimises distance to) the bar 0
+-- anchor @v0@. The fallback path for bars whose cardinality differs from
+-- the lattice's; @latticeBar@ handles the normal case.
 shiftBar :: [Int] -> CadenceState -> [Int]
 shiftBar v0 cs =
   let nextPCs    = cadencePCs cs
@@ -410,7 +448,7 @@ shiftBar v0 cs =
 -- 4-note harmony 1.85 s — CHEAPER than the allowed baseline, so a jazz
 -- progression is no longer re-routed by one 13th chord; adjacent 7-PC
 -- pair 10.3 s; uniform 6-PC 15.9 s; uniform 7-PC ≈ 107 s. Routing rule:
--- any 7-PC bar (a full mode — degree semantics are the right tool for it
+-- any 7-PC bar (a full mode — lattice semantics are the right tool for it
 -- musically as well as computationally), or 6-PC bars exceeding a quarter
 -- of the progression (cluster-dominant material). genP chroma layers
 -- route by provenance in Bridge before reaching here.
@@ -422,8 +460,9 @@ hasBigChroma progArg =
 
 -- |Read a CadenceState's absolute PCs in cadence-interval order (NOT sorted).
 -- For genP strata\/mode layers (intervals start at 0 from harmonic root), this
--- yields [root, root+2nd, root+3rd, ...] — i.e. degree-ordered. Pattern idx 0
--- therefore tracks the root.
+-- yields [root, root+2nd, root+3rd, ...]. Head = the bar's root, which seeds
+-- bar 0's lattice in 'strataModeFlow'; later bars sort and inflect, so a
+-- pattern index tracks its lattice slot, not the bar root.
 cadencePCs :: CadenceState -> [Int]
 cadencePCs cs =
   let r    = unPitchClass (pitchClass (stateCadenceRoot cs))
@@ -726,7 +765,9 @@ lead' input = do
 -- untouched. A notated slash bass is honoured exactly: unioned into the
 -- pitch-class set and made the anchor, so "Dm7\/G" cues from G with the
 -- full Dm7 sounding above it. An optional @(N)@ token fixes the approach
--- movement, otherwise it is randomized exactly like 'lead'. An
+-- movement, otherwise it is randomized exactly like 'lead'; either way
+-- the movement shapes bar 1's stored metadata only — a fresh walk
+-- departs from the functionality's hub node regardless. An
 -- unparseable symbol is reported and falls back to the corpus workhorse
 -- C m7.
 --

@@ -153,6 +153,27 @@ spec = do
           enharm = enharmonicFunc FlatSpelling
       showHarmony enharm cs `shouldBe` "Eb m7"
 
+    it "renders a jazz slash structure in chart convention (Bb7 over Ab)" $ do
+      let ivs = map P [0,2,6,9]                 -- tones above the Ab anchor
+          cad = Cadence "7/b7" Unison ivs       -- the walk's stored corpus name
+          cs  = CadenceState cad Ab FlatSpelling
+          enharm = enharmonicFunc FlatSpelling
+      showHarmony enharm cs `shouldBe` "Bb 7/Ab"
+
+    it "renders maj-over-its-7th in chart convention (Ab over G)" $ do
+      let ivs = map P [0,1,5,8]
+          cad = Cadence "maj/7" Unison ivs
+          cs  = CadenceState cad G FlatSpelling
+          enharm = enharmonicFunc FlatSpelling
+      showHarmony enharm cs `shouldBe` "Ab maj/G"
+
+    it "never rewrites a classical name that merely contains a slash" $ do
+      let ivs = map P [0,2,5,10]
+          cad = Cadence "sus2/4no5" Unison ivs  -- '/' but not a slash chord
+          cs  = CadenceState cad C SharpSpelling
+          enharm = enharmonicFunc SharpSpelling
+      showHarmony enharm cs `shouldBe` "C sus2/4no5"
+
     it "recomputes the name when stored functionality is empty" $ do
       let cad = Cadence "" Unison (map P [0,3,6,10])
           cs  = CadenceState cad C SharpSpelling

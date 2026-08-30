@@ -34,6 +34,7 @@ module Harmonic.Interface.Tidal.Groove
   ) where
 
 import qualified Harmonic.Rules.Types.Pitch as Pitch
+import qualified Harmonic.Rules.Import.Jazz as J
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Progression as P
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
@@ -43,14 +44,16 @@ import Data.Maybe (catMaybes)
 import Data.Foldable (toList)
 import Sound.Tidal.Context
 
--- | Extract harmonic roots regardless of inversion.
--- Triads go through inversion detection (a first-inversion bar reports
--- its harmonic root, not its bass). Bars of more than three tones keep
--- their STORED root: jazz and hand-built extended chords store the
--- anchor directly, and the triad-reduction path would re-derive a root
--- from the most-consonant embedded triad — a different answer from the
--- one 'Harmonic.Interface.Tidal.Arranger.root' and the walking bass give
--- for the same bar.
+-- | Extract harmonic roots regardless of inversion — the harmonic
+-- FUNDAMENTAL uniformly, where 'Harmonic.Interface.Tidal.Arranger.root'
+-- is uniformly the sounding bass. Triads go through inversion detection
+-- (a first-inversion bar reports its harmonic root, not its bass). Bars
+-- of more than three tones ask the jazz namer for the rotation: a slash
+-- structure (Bb7 over Ab) reports its true root (Bb), matching the
+-- chart-convention grid name; a root-position extended chord — and any
+-- set the namer cannot read — keeps its stored anchor. The walking bass
+-- is unaffected either way: it anchors on the stored root internally
+-- and reads a voice function only for beat-1 pitch choice.
 fund :: P.Progression -> [[Int]]
 fund prog =
   let cadenceStates = toList (P.unProgression prog)
@@ -59,7 +62,11 @@ fund prog =
     fundToInt :: H.CadenceState -> [Int]
     fundToInt cs
       | length (H.cadenceIntervals (H.stateCadence cs)) > 3 =
-          [Pitch.unPitchClass (Pitch.pitchClass (H.stateCadenceRoot cs))]
+          let anchor = Pitch.unPitchClass (Pitch.pitchClass (H.stateCadenceRoot cs))
+              ivs    = map Pitch.unPitchClass (H.cadenceIntervals (H.stateCadence cs))
+          in case J.jazzFunctionalityR ivs of
+               Just (_, d) | d /= 0 -> [(anchor + d) `mod` 12]
+               _                    -> [anchor]
       | otherwise =
           let chord = H.fromCadenceState cs
               rootNoteName = H.chordNoteName chord

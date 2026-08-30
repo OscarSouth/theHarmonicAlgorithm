@@ -3,7 +3,7 @@
 # Export the composer graph as a single-file archive for publication.
 #
 # The dump is produced by hand, not by CI: it needs a populated Neo4j. Upload the
-# result to the dedicated corpus release (currently `corpus-v2`) so one stable
+# result to the dedicated corpus release (currently `corpus-v3`) so one stable
 # URL serves every code release. Since corpus-v2 the graph is sparse at source,
 # so this plain "dump whatever the live graph holds" tool IS the artefact
 # builder; the historical sparsify step is no longer part of the flow.
@@ -73,14 +73,14 @@ cat <<EOF
 
 1. Upload as a single stable asset, decoupled from code releases:
 
-     gh release create corpus-v2 \\
-       --title "Harmonic graphs (YCACL :Cadence + Bunks jazz :Change, corpus-v2)" \\
+     gh release create corpus-v3 \\
+       --title "Harmonic graphs (YCACL :Cadence + Bunks jazz :Change, corpus-v3)" \\
        --notes "Neo4j 5.26 dump of the harmonic transition graph (consistent-path counting)." \\
        "$OUT_ABS/$DUMP_NAME" "$OUT_ABS/SHA256SUMS"
 
    To replace it later WITHOUT breaking links, keep the tag and filename identical:
 
-     gh release upload corpus-v2 "$OUT_ABS/$DUMP_NAME" --clobber
+     gh release upload corpus-v3 "$OUT_ABS/$DUMP_NAME" --clobber
 
 2. Users load it with (note: 5.x syntax, and neo4j must be stopped):
 

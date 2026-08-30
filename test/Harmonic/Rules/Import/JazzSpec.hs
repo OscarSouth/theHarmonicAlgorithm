@@ -123,6 +123,19 @@ spec = do
       parseToken "C7/Eb7" `shouldBe`
         Left (JazzRefusal "C7/Eb7" "malformed slash bass")
 
+  describe "jazzFunctionalityR / parseSlashName (rotation round-trip)" $ do
+    it "exposes the true-root offset above the anchor" $ do
+      jazzFunctionalityR [0,2,6,9] `shouldBe` Just ("7/b7", 2)
+      jazzFunctionalityR [0,3,7,10] `shouldBe` Just ("m7", 0)
+    it "parseSlashName is the exact inverse over the corpus vocabulary" $ do
+      parseSlashName "7/b7" `shouldBe` Just ("7", 2)
+      parseSlashName "maj/5" `shouldBe` Just ("maj", 5)
+      parseSlashName "maj/7" `shouldBe` Just ("maj", 1)
+    it "refuses names outside the closed vocabulary" $ do
+      parseSlashName "sus2/4no5" `shouldBe` Nothing
+      parseSlashName "m7" `shouldBe` Nothing
+      parseSlashName "nonsense/b7" `shouldBe` Nothing
+
   describe "jazzFunctionality" $ do
     it "names direct table sets with the corpus-preferred spelling" $ do
       jazzFunctionality [0,4,7] `shouldBe` Just "maj"

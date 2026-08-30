@@ -42,6 +42,8 @@ module Harmonic.Rules.Import.Jazz (
     qualityFrequency,
     canonicalQuality,
     jazzFunctionality,
+    jazzFunctionalityR,
+    parseSlashName,
     BassVocab(..),
     bassVocabFor,
 ) where
@@ -443,14 +445,23 @@ canonicalQuality =
 -- impossible for corpus data, reported (never invented) if it ever
 -- happens downstream.
 jazzFunctionality :: [Int] -> Maybe T.Text
-jazzFunctionality raw
+jazzFunctionality = fmap fst . jazzFunctionalityR
+
+-- | 'jazzFunctionality' with the rotation exposed: the second component
+-- is the offset of the TRUE quality root above the anchor (0 when the
+-- set names directly, the chosen rotation for slash shapes). The
+-- structural authority for anchor-independent readings — e.g.
+-- 'Harmonic.Interface.Tidal.Groove.fund' recovering the harmonic
+-- fundamental of a slash bar.
+jazzFunctionalityR :: [Int] -> Maybe (T.Text, Int)
+jazzFunctionalityR raw
   | case set of { (s0 : _) -> s0 /= 0; [] -> True } = Nothing
   | otherwise = case Map.lookup set canonicalQuality of
-      Just q  -> Just (display q)
+      Just q  -> Just (display q, 0)
       Nothing -> case candidates of
         [] -> Nothing
         cs -> let (_, _, d, q) = maximumBy (comparing rank) cs
-              in Just (display q <> "/" <> degreeLabel ((-d) `mod` 12))
+              in Just (display q <> "/" <> degreeLabel ((-d) `mod` 12), d)
   where
     set = sort (nub (map (`mod` 12) raw))
     freq q = Map.findWithDefault 0 q qualityFrequency
@@ -465,6 +476,28 @@ jazzFunctionality raw
     rank (f, member, d, _) = (f, member, negate d)
     display "" = "maj"
     display q  = q
+
+-- | Exact inverse of the slash names 'jazzFunctionalityR' emits, over
+-- the CLOSED corpus vocabulary: @quality\/degreeLabel@ where the quality
+-- is a curated name and the label one of the eleven bass degrees.
+-- Returns the quality and the true root's offset ABOVE the anchor (the
+-- rotation the namer applied). Fails on anything else — classical names
+-- that merely contain a slash (@sus2\/4no5@) fail the degree-label
+-- membership, so a successful parse is proof the name came from the
+-- jazz namer. The DISPLAY authority for chart-convention rendering:
+-- parsing the stored name back can never disagree with the name the
+-- walk stamped, where re-deriving from intervals could pick a
+-- different rotation.
+parseSlashName :: T.Text -> Maybe (T.Text, Int)
+parseSlashName nm = case T.breakOn "/" nm of
+  (q, rest) | Just lbl <- T.stripPrefix "/" rest
+            , qualityOk q
+            , Just off <- lookup lbl labelOffsets ->
+      Just (q, (12 - off) `mod` 12)
+  _ -> Nothing
+  where
+    qualityOk q = q == "maj" || Map.member q qualityIntervals
+    labelOffsets = [ (degreeLabel n, n) | n <- [1 .. 11] ]
 
 -- Bass-degree label for slash names: semitones above the upper root.
 degreeLabel :: Int -> T.Text

@@ -647,8 +647,16 @@ strataStartCue sStart gc = do
 strataCue :: GenIO -> Sc.StrataLabel -> IO H.CadenceState
 strataCue rng s0 =
   let strataPCs = sort (map P.unPitchClass (Sc.strataChroma s0))
-      pool      = [ (r, [ (p - r) `mod` 12 | p <- pcs ])
+      pool0     = [ (r, [ (p - r) `mod` 12 | p <- pcs ])
                   | r <- strataPCs, pcs <- possibleTriads (r, strataPCs) ]
+      -- Never open on a slash chord: inversion shapes stay available to
+      -- the walk, just not as the uncued bar 1.
+      probe (r, ivs) =
+        let nm = H.enharmonicFunc H.FlatSpelling (P.mkPitchClass r)
+        in H.initCadenceState 0 (show nm) ivs
+      pool = case filter (rootPositionCue . probe) pool0 of
+               [] -> pool0
+               ps -> ps
   in case pool of
        -- Unreachable: every stratum admits triads. Answering with a bare
        -- major triad keeps the function total rather than exploding on the

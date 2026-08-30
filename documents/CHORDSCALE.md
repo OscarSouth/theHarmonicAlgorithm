@@ -64,11 +64,14 @@ melodic self-sufficiency, and the report flags it.
 
 **Layer semantics.** The M bar is rooted on the bar's harmonic root — it
 IS the mode of the bar. The S bar is rooted on the *pentatonic's* root
-(degree 0 = the set's own root, the way a player names it) — a pentatonic
-legitimately excludes the chord root (the pent-on-the-fifth over a maj7
-does so by design). Both voice through the same chroma engine as genP
-(`strataModeFlow`: pattern index i = the i-th scale degree of that bar's
-set), and 7-PC bars print as mode names. `PT` on a derived context is the
+(the way a player names the set) — a pentatonic legitimately excludes the
+chord root (the pent-on-the-fifth over a maj7 does so by design). Both
+voice through the same chroma engine as genP (`strataModeFlow`): pattern
+index i addresses the i-th slot of a fixed pitch **lattice** grounded on
+bar 0's stack and inflected to each bar's set by minimal accidental
+movement — a held index pedals its pitch across key areas (C over an F
+Mixolydian bar stays C; over a B Aeolian bar it inflects to C#) rather
+than restarting on each bar's root. 7-PC bars print as mode names. `PT` on a derived context is the
 chord tones the pentatonic keeps — an anchor-tone selection.
 
 ## Applied — code surface

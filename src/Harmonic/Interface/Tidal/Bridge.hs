@@ -124,8 +124,10 @@ rep pc repVal =
 -- route. Chroma routing: the S\/M layers of a genP-provenance context are
 -- THE curated 5\/7-PC chroma, and the S\/M layers of a chordscale-derived
 -- gen \/ genJ context are the analysis pentatonic \/ mode chroma — both are
--- always voiced by 'A.strataModeFlow', degree\/"key-signature" semantics:
--- pattern index @i@ plays the i-th scale degree of that bar's set. The T
+-- always voiced by 'A.strataModeFlow', lattice semantics: pattern index
+-- @i@ addresses the i-th slot of a fixed pitch lattice grounded on bar 0
+-- and inflected per bar — a held index pedals its pitch across key areas
+-- rather than transposing with each bar's root. The T
 -- layer always honours the user's 'VoiceFunction', as do the S\/M layers
 -- of genE contexts (independent partner triads — ordinary harmony, so
 -- never chroma-routed) and of contexts whose layers are still literal
@@ -140,7 +142,7 @@ rep pc repVal =
 -- every mode bar at chroma cardinality (≥5) — so a subst-downgraded genE
 -- context (distinct but triadic layers) and a bar-substituted derived
 -- context (mixed cardinality after the edit) both fall back to the user's
--- 'VoiceFunction' rather than half-claiming degree semantics.
+-- 'VoiceFunction' rather than half-claiming lattice semantics.
 -- A genE context is excluded whole, combination selectors included. Its
 -- @S@\/@M@ are partner triads, and its @SM@\/@TSM@ unions are polytonal
 -- SONORITIES — three stacked triads, five tones — not scale forms, so the
