@@ -1538,7 +1538,7 @@ hush
 -- ── THE PREFIX INDEX (live/snippets.cson) ──
 --   session      transport · state (a full launch block)
 --   generation   ctx · gen · formless · dance
---   launcher     launch · p · ,rr · slate · minimal · deeptech
+--   launcher     launch · p · rr · slate · minimal · deeptech
 --   groove/lines subk · walk
 --   motifs       motif
 --   orchestra*   orchsec · tutti · instr
@@ -1638,7 +1638,7 @@ hush
 --           fromCadenceStates [initCadenceState mov "Root" [ints], ...]
 --
 -- Snippets (Pulsar): transport · state · ctx · gen · formless ·
---   dance · launch · p · ,rr · slate · minimal · deeptech ·
+--   dance · launch · p · rr · slate · minimal · deeptech ·
 --   subk · walk · motif
 
 hush

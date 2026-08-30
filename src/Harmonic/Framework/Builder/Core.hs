@@ -25,16 +25,20 @@ module Harmonic.Framework.Builder.Core
     -- * Filtering (exposed for testing)
   , matchesContextWithTarget
   , applyDriftFilter
+  , applyPedalFilter
+  , resolveBassDirection
 
     -- * Context-aware starting cue
   , tonalStartCue
   , rootPositionCue
+  , directionViolations
   ) where
 
 import qualified Data.Text as T
 import qualified Data.IntSet as IntSet
 import           Control.Monad (foldM)
 import           Data.List (sortBy, sort, nub, isInfixOf)
+import           Data.Foldable (toList)
 import           Data.Function (on)
 import           Data.Ord (Down(..))
 import           System.Random.MWC (GenIO, uniform, uniformR, createSystemRandom)
@@ -546,7 +550,7 @@ extractMovementInterval movement = case movement of
 --
 -- Safety fallback: if filtering empties the pool, returns the original
 -- unfiltered pool so generation never fails.
-applyDriftFilter :: Drift -> H.CadenceState -> [(H.Cadence, Double)] -> [(H.Cadence, Double)]
+applyDriftFilter :: Drift -> H.CadenceState -> [(H.Cadence, a)] -> [(H.Cadence, a)]
 applyDriftFilter Free _ pool = pool
 applyDriftFilter direction currentState pool =
   let currentDiss = dissonanceScore
@@ -567,9 +571,9 @@ applyDriftFilter direction currentState pool =
 -- Required tones must be present in every candidate chord (as absolute pitch
 -- classes, anywhere in the chord — root or upper voices).
 -- Preferred tones (@?@ suffix in input) are applied when doing so leaves at
--- least 'minPedalPool' candidates; otherwise they are relaxed and only required
+-- least @minPedalPool@ candidates; otherwise they are relaxed and only required
 -- tones are enforced. Safety fallback: never returns an empty pool.
-applyPedalFilter :: ParsedContext -> H.CadenceState -> [(H.Cadence, Double)] -> [(H.Cadence, Double)]
+applyPedalFilter :: ParsedContext -> H.CadenceState -> [(H.Cadence, a)] -> [(H.Cadence, a)]
 applyPedalFilter pctx currentState pool
   | IntSet.null req && IntSet.null pref = pool
   | otherwise =
@@ -801,3 +805,28 @@ tonalStartCue gc
           pure (H.initCadenceState 0 (show rootName) ivs)
   where
     pctx = parseContextOnce (_gcTonal gc)
+
+
+-- |Count the bars of a finished progression that move AGAINST an active
+-- rise\/fall spec — the post-hoc compliance measure the multi-attempt
+-- ranker prefers on. Judged from each bar's stored arrival movement
+-- ('H.cadenceMovement' of bars 2..N), which is exact where pitch-class
+-- distance is ambiguous (a desc-7 arrival IS a fall, though its PC lands
+-- a 4th up). Unison\/pedal and tritone arrivals count as violations
+-- under either kind — neither moves in the spec's direction. No spec,
+-- or an optional (@?@) spec whose steps may legitimately skip, counts
+-- nothing. The walk's relaxation ladder still runs per step; this only
+-- lets @attempt N K@ prefer the walks where relaxation never had to
+-- surrender the direction — K buys rule character, not just score.
+directionViolations :: ParsedContext -> Prog.Progression -> Int
+directionViolations pctx prog =
+  case pcBassDirectionSpec pctx of
+    Just spec | not (bdsOptional spec) ->
+      let movements = map (H.cadenceMovement . H.stateCadence)
+                          (drop 1 (toList (Prog.unProgression prog)))
+          ok m = case (bdsKind spec, m) of
+            (FallK, H.Desc _) -> True
+            (RiseK, H.Asc _)  -> True
+            _                 -> False
+      in length (filter (not . ok) movements)
+    _ -> 0

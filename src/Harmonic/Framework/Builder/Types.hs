@@ -524,7 +524,8 @@ data AttemptDiagnostic = AttemptDiagnostic
   , adScore  :: !PS.ProgressionScore   -- ^ Per-axis breakdown (rm\/vl\/cf\/mv)
   , adTotal  :: !Double                -- ^ Weighted total ('PS.totalScore')
   , adViable :: !Bool                  -- ^ Passed viability check ('psModeValidity >= 1 && tot >= floor')
-  , adPicked :: !Bool                  -- ^ True iff the winner ('maximumByKey adTotal')
+  , adPicked :: !Bool                  -- ^ True iff the winner (fewest direction violations, then highest total)
+  , adDirViolations :: !Int            -- ^ Bars moving against an active rise\/fall spec (0 when no spec)
   , adChords :: ![String]              -- ^ Chord-name sequence for the diff column in the scoreboard
   , adPoly   :: !(Maybe PS.PolyScore)  -- ^ Polytonal breakdown (genE only): per-layer scores and divergence
   } deriving (Show, Eq)

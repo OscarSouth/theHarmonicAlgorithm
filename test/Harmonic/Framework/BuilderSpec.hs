@@ -26,7 +26,7 @@ import Data.Text (Text)
 import Data.List (sort)
 
 import Harmonic.Framework.Builder (HarmonicContext(..), Drift(..), hcOvertones, hcKey, hcRoots, dissonant, consonant, invSkip, TransformTrace(..), AdvanceTrace(..), StepDiagnostic(..), harmonicContext, parseComposersWithOrder, makePortmanteau, extractByPosition, takeFromBeginning, takeFromEnd, takeFromMiddle, GenConfig(..), GenMode(..), Verbosity(..), defaultGenConfig, gen, gen', gen'', genGrid, genGrid', genGrid'', genFrom, cue, len, seek, entropy, tonal, hContext, genSilent, genE, genP, attempt, genJ, genJ', genJ'', steer)
-import Harmonic.Framework.Builder.Core (applyDriftFilter, matchesContextWithTarget, tonalStartCue, rootPositionCue)
+import Harmonic.Framework.Builder.Core (applyDriftFilter, matchesContextWithTarget, tonalStartCue, rootPositionCue, directionViolations)
 import Harmonic.Framework.Builder.Types (parseContextOnce, keySpellingOf)
 import Harmonic.Evaluation.Scoring.Dissonance (dissonanceScore)
 import qualified Data.Map.Strict as Map
@@ -1018,6 +1018,31 @@ spec = do
       case Prog.getCadenceState (PC.triadLayer s) 1 of
         Nothing -> expectationFailure "empty progression"
         Just cs -> sort (barPCs cs) `shouldBe` [4,8,11]
+
+  describe "directionViolations (attempt ranking compliance measure)" $ do
+    let bar mv = H.CadenceState (H.Cadence "" mv (map P.mkPitchClass [0,4,7])) P.C H.FlatSpelling
+        mkProg mvs = Prog.fromCadenceStates (bar H.Unison : map bar mvs)
+        pctxFor roots = parseContextOnce (hcRoots roots (hcKey "3b" hContext))
+
+    it "an all-falling walk under fall1 has zero violations" $
+      directionViolations (pctxFor "3b fall1") (mkProg [H.Desc (P.mkPitchClass 2), H.Desc (P.mkPitchClass 1), H.Desc (P.mkPitchClass 5)])
+        `shouldBe` 0
+
+    it "pedal and rising arrivals count against a fall spec, tritone too" $
+      directionViolations (pctxFor "3b fall1") (mkProg [H.Unison, H.Asc (P.mkPitchClass 2), H.Tritone, H.Desc (P.mkPitchClass 2)])
+        `shouldBe` 3
+
+    it "a rise spec mirrors (rotate selector syntax)" $
+      directionViolations (pctxFor "3b rise<3,4>") (mkProg [H.Asc (P.mkPitchClass 3), H.Desc (P.mkPitchClass 2)])
+        `shouldBe` 1
+
+    it "no spec counts nothing" $
+      directionViolations (pctxFor "3b") (mkProg [H.Unison, H.Unison])
+        `shouldBe` 0
+
+    it "an optional (?) spec counts nothing" $
+      directionViolations (pctxFor "3b fall1?") (mkProg [H.Unison, H.Unison])
+        `shouldBe` 0
 
   describe "genJ guards (offline)" $ do
     it "genJ aliases carry JazzMode at each verbosity" $ do

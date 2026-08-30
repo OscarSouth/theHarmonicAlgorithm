@@ -982,7 +982,7 @@ None is "more correct" — they trade immediacy against decidedness. A performan
 |---|---|
 | Session | `transport` · `state` |
 | Generation | `ctx` · `gen` · `formless` · `dance` |
-| Launchers | `launch` · `p` · `,rr` · `slate` · `minimal` · `deeptech` |
+| Launchers | `launch` · `p` · `rr` · `slate` · `minimal` · `deeptech` |
 | Groove & lines | `subk` · `walk` |
 | Motifs | `motif` |
 | Orchestra* | `orchsec` · `tutti` · `instr` |
@@ -1072,7 +1072,7 @@ arrange' (lo,hi) k (-9,9) LAYER voicing modifier [patterns] # ch N   -- squeeze 
 
 **Explicit** — `fromChords [[0,4,7], …]`; `prog (notesToPCs <$> [[C,E,G], …])`; `fromCadenceStates [initCadenceState mov "Root" [ints], …]`.
 
-**Snippets (Pulsar)** — `transport` · `state` · `ctx` · `gen` · `formless` · `dance` · `launch` · `p` · `,rr` · `slate` · `minimal` · `deeptech` · `subk` · `walk` · `motif`. The rig-specific ones (`orchsec`, `tutti`, `instr`, `k909`, `kmpc`, `m32`, `mdf`) are in §22's full index — they assume the MIDI orchestra this guide stops short of.
+**Snippets (Pulsar)** — `transport` · `state` · `ctx` · `gen` · `formless` · `dance` · `launch` · `p` · `rr` · `slate` · `minimal` · `deeptech` · `subk` · `walk` · `motif`. The rig-specific ones (`orchsec`, `tutti`, `instr`, `k909`, `kmpc`, `m32`, `mdf`) are in §22's full index — they assume the MIDI orchestra this guide stops short of.
 
 ___
 

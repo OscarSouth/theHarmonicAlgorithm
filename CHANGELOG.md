@@ -205,7 +205,30 @@ Change graph itself, weighted by outgoing corpus mass, with the root
 from the tonal context — a real jazz departure point instead of a
 random major triad. No family ever opens on a slash chord uncued —
 inversion shapes and chord-over-degree structures stay available to the
-walk, just never as bar 1. A cue you supply yourself is still never
+walk, just never as bar 1. And the jazz walk now honours the whole tonal
+context, not just key and roots membership: the rise/fall bass-direction
+spec resolves per step exactly as it does classically (`hcRoots "3b
+fall1"` walks the bass stepwise down the key's roots), unreachable
+targets degrade down a direction-preserving ladder (larger fall, then
+colour tones freed) before any repeat is allowed, and the dissonance
+drift and pedal-tone filters ride the same shared machinery. Fresh jazz
+walks now depart from their cue functionality's HUB node (pedal arrival,
+most corpus mass) instead of the arrival-variant the cue's fictional
+bar-1 movement happened to name — rare qualities like m9 were stranding
+on one-edge nodes and opening with forced repeats; regen keeps the exact
+key, its cue movement being real. And `attempt` ranks
+direction-compliant walks first (score breaks ties; a `dv` marker in the
+verbose scoreboard shows why a rougher attempt won), so K buys rule
+character, not just polish — under the strict `fall1` the line converges
+on the stepwise descent, while `fall<1,2>` and `fall1?` remain the
+spellings for deliberate fuzz. Inversion
+spacing stays inert for jazz by design — slash structures there are graph
+vocabulary, not a voicing choice. Those structures now DISPLAY in chart
+convention — the grid prints "Bb 7/Ab" where the stored corpus name is
+"7/b7" on an Ab anchor, so triad and jazz slash names finally read the
+same way — and `fund` recovers their true harmonic root (Bb7/Ab → Bb),
+making the fund/root distinction uniform across every cardinality while
+`root` stays the sounding bass. A cue you supply yourself is still never
 overridden, and one that escapes a stratum still earns the diagnostic
 listing the triads that would have fitted. Voicing no longer reroutes a whole jazz
 progression over one 13th chord (the scale-cluster guard is now measured

@@ -765,7 +765,9 @@ lead' input = do
 -- untouched. A notated slash bass is honoured exactly: unioned into the
 -- pitch-class set and made the anchor, so "Dm7\/G" cues from G with the
 -- full Dm7 sounding above it. An optional @(N)@ token fixes the approach
--- movement, otherwise it is randomized exactly like 'lead'. An
+-- movement, otherwise it is randomized exactly like 'lead'; either way
+-- the movement shapes bar 1's stored metadata only — a fresh walk
+-- departs from the functionality's hub node regardless. An
 -- unparseable symbol is reported and falls back to the corpus workhorse
 -- C m7.
 --

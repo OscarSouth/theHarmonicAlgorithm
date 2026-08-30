@@ -11,9 +11,19 @@
 --   'HarmonicContext' via the same
 --   'Harmonic.Framework.Builder.Core.matchesContextWithTarget' filter the
 --   classical walk applies (it is arity-agnostic and anchors exactly as
---   jazz movement does). A step whose R-filter empties the pool relaxes
---   the filter for that step with a notice — there is no fallback pool
---   to fill from, and continuity beats a hard stop.
+--   jazz movement does) — including the rise\/fall bass-direction spec
+--   (resolved per step, 1-based, so rotate selectors stay in phase with
+--   the classical walk), the dissonance drift and the pedal-tone
+--   filters. Inversion spacing (@invSkip@) is inert here by design:
+--   jazz slash structures are graph vocabulary, not a voicing choice
+--   the walk makes. A step whose R-filter empties the pool relaxes down
+--   a ladder, each stage with a notice: exact rise\/fall target, then
+--   any arrival in the spec's direction (step size freed), then the
+--   direction with only chord-colour containment freed (bass still
+--   lands on an allowed root), then plain membership, then everything —
+--   there is no fallback pool to fill from, and continuity beats a
+--   hard stop, but a pedal repeat is the last resort under an active
+--   direction, never the first.
 -- * __E__ — corpus frequency under the seek spec
 --   ('Harmonic.Evaluation.Database.Query.resolveWeights'), plus the
 --   classical steer boost when the spec names classical composers.
@@ -63,7 +73,8 @@ import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import           Harmonic.Rules.Import.Graph (connectNeo4j)
 import           Harmonic.Framework.Builder.Types
 import           Harmonic.Evaluation.Analysis.KeyArea (chordscale)
-import           Harmonic.Framework.Builder.Core (matchesContextWithTarget, rootPositionCue)
+import           Harmonic.Framework.Builder.Core (matchesContextWithTarget, rootPositionCue, applyDriftFilter, applyPedalFilter, resolveBassDirection)
+import           Harmonic.Rules.Constraints.Filter (nthAbove, nthBelow)
 import           Harmonic.Traversal.Probabilistic (gammaIndexScaledWith)
 
 -- Everything one walk step needs, resolved once per generation.
@@ -101,7 +112,7 @@ runJazzGen :: GenConfig -> IO (PC.ProgressionContext, GenerationDiagnostics)
 runJazzGen gc = do
   env  <- mkEnv gc
   cue0 <- if _gcCueExplicit gc then _gcCue gc else jazzStartCue gc
-  startKey <- resolveStart env cue0
+  startKey <- resolveStart env False cue0
   states <- jazzWalk env startKey cue0 (max 1 (_gcLen gc) - 1)
   traceLines <- drainTrace env
   let allStates = cue0 : states
@@ -122,7 +133,7 @@ runJazzGenFrom :: PC.ProgressionContext -> Int -> Int -> GenConfig
 runJazzGenFrom srcPC s _e gc = do
   env  <- mkEnv gc
   cue0 <- _gcCue gc
-  startKey <- resolveStart env cue0
+  startKey <- resolveStart env True cue0
   let n     = PC.pcLength srcPC
       rSize = max 1 (_gcLen gc)
       effE  = ((s - 1 + rSize - 1) `mod` n) + 1
@@ -181,11 +192,21 @@ mkEnv gc = do
       | Map.null m = "(none)"
       | otherwise  = show [ (T.unpack k, v) | (k, v) <- Map.toList m ]
 
--- Map a cue state onto a jazz start node: exact (movement, name) key if
--- the graph has it, else best node for the bare functionality, else the
--- corpus's workhorse ( pedal -> m7 ).
-resolveStart :: JazzEnv -> H.CadenceState -> IO T.Text
-resolveStart env cue0 = do
+-- Map a cue state onto a jazz start node. Two intents:
+--
+-- * FRESH walks resolve by the bare functionality's HUB (pedal arrival
+--   preferred, then most outgoing corpus mass — 'Q.resolveChangeCue').
+--   Bar 1's stored movement is fictional (leadJ randomises it for
+--   display variety, an auto-cue carries its drawn node's), and keying
+--   node choice on it stranded rare qualities on skeletal
+--   arrival-variant nodes: @( asc 4 -> m9 )@ has ONE out-edge where the
+--   @( pedal -> m9 )@ hub has 127. The cue's structure still opens
+--   bar 1 verbatim; only the walk's departure point changes.
+-- * REGEN walks ('runJazzGenFrom') keep the exact (movement, name) key
+--   when the graph has it — their cue is a real previous bar whose
+--   arrival movement is genuine.
+resolveStart :: JazzEnv -> Bool -> H.CadenceState -> IO T.Text
+resolveStart env exactFirst cue0 = do
   let conn    = jeConn env
       cueSet  = map P.unPitchClass (H.cadenceIntervals (H.stateCadence cue0))
       cueMv   = H.cadenceMovement (H.stateCadence cue0)
@@ -195,15 +216,17 @@ resolveStart env cue0 = do
       let notice = "genJ: cue chord is outside the jazz vocabulary — starting from ( pedal -> m7 )"
       if jeSingle env then putStrLn notice else trace' env notice
       orDefault conn (pure Nothing)
-    Just nm -> do
-      probe <- runDb conn (Q.fetchChangeAggregate (exactKey nm))
-      if not (null probe)
-        then pure (exactKey nm)
-        else do
-          when (jeVerbose env) $
-            trace' env $ "genJ: no jazz node " ++ T.unpack (exactKey nm)
-                       ++ " — resolving by functionality"
-          orDefault conn (runDb conn (Q.resolveChangeCue nm))
+    Just nm
+      | exactFirst -> do
+          probe <- runDb conn (Q.fetchChangeAggregate (exactKey nm))
+          if not (null probe)
+            then pure (exactKey nm)
+            else do
+              when (jeVerbose env) $
+                trace' env $ "genJ: no jazz node " ++ T.unpack (exactKey nm)
+                           ++ " — resolving by functionality"
+              orDefault conn (runDb conn (Q.resolveChangeCue nm))
+      | otherwise -> orDefault conn (runDb conn (Q.resolveChangeCue nm))
   where
     orDefault conn action = do
       found <- action
@@ -216,12 +239,15 @@ resolveStart env cue0 = do
 -- The walk: n steps of fetch → blend → R-filter → steer → gamma pick.
 jazzWalk :: JazzEnv -> T.Text -> H.CadenceState -> Int
          -> IO [H.CadenceState]
-jazzWalk env = go
+jazzWalk env key0 cue0 total = go key0 cue0 total
   where
     conn = jeConn env
     verbose = jeVerbose env
     go _ _ 0 = pure []
     go key prevState remaining = do
+      -- 1-based like the classical chain, so BDRotate <a b> selectors
+      -- stay phase-identical across families.
+      let stepNum = total - remaining + 1
       -- E: candidates under the jazz blend (aggregate for wildcard).
       pool0 <- if Map.null (jeBlend env)
         then runDb conn (Q.fetchChangeAggregate key)
@@ -236,15 +262,68 @@ jazzWalk env = go
         error ("genJ: no outgoing transitions from " ++ T.unpack key)
       -- R: the caller's tonal context, applied by the classical filter
       -- (arity-agnostic; roots resolve from the previous anchor exactly
-      -- as jazz movement semantics require). No fallback exists, so an
-      -- emptied pool relaxes the filter for the step, with a notice.
-      let asCadence c = H.Cadence "" (Q.ccMovement c) (map P.mkPitchClass (Q.ccSet c))
-          rPassed = [ p | p@(c, _) <- pool1
-                        , matchesContextWithTarget Nothing (jePctx env) prevState (asCadence c) ]
-      pool2 <- if not (null rPassed) then pure rPassed else do
-        when verbose $ trace' env $ "  genJ: tonal constraints exclude every candidate at "
-                                  ++ T.unpack key ++ " — relaxed for this step"
-        pure pool1
+      -- as jazz movement semantics require), including the rise\/fall
+      -- direction spec resolved per step against the allowed root set —
+      -- @hcRoots "3b fall1"@ walks the bass stepwise down the key's
+      -- roots here exactly as it does in the classical walk. No fallback
+      -- exists, so an emptied pool relaxes in stages, each with a
+      -- notice: direction first (key\/roots membership kept), then the
+      -- whole filter.
+      mDir <- resolveBassDirection (jeGen env) stepNum (pcBassDirectionSpec (jePctx env))
+      let prevBassPC = P.unPitchClass (P.pitchClass (H.stateCadenceRoot prevState))
+          bassTarget = case mDir of
+            Nothing       -> Nothing
+            Just (Rise n) -> Just $ nthAbove n prevBassPC (pcAllowedBassNotes (jePctx env))
+            Just (Fall n) -> Just $ nthBelow n prevBassPC (pcAllowedBassNotes (jePctx env))
+          asCadence c = H.Cadence "" (Q.ccMovement c) (map P.mkPitchClass (Q.ccSet c))
+          rWith t = [ p | p@(c, _) <- pool1
+                        , matchesContextWithTarget t (jePctx env) prevState (asCadence c) ]
+          rPassed = rWith bassTarget
+          -- Kind-preserving middle stage: the exact nth-root target is
+          -- unreachable, but the bass can still MOVE in the spec's
+          -- direction (any falling arrival under fall, any rising under
+          -- rise). Without this stage the corpus's heavy pedal edges
+          -- (Unison, top corpus mass) win every relaxed step and a
+          -- fall1 walk stalls on repeated roots.
+          sameKind c = case (mDir, Q.ccMovement c) of
+            (Just (Fall _), H.Desc _) -> True
+            (Just (Rise _), H.Asc _)  -> True
+            _                         -> False
+          -- Direction with only the chord-colour containment freed: the
+          -- bass still moves the right way onto an allowed root, but the
+          -- structure above it may carry out-of-key colour tones —
+          -- idiomatic for the corpus, and far truer to a fall spec than
+          -- a pedal repeat.
+          arrivalPC c = (prevBassPC + P.unPitchClass (H.fromMovement (Q.ccMovement c))) `mod` 12
+          rootOk c = pcIsRootsWild (jePctx env)
+                     || arrivalPC c `IntSet.member` pcAllowedBassNotes (jePctx env)
+      pool2a <- if not (null rPassed) then pure rPassed else
+        case bassTarget of
+          Just _
+            | rKind@(_:_) <- filter (sameKind . fst) (rWith Nothing) -> do
+                when verbose $ trace' env $ "  genJ: rise/fall target unreachable at "
+                                          ++ T.unpack key ++ " — held to direction, step size freed"
+                pure rKind
+            | rChroma@(_:_) <- [ p | p@(c, _) <- pool1, sameKind c, rootOk c ] -> do
+                when verbose $ trace' env $ "  genJ: no in-key structure moves in the rise/fall direction at "
+                                          ++ T.unpack key ++ " — held to direction, colour tones freed"
+                pure rChroma
+            | rNoDir@(_:_) <- rWith Nothing -> do
+                when verbose $ trace' env $ "  genJ: no candidate moves in the rise/fall direction at "
+                                          ++ T.unpack key ++ " — direction relaxed for this step"
+                pure rNoDir
+          _ -> do
+            when verbose $ trace' env $ "  genJ: tonal constraints exclude every candidate at "
+                                      ++ T.unpack key ++ " — relaxed for this step"
+            pure pool1
+      -- Drift and pedal ride the same classical filters (both self-relax,
+      -- so neither can empty the pool). Inversion spacing stays inert
+      -- here: jazz slash structures are graph vocabulary, not a voicing
+      -- choice the walk makes.
+      let withCad ps = [ (asCadence c, p) | p@(c, _) <- ps ]
+          pool2 = map snd $ applyPedalFilter (jePctx env) prevState
+                          $ applyDriftFilter (pcDrift (jePctx env)) prevState
+                          $ withCad pool2a
       -- E: classical steer.
       pool <- if Map.null (jeSteer env) then pure pool2 else do
         let triadKey = T.pack (show (H.stateCadence (H.walkTriadState prevState)))
@@ -360,4 +439,12 @@ jazzStartCue gc = do
           (cand, rootPC) = walkTo 0 pool
           spelling = maybe H.FlatSpelling id (pcKeySpelling pctx)
           rootName = H.enharmonicFunc spelling (P.mkPitchClass rootPC)
-      pure (H.mkCadenceStatePCs rootName (Q.ccMovement cand) (Q.ccSet cand))
+          cue0 = H.mkCadenceStatePCs rootName (Q.ccMovement cand) (Q.ccSet cand)
+      -- Stamp the corpus vocabulary name, exactly as the walk does, so
+      -- bar 1 prints "13sus4" rather than the generic chord namer's
+      -- spelling. Auto-cues are never slash shapes (filtered above), so
+      -- the name is always a plain quality.
+      pure $ case J.jazzFunctionality (Q.ccSet cand) of
+        Just nm -> cue0 { H.stateCadence = (H.stateCadence cue0)
+                            { H.cadenceFunctionality = T.unpack nm } }
+        Nothing -> cue0

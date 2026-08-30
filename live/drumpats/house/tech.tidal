@@ -37,6 +37,6 @@
 kgrv f k d = p "grooveKit"
   $ f
   $ stack [silence
-    ,kickpat ,snarepat ,clappat ,hhpat ,ridepat ,percpat
+    ,kickpat ,snarepat ,clappat ,hhpat ,ridepat --,percpat
  -- ,chpat ,ohpat   -- (separate closed/open; alt to combined hhpat)
     ]# ch 9 |* vel d

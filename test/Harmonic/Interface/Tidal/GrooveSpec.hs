@@ -50,6 +50,16 @@ spec = describe "Groove Interface" $ do
       -- G# minor 1st inv [B,D#,G#] = [11,3,8] → root G# (8), NOT bass B (11)
       fund (PC.triadLayer prog) `shouldBe` [[4], [8]]  -- Harmonic roots, not [[4], [11]]
 
+    it "recovers the true root of a 4-tone jazz slash structure" $ do
+      -- Bb7 over Ab: stored anchored on Ab with tones {0,2,6,9} above it.
+      -- fund reports the harmonic fundamental Bb (10); root reports Ab (8).
+      let prog = fromChords [[8,10,2,5]]   -- Ab anchor, Bb D F above
+      fund (PC.triadLayer prog) `shouldBe` [[10]]
+
+    it "keeps the anchor for a root-position extended chord" $ do
+      let prog = fromChords [[0,4,7,10]]   -- C7 in root position
+      fund (PC.triadLayer prog) `shouldBe` [[0]]
+
   -- CHARACTERISATION (standing instruction: the sustain 0.01 + CC64
   -- mechanism is intentional and must never change). These pin the
   -- emitted event set so any drift is a build failure, not a discovery

@@ -1018,18 +1018,26 @@ finaliseScored gc scored = case scored of
     pure (pc, diag, [])
   xs -> do
     let indexed = zip [1..] xs
+        -- Direction compliance ranks BEFORE score: an active rise/fall
+        -- spec means a walk that held the direction beats a smoother one
+        -- that surrendered it — K attempts buy rule character, not just
+        -- polish. With no spec every dv is 0 and this is pure score
+        -- order, byte-identical to the old pick.
+        pctx = parseContextOnce (_gcTonal gc)
+        dvOf (pc, _, _, _, _, _) = directionViolations pctx (PC.triadLayer pc)
         (winnerIdx, (winnerPC, _, _, _, winnerDiag, _)) =
-          maximumByKey (\(_, (_, _, tot, _, _, _)) -> tot) indexed
+          maximumByKey (\(_, a@(_, _, tot, _, _, _)) -> (negate (dvOf a), tot)) indexed
         diags = [ AttemptDiagnostic
                     { adIndex  = i
                     , adScore  = ps
                     , adTotal  = tot
                     , adViable = ok
                     , adPicked = i == winnerIdx
+                    , adDirViolations = dvOf a
                     , adChords = chordNamesOf (PC.triadLayer pc)
                     , adPoly   = poly
                     }
-                | (i, (pc, ps, tot, ok, _, poly)) <- indexed
+                | (i, a@(pc, ps, tot, ok, _, poly)) <- indexed
                 ]
     pure (winnerPC, winnerDiag, diags)
   where
