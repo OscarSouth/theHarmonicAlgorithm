@@ -396,6 +396,10 @@ by characterisation tests.
 
 ### Hygiene close-out: warnings, tests, docs, jazz in the guide
 
+The project is now licensed **GPL-3.0** (was BSD-3-Clause), matching its
+strongest dependency: the TidalCycles interface links GPL-3.0 libraries,
+and the combined work's licence now says so plainly.
+
 The library now compiles with ZERO warnings under bare `-Wall` plus GHC's
 default set — the deferred name-shadowing, x-partial, and type-defaults
 suppressions are gone (every `head`/`tail` on the hot paths replaced with

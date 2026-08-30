@@ -1,6 +1,6 @@
 name:                theHarmonicAlgorithm
 version:             3.1.0
-license:             BSD3
+license:             GPL-3.0-only
 author:              "Oscar South"
 maintainer:          "oscarsouth@gmail.com"
 copyright:           "2018-2026 Oscar South"

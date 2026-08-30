@@ -35,7 +35,9 @@ Corpus repository: https://github.com/carey-bunks/Jazz-Chord-Progressions-Corpus
 
 ## 3. TidalCycles
 
-The `Interface.Tidal` modules depend on TidalCycles (GPL-3.0):
+The `Interface.Tidal` modules depend on TidalCycles (GPL-3.0). The
+project is itself licensed GPL-3.0 (see `LICENSE`), so the combined
+work's licence and its strongest dependency's agree:
 
 > TidalCycles — Live coding music with Haskell.
 > Alex McLean and contributors. https://tidalcycles.org — GPL-3.0
