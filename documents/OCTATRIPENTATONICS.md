@@ -72,8 +72,9 @@ reference vocabulary.
 | 11 | V-IX-XI       | 234            |
 | 12 | VI-VIII-XI    | 237            |
 
-Per-tristrata details (including the three pair-union modes) are mirrored as
-plain-text fixtures under `data/octatripentatonic/tristrata/*.txt`.
+Per-tristrata details (including the three pair-union modes) are derivable
+live: `Sc.strataChroma`, `Sc.tristrataOf` and the dissonance scorer
+reproduce every row of this table from the vocabulary itself.
 
 ### Tristrata-containment index
 
@@ -249,7 +250,6 @@ genPReport            :: IO ProgressionContext -> IO ()
 ## Cross-references
 
 * `ARCHITECTURE.md` — four-layer R→E→T layering.
-* `data/octatripentatonic/tristrata/*.txt` — per-tristrata fixture table.
 * `test/Harmonic/Framework/BuilderPSpec.hs` — invariant tests.
 * `test/Harmonic/Rules/Types/ScaleSpec.hs` — vocabulary tests.
 
@@ -266,7 +266,6 @@ Landed:
   `triBoost` modifiers.
 * 33 live-coding aliases (`genI..genXI` × `{primary, ', ''}`).
 * `Interface/Tidal/OctatripentatonicT` helpers.
-* Golden fixtures under `data/octatripentatonic/tristrata/`.
 * Live-script migration (467 pitched-instrument calls in 58 `.tidal`
   files prefixed with `T`).
 * Per-bar diagnostics for `genP'` / `genP''`. Standard verbosity now

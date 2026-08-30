@@ -7,7 +7,7 @@
 
 [![CI](https://github.com/OscarSouth/theHarmonicAlgorithm/actions/workflows/ci.yml/badge.svg)](https://github.com/OscarSouth/theHarmonicAlgorithm/actions/workflows/ci.yml)
 [![Docs](https://img.shields.io/badge/docs-docs.theharmonicalgorithm.com-6272a4)](https://docs.theharmonicalgorithm.com/)
-[![License](https://img.shields.io/badge/license-BSD--3--Clause-blue)](LICENSE)
+[![License](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
 [![Buy Me a Coffee](https://img.shields.io/badge/buy%20me%20a%20coffee-ffdd00?logo=buymeacoffee&logoColor=black)](https://buymeacoffee.com/oscarsouth)
 
 ___
@@ -355,4 +355,4 @@ Oscar
 
 ___
 
-BSD 3-Clause License — see [LICENSE](LICENSE) for details.
+GNU General Public License v3.0 — see [LICENSE](LICENSE) for details.

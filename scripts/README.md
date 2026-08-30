@@ -47,12 +47,6 @@ command for users.
 `neo4j-admin database load` (the bare `neo4j-admin dump` form is 4.x). The database must
 be offline for a dump, so the script stops the container and restarts it via a trap.
 
-There is also `scripts/sparsify_graph.sh` — the tool that built the published artefact:
-it drops the zero-valued composer entries (99% of the dense store), rebuilds the store
-compactly on Neo4j 5.26, and runs structural equivalence checks at every step. Its
-`dump-dense`/`scratch-a` stages speak 4.4 syntax on purpose: they consume the historical
-4.4 store this project migrated from.
-
 ---
 
 ## ci/

@@ -48,7 +48,7 @@ cabal.sandbox.config
 .mcp.json
 
 .claude
-CLAUDE.md
+/CLAUDE.md
 .serena
 notes
 
