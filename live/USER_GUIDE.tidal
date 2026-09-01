@@ -1065,7 +1065,7 @@ hush
 -- SECTION 17 — Voice lines & the instrument paradigm
 -- ══════════════════════════════════════════════════════════
 -- src/Harmonic/Interface/Tidal/Orchestra.hs
--- live/ORCHESTRAL_CATALOGUE.tidal     (instrument catalogue)
+-- live/docs/ORCHESTRAL_CATALOGUE.tidal     (instrument catalogue)
 -- documents/ALGORITHMIC_ORCHESTRATION.md        (full orchestration system)
 --
 -- GOAL: Address stacked voices as independent patterns — each
@@ -1487,7 +1487,7 @@ chordscaleReport pc21
 
 -- ── TRY THIS ──
 -- The guided tour with live database probes is
--- live/JAZZ_DIAGNOSTIC.tidal — work down it section by section.
+-- live/docs/JAZZ_DIAGNOSTIC.tidal — work down it section by section.
 -- Compare pc21 and pc21s grids: the Debussy steer audibly drags
 -- the walk into maj7 colour. Then mute the pad and listen to the
 -- bass alone: on a 13th chord it reaches the fifth the voicing
@@ -1499,12 +1499,12 @@ hush
 -- ══════════════════════════════════════════════════════════
 -- SECTION 22 — Snippets & the liveness gradient
 -- ══════════════════════════════════════════════════════════
--- live/snippets.cson   (the snippet library — Pulsar format)
+-- live/system/pulsar/snippets.cson   (the snippet library — Pulsar format)
 --
 -- GOAL: Choose, deliberately, how much of a performance is
 -- prepared and how much is conjured at the keyboard.
 --
--- The snippet library (live/snippets.cson, for Pulsar with the
+-- The snippet library (live/system/pulsar/snippets.cson, for Pulsar with the
 -- TidalCycles grammar: type a prefix, press Tab, fill the
 -- tab-stops) scaffolds every structure this guide has built.
 -- Three working modes, on a gradient:
@@ -1535,7 +1535,7 @@ hush
 -- prime is one. If a body is a line you would type faster
 -- than you would remember the prefix, it is not a snippet.
 --
--- ── THE PREFIX INDEX (live/snippets.cson) ──
+-- ── THE PREFIX INDEX (live/system/pulsar/snippets.cson) ──
 --   session      transport · state (a full launch block)
 --   generation   ctx · gen · formless · dance
 --   launcher     launch · p · rr · slate · minimal · deeptech
@@ -1566,7 +1566,7 @@ hush
 -- ══════════════════════════════════════════════════════════
 --
 -- INSTRUMENT CATALOGUE
---   live/ORCHESTRAL_CATALOGUE.tidal  — range tests per instrument
+--   live/docs/ORCHESTRAL_CATALOGUE.tidal  — range tests per instrument
 --
 -- DOCUMENTATION
 --   USER_GUIDE.md                — readable version of this guide

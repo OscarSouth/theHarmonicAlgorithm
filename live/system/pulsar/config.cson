@@ -2,7 +2,7 @@
 #
 # Pulsar owns ~/.pulsar/config.cson and rewrites it whenever a setting changes,
 # so this is a copy of the `tidalcycles:` block to read settings out of rather
-# than a file to install. Set them through Settings (Cmd+, → Packages →
+# than a file to install. Set them through Settings (Cmd+, / Ctrl+, → Packages →
 # tidalcycles → Settings), or paste the block in with Pulsar closed.
 #
 # The whole block lives under the top-level `"*":` key, indented two spaces.
@@ -33,13 +33,17 @@
     # there is nowhere to put a flag. `default` runs `ghciPath` verbatim, which
     # is why the object-code flags ride on a wrapper script instead.
     #
-    # live/bin/ghci loads the library as -O2 object code rather than bytecode;
-    # live/bin/ghc-pkg sits beside it because the plugin looks for both.
+    # live/system/bin/ghci loads the library as -O2 object code rather than bytecode;
+    # live/system/bin/ghc-pkg sits beside it because the plugin looks for both.
     #
     # Pulsar omits any setting equal to its schema default when it rewrites this
     # file, and `default` IS the default for `interpreter` — so this line may
     # disappear on its own. Absence means the same thing.
-    ghciPath: "/Users/oscarsouth/.stack/global-project/live/bin/ghci"
+    # <repo> is wherever you cloned this; the path must be absolute. Nothing
+    # requires the repository to live under ~/.stack/global-project any more:
+    # live/system/bin/ghci resolves its own root and passes --stack-yaml explicitly,
+    # so Stack's implicit global project is never consulted.
+    ghciPath: "<repo>/live/system/bin/ghci"
     interpreter: "default"
 
     # Off, because every line stack or GHC writes to stderr would otherwise
