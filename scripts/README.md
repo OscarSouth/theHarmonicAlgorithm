@@ -58,7 +58,7 @@ a failure is reproducible on your machine, not only in a runner.
 |---|---|
 | `check_guide.py` | Type-checks every code block in `live/USER_GUIDE.tidal` against the real library |
 | `check_lockstep.py` | `USER_GUIDE.md` section N matches `live/USER_GUIDE.tidal` SECTION N, titles included |
-| `check_snippets.py` | The prefix index in `USER_GUIDE.md` matches `live/snippets.cson` |
+| `check_snippets.py` | The prefix index in `USER_GUIDE.md` matches `live/system/pulsar/snippets.cson` |
 | `check_links.py` | Relative links in the public docs resolve to **tracked** files |
 | `check_haddock.py` | Haddock coverage and markup baselines from the documentation pass |
 | `extract_guide_blocks.py` | Helper for `check_guide.py`; also useful standalone for inspecting the payload |

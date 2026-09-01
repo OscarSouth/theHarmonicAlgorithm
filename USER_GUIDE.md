@@ -37,7 +37,7 @@ The MIDI streams (`d01`–`d16`) and the `hush`/`panic` family live in [`live/Bo
 
 Two areas are deliberately out of scope:
 
-- **The Algorithmic Orchestration system** (16-instrument virtual orchestra) depends on a specific hardware/MIDI rig — see [`ALGORITHMIC_ORCHESTRATION.md`](documents/ALGORITHMIC_ORCHESTRATION.md) and [`live/ORCHESTRAL_CATALOGUE.tidal`](live/ORCHESTRAL_CATALOGUE.tidal).
+- **The Algorithmic Orchestration system** (16-instrument virtual orchestra) depends on a specific hardware/MIDI rig — see [`ALGORITHMIC_ORCHESTRATION.md`](documents/ALGORITHMIC_ORCHESTRATION.md) and [`live/docs/ORCHESTRAL_CATALOGUE.tidal`](live/docs/ORCHESTRAL_CATALOGUE.tidal).
 - **Hardware-bound helpers** — the Roland S-1 / P-6 CC maps and the JV-1010 drum map (`Harmonic.Interface.Tidal.Devices.S1`, `.P6`, `.JV1010`), the LED display feed (`Harmonic.Interface.Tidal.Display`), the Q-Link controller bridge, and the MPC kit program behind `subKick`. The rig they address is described in [`LIVE_ENVIRONMENT.md`](documents/LIVE_ENVIRONMENT.md). This guide stays on the single piano channel plus generic drums.
 
 ___
@@ -951,7 +951,7 @@ s2 <- seek "*" $ attempt 3 8 $ cue start $ len 8 $ genJ''   -- scoreboard
 
 Output is an ordinary `ProgressionContext`: `flow`/`grid` voice the 3–6-tone chords, `arrange` and the walking bass play them unchanged — and it carries chordscale S/M layers like every gen result (`chordscaleReport s` prints the detected keys, modes and pentatonics; §19).
 
-**Try it** — the guided tour with live database probes is [`live/JAZZ_DIAGNOSTIC.tidal`](live/JAZZ_DIAGNOSTIC.tidal); work down it section by section.
+**Try it** — the guided tour with live database probes is [`live/docs/JAZZ_DIAGNOSTIC.tidal`](live/docs/JAZZ_DIAGNOSTIC.tidal); work down it section by section.
 
 > **▶ VIDEO — Two corpora, one walk**
 > _~90s: leadJ "Dm7/G" cue, a wildcard jazz walk, then the same cue under seek "debussy" steer 8 — the M7-colour pull audible side by side._
@@ -966,7 +966,7 @@ ___
 
 **Why** — choose, deliberately, how much of a performance is prepared and how much is conjured at the keyboard.
 
-**What** — [`live/snippets.cson`](live/snippets.cson) (Pulsar, TidalCycles grammar: type a prefix, press Tab, fill the tab-stops). Three working modes on a gradient:
+**What** — [`live/system/pulsar/snippets.cson`](live/system/pulsar/snippets.cson) (Pulsar, TidalCycles grammar: type a prefix, press Tab, fill the tab-stops). Three working modes on a gradient:
 
 - **Prepared state file** — a complete launch block evaluated in one gesture. Instant sound; everything decided in advance.
 - **Snippet expansion** — structure arrives from the library; decisions (key, composer, entropy, patterns) are made live at the tab-stops.
@@ -1006,7 +1006,7 @@ ___
 ## 23. Going further
 
 **Instrument catalogue** —
-- [`live/ORCHESTRAL_CATALOGUE.tidal`](live/ORCHESTRAL_CATALOGUE.tidal) — range tests per instrument
+- [`live/docs/ORCHESTRAL_CATALOGUE.tidal`](live/docs/ORCHESTRAL_CATALOGUE.tidal) — range tests per instrument
 
 **Documentation** —
 - [`CHANGELOG.md`](CHANGELOG.md) — V3 feature summary

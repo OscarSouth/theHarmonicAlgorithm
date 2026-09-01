@@ -1,0 +1,230 @@
+#!/bin/sh
+# Start the live rig in dependency order:
+#   1. clear any stale sc_ready stamp
+#   2. launch Pulsar with live/ as the project folder (it starts SuperCollider)
+#   3. wait for SuperCollider to stamp sc_ready
+#   4. inject qlink-bridge.scd through the OSC backdoor on 57121
+#   5. paint the bridge status line in place, until Pulsar closes or Ctrl-C
+#
+# --attach re-injects the bridge into a SuperCollider that is already running,
+# without starting Pulsar.
+#
+# POSIX sh, and must stay so: zsh is not installed by default on Ubuntu, and
+# zsh-only constructs (${0:A:h:h}, echo interpreting \n) break silently there.
+# The SuperCollider support directory differs per platform and is detected below.
+#
+# PID HANDLING. `pulsar` on Linux, and ppm's `pulsar` on macOS, is a bash wrapper
+# rather than the editor. It backgrounds the real Electron binary and returns
+# immediately:
+#
+#     ( nohup "$PULSAR_EXECUTABLE" --executed-from="$(pwd)" ... ) &
+#
+# so `$!` yields a process that has already exited: exit detection misfires,
+# cleanup signals nothing, and Ctrl-C leaves the editor running. The macOS .app
+# binary does stay in the foreground, where `$!` is correct. The branch below is
+# therefore on what the target IS, not on what is found on PATH.
+set -u
+
+# Resolve $0 through symlinks before deriving the repo path: the supported
+# install is a symlink at ~/.local/bin/livecode, and dirname on a symlink yields
+# the link's directory rather than the target's. readlink -f is unavailable on
+# BSD/macOS.
+self=$0
+while [ -L "$self" ]; do
+  target=$(readlink "$self")
+  case "$target" in
+    /*) self=$target ;;
+    *)  self=$(dirname "$self")/$target ;;
+  esac
+done
+live=$(cd "$(dirname "$self")/../.." && pwd)
+
+# SuperCollider's userAppSupportDir, per platform.
+if [ -d "$HOME/Library/Application Support/SuperCollider" ]; then
+  sc_dir="$HOME/Library/Application Support/SuperCollider"       # macOS
+else
+  sc_dir="${XDG_DATA_HOME:-$HOME/.local/share}/SuperCollider"    # Linux
+fi
+ready_file="$sc_dir/sc_ready"
+status_file="$sc_dir/sc_status.line"
+
+# Pulsar: explicit override, then PATH, then the macOS bundle.
+if [ -n "${PULSAR:-}" ]; then
+  :
+elif command -v pulsar >/dev/null 2>&1; then
+  PULSAR=$(command -v pulsar)
+else
+  PULSAR=/Applications/Pulsar.app/Contents/MacOS/Pulsar
+fi
+
+# A shell wrapper starts with a shebang; the real Electron binary does not.
+is_wrapper() { head -c 2 "$1" 2>/dev/null | grep -q '#!'; }
+
+# Find the Electron process the wrapper started for THIS project folder; the
+# wrapper passes --executed-from="$(pwd)".
+#
+# The process name must be checked as well as the argument: `pgrep -f` also
+# matches this script, whose own command line contains the search string, and
+# cleanup would then signal itself. The pattern omits leading dashes so pgrep
+# cannot read it as an option.
+find_pulsar() {
+  pgrep -f "executed-from=$live" 2>/dev/null | while read -r p; do
+    case "$(ps -o comm= -p "$p" 2>/dev/null)" in
+      [Pp]ulsar*) echo "$p"; break ;;
+    esac
+  done
+}
+
+pulsar_alive() {
+  [ -n "$pulsar_pid" ] && kill -0 "$pulsar_pid" 2>/dev/null
+}
+
+# ---------------------------------------------------------------- monitor --
+# Mirrors the plugin console into a terminal of its own. The sending half is the
+# console-view.js patch applied by scripts/pulsar-apply-patches.
+#
+# $MONITOR_PREFIX is prepended to the python command, for callers that need to
+# constrain it (CPU affinity, nice). Empty by default.
+repo=$(cd "$live/.." && pwd)
+MONITOR="$repo/scripts/tidal-monitor/listener.py"
+monitor_pid=""
+
+start_monitor() {
+  [ -f "$MONITOR" ] || { echo "tidal-monitor: not found at $MONITOR - skipping"; return; }
+  if command -v ss >/dev/null 2>&1 && ss -ltn 2>/dev/null | grep -q ':5000 '; then
+    echo "tidal-monitor: already on :5000 - leaving it alone"; return
+  fi
+  # $TERMINAL wins; otherwise the first of these that exists.
+  TERM_EMU=""
+  for t in ${TERMINAL:-} xfce4-terminal x-terminal-emulator gnome-terminal konsole; do
+    command -v "$t" >/dev/null 2>&1 && { TERM_EMU=$(command -v "$t"); break; }
+  done
+  if [ -z "$TERM_EMU" ]; then
+    echo "tidal-monitor: no terminal emulator found (set \$TERMINAL) - skipping"; return
+  fi
+  setsid "$TERM_EMU" --title="tidal-monitor" --geometry=110x32 \
+    -e "sh -c '${MONITOR_PREFIX:-} python3 \"$MONITOR\"; echo; echo \"monitor stopped.\"; read -r _'" \
+    >/dev/null 2>&1 &
+  i=0
+  while [ $i -lt 40 ]; do
+    command -v ss >/dev/null 2>&1 && ss -ltn 2>/dev/null | grep -q ':5000 ' && break
+    sleep 0.25; i=$((i + 1))
+  done
+  # Match the python process, not the `sh -c ... python3 ...` wrapper whose
+  # command line contains the same string: killing the wrapper orphans the
+  # listener and leaves :5000 held.
+  monitor_pid=$(pgrep -f "^python3 .*listener\.py" 2>/dev/null | head -1)
+  if [ -n "$monitor_pid" ]; then
+    echo "tidal-monitor: up on :5000 (pid $monitor_pid)"
+  else
+    echo "tidal-monitor: did not bind :5000 - the console bridge will be inert"
+  fi
+}
+
+attach=0
+monitor=1
+for a in "$@"; do
+  case "$a" in
+    --attach)     attach=1 ;;
+    --no-monitor) monitor=0 ;;
+  esac
+done
+
+clear
+cd "$live" || exit 1
+
+# Optional machine-local session hook, called as `session-hook start|stop`. The
+# repository carries the mechanism; the content is per-machine and gitignored.
+# Absent, the rig starts unchanged.
+HOOK="$repo/live/local/session-hook"
+[ -x "$HOOK" ] && "$HOOK" start
+
+[ "$monitor" -eq 1 ] && start_monitor
+
+pulsar_pid=""
+adopted=0
+
+if [ "$attach" -eq 0 ]; then
+  [ -x "$PULSAR" ] || { echo "Pulsar not found at: $PULSAR (set \$PULSAR)"; exit 1; }
+
+  # Already open on this folder? Adopt it rather than stacking a second window.
+  pulsar_pid=$(find_pulsar)
+  if [ -n "$pulsar_pid" ]; then
+    adopted=1
+    echo "Pulsar already open on $live (pid $pulsar_pid) - adopting it."
+  elif is_wrapper "$PULSAR"; then
+    "$PULSAR" . >/dev/null 2>&1        # returns at once; the editor is detached
+    n=0
+    while [ $n -lt 40 ]; do
+      pulsar_pid=$(find_pulsar)
+      [ -n "$pulsar_pid" ] && break
+      sleep 0.25
+      n=$((n + 1))
+    done
+    [ -n "$pulsar_pid" ] || echo "Warning: Pulsar started but its process was not found;
+         exit detection is disabled for this session."
+  else
+    "$PULSAR" . >/dev/null 2>&1 &      # real binary: stays in the foreground
+    pulsar_pid=$!
+  fi
+fi
+
+# Runs exactly once. Both the EXIT trap and the INT/TERM trap reach it, and the
+# INT handler exits rather than falling back into the wait loop, where the
+# just-killed Pulsar would be reported as an unexpected exit.
+cleaned=0
+cleanup() {
+  [ "$cleaned" -eq 1 ] && return 0
+  cleaned=1
+  # A PID found via pgrep is not a child of this shell, so `wait` does not apply.
+  # Signal, poll, then escalate.
+  if [ -n "$pulsar_pid" ] && [ "$adopted" -eq 0 ]; then
+    kill "$pulsar_pid" 2>/dev/null
+    n=0
+    while kill -0 "$pulsar_pid" 2>/dev/null && [ $n -lt 20 ]; do
+      sleep 0.25
+      n=$((n + 1))
+    done
+    kill -0 "$pulsar_pid" 2>/dev/null && kill -9 "$pulsar_pid" 2>/dev/null
+  fi
+  [ -x "$HOOK" ] && "$HOOK" stop
+  if [ -n "$monitor_pid" ]; then
+    kill "$monitor_pid" 2>/dev/null
+    sleep 1
+    kill -0 "$monitor_pid" 2>/dev/null && kill -9 "$monitor_pid" 2>/dev/null
+  fi
+  printf '\nStopped.\n'
+}
+trap cleanup EXIT
+trap 'cleanup; exit 130' INT TERM
+
+if [ "$attach" -eq 0 ]; then
+  rm -f "$ready_file"
+  echo "Waiting for SuperCollider (boot TidalCycles in Pulsar)..."
+  while [ ! -f "$ready_file" ]; do
+    # Only treat a vanished Pulsar as fatal when we actually have its PID.
+    if [ -n "$pulsar_pid" ] && ! pulsar_alive; then
+      echo "Pulsar exited."
+      exit 1
+    fi
+    sleep 2
+  done
+fi
+
+# Absolute paths: the working directory is live/, and both files are in system/.
+if ! python3 "$live/system/osc-send.py" localhost 57121 /run-code s \
+     --file "$live/system/qlink-bridge.scd"; then
+  echo "Could not send qlink-bridge.scd - check the file is readable."
+  exit 1
+fi
+
+clear
+echo "Q-Link bridge active. Monitoring encoders (Ctrl-C to stop)..."
+touch "$status_file"
+while true; do
+  if [ "$attach" -eq 0 ] && [ -n "$pulsar_pid" ] && ! pulsar_alive; then
+    break
+  fi
+  printf "\r%s" "$(cat "$status_file" 2>/dev/null)"
+  sleep 0.05
+done

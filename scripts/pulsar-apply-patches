@@ -1,0 +1,91 @@
+#!/bin/sh
+# Re-apply local modifications to the Pulsar tidalcycles package.
+#
+# WHY THIS EXISTS: `ppm install tidalcycles` replaces the whole package
+# directory, so any local change is silently lost on every upgrade -- and the
+# feature just stops working with no error. Run this after any plugin upgrade.
+#
+# PATCH: console-view.js -> POST every console line to the tidal-monitor
+# (scripts/tidal-monitor/listener.py, Flask on :5000). In-progress work and
+# is fundamental to the rig; it is NOT obsolete. The fetch is fire-and-forget
+# and swallows its own errors, so the editor is unaffected when the listener
+# is not running.
+set -e
+F=~/.pulsar/packages/tidalcycles/lib/console-view.js
+[ -f "$F" ] || { echo "tidalcycles package not found"; exit 1; }
+
+# Normalise, then apply. Stripping every remnant before applying makes this
+# converge from any prior state -- pristine, patched, or partially reverted --
+# where a presence check alone matches a leftover call site in a half-patched
+# file and skips the edit.
+python3 - "$F" <<'PY'
+import re, sys
+
+p = sys.argv[1]
+s = open(p).read()
+
+# Markers this patch writes. The legacy entries let a re-run strip a patch
+# applied under an older name -- without them the strip finds nothing and the
+# method is inserted a second time. (The macOS rig carries the third variant,
+# hand-written before any of this was scripted.)
+METHOD_HEADS = ("  // --- tidal-monitor bridge",
+                "  // --- tidalListener bridge",
+                "  // START of new function to send data")
+LOGTEXT     = "  logText(text, error) {"
+ANCHOR      = "  logText(text, error) {\n    if (!text) return;\n"
+CALL        = "\n    // mirror to the tidal-monitor\n    this.sendToListener(text);\n"
+
+METHOD = """  // --- tidal-monitor bridge (local patch; see scripts/pulsar-apply-patches)
+  // Mirrors the plugin console to scripts/tidal-monitor/listener.py (Flask, :5000).
+  // Fire-and-forget: failures are swallowed so a stopped listener never
+  // disturbs the editor or a live set.
+  async sendToListener(text) {
+      try {
+          await fetch('http://localhost:5000/tidalcycles', {
+              method: 'POST',
+              headers: {
+                  'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ output: text }),
+          });
+      } catch (error) {
+          console.error('TidalCycles listener error:', error);
+      }
+  }
+
+"""
+
+original = s
+
+# --- strip every remnant, so apply always starts from a pristine shape -----
+head = next((h for h in METHOD_HEADS if h in s), None)
+if head:
+    i = s.index(head)
+    j = s.find(LOGTEXT, i)
+    if j < 0:
+        sys.exit("  console-view.js: found the patch but not logText() after it -- "
+                 "the plugin has changed shape; update scripts/pulsar-apply-patches")
+    s = s[:i] + s[j:]
+# any number of call sites / marker comments, however mangled
+s = "\n".join(l for l in s.split("\n")
+               if l.strip() not in ("// mirror to the tidal-monitor",
+                                    "// mirror to the tidalListener",
+                                    "this.sendToListener(text);"))
+# stripping the call leaves blank lines behind the guard; collapse them so the
+# anchor is byte-identical to pristine (strip and apply must be symmetric, or
+# re-running drifts the file one blank line at a time)
+s = re.sub(r"(    if \(!text\) return;\n)\n+", r"\1", s)
+
+# --- apply -----------------------------------------------------------------
+n = s.count(ANCHOR)
+if n != 1:
+    sys.exit("  console-view.js: expected 1 logText anchor, found %d -- the plugin "
+             "has changed shape; update scripts/pulsar-apply-patches" % n)
+out = s.replace(ANCHOR, METHOD + ANCHOR + CALL)
+if out == original:
+    print("  console-view.js: listener patch already correct")
+else:
+    open(p, "w").write(out)
+    print("  console-view.js: listener patch %s"
+          % ("re-applied" if "sendToListener" in original else "applied"))
+PY

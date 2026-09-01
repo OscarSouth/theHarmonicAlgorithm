@@ -1,0 +1,32 @@
+# Evaluation keys for .tidal buffers — a reference copy of the author's
+# ~/.pulsar/keymap.cson bindings, not a file to install as-is.
+#
+# The plugin ships no keymap of its own; without bindings, evaluation is only
+# reachable from Packages → TidalCycles. Several chords are bound to the same
+# command so the gesture works whichever modifier the hand reaches for.
+#
+# PLATFORM: `cmd-*` does not bind on Linux at all. With only the macOS block,
+# `ctrl-enter` is the sole survivor and `eval-whole-editor` becomes unreachable
+# from the keyboard — the exact situation the paragraph above warns about.
+# Keep both blocks; each platform ignores the other's modifiers.
+
+# --- macOS ---------------------------------------------------------------
+'atom-workspace atom-text-editor[data-grammar~="tidalcycles"]':
+  'ctrl-cmd-enter': 'tidalcycles:eval-multi-line'
+  'ctrl-enter': 'tidalcycles:eval-multi-line'
+  'cmd-enter': 'tidalcycles:eval-multi-line'
+  'cmd-shift-enter': 'tidalcycles:eval-whole-editor'
+
+# --- Linux ---------------------------------------------------------------
+# line / block / file on the ctrl+shift scheme. All three chords are free in an
+# editor context: core binds them only inside find/replace and fuzzy-finder
+# panels, and vim-mode-plus ships its shift-enter binding commented out.
+'.platform-linux atom-workspace atom-text-editor[data-grammar~="tidalcycles"]':
+  'shift-enter': 'tidalcycles:eval'
+  'ctrl-enter': 'tidalcycles:eval-multi-line'
+  'ctrl-shift-enter': 'tidalcycles:eval-whole-editor'
+
+  # alt equivalents, same commands
+  'alt-enter': 'tidalcycles:eval-multi-line'
+  'ctrl-alt-enter': 'tidalcycles:eval-multi-line'
+  'alt-shift-enter': 'tidalcycles:eval-whole-editor'

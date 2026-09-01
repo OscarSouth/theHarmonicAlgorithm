@@ -1,12 +1,29 @@
 (
+// This file's own directory, captured at evaluation time: nowExecutingPath is
+// nil inside the async s.reboot closure below, so it cannot be read there.
+// Keeps paths under live/ machine-independent. The fallback literal is the
+// author's own clone and applies only if nowExecutingPath is nil.
+~thaLiveDir = thisProcess.nowExecutingPath !? { |pth| pth.dirname } ?? { "/home/os/theHarmonicAlgorithm/live" };
+~thaLiveDir.postln;
+
+// MIDI-only rig by default; see the sample-loading block below.
+~thaLoadSamples = false;
+
 s.reboot {
   // --- CONFIGURATION CHANGES ---
   // 1. Explicitly set your desired sample rate.
-  s.options.sampleRate = 44100;
+  // Under JACK the server dictates the rate and a mismatch fails the boot.
+  // PipeWire serves JACK here and is force-clocked to 48000
+  // (clock.force-rate / clock.allowed-rates).
+  s.options.sampleRate = 48000;
 
   // 2. Audio output device — uncomment ONE (comment the others).
   //    AIRA devices appear over USB when connected; both run at 44.1 kHz.
-  s.options.device = "MacBook Pro Speakers";
+  // Left unset on Linux: s.options.device names a JACK *server* there, not an
+  // audio device, and ServerOptions.devices raises "Primitive
+  // '_ListAudioDevices' failed" because enumeration is CoreAudio/PortAudio only.
+  // Unset connects to the default server; routing belongs in the patchbay.
+  // s.options.device = "MacBook Pro Speakers";  // macOS rig
   // s.options.device = "P-6";
   // s.options.device = "S-1";
 
@@ -28,7 +45,20 @@ s.reboot {
     // 4. Use the correct path for samples on macOS.
     //    The '~' symbol is a shortcut for your user's home directory (/Users/oscarsouth).
     //    This path points to where the Dirt-Samples quark installs files.
-    ~dirt.loadSoundFiles("~/Library/Application Support/SuperCollider/downloaded-quarks/Dirt-Samples/*");
+    // MIDI-only rig: Tidal never touches audio hardware, so Dirt-Samples costs
+    // ~444 MB of RAM and ~40 s of boot for banks that are never played. Set
+    // ~thaLoadSamples = true above s.reboot for sample-based work.
+    //
+    // Platform.userAppSupportDir resolves per platform:
+    //   macOS -> ~/Library/Application Support/SuperCollider
+    //   Linux -> ~/.local/share/SuperCollider
+    // A literal path loads zero samples on the other platform and warns "no
+    // folders found in paths", which reads as a missing quark.
+    if(~thaLoadSamples == true) {
+      ~dirt.loadSoundFiles(Platform.userAppSupportDir +/+ "downloaded-quarks/Dirt-Samples/*");
+    } {
+      "====> samples skipped (MIDI-only rig). ~thaLoadSamples = true to load.".postln;
+    };
 
     s.sync;
     ~dirt.start(57120, [0, 1]);
@@ -49,13 +79,34 @@ s.reboot {
     ~midiFound = false;
 
     // Order of priority: [Device Name, Port Name]
-    ~midiPriorities = [
-      ["U2MIDI Pro", "U2MIDI Pro"],
-      ["iConnectAUDIO4+", "DIN"],
-      ["P-6", "MIDI IN"],
-      ["S-1", "MIDI IN"],
-      ["IAC Driver", "Bus 1"]
-    ];
+    // Two different philosophies, one per platform.
+    //
+    // NOTE: thisProcess.platform.name -- NOT Platform.name, which returns the
+    // string "Platform" (the class name) and compares false against \linux.
+    ~midiPriorities = if (thisProcess.platform.name == \linux) {
+      // LINUX: bind the kernel's always-present virtual port and let the
+      // patchbay route it onward to hardware. Deliberately hardware-agnostic --
+      // swap or replug an interface and nothing here changes.
+      //
+      // A direct device binding is not stable on Linux: the PipeWire node name
+      // embeds the USB bus path ("CME Pro U2MIDI Pro at usb-0000:00:14-0-3-3-
+      // full speed") and changes whenever the device enumerates on a different
+      // socket.
+      //
+      // MIDI therefore reaches hardware only if something routes Midi Through --
+      // see live/local/midi-autoconnect, started by live/system/bin/livecode. No
+      // fallback entries: Midi Through always exists, so nothing below it is
+      // reachable.
+      [ ["Midi Through", "Midi Through Port-0"] ]
+    } {
+      // macOS: CoreMIDI has no always-present virtual port unless the IAC
+      // Driver is enabled, so bind the device itself, by priority.
+      [ ["U2MIDI Pro", "U2MIDI Pro"],
+        ["iConnectAUDIO4+", "DIN"],
+        ["P-6", "MIDI IN"],
+        ["S-1", "MIDI IN"],
+        ["IAC Driver", "Bus 1"] ]
+    };
 
     ~midiPriorities.do { |pair|
       var devName = pair[0];
@@ -64,13 +115,23 @@ s.reboot {
       // Only try connecting if we haven't found one yet
       if(~midiFound.not) {
         try {
-          // Check if the device is currently recognized by the system
-          var isAvailable = MIDIClient.destinations.any { |endpoint|
+          // Exact (device, port) match first -- preserves macOS behaviour.
+          var chosen = MIDIClient.destinations.detect { |endpoint|
             (endpoint.device == devName) && (endpoint.name == portName)
           };
 
-          if(isAvailable) {
-            ~midiTHRU = MIDIOut.newByName(devName, portName);
+          // Port names are platform-specific: ALSA appends " MIDI n"
+          // ("U2MIDI Pro MIDI 1" vs CoreMIDI's "U2MIDI Pro"), and the AIRA units
+          // differ again ("P-6 MIDI 1" vs "MIDI IN"). Match on the DEVICE, which
+          // is the stable identity; the port name only disambiguates. An
+          // exact-pair-only match binds a lower-priority device while still
+          // reporting success.
+          chosen = chosen ?? { MIDIClient.destinations.detect { |endpoint|
+            endpoint.device == devName
+          }};
+
+          if(chosen.notNil) {
+            ~midiTHRU = MIDIOut.newByName(chosen.device, chosen.name);
             ~midiTHRU.latency = 0.0;
             // Keep a handle on the SafeMIDIOut wrapper so the LED coordinator
             // can register noteOn/noteOff/control hooks on it later.
@@ -107,12 +168,12 @@ s.reboot {
 
     // ----------------------------------------------------------------------
     // LED coordinator: passive pitch-class LED state machine.
-    // Loads led-coordinator.scd, hooks into the SafeMIDIOut wrapper
-    // (~midiSafe), and watches the bass-instrument channels. See
-    // led-coordinator.scd header for design rationale.
+    // Loads system/led-coordinator.scd, hooks into the SafeMIDIOut wrapper
+    // (~midiSafe), and watches the bass-instrument channels. See that file's
+    // header for design rationale.
     // ----------------------------------------------------------------------
     if(~midiFound and: { ~midiSafe.notNil }) {
-      this.executeFile("/Users/oscarsouth/.stack/global-project/live/led-coordinator.scd");
+      this.executeFile(~thaLiveDir +/+ "system" +/+ "led-coordinator.scd");
       ~ledCoordinator.init(~midiSafe);
       ~midiSafe.onNoteOn  = { |c, n, v| ~ledCoordinator.onNoteOn(c, n, v) };
       ~midiSafe.onNoteOff = { |c, n, v| ~ledCoordinator.onNoteOff(c, n, v) };
@@ -129,90 +190,26 @@ s.reboot {
 )
 
 // ============================================================================
-// SafeMIDIOut — Precautionary Note Off + Reference-Counted Note Off Suppression
+// SafeMIDIOut
 // ============================================================================
 //
-// This class wraps MIDIOut to fix MIDI note collisions when multiple
-// TidalCycles patterns produce the same MIDI note simultaneously.
+// Precautionary Note Off + reference-counted Note Off suppression, plus the
+// onNoteOn / onNoteOff / onControl observer hooks that led-coordinator.scd
+// binds to. SuperDirt schedules each event's Note Off independently, so two
+// overlapping patterns on the same pitch cut each other short; this fixes that.
 //
-// Without this wrapper, SuperDirt schedules each event's Note Off independently.
-// When two patterns overlap on the same pitch, the earlier pattern's Note Off
-// kills the later pattern's still-active note. Synths that ignore duplicate
-// Note Ons for already-sounding pitches compound the problem.
+// The class lives at live/system/SafeMIDIOut.sc.
 //
-// SafeMIDIOut fixes this with two behaviors:
-//   1. Precautionary Note Off before every Note On (ensures clean retrigger)
-//   2. Reference-counted Note Off suppression (only the last Note Off fires)
+// INSTALL BY SYMLINK, never a copy. A copy diverges from the repository
+// silently: if this class lacks the onNoteOn / onNoteOff / onControl hooks that
+// led-coordinator.scd binds to, the startup aborts before writing sc_ready and
+// the launcher waits indefinitely with no error printed.
 //
-// SETUP:
-//   1. Copy the class below (without the leading //) to a new file:
-//      ~/Library/Application Support/SuperCollider/Extensions/SafeMIDIOut.sc
-//   2. Recompile SuperCollider's class library (Cmd+Shift+L or reboot)
-//   3. In this startup script, use SafeMIDIOut(~midiTHRU) instead of ~midiTHRU
-//      when calling ~dirt.soundLibrary.addMIDI
+//   scripts/install-linux.sh does this for you. By hand:
+//     ln -sfn "$PWD/live/system/SafeMIDIOut.sc" "<Platform.userExtensionDir>/SafeMIDIOut.sc"
+//   where Platform.userExtensionDir is
+//     macOS  ~/Library/Application Support/SuperCollider/Extensions
+//     Linux  ~/.local/share/SuperCollider/Extensions
 //
-// ----------------------------------------------------------------------------
-//
-// SafeMIDIOut {
-//     var <>midiOut;
-//     var <>noteOnCounts;
-//
-//     *new { |midiOut|
-//         ^super.new.init(midiOut);
-//     }
-//
-//     init { |mo|
-//         midiOut = mo;
-//         noteOnCounts = Dictionary.new;
-//     }
-//
-//     noteOn { |chan, note, vel|
-//         var key = (chan * 128) + note;
-//         var count = noteOnCounts[key] ? 0;
-//         // Precautionary noteOff: clear any sounding note at this pitch
-//         midiOut.noteOff(chan, note, 0);
-//         // Send the actual noteOn
-//         midiOut.noteOn(chan, note, vel);
-//         // Track reference count
-//         noteOnCounts[key] = count + 1;
-//     }
-//
-//     noteOff { |chan, note, vel|
-//         var key = (chan * 128) + note;
-//         var count = (noteOnCounts[key] ? 0) - 1;
-//         if(count <= 0) {
-//             // Last reference — send the real noteOff
-//             midiOut.noteOff(chan, note, vel);
-//             noteOnCounts[key] = 0;
-//         } {
-//             // Other patterns still hold this pitch — suppress
-//             noteOnCounts[key] = count;
-//         };
-//     }
-//
-//     // Handle CC 123 (All Notes Off) and CC 120 (All Sound Off)
-//     control { |chan, ctlNum, val|
-//         if((ctlNum == 123) or: { ctlNum == 120 }) {
-//             // Reset all counts for this channel
-//             noteOnCounts.keysValuesDo { |key, count|
-//                 if((key div: 128) == chan) {
-//                     noteOnCounts[key] = 0;
-//                 };
-//             };
-//         };
-//         midiOut.control(chan, ctlNum, val);
-//     }
-//
-//     // Forward all other MIDIOut methods transparently
-//     doesNotUnderstand { |selector ... args|
-//         ^midiOut.performList(selector, args);
-//     }
-//
-//     // Explicit forwarding for properties accessed directly by SuperDirt
-//     latency { ^midiOut.latency }
-//     latency_ { |val| midiOut.latency = val }
-//     uid { ^midiOut.uid }
-//     port { ^midiOut.port }
-// }
-//
+// Then recompile the class library (Ctrl+Shift+L, or restart sclang).
 // ============================================================================

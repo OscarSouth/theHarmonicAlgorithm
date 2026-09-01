@@ -25,6 +25,10 @@ Thumbs.db
 .env.*
 !.env.example
 
+# Python bytecode (scripts/ and scripts/ci/ are Python)
+__pycache__/
+*.pyc
+
 # Haskell artifacts
 *.hi
 *.o

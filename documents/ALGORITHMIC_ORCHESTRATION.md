@@ -185,7 +185,7 @@ The sweep briefly aligned the four numbers to the names before the JV1010
 provenance was clarified; the values were restored untouched. **Action:** a
 practical per-instrument pass on the JV1010, sounding each patch at its
 extremes, then setting number AND name precisely in all three copies of this
-table (`Orchestra.hs`, this file, `live/ORCHESTRAL_CATALOGUE.tidal`).
+table (`Orchestra.hs`, this file, `live/docs/ORCHESTRAL_CATALOGUE.tidal`).
 
 ### Unpitched Percussion
 
@@ -235,7 +235,7 @@ Strings default to arco (ch 16). Override with `#`:
 
 2 flutes (doubling piccolo), 2 oboes (doubling cor anglais), 2 clarinets, 2 bassoons, 2 horns, 2 trombones (doubling bass trombone), 1 timpanist, 1 percussionist, 1 harp, 8 vn1, 6 vn2, 4 va, 3 vc, 2 cb
 
-For interactive range tests, see [`live/ORCHESTRAL_CATALOGUE.tidal`](../live/ORCHESTRAL_CATALOGUE.tidal).
+For interactive range tests, see [`live/docs/ORCHESTRAL_CATALOGUE.tidal`](../live/docs/ORCHESTRAL_CATALOGUE.tidal).
 
 ## Voice Line System
 
