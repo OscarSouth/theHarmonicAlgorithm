@@ -38,7 +38,7 @@ The MIDI streams (`d01`–`d16`) and the `hush`/`panic` family live in [`live/Bo
 Two areas are deliberately out of scope:
 
 - **The Algorithmic Orchestration system** (16-instrument virtual orchestra) depends on a specific hardware/MIDI rig — see [`ALGORITHMIC_ORCHESTRATION.md`](documents/ALGORITHMIC_ORCHESTRATION.md) and [`live/docs/ORCHESTRAL_CATALOGUE.tidal`](live/docs/ORCHESTRAL_CATALOGUE.tidal).
-- **Hardware-bound helpers** — the Roland S-1 / P-6 CC maps and the JV-1010 drum map (`Harmonic.Interface.Tidal.Devices.S1`, `.P6`, `.JV1010`), the LED display feed (`Harmonic.Interface.Tidal.Display`), the Q-Link controller bridge, and the MPC kit program behind `subKick`. The rig they address is described in [`LIVE_ENVIRONMENT.md`](documents/LIVE_ENVIRONMENT.md). This guide stays on the single piano channel plus generic drums.
+- **Hardware-bound helpers** — the AIRA program's four layers (`s101`, `smpl`, `auto`, `gnlr`, backed by `Harmonic.Interface.Tidal.Devices.S1` and `.P6`) and the JV-1010 drum map (`.Devices.JV1010`), the LED display feed (`Harmonic.Interface.Tidal.Display`), the Q-Link controller bridge, and the MPC kit program behind `subKick`. The rig they address is described in [`LIVE_ENVIRONMENT.md`](documents/LIVE_ENVIRONMENT.md). This guide stays on the single piano channel plus generic drums.
 
 ___
 
@@ -982,11 +982,11 @@ None is "more correct" — they trade immediacy against decidedness. A performan
 |---|---|
 | Session | `transport` · `state` |
 | Generation | `ctx` · `gen` · `formless` · `dance` |
-| Launchers | `launch` · `p` · `rr` · `slate` · `minimal` · `deeptech` |
+| Launchers | `launch` · `p` · `rr` · `slate` · `cc` · `minimal` · `deeptech` |
 | Groove & lines | `subk` · `walk` |
 | Motifs | `motif` |
 | Orchestra* | `orchsec` · `tutti` · `instr` |
-| Hardware* | `k909` · `kmpc` · `m32` · `mdf` |
+| Hardware* | `k909` · `kmpc` · `m32` · `mdf` · `s101` · `smpl` · `auto` · `gnlr` |
 
 (\* rig-specific — see Known exceptions.)
 

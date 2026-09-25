@@ -31,6 +31,54 @@ and LED state, not synthesis. See
 [ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md) for the instrument and
 channel map.
 
+### Two programs on one port
+
+There is one MIDI stream and one 16-channel space, and two different configurations
+compete for it. They are not performed together:
+
+- **The orchestral program** — the JV-1010, sixteen pitched instruments and a drum kit,
+  aimed at simulated orchestral writing. Channel map in
+  [ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md).
+- **The AIRA program** — the S-1 and P-6, aimed at contemporary and jazz material.
+
+The AIRA channels deliberately overlap the orchestra map (S-1 on 6 is the trombone's
+channel; the P-6's 3/4/5 are clarinet, bassoon and horn). Nothing needs renumbering:
+only one program is loaded at a time, and each is a complete, deliberate configuration.
+
+### The AIRA program
+
+Four performable layers, one Pulsar snippet each:
+
+<!-- TODO(channels): new map is S-1 13, G.CH 14, S.CH 15, Auto 16 — this table, the setup sentence, the retarget example and the overlap paragraph above -->
+
+| block  | device / layer                         | channel   | CC prefix |
+|--------|----------------------------------------|-----------|-----------|
+| `s101` | S-1 synth voice                        | 6         | `s1`      |
+| `smpl` | P-6 pads, 48 one-shots at fixed pitch  | 4 (S.CH)  | —         |
+| `auto` | P-6 focused pad, played chromatically  | 3 (Auto)  | `p6`      |
+| `gnlr` | P-6 granular engine                    | 5 (G.CH)  | `p6`      |
+
+Set the S-1 to MIDI channel 6, and the P-6's Auto / S.CH / G.CH to 3 / 4 / 5. The three
+P-6 channels are received independently, so `smpl`, `auto` and `gnlr` sound together and
+share only the unit's voice pool.
+
+The P-6 has **one** control-change set, received on either its granular or its auto
+channel, so every `p6` control serves both layers. Each defaults to the granular
+channel; a postfix channel retargets it, since `#` takes values from the right:
+
+```haskell
+, p6cutoff (lfo saw 0.2 0.9) # ch 3      -- the same control, on the auto layer
+```
+
+`auto` and `gnlr` read whatever is focused on the unit — the selected pad and the
+selected pattern — so the layer is chosen at the hardware and the material is driven
+from the pattern. `p6src` is the exception: it selects the granular source over MIDI,
+which is what makes that layer sequenceable rather than hand-picked.
+
+The maps and the composite controls (`p6scrub`, `p6cloud`, `p6chaos`, `p6src`,
+`p6env`; `s1chord`, `s1env`, `s1mix`) live in `Harmonic.Interface.Tidal.Devices.S1`
+and `.P6`.
+
 ---
 
 ## Pulsar

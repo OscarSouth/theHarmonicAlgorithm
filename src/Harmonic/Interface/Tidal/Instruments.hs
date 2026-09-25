@@ -2,19 +2,16 @@
 -- Module      : Harmonic.Interface.Tidal.Instruments
 -- Description : MIDI channel routing and instrument shorthand for TidalCycles
 --
--- Provides channel-assignment helpers (@p10@..@p16@, @ch@) and named
--- synth wrappers for live MIDI routing. Section launchers (@wind@,
--- @strg@, @brss@, @perc@) are NOT defined here — they are composed
+-- Provides the channel-assignment helpers every MIDI line in the library
+-- routes through. Device and section launchers (@wind@, @strg@, @brss@,
+-- @perc@, @s101@, @gnlr@) are NOT defined here — they are composed
 -- per-performance in the .tidal files (see
--- documents\/ALGORITHMIC_ORCHESTRATION.md).
+-- documents\/ALGORITHMIC_ORCHESTRATION.md) and in the Pulsar snippets.
 
 module Harmonic.Interface.Tidal.Instruments (
     -- * Channel shorthand
     p10, p11, p12, p13, p14, p15, p16,
     ch,
-
-    -- * Named synth wrappers
-    moog, s101, juno,
 
     -- * Velocity
     vel,
@@ -38,18 +35,6 @@ p13 = (\pat -> pat # s "thru" # midichan 12)
 p14 = (\pat -> pat # s "thru" # midichan 13)
 p15 = (\pat -> pat # s "thru" # midichan 14)
 p16 = (\pat -> pat # s "thru" # midichan 15)
-
--- | Moog Mother-32, channel 14.
-moog :: Pattern ValueMap -> Pattern ValueMap
-moog = (\pat -> pat # s "thru" # midichan 13)
-
--- | Roland SH-101, channel 15.
-s101 :: Pattern ValueMap -> Pattern ValueMap
-s101 = (\pat -> pat # s "thru" # midichan 14)
-
--- | Roland Juno, channel 16.
-juno :: Pattern ValueMap -> Pattern ValueMap
-juno = (\pat -> pat # s "thru" # midichan 15)
 
 -- | Set the MIDI channel from a 1-indexed 'Int', so @ch 1@ is MIDI channel 1.
 -- The general form of 'p10' .. 'p16'; used internally by every orchestral

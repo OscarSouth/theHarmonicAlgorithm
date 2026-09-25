@@ -151,10 +151,10 @@ launch = mapM_ ($ silence) [
   p "brillante",
   p "maestoso",
   p "tutti",
-  p "rolandS1",
-  p "p6Sample",
-  p "p6Kybd",
-  p "p6Gran"
+  p "s101",
+  p "smpl",
+  p "auto",
+  p "gnlr"
   ]
 :}
 
@@ -282,11 +282,29 @@ display' k = p "displayClock" $ displayClock' k
 -- lives in Harmonic.Interface.Tidal.Devices.JV1010.
 
 -------------------------------------------------------------------------------
--- Roland AIRA S-1 (ch 6) and P-6 (ch 3/4/5/16)
+-- The AIRA program — four performable layers
+-- TODO(channels): new map is S-1 13, G.CH 14, S.CH 15, Auto 16 — table and setup line below
 --
--- The full CC maps for both devices live in
--- Harmonic.Interface.Tidal.Devices.S1 and .P6. Configure the S-1 to MIDI
--- channel 6, and the P-6's Auto/S.CH/G.CH to 3/4/5 — the modules assume it.
+--   block   device / layer                          channel    CC prefix
+--   ------  --------------------------------------  ---------  ---------
+--   s101    S-1 synth voice                         6          s1
+--   smpl    P-6 pads, 48 one-shots at fixed pitch   4  S.CH    --
+--   auto    P-6 focused pad, played chromatically   3  Auto    p6
+--   gnlr    P-6 granular engine                     5  G.CH    p6
+--
+-- Configure the S-1 to MIDI channel 6 and the P-6's Auto/S.CH/G.CH to 3/4/5;
+-- the modules assume it. The P-6's three channels are received independently,
+-- so smpl/auto/gnlr sound together and share only the unit's voice pool.
+--
+-- The P-6 has ONE control-change set, received on either its granular or its
+-- auto channel, so every p6 control serves both layers. Each defaults to the
+-- granular channel; postfix a channel to retarget it, since # takes values
+-- from the right:
+--
+--   , p6cutoff (lfo saw 0.2 0.9) # ch 3      -- the same control, on auto
+--
+-- Maps and composite controls live in Harmonic.Interface.Tidal.Devices.S1
+-- and .P6. Launch each layer from its Pulsar snippet: s101, smpl, auto, gnlr.
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------

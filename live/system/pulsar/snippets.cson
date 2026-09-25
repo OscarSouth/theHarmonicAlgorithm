@@ -243,13 +243,14 @@
 
   # ══════════════════════════════════════════════════════════
   # NORMAL SYNTH / MIDI TOOLBOX
-  # Piloting specific digital/analogue instruments (AIRA blocks to follow).
+  # Piloting specific digital/analogue instruments.
   #
   # Methodology: `p` is a GENERIC interface on a fixed channel (`p07`-style);
-  # the named rig blocks (k909/kmpc/walk/m32/mdf) are DEVICE-specific. Layers
-  # are added quickly with the insertion snippets — `,rr` drops a new
-  # arrange voice into a channel-voice stack, `slate` drops a new gated layer
-  # into a drum kit, `cc` drops a modulation line onto a synth.
+  # the named rig blocks (k909/kmpc/walk/m32/mdf, and the AIRA program's
+  # s101/smpl/auto/gnlr) are DEVICE-specific. Layers are added quickly with
+  # the insertion snippets — `,rr` drops a new arrange voice into a
+  # channel-voice stack, `slate` drops a new gated layer into a drum kit,
+  # `cc` drops a modulation line onto a synth.
   # ══════════════════════════════════════════════════════════
 
   'channel voice (arrange on ch N)':
@@ -286,6 +287,14 @@
         ,$2 "$3"
         ]
     '''
+
+
+  # Modulation line for a synth stack. Trigger at COLUMN 0 of a ` -- --`
+  # separator, as with `,rr`. A P-6 control defaults to the granular
+  # channel; append `# o` to follow the block it sits in.
+  'cc modulation line':
+    'prefix': 'cc'
+    'body': " -- --\n,${1:s1cutoff} (lfo ${2:saw} ${3:0.2} ${4:0.9})\n"
 
 
   'minimal house slate-stack (dance form)':
@@ -480,4 +489,103 @@
             ]# osc2 |* vel 1 |- oct 1
              -- --
           ]# legato 0.25 |* vel d
+    '''
+
+
+  # ══════════════════════════════════════════════════════════
+  # THE AIRA PROGRAM
+  # TODO(channels): new map is S-1 13, G.CH 14, S.CH 15, Auto 16 — each block's `let o` and this header
+  # Four layers on one MIDI port. Configure the S-1 to channel 6
+  # and the P-6's Auto/S.CH/G.CH to 3/4/5. The P-6's three channels
+  # are received independently, so smpl/auto/gnlr sound together
+  # and share only the unit's voice pool.
+  #
+  # The P-6 has ONE control-change set, received on either its
+  # granular or its auto channel, so every p6 control serves both
+  # layers. Each defaults to the granular channel; `# o` retargets
+  # it, since `#` takes values from the right.
+  # ══════════════════════════════════════════════════════════
+
+  'AIRA S-1 (synth voice, ch 6)':
+    'prefix': 's101'
+    'body': '''
+      s101 f k d = p "s101" $ do
+        let o = ch 6
+        f
+          $ stack [silence
+             -- --
+            ,arrange (0,1) k (-9,9) ${1:T} flow (overlapF 0) ["~"
+              ,$2
+            ]# o |+ oct 1 |* vel 1 # legato 0.9
+             -- --
+            -- ,s1cutoff (lfo saw 0.3 0.8) # o
+            -- ,s1pump "1 0 0 0" 0.5 0.7 # o
+             -- --
+          ] |* vel d
+    '''
+
+
+  'AIRA P-6 pads (one-shots, ch 4)':
+    'prefix': 'smpl'
+    'body': '''
+      smpl f k d = p "smpl" $ do
+        let o = ch 4
+        f
+          $ stack [silence
+             -- --
+            ,slate (0.4,1) k [silence
+              ,p6trig 1 1 "$1"
+              ]
+             -- --
+          ]# o |* vel d
+    '''
+
+
+  'AIRA P-6 auto (focused pad, chromatic, ch 3)':
+    'prefix': 'auto'
+    'body': '''
+      auto f k d = p "auto" $ do
+        let o = ch 3
+        f
+          $ stack [silence
+             -- --
+            ,arrange (0,1) k (-9,9) ${1:T} flow (overlapF 0) ["~"
+              ,$2
+            ]# o |+ oct 0 |* vel 1 # legato 0.9
+             -- --
+            -- ,p6cutoff (lfo saw 0.3 0.9) # o
+             -- --
+          ] |* vel d
+    '''
+
+
+  # The granular engine is the deep layer, so its four performable
+  # axes ship with the block. Uncomment what the piece needs:
+  #   p6src    which of the 48 pads the engine reads (sequenceable)
+  #   p6scrub  playhead position (0-1) and speed (-4..+4; 1 normal, 0 freeze)
+  #   p6cloud  sparse and grainy -> dense and washed, on one axis
+  #   p6chaos  mechanical -> unstable (timing, level, reverse)
+  #   p6pump   ghost-sidechain duck on Level; its own stack line, never |*
+  # Every raw control stays available underneath: p6grainsize,
+  # p6grains, p6spread, p6grainshape, p6detune, p6grainkf ...
+  'AIRA P-6 granular (ch 5)':
+    'prefix': 'gnlr'
+    'body': '''
+      gnlr f k d = p "gnlr" $ do
+        let o = ch 5
+        f
+          $ stack [silence
+             -- --
+            ,arrange (0,1) k (-9,9) ${1:T} flow (overlapF 0) ["~"
+              ,$2
+            ]# o |+ oct 0 |* vel 1 # legato 0.9
+             -- --
+            ,p6src "${3:1}" # o
+             -- --
+            -- ,p6scrub (lfo saw 0.1 0.9) 1 # o
+            -- ,p6cloud (lfo tri 0.2 0.8) # o
+            -- ,p6chaos 0.15 # o
+            -- ,p6pump "1 0 0 0" 0.85 0.9 # o
+             -- --
+          ] |* vel d
     '''

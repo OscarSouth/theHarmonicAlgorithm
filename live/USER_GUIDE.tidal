@@ -37,11 +37,11 @@
 --   * The Algorithmic Orchestration system (16-instrument virtual
 --     orchestra) — depends on a specific hardware/MIDI rig. See
 --     documents/ALGORITHMIC_ORCHESTRATION.md and ORCHESTRAL_CATALOGUE.tidal.
---   * Hardware-bound helpers — the Roland S-1 / P-6 CC maps,
---     the Q-Link controller bridge, the LED display rig,
---     and the MPC kit program behind subKick. They're documented
---     in Devices.S1 / .P6 / .JV1010; this guide stays on the
---     single piano channel plus generic drums.
+--   * Hardware-bound helpers — the AIRA program's four layers
+--     (s101, smpl, auto, gnlr), the Q-Link controller bridge,
+--     the LED display rig, and the MPC kit program behind subKick.
+--     They're documented in Devices.S1 / .P6 / .JV1010; this guide
+--     stays on the single piano channel plus generic drums.
 --
 -- ── SOURCE REFERENCES ──
 -- Section headers include paths into src/ for every concept
@@ -1538,11 +1538,11 @@ hush
 -- ── THE PREFIX INDEX (live/system/pulsar/snippets.cson) ──
 --   session      transport · state (a full launch block)
 --   generation   ctx · gen · formless · dance
---   launcher     launch · p · rr · slate · minimal · deeptech
+--   launcher     launch · p · rr · slate · cc · minimal · deeptech
 --   groove/lines subk · walk
 --   motifs       motif
 --   orchestra*   orchsec · tutti · instr
---   hardware*    k909 · kmpc · m32 · mdf
+--   hardware*    k909 · kmpc · m32 · mdf · s101 · smpl · auto · gnlr
 --   (* rig-specific — see KNOWN EXCEPTIONS)
 --
 -- The `state` snippet is the canonical prepared opening: tempo,

@@ -145,8 +145,76 @@ and the failure modes worth recognising; `live/bin/livecode` and
 **A gate for performance files** — `scripts/ci/check_corpus.py`
 type-checks real performance files against the library on every CI run.
 
-**Snippet curation** — The Pulsar snippet library tightens to 22 prefixes
+**Snippet curation** — The Pulsar snippet library holds 27 prefixes
 around a stated rule: a snippet prepares a repeated, fiddly syntax path.
+
+<!-- TODO(channels): channel numbers below become S-1 13, G.CH 14, S.CH 15, Auto 16 -->
+**The AIRA program** — The Roland S-1 and P-6 become four performable
+layers rather than two unused CC maps: `s101` (S-1 synth voice, ch 6),
+`smpl` (P-6 pads, ch 4), `auto` (P-6 focused pad played chromatically,
+ch 3) and `gnlr` (P-6 granular engine, ch 5), each with its own Pulsar
+block and its own stream in `launch`. The P-6's three channels are
+received independently, so its layers sound together.
+
+The P-6 carries one control-change set, shared between the granular and
+auto layers; every control defaults to the granular channel and a postfix
+channel retargets it. Composite controls sit over the raw CCs where
+several parameters move as one musical thing — `p6scrub` (playhead),
+`p6cloud` (grain density), `p6chaos` (instability), `p6src` (granular
+source by pad number, so the source is sequenceable) and `p6env`; on the
+S-1, `s1chord`, `s1env` and `s1mix`. `Devices.P6` is renamed throughout
+to the library's all-lowercase convention, and `p6pad` is corrected to
+the 1-based indexing `p6trig` already used — the two disagreed by one.
+
+A `cc` insertion snippet drops a modulation line into a synth stack, the
+counterpart to `rr` and `slate` that the snippet library's own
+methodology note had described but never carried.
+
+**Device parameters speak their own units** — every control on the S-1 and
+P-6 now takes the unit the device uses, calibrated against Roland's parameter
+documentation rather than a normalised 0-1 guess. `p6coarse 2` is two
+semitones, `p6headspeed 1` is normal speed (`0` freezes, `-1` reverses),
+`p6spread 50` is fifty percent, `s1chord 4 7 11` is a major seventh.
+
+Sixteen controls turned out to be discrete selectors typed as continuous, with
+no reliable way to choose a filter type, LFO waveform, oscillator range,
+polyphony mode or envelope mode; `s1chorus` is a chorus TYPE and was
+documented as a level. These now take 1-indexed integers with the ordered list
+in each Haddock. `s1chord`'s key shifts are semitones, which closes its
+outstanding TODO — Roland gives Voice Key Shift as -12 to +12.
+
+Each abstracted control also gains a primed variant taking the exact number
+the device displays — `p6cutoff' 127.5` is `p6cutoff 0.5` — for dialling in a
+patch read off the unit. Most are 0-255; `p6level'` is 0-127 (100 = 0 dB), the
+two delay times are 1-740 ms, and `s1oscbend'` is 0-240 (120 = ±1 octave).
+Controls already in device units take no prime, since they are already the
+number on the display.
+
+Controls whose device scale is opaque, or whose taper Roland leaves unstated,
+keep their 0-1 input: cutoff, resonance, sends, and every envelope time.
+`p6headpos` and `p6grainsize` stay fractions because Roland defines them as
+"0.000 to sample end", which depends on the loaded sample. `p6raw` and `s1raw`
+send any CC with a raw 0-1 value, since the CC-to-parameter mapping is
+inference — Roland publishes the two halves in separate documents.
+
+**Ghost sidechain** — `Harmonic.Interface.Tidal.Utils.pump` builds a ducking
+gain envelope from a struct pattern, a depth and a release: every onset drops
+the gain to `1 - depth`, which recovers exponentially over the release. A
+cycle is a beat (`cps = bpm/60`), so the release reads in beats. `s1pump` and
+`p6pump` drive it into each device's gain stage — expression (CC 11) on the
+S-1, which has no CC 7, and Level (CC 7) on the P-6, which is the granular
+engine's own gain.
+
+The envelope is a stack element, never applied to a note pattern: Tidal splits
+every note once per overlapping envelope step, so `|*`, `*|` and `#` all
+fragment what they touch — a held note re-triggers once per step. Ducking note
+velocities instead wants a gain pattern coarser than, and aligned to, the note
+grid. Nothing clamps a release longer than the gap between onsets; two
+envelopes then interleave and the older tail cancels the newer duck.
+
+The three unused named channel wrappers in
+`Harmonic.Interface.Tidal.Instruments` (`moog`, `s101`, `juno`) are
+removed; the `ch N` postfix idiom had superseded them.
 
 ### Housekeeping
 
