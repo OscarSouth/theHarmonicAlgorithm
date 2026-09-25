@@ -27,6 +27,10 @@ Code → TidalCycles → SuperDirt → MIDI → Roland JV-1010 → orchestral mu
 | 15      | Strings legg   | String artic      |
 | 16      | Strings arco   | String artic      |
 
+This table is the JV-1010 rig only. The studio rig (soft synths, DFAM/P-6, M32/S-1, MPC,
+drum machines) has its own map in `documents/LIVE_ENVIRONMENT.md`; there `hmnx` sits on
+channel 11. The two rigs are never live together.
+
 ### The continuo voice (ch 7)
 
 The orchestra above is a fixed, deliberate configuration — it is not extended.
@@ -435,14 +439,15 @@ block reprograms the piece's "genetic" material in one step.
 
 Sub pitches are normalised from the progression's harmonic root pitch class: `pitch_class + 36`. This places the sub register below all orchestral instruments, leaving MIDI 48+ free for anything else sharing the channel.
 
-### CC64 Sustain Mechanism
+### Note durations (no CC64)
 
-The sub voice uses MIDI CC64 (sustain pedal) to hold notes:
-- `sustain 0.01` triggers a brief note-on (the sampler latches it)
-- `segment 16` CC64=127 background keeps the sustain held (~1 event/frame at 30fps)
-- CC64=0 at `maxDur` or `subOffPat` boundaries releases the note
-
-This mechanism is intentional and must not be changed.
+Each sub note is held by its own duration: from its onset to the next kill boundary — the
+manual offs (`subOffPat`) and, for `maxDur < 1`, each onset shifted by `maxDur*4` — emitted
+with `legato 1` so the MIDI note-off lands exactly on the boundary (`holdToNext`). No CC64
+is emitted: the MPC sub program does not treat the sustain pedal as a damper (a MIDI
+note-off arriving under a held pedal is stranded and survives CC64=0 and All-Notes-Off;
+an external keyboard reproduces it), so holding by pedal cannot work on this hardware.
+`subPedalOff` in `launch'`/`hush` still lifts the pedal defensively.
 
 ### Voicing Cache
 
@@ -459,6 +464,74 @@ subk f k d = p "subKick"
 - `root` or `fund` — always returns the harmonic root regardless of inversion
 - Sub group gates at `(0.1, 1)`, kick at `(0.2, 1)` via `ki`
 - `maxDur < 1` triggers auto-off; `maxDur >= 1` means manual-off only
+
+## Harmonics — hmnx
+
+`hmnx` is the Harmonic Algorithm's own instrument: the harmony rendered as **natural
+harmonics of the Electric Contrabass Cittern** (tuning `E A e G B`) through the MPC
+harmonics keygroup on **MIDI channel 11**. The keygroup is pitch-accurate — each sampled
+overtone sits at the note number of its true sounding pitch — so the keygroup, not the
+code, decides what can sound.
+
+### Strings and partials
+
+The four playable partials of the 2016 thesis — octave, fifth, double octave, third
+(partials 2 3 4 5) — sit at `+12 +19 +24 +28` from a string's fundamental:
+
+```
+open A1 = 33 → 45 52 57 61        open B2 = 47 → 59 66 71 75
+open E2 = 40 → 52 59 64 68        open C3 = 48 → 60 67 72 76   (the B string, Hipshot lever at C)
+open G2 = 43 → 55 62 67 71
+```
+Shared pitches (one sample each): 52 (A/E), 59 (E/B), 67 (G/C), 71 (G/B). Playable pitch
+classes `{0,1,2,3,4,6,7,8,9,11}` — F and B♭ are unreachable and are simply omitted.
+
+### `harmonics` — one string, a special `arrange`
+
+`harmonics :: NoteName -> (Double,Double) -> IK -> Layer -> VoiceFunction -> (Progression -> Progression) -> [Pattern Int] -> Pattern ValueMap`
+
+`arrange` with the string first and no register slot. The `NoteName` is the string's
+fundamental, placed in reference octave 2 (36 + pitch class); the launcher puts the
+string in its real octave with `|+ oct` / `|- oct`, exactly as the orchestral blocks do.
+Per bar, the string's viable notes are its harmonic pitches whose pitch class is among
+the bar's voiced tones; a pattern index picks the i-th by floor-mod — never an octave
+wrap, these are fixed sample pitches; a bar with no viable note rests. Within a string
+the contour is `mono'` (latest-note priority: a new harmonic damps the previous); across
+strings the launcher's stack is polyphonic. `harmonics` is a render-time filter only — it
+never reads the generation context's overtone constraint; generating inside the
+instrument's overtone set (`hcOvertones "E A e G B"`) is what keeps every tone playable.
+
+### The instrument is a launcher block
+
+The tuning lives in the launcher: which strings you instantiate and their octaves. One
+declared `pat` is the default — every string picks it up and filters it to what it can
+sound; a pitch shared by two strings doubles into resonance, curated in performance.
+
+```haskell
+hmnx f k d = p "hmnx" $ do
+  let o   = ch 11
+      pat = "[0 1 2 3]/4"
+  f
+    $ stack [silence
+      ,harmonics A (0,1) k T flow (overlapF 0) ["~", pat] # o |* vel 0.8 |- oct 1   -- A1
+      ,harmonics E (0,1) k T flow (overlapF 0) ["~", pat] # o |* vel 0.8            -- E2
+      ,harmonics G (0,1) k T flow (overlapF 0) ["~", pat] # o |* vel 0.8            -- G2
+      ,harmonics B (0,1) k T flow (overlapF 0) ["~", pat] # o |* vel 0.8            -- B2
+      -- ,harmonics C (0,1) k T flow (overlapF 0) ["~", pat] # o |* vel 0.8 |+ oct 1 -- lever at C
+      ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"] # o |* vel 0.6            -- unfiltered: keygroup decides
+      ,cc 64 "[1@63 0]" #o                                                        -- damper: accumulation
+    ]# legato 1 |* vel d
+```
+
+- **Sustain** is the outer `# legato`; **CC64** is one global damper for the whole
+  instrument (harmonic accumulation), independent of legato. `hmnxPedalOff` lifts it in
+  `launch'` / `hush`.
+- **Shared pitches** across strings are handled by SafeMIDIOut (re-articulate, reference-
+  counted note-offs) — no dedupe.
+- **`mono'`** (`retrig`) is general: latest-note-priority monophony, the opposite of
+  Tidal's first-note `mono`. Set a keygroup mute group per string on the MPC for a
+  hardware guarantee regardless of legato.
+- The 12-step pitch-class LEDs follow ch 11 (`~ledCoordinator.watch(10, (45..76))`).
 
 ## Form Declaration
 
@@ -486,7 +559,9 @@ form =
 
 `snap` holds the node's value until the next node's exact time, then jumps —
 for hard cuts (an explosive entry, a catastrophe). `smooth` ramps between nodes.
-The 12-step display reads the form in seconds regardless of unit.
+The 12-step display reads the form in bars by default (`display k`) or seconds (`display' k`) —
+unprimed = bars, primed = seconds, the same doctrine as `mark` / `mark'` (form-relative cues:
+`mark 32 k [pad 1]` fires once per loop at bar 32 as written for `rh`; `mark'` takes seconds).
 
 ## Kinetics Layering
 

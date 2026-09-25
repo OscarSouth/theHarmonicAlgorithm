@@ -6,10 +6,10 @@
 -- three performable layers rather than one instrument:
 --
 -- @
--- Auto CH = 3   auto   the focused pad, played chromatically and polyphonically
--- S.CH    = 4   smpl   the global 48 pads, each at its own fixed pitch
--- G.CH    = 5   gnlr   the granular engine, notes and CC
--- Program = 16         preset select, fixed on the device
+-- Auto CH = 16  auto   the focused pad, played chromatically and polyphonically
+-- S.CH    = 15  smpl   the global 48 pads, each at its own fixed pitch
+-- G.CH    = 14  gnlr   the granular engine, notes and CC
+-- Program = 16         preset select, fixed on the device; the auto layer shares it
 -- @
 --
 -- All three are reassigned from the device defaults (15 \/ 11 \/ 4), so the
@@ -23,7 +23,7 @@
 -- it, since @#@ takes values from the right — this is the same control, moved
 -- onto the auto layer:
 --
--- @, p6cutoff (lfo saw 0.2 0.9) # ch 3@
+-- @, p6cutoff (lfo saw 0.2 0.9) # ch 16@
 module Harmonic.Interface.Tidal.Devices.P6
   (
     -- * Source
@@ -91,8 +91,8 @@ ctl num v = control (v * 127) # midicmd "control" # ctlNum num
 -- Pad triggering answers on S.CH; every control change defaults to G.CH and is
 -- retargeted to the auto layer by a postfix channel.
 p6trigChan, p6granChan :: Pattern ValueMap
-p6trigChan = ch 4              -- TODO(channels): S.CH 15 on the new map
-p6granChan = ch 5              -- TODO(channels): G.CH 14; module header table too, Auto CH 16
+p6trigChan = ch 15
+p6granChan = ch 14
 
 -------------------------------------------------------------------------------
 -- Source
@@ -100,7 +100,7 @@ p6granChan = ch 5              -- TODO(channels): G.CH 14; module header table t
 
 -- | Select a preset, 0-63, on the program channel.
 p6prog :: Pattern Double -> ControlPattern
-p6prog p = midicmd "program" #progNum p # ch 16   -- TODO(channels): Auto CH also moves to 16; confirm the program channel
+p6prog p = midicmd "program" #progNum p # ch 16
 
 -- | The granular source by pad number, 1-48 — the same numbering as 'p6pad'.
 -- Patterning this is what makes the granular layer sequenceable rather than

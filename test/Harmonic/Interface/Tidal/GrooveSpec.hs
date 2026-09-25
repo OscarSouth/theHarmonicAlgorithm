@@ -60,42 +60,46 @@ spec = describe "Groove Interface" $ do
       let prog = fromChords [[0,4,7,10]]   -- C7 in root position
       fund (PC.triadLayer prog) `shouldBe` [[0]]
 
-  -- CHARACTERISATION (standing instruction: the sustain 0.01 + CC64
-  -- mechanism is intentional and must never change). These pin the
-  -- emitted event set so any drift is a build failure, not a discovery
-  -- on stage.
-  describe "subKick CC64/sustain characterisation" $ do
-    let prog  = fromChords [[0,4,7], [5,9,0]]
+  -- CHARACTERISATION: the sub is held by note duration to the next kill
+  -- boundary (no CC64 — the MPC sub program does not treat it as a damper).
+  -- These pin the emitted event set so any drift is a build failure, not a
+  -- discovery on stage.
+  describe "subKick note-duration characterisation" $ do
+    let prog  = fromChords [[0,4,7]]
         kin   = Kinetics (pure 1.0) (pure 1.0) (pure prog) [prog] 0 0
         k     = (kin, pure 1 :: Pattern Int)
-        pat   = subKick (pure 1.0) k fund (1/2, "1 ~ ~ ~", "~", "~ ~ 1 ~")
-        evs   = map value (queryArc pat (Arc 0 4))
+        -- maxDur 1/4 -> autoOff at onset+1 cycle; subOn "1*4" (slow 4) -> onsets
+        -- at 0,1,2,3; no manual off; kick every cycle. Each sub note spans [n, n+1).
+        pat   = subKick (pure 1.0) k fund (1/4, "1*4", "~", "1*4")
+        es    = queryArc pat (Arc 0 4)
         num v = case v of { VF x -> Just x; VN x -> Just (realToFrac x); _ -> Nothing }
         field f vm = Map.lookup f vm >>= num
         -- midinote N lands in the ValueMap as note (N - 60): kick 48 -> -12
-        notes = [ vm | vm <- evs, Map.member "note" vm ]
-        ccs   = [ (n, val) | vm <- evs
-                           , Just n   <- [field "ctlNum" vm]
-                           , Just val <- [field "control" vm] ]
+        isSub e = case field "note" (value e) of
+                    Just nn -> let m = round (nn + 60) :: Int in m >= 36 && m <= 47
+                    Nothing -> False
+        subEvs  = [ e | e <- es, eventHasOnset e, isSub e ]
+        kickEvs = [ e | e <- es, eventHasOnset e, field "note" (value e) == Just (-12) ]
 
-    it "every sub/kick note carries sustain 0.01 (ring is pedal-held, not note-length)" $ do
-      notes `shouldSatisfy` (not . null)
-      mapM_ (\vm -> field "sustain" vm `shouldBe` Just 0.01) notes
+    it "emits no CC64 — notes are held by duration, not the pedal" $
+      [ () | e <- es, Just c <- [field "ctlNum" (value e)], round c == (64 :: Int) ]
+        `shouldBe` []
 
-    it "a continuous CC64=127 background holds the pedal down" $
-      ccs `shouldSatisfy` any (\(n, v) -> n == 64 && v == 127)
+    it "holds each sub note to the next kill boundary (onset + maxDur*4)" $
+      [ (start (wholeOrPart e), stop (wholeOrPart e)) | e <- subEvs ]
+        `shouldBe` [(0, 1), (1, 2), (2, 3), (3, 4)]
 
-    it "maxDur < 1 emits CC64=0 auto note-offs" $
-      ccs `shouldSatisfy` any (\(n, v) -> n == 64 && v == 0)
+    it "sub notes carry legato 1 so SuperDirt emits the note-off at the whole end" $
+      [ v | e <- subEvs, Just v <- [field "legato" (value e)] ]
+        `shouldSatisfy` (\vs -> length vs == 4 && all (== 1.0) vs)
 
-    it "the kick is fixed high-C MIDI 48 (note -12)" $ do
-      let kicks = [ vm | vm <- notes, field "note" vm == Just (-12) ]
-      kicks `shouldSatisfy` (not . null)
+    it "the kick is fixed high-C MIDI 48 (note -12), one-shot with sustain 0.01" $ do
+      kickEvs `shouldSatisfy` (not . null)
+      mapM_ (\e -> field "sustain" (value e) `shouldBe` Just 0.01) kickEvs
 
     it "sub notes sit in the sub register (below the MIDI-48 kick)" $ do
-      let subs = [ p | vm <- notes, Just p <- [field "note" vm], p /= (-12) ]
-      subs `shouldSatisfy` (not . null)
-      subs `shouldSatisfy` all (< (-12))
+      subEvs `shouldSatisfy` (not . null)
+      [ p | e <- subEvs, Just p <- [field "note" (value e)] ] `shouldSatisfy` all (< (-12))
 
   describe "noteoff (note-length truncate)" $ do
     let spans p = [ (start w, stop w - start w)

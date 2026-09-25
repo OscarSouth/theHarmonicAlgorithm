@@ -63,6 +63,11 @@
 -- surrounding code. The same holds for @genP@ \/ @genP'@ \/ @genP''@,
 -- @genFrom@ \/ @genFrom'@ \/ @genFrom''@, and the Roman numeral aliases.
 --
+-- For time-unit pairs the prime means the unit: unprimed = bars, primed =
+-- seconds (@display@ \/ @display'@, @mark@ \/ @mark'@). Form nodes are a
+-- different axis — @rh@ \/ @at@ name the unit and the prime is the Snap
+-- transition.
+--
 -- = Where to go next
 --
 -- * "Harmonic.Framework.Builder" — the generation engine and every modifier
@@ -230,11 +235,13 @@ module Harmonic.Lib (
   arrange, arrange', parallel, warp, rep, lookupChordAt,
   lookupChord, lookupProgression,
   overlapF,
+  harmonics, partialOffset,
 
   -- ** Form and kinetics
   FormNode(..), FormTime(..), Transition(..), Kinetics(..), IK,
   at, at', rh, rh', iK, lK, formK,
   ki, slate, withForm,
+  mark, mark', markbar, marksec, markAt,
 
   -- ** Arranger functions (voicing paradigms)
   rotate, excerpt, insert, switch, clone, extract,
@@ -246,7 +253,7 @@ module Harmonic.Lib (
   fromChords, prog,
 
   -- ** Groove interface (drums and sub bass)
-  subKick, fund, noteoff,
+  subKick, holdToNext, fund, noteoff,
   son32, son23, rumba32, rumba23, bossa32, bossa23,
   bellpat32, bellpat23,
 
@@ -333,7 +340,8 @@ import Harmonic.Interface.Tidal.Bridge (
     VoiceFunction, voiceRange,
     arrange, arrange', parallel, warp, rep, lookupChordAt,
     lookupChord, lookupProgression,
-    overlapF
+    overlapF,
+    harmonics, partialOffset
   )
 import Harmonic.Interface.Tidal.Arranger (
     rotate, excerpt, insert, switch, clone, extract,
@@ -345,14 +353,15 @@ import Harmonic.Interface.Tidal.Arranger (
     lead, lead', leadJ, parseLeadTokens, LeadToken(..)
   )
 import Harmonic.Interface.Tidal.Groove
-  ( subKick, fund, noteoff
+  ( subKick, holdToNext, fund, noteoff
   , son32, son23, rumba32, rumba23, bossa32, bossa23
   , bellpat32, bellpat23 )
 import Harmonic.Interface.Tidal.LineHarmony (lineHarmony)
 import Harmonic.Interface.Tidal.Form (
     FormNode(..), FormTime(..), Transition(..), Kinetics(..), IK,
     at, at', rh, rh', iK, lK, formK,
-    ki, slate, withForm
+    ki, slate, withForm,
+    mark, mark', markbar, marksec, markAt
   )
 import Harmonic.Interface.Tidal.Instruments
 import Harmonic.Interface.Tidal.Orchestra

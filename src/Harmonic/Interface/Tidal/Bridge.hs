@@ -30,6 +30,10 @@ module Harmonic.Interface.Tidal.Bridge
   , arrange       -- onset-join with kinetics
   , arrange'      -- squeeze with kinetics
 
+    -- * Natural harmonics (one string of an overtone instrument)
+  , harmonics
+  , partialOffset
+
     -- * Parallelism Harmoniser
   , parallel      -- stack fixed-interval parallel voices over arrange output
 
@@ -52,8 +56,10 @@ import qualified Harmonic.Rules.Types.Progression as P
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import Harmonic.Rules.Types.ProgressionContext (Layer(..))
 import qualified Harmonic.Rules.Types.Harmony as H
+import qualified Harmonic.Rules.Types.Pitch as Pitch
 import qualified Harmonic.Interface.Tidal.Arranger as A
 import Harmonic.Interface.Tidal.Form (Kinetics(..), IK)
+import Harmonic.Interface.Tidal.Utils (mono')
 
 import Data.Foldable (toList)
 import Data.Maybe (isJust)
@@ -237,6 +243,87 @@ arrangeLookup (scales, nChords) chordPat ranged
             ) Nothing Nothing
 
       in note mapped
+
+-------------------------------------------------------------------------------
+-- Natural harmonics: harmonics (one string)
+-------------------------------------------------------------------------------
+
+-- | Semitones from a string's fundamental to its @n@-th partial:
+-- @round (12 * logBase 2 n)@, so partials 2..5 sit at +12 +19 +24 +28.
+partialOffset :: Int -> Int
+partialOffset partial = round (12 * logBase 2 (fromIntegral partial :: Double))
+
+-- | 'arrange' for ONE STRING of an overtone instrument: the chord tones a
+-- string can sound as natural harmonics, played at the harmonics' true pitches.
+--
+-- The 'Pitch.NoteName' is the string's fundamental (enharmonics collapse to
+-- the pitch class). The fundamental is placed in reference octave 2
+-- (C2–B2, MIDI 36–47) and the four playable partials of the 2016 thesis —
+-- octave, fifth, double octave, third (partials 2 3 4 5) — give the string's
+-- harmonic pitches. The launcher puts the string in its real octave with
+-- @|+ oct@ \/ @|- oct@, exactly as the orchestral blocks do, so the tuning of
+-- an instrument is whichever strings a launcher instantiates:
+--
+-- @
+-- ,harmonics A (0,1) k T flow (overlapF 0) ["~", pat] # ch 11 |- oct 1  -- A1
+-- ,harmonics E (0,1) k T flow (overlapF 0) ["~", pat] # ch 11           -- E2
+-- @
+--
+-- Per bar, the string's viable notes are its harmonic pitches whose pitch
+-- class is among the bar's voiced tones (same voicing route as 'arrange').
+-- A pattern index picks the i-th viable note by floor-mod — never an octave
+-- wrap, because these are fixed sample pitches; a bar with no viable note
+-- rests. Within a string the contour is 'mono'' (latest-note priority: a new
+-- harmonic damps the previous, as on the instrument); across strings the
+-- launcher's stack is polyphonic. Sustain is the outer @# legato@; a shared
+-- pitch sounded by two strings simply doubles. This is a render-time filter
+-- only — it never reads the generation context's overtone constraint.
+harmonics :: Pitch.NoteName                     -- ^ String fundamental (pitch class)
+          -> (Double, Double)                   -- ^ Kinetics gate, as 'arrange'
+          -> IK                                 -- ^ Performance context
+          -> Layer                              -- ^ Progression layer, as 'arrange'
+          -> VoiceFunction                      -- ^ Voice function (flow, root, ...)
+          -> (P.Progression -> P.Progression)   -- ^ Progression modifier (overlapF 0, id, ...)
+          -> [Pattern Int]                      -- ^ Contours: index into the bar's viable harmonics
+          -> Pattern ValueMap
+harmonics str (lo, hi) (kin, chordPat) lyr voiceFunc modifier pats =
+  let fund    = 36 + Pitch.unPitchClass (Pitch.pitchClass str)
+      pitches = [ fund + partialOffset partial | partial <- [2, 3, 4, 5] ]
+      contour = mono' (stack pats)
+      progPat = kProg kin
+      viableOf ctx =
+        let (chroma, p) = layerForVoicing lyr ctx
+            vs  = if chroma then A.strataModeFlow (modifier p) else voiceFunc (modifier p)
+            per = [ [ m | m <- pitches, (m `mod` 12) `elem` map (`mod` 12) bar ] | bar <- vs ]
+        in (per, length vs)
+      cache = [ (ctx, viableOf ctx) | ctx <- kProgs kin ]
+      cacheForced = foldr (\(_, (vs, cnt)) acc -> sum (concat vs) `seq` cnt `seq` acc) () cache
+      lookupCache ctx = case lookup ctx cache of
+        Just hit -> hit
+        Nothing  -> viableOf ctx
+  in cacheForced `seq` (|* pF "amp" (kDynamic kin)) $
+     mask (fmap (\x -> x >= lo && x <= hi) (kSignal kin)) $
+       innerJoin $ fmap (\ctx ->
+         harmonicsLookup (lookupCache ctx) chordPat contour
+       ) progPat
+
+-- | Onset-join for 'harmonics': index the bar's viable harmonic pitches by
+-- floor-mod (no octave wrap), pitch sampled once at the onset.
+harmonicsLookup :: ([[Int]], Int) -> Pattern Int -> Pattern Int -> Pattern ValueMap
+harmonicsLookup (viable, nChords) chordPat contour
+  | nChords == 0 = silence
+  | otherwise =
+      let chordIdx = fmap (\i -> (i - 1) `mod` nChords) chordPat
+          mapped = Pattern (\st ->
+            concatMap (\ev -> case whole ev of
+              Nothing -> []
+              Just w  ->
+                let ci = lookupChordAt (start w) chordIdx
+                    vs = viable !! (ci `mod` nChords)
+                in [ ev { value = vs !! (value ev `mod` length vs) } | not (null vs) ]
+              ) (query contour st)
+            ) Nothing Nothing
+      in midinote (fmap fromIntegral mapped)
 
 -------------------------------------------------------------------------------
 -- Arrangement: arrange' (squeeze)

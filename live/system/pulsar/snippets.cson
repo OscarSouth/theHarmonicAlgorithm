@@ -157,12 +157,21 @@
           ,display k
           -- ,metronome 4 $d 0.3
           -- ,count  k $d 0.6
+          -- ,grnd f k $d 0.9
+          -- ,mini f k $d 0.9
+          -- ,jura f k $d 0.9
           -- ,subk f k $d 0.99
           -- ,walk f k $d 0.99
+          -- ,hmnx f k $d 0.8
           -- ,k909 f k $d 0.99
           -- ,kmpc f k $d 0.99
+          -- ,slce f k $d 0.9
           -- ,m32  f k $d 0.99
           -- ,mdf  f k $d 0.99
+          -- ,s101 f k $d 0.9
+          -- ,smpl f k $d 0.9
+          -- ,auto f k $d 0.9
+          -- ,gnlr f k $d 0.9
           ]
     '''
 
@@ -452,12 +461,101 @@
           ]# o # legato 0.01 |* vel d
     '''
 
+  'grand piano (soft, ch 1)':
+    'prefix': 'grnd'
+    'body': '''
+      grnd f k d = p "piano" $ do
+        let o = ch 1
+        f
+          $ stack [silence
+             -- --
+            ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"
+              ,"$1"
+            ]# o |* vel 0.8 |+ oct 0
+             -- --
+            ,arrange (0,1) k (-9,9) T grid (overlapF 0) ["~"
+              -- ,"[0]/4"
+            ]# o |* vel 0.8 |- oct 1
+             -- --
+          ]# legato 0.9 |* vel d
+    '''
+
+  'Minimoog pad (soft, ch 2)':
+    'prefix': 'mini'
+    'body': '''
+      mini f k d = p "moog" $ do
+        let o = ch 2
+        f
+          $ stack [silence
+             -- --
+            ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"
+              ,"$1"
+            ]# o |* vel 0.8 |+ oct 0
+             -- --
+            ,arrange (0,1) k (-9,9) T grid (overlapF 0) ["~"
+              -- ,"[0]/4"
+            ]# o |* vel 0.8 |- oct 1
+             -- --
+          ]# legato 0.9 |* vel d
+    '''
+
+  'Juno poly bells (soft, ch 7)':
+    'prefix': 'jura'
+    'body': '''
+      jura f k d = p "juno" $ do
+        let o = ch 7
+        f
+          $ stack [silence
+             -- --
+            ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"
+              ,"$1"
+            ]# o |* vel 0.8 |+ oct 0
+             -- --
+            ,arrange (0,1) k (-9,9) T grid (overlapF 0) ["~"
+              -- ,"[0]/4"
+            ]# o |* vel 0.8 |- oct 1
+             -- --
+          ]# legato 0.9 |* vel d
+    '''
+
+  'slce MPC misc-sample kit (ch 12)':
+    'prefix': 'slce'
+    'body': '''
+      slce f k d = p "slce" $ do
+        f
+          $ stack [silence
+             -- speech — form-relative, once per loop (bars as written in the form; display shows +1)
+            ,mark ${1:32} k [silence
+              ,pad 1 |* vel 0.9
+              -- ,pad 5 |* vel 0.7                 -- stack more at the same bar; comment individually
+              ]
+            -- ,mark 96 k [silence, pad 2 |* vel 0.9]
+            -- ,mark' 250 k [silence, pad 3 |* vel 0.9]   -- seconds (marksec)
+             -- rhythmic — kinetics-gated
+            ,slate (0.2,1) k [silence
+              -- ,struct "1 ~ ~ ~" (pad 4) |* vel 0.9
+              ]
+             -- --
+          ] |* vel d
+    '''
+
+  'kgrv groove kit block (drumpat file, ch 9)':
+    'prefix': 'kgrv'
+    'body': '''
+      kgrv f k d = p "grooveKit"
+        $ f
+        $ stack [silence
+          ,kickpat ,snarepat ,clappat ,hhpat ,ridepat ,percpat
+         -- ,chpat ,ohpat   -- (separate closed/open; alt to combined hhpat)
+          ]# ch 9 |* vel d
+    '''
+
 
   'Moog Mother-32':
     'prefix': 'm32'
     'body': '''
       m32 f k d = p "moogMother32" $ do
-        let o = ch 14
+        let o = ch 6
         f
           $ stack [silence
              -- --
@@ -473,7 +571,7 @@
     'prefix': 'mdf'
     'body': '''
       mdf f k d = p "moogDFAM" $ 0.036 <~ do
-        let (osc1,osc2) = (ch 11, ch 12)
+        let (osc1,osc2) = (ch 3, ch 4)
         let pat = "$1"
         f
           $ stack [silence
@@ -491,12 +589,57 @@
           ]# legato 0.25 |* vel d
     '''
 
+  'hmnx natural harmonics':
+    'prefix': 'hmnx'
+    'body': '''
+      hmnx f k d = p "hmnx" $ do
+        let o   = ch 11
+            pat = "$1"
+        f
+          $ stack [silence
+             -- --
+            ,harmonics A (0,1) k T flow (overlapF 0) ["~"
+              ,pat
+            ]# o |* vel 0.8 |- oct 1
+             -- --
+            ,harmonics E (0,1) k T flow (overlapF 0) ["~"
+              ,pat
+            ]# o |* vel 0.8
+             -- --
+            ,harmonics G (0,1) k T flow (overlapF 0) ["~"
+              ,pat
+            ]# o |* vel 0.8
+             -- --
+            ,harmonics B (0,1) k T flow (overlapF 0) ["~"
+              ,pat
+            ]# o |* vel 0.8
+             -- --
+            -- ,harmonics C (0,1) k T flow (overlapF 0) ["~"    -- lever at C
+            --   ,pat
+            -- ]# o |* vel 0.8 |+ oct 1
+             -- --
+            ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"   -- unfiltered: keygroup decides
+              -- ,pat
+            ]# o |* vel 0.6
+             -- --
+            ,cc 64 "[1@63 0]" #o                                -- damper: accumulation
+             -- --
+          ]# legato 1 |* vel d
+    '''
+
+  'harmonics string (one line for a launcher stack)':
+    'prefix': 'harm'
+    'body': '''
+      ,harmonics ${1:E} (0,1) k T flow (overlapF 0) ["~"
+        ,${2:pat}
+      ]# o |* vel 0.8
+       -- --
 
   # ══════════════════════════════════════════════════════════
   # THE AIRA PROGRAM
-  # TODO(channels): new map is S-1 13, G.CH 14, S.CH 15, Auto 16 — each block's `let o` and this header
-  # Four layers on one MIDI port. Configure the S-1 to channel 6
-  # and the P-6's Auto/S.CH/G.CH to 3/4/5. The P-6's three channels
+  # Four layers on one MIDI port, channels 13-16 of the studio rig.
+  # Configure the S-1 to channel 13 and the P-6's Auto/S.CH/G.CH to
+  # 16/15/14 (program change is device-fixed on 16). The P-6's three channels
   # are received independently, so smpl/auto/gnlr sound together
   # and share only the unit's voice pool.
   #
@@ -506,11 +649,11 @@
   # it, since `#` takes values from the right.
   # ══════════════════════════════════════════════════════════
 
-  'AIRA S-1 (synth voice, ch 6)':
+  'AIRA S-1 (synth voice, ch 13)':
     'prefix': 's101'
     'body': '''
       s101 f k d = p "s101" $ do
-        let o = ch 6
+        let o = ch 13
         f
           $ stack [silence
              -- --
@@ -525,11 +668,11 @@
     '''
 
 
-  'AIRA P-6 pads (one-shots, ch 4)':
+  'AIRA P-6 pads (one-shots, ch 15)':
     'prefix': 'smpl'
     'body': '''
       smpl f k d = p "smpl" $ do
-        let o = ch 4
+        let o = ch 15
         f
           $ stack [silence
              -- --
@@ -541,11 +684,11 @@
     '''
 
 
-  'AIRA P-6 auto (focused pad, chromatic, ch 3)':
+  'AIRA P-6 auto (focused pad, chromatic, ch 16)':
     'prefix': 'auto'
     'body': '''
       auto f k d = p "auto" $ do
-        let o = ch 3
+        let o = ch 16
         f
           $ stack [silence
              -- --
@@ -568,11 +711,11 @@
   #   p6pump   ghost-sidechain duck on Level; its own stack line, never |*
   # Every raw control stays available underneath: p6grainsize,
   # p6grains, p6spread, p6grainshape, p6detune, p6grainkf ...
-  'AIRA P-6 granular (ch 5)':
+  'AIRA P-6 granular (ch 14)':
     'prefix': 'gnlr'
     'body': '''
       gnlr f k d = p "gnlr" $ do
-        let o = ch 5
+        let o = ch 14
         f
           $ stack [silence
              -- --

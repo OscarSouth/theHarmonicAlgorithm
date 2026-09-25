@@ -57,6 +57,11 @@ module Harmonic.Interface.Tidal.Form
   , beatsPerBar
   , ki
   , slate
+  , mark
+  , mark'
+  , markbar
+  , marksec
+  , markAt
   , kinPick
   , withForm
 
@@ -259,6 +264,46 @@ ki (lo, hi) (kin, _) = mask (fmap (\x -> x >= lo && x <= hi) (kSignal kin))
 -- |Gated stack: stack patterns and gate by kinetics range.
 slate :: (Double, Double) -> IK -> [Pattern a] -> Pattern a
 slate band k pats = ki band k $ stack pats
+
+-- |Form-relative cue: place patterns ONCE per form loop at a form time. The
+-- list is stacked (the shape of 'slate'); each pattern's first cycle is squeezed
+-- into the one-beat window starting at that time, so a plain one-note pattern
+-- fires exactly on the beat and @\"1 1\"@ gives two hits within it. Loops in
+-- lockstep with 'kSignal' — the same @slow loopCycles@ wrap as @formSignal@ —
+-- so a cue and the kinetics can never drift apart. NOT kinetics-gated: a
+-- placement is absolute (the launcher's @|* vel d@ still applies).
+--
+-- Time-unit doctrine: unprimed = bars, primed = seconds. 'mark' takes bars as
+-- written for 'rh' nodes (bar 0 = cycle 0; the 12-step displays bar N as N+1);
+-- 'mark'' takes seconds as for 'at' nodes and, like them, assumes cps has been
+-- constant since cycle 0. 'markbar' \/ 'marksec' are synonyms.
+--
+-- Atemporal forms (single node, 'lK') fire once at absolute cycles. A time at
+-- or beyond the loop end, or no cps, is silence.
+--
+-- @, mark 32 k [ pad 1 |* vel 0.9 ]      -- speech sample on the drop@
+markAt :: FormTime -> IK -> [Pattern a] -> Pattern a
+markAt ft (kin, _) pats =
+  let body  = stack pats
+      cpsV  = kCps kin
+      loopC = realToFrac (kLoopSecs kin * cpsV) :: Time
+      c     = realToFrac (case ft of
+                            Bars b -> b * beatsPerBar
+                            Secs t -> t * cpsV) :: Time
+  in if cpsV <= 0 then silence
+     else if loopC <= 0 then playFor c (c + 1) (rotR c body)
+     else if c + 1 > loopC then silence
+     else slow (pure loopC) $ compressArc (Arc (c / loopC) ((c + 1) / loopC)) body
+
+-- |'markAt' in bars (see the doctrine there).
+mark, markbar :: Double -> IK -> [Pattern a] -> Pattern a
+mark    = markAt . Bars
+markbar = mark
+
+-- |'markAt' in seconds.
+mark', marksec :: Double -> IK -> [Pattern a] -> Pattern a
+mark'   = markAt . Secs
+marksec = mark'
 
 -- |Kinetics-windowed dispatch: partition [0,1] into N equal windows of
 -- width 1\/N, where N = length pats, and play only the pattern whose

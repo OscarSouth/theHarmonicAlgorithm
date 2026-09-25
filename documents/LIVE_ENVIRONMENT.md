@@ -31,43 +31,70 @@ and LED state, not synthesis. See
 [ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md) for the instrument and
 channel map.
 
-### Two programs on one port
+### Two rigs on one port
 
-There is one MIDI stream and one 16-channel space, and two different configurations
+There is one MIDI stream and one 16-channel space, and two complete configurations
 compete for it. They are not performed together:
 
 - **The orchestral program** — the JV-1010, sixteen pitched instruments and a drum kit,
-  aimed at simulated orchestral writing. Channel map in
+  aimed at simulated orchestral writing. Library-fixed map in
   [ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md).
-- **The AIRA program** — the S-1 and P-6, aimed at contemporary and jazz material.
+- **The studio rig** — soft synths, the Moog DFAM and Mother-32, the MPC programs and the
+  two AIRA units, aimed at contemporary and jazz material. Map below.
 
-The AIRA channels deliberately overlap the orchestra map (S-1 on 6 is the trombone's
-channel; the P-6's 3/4/5 are clarinet, bassoon and horn). Nothing needs renumbering:
-only one program is loaded at a time, and each is a complete, deliberate configuration.
+Only one is loaded at a time, so the two maps overlap freely and nothing needs renumbering.
+
+### Studio rig channel map
+
+Every channel has exactly one owner. A block sets its channel with the `ch N` postfix; the
+library carries no launcher-named wrappers, because a block and a wrapper of the same name
+shadow each other in the session.
+
+| ch | block | orbit | patch / device |
+|---|---|---|---|
+| 1 | `grnd` | `piano` | grand piano (soft) |
+| 2 | `mini` | `moog` | Minimoog pad (soft) |
+| 3 | `mdf` osc1 | `moogDFAM` | Moog DFAM |
+| 4 | `mdf` osc2 | `moogDFAM` | Moog DFAM |
+| 5 | `steptrig` | — | DFAM step trigger |
+| 6 | `m32` | `moogMother32` | Moog Mother-32 |
+| 7 | `jura` | `juno` | Juno poly bells (soft) |
+| 8 | `walk` | `lineHarmony` | bass line |
+| 9 | `k909`, `kgrv` | `909kit`, `grooveKit` | drum machines (JV drum map, channel overridden) |
+| 10 | `subk`, `kmpc`, `count`, `metronome`, `display` | `subKick`, `mpckit`, … | MPC sub/kick + kit; 12-step LEDs and display (fixed) |
+| 11 | `hmnx` | `hmnx` | MPC natural-harmonics keygroup |
+| 12 | `slce` | `slce` | MPC misc-sample kit (pads 1–16 = MIDI 36–51) |
+| 13 | `s101` | `s101` | Roland S-1 synth voice (`s1chan`, all `s1` controls + program) |
+| 14 | `gnlr` | `gnlr` | Roland P-6 G.CH — granular engine (`p6granChan`; every `p6` control defaults here) |
+| 15 | `smpl` | `smpl` | Roland P-6 S.CH — the 48 pads at fixed pitch (`p6trigChan`) |
+| 16 | `auto` | `auto` | Roland P-6 Auto CH — focused pad played chromatically; shares 16 with the P-6's device-fixed program change |
+
+Device side: DFAM's MIDI-to-CV on 3/4/5, Mother-32 on 6, S-1 on 13, P-6 Auto/S.CH/G.CH =
+16/15/14 (program change fixed at 16). `hush` lifts CC64 on 10 (`subPedalOff`) and 11
+(`hmnxPedalOff`) and sweeps all 16 via `allNotesOff`.
 
 ### The AIRA program
 
-Four performable layers, one Pulsar snippet each:
+Four performable layers on channels 13–16, one Pulsar snippet each:
 
-<!-- TODO(channels): new map is S-1 13, G.CH 14, S.CH 15, Auto 16 — this table, the setup sentence, the retarget example and the overlap paragraph above -->
+| block  | device / layer                         | channel    | CC prefix |
+|--------|----------------------------------------|------------|-----------|
+| `s101` | S-1 synth voice                        | 13         | `s1`      |
+| `gnlr` | P-6 granular engine                    | 14 (G.CH)  | `p6`      |
+| `smpl` | P-6 pads, 48 one-shots at fixed pitch  | 15 (S.CH)  | —         |
+| `auto` | P-6 focused pad, played chromatically  | 16 (Auto)  | `p6`      |
 
-| block  | device / layer                         | channel   | CC prefix |
-|--------|----------------------------------------|-----------|-----------|
-| `s101` | S-1 synth voice                        | 6         | `s1`      |
-| `smpl` | P-6 pads, 48 one-shots at fixed pitch  | 4 (S.CH)  | —         |
-| `auto` | P-6 focused pad, played chromatically  | 3 (Auto)  | `p6`      |
-| `gnlr` | P-6 granular engine                    | 5 (G.CH)  | `p6`      |
-
-Set the S-1 to MIDI channel 6, and the P-6's Auto / S.CH / G.CH to 3 / 4 / 5. The three
-P-6 channels are received independently, so `smpl`, `auto` and `gnlr` sound together and
-share only the unit's voice pool.
+Set the S-1 to MIDI channel 13, and the P-6's Auto / S.CH / G.CH to 16 / 15 / 14; the P-6's
+program-change channel is fixed at 16, so the auto layer shares it. The three P-6 channels
+are received independently, so `smpl`, `auto` and `gnlr` sound together and share only the
+unit's voice pool.
 
 The P-6 has **one** control-change set, received on either its granular or its auto
 channel, so every `p6` control serves both layers. Each defaults to the granular
 channel; a postfix channel retargets it, since `#` takes values from the right:
 
 ```haskell
-, p6cutoff (lfo saw 0.2 0.9) # ch 3      -- the same control, on the auto layer
+, p6cutoff (lfo saw 0.2 0.9) # ch 16     -- the same control, on the auto layer
 ```
 
 `auto` and `gnlr` read whatever is focused on the unit — the selected pad and the
@@ -292,9 +319,10 @@ recorded. It boots the server (44100 Hz, no input channels, enlarged buffers), s
 - **Wraps it in `SafeMIDIOut`.** SuperDirt schedules each event's Note Off independently,
   so two overlapping events on the same note cut each other short. The wrapper
   reference-counts note-offs and adds a precautionary one. It is a **class**, so it must
-  be installed separately — the source is in the tail of the startup file, and it goes in
-  `~/Library/Application Support/SuperCollider/Extensions/SafeMIDIOut.sc`. Without it the
-  file will not compile.
+  be installed separately — `live/system/SafeMIDIOut.sc`, symlinked (never copied) into
+  `Platform.userExtensionDir` (`~/Library/Application Support/SuperCollider/Extensions`
+  on macOS, `~/.local/share/SuperCollider/Extensions` on Linux). Without it the startup
+  file aborts before `sc_ready` and the launcher waits with no error.
 - **Opens an OSC backdoor** — `OSCdef('/run-code')` on **port 57121**, which interprets
   whatever string it is sent. That is how the Q-Link bridge gets injected into a running
   server.
@@ -392,8 +420,8 @@ symlink, and has drifted.
 1. GHC 9.10.3 and Stack — `stack.yaml` sets `system-ghc: true`, so GHC must be on the
    PATH. `stack build`.
 2. SuperCollider, plus the SuperDirt and Dirt-Samples quarks.
-3. `SafeMIDIOut.sc` into `~/Library/Application Support/SuperCollider/Extensions/` —
-   source is in the tail of `live/superdirt_startup.scd`.
+3. Symlink `live/system/SafeMIDIOut.sc` into `Platform.userExtensionDir`
+   (`~/Library/Application Support/SuperCollider/Extensions/` on macOS).
 4. Fix `s.options.device` in `live/superdirt_startup.scd`, and the MIDI priority list
    if the interface differs.
 5. Pulsar, plus the `tidalcycles` package.

@@ -12,10 +12,11 @@
 s.reboot {
   // --- CONFIGURATION CHANGES ---
   // 1. Explicitly set your desired sample rate.
-  // Under JACK the server dictates the rate and a mismatch fails the boot.
-  // PipeWire serves JACK here and is force-clocked to 48000
-  // (clock.force-rate / clock.allowed-rates).
-  s.options.sampleRate = 48000;
+  // Per platform: on Linux the JACK server dictates the rate and a mismatch
+  // fails the boot (PipeWire there is force-clocked to 48000 via
+  // clock.force-rate / clock.allowed-rates); the macOS rig runs CoreAudio at
+  // 44100. thisProcess.platform.name, not Platform.name — see the MIDI list.
+  s.options.sampleRate = if (thisProcess.platform.name == \linux) { 48000 } { 44100 };
 
   // 2. Audio output device — uncomment ONE (comment the others).
   //    AIRA devices appear over USB when connected; both run at 44.1 kHz.
@@ -180,7 +181,8 @@ s.reboot {
       ~midiSafe.onControl = { |c, ct, v| ~ledCoordinator.onControl(c, ct, v) };
       ~ledCoordinator.watch(7, nil);          // ch 8  = lineHarmony, all notes
       ~ledCoordinator.watch(9, (36..47));     // ch 10 = subKick range only
-      "====> LED coordinator wired to SafeMIDIOut on ch 8 + ch 10 (subKick range).".postln;
+      ~ledCoordinator.watch(10, (45..76));    // ch 11 = hmnx natural harmonics
+      "====> LED coordinator wired to SafeMIDIOut on ch 8 + ch 10 (subKick range) + ch 11 (hmnx harmonics).".postln;
     };
 
     "SuperDirt is ready.".postln;
