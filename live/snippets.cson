@@ -157,10 +157,15 @@
           ,display k
           -- ,metronome 4 $d 0.3
           -- ,count  k $d 0.6
+          -- ,grnd f k $d 0.9
+          -- ,mini f k $d 0.9
+          -- ,jura f k $d 0.9
           -- ,subk f k $d 0.99
           -- ,walk f k $d 0.99
+          -- ,hmnx f k $d 0.8
           -- ,k909 f k $d 0.99
           -- ,kmpc f k $d 0.99
+          -- ,slce f k $d 0.9
           -- ,m32  f k $d 0.99
           -- ,mdf  f k $d 0.99
           ]
@@ -443,12 +448,101 @@
           ]# o # legato 0.01 |* vel d
     '''
 
+  'grand piano (soft, ch 1)':
+    'prefix': 'grnd'
+    'body': '''
+      grnd f k d = p "piano" $ do
+        let o = ch 1
+        f
+          $ stack [silence
+             -- --
+            ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"
+              ,"$1"
+            ]# o |* vel 0.8 |+ oct 0
+             -- --
+            ,arrange (0,1) k (-9,9) T grid (overlapF 0) ["~"
+              -- ,"[0]/4"
+            ]# o |* vel 0.8 |- oct 1
+             -- --
+          ]# legato 0.9 |* vel d
+    '''
+
+  'Minimoog pad (soft, ch 2)':
+    'prefix': 'mini'
+    'body': '''
+      mini f k d = p "moog" $ do
+        let o = ch 2
+        f
+          $ stack [silence
+             -- --
+            ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"
+              ,"$1"
+            ]# o |* vel 0.8 |+ oct 0
+             -- --
+            ,arrange (0,1) k (-9,9) T grid (overlapF 0) ["~"
+              -- ,"[0]/4"
+            ]# o |* vel 0.8 |- oct 1
+             -- --
+          ]# legato 0.9 |* vel d
+    '''
+
+  'Juno poly bells (soft, ch 7)':
+    'prefix': 'jura'
+    'body': '''
+      jura f k d = p "juno" $ do
+        let o = ch 7
+        f
+          $ stack [silence
+             -- --
+            ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"
+              ,"$1"
+            ]# o |* vel 0.8 |+ oct 0
+             -- --
+            ,arrange (0,1) k (-9,9) T grid (overlapF 0) ["~"
+              -- ,"[0]/4"
+            ]# o |* vel 0.8 |- oct 1
+             -- --
+          ]# legato 0.9 |* vel d
+    '''
+
+  'slce MPC misc-sample kit (ch 12)':
+    'prefix': 'slce'
+    'body': '''
+      slce f k d = p "slce" $ do
+        f
+          $ stack [silence
+             -- speech — form-relative, once per loop (bars as written in the form; display shows +1)
+            ,mark ${1:32} k [silence
+              ,pad 1 |* vel 0.9
+              -- ,pad 5 |* vel 0.7                 -- stack more at the same bar; comment individually
+              ]
+            -- ,mark 96 k [silence, pad 2 |* vel 0.9]
+            -- ,mark' 250 k [silence, pad 3 |* vel 0.9]   -- seconds (marksec)
+             -- rhythmic — kinetics-gated
+            ,slate (0.2,1) k [silence
+              -- ,struct "1 ~ ~ ~" (pad 4) |* vel 0.9
+              ]
+             -- --
+          ] |* vel d
+    '''
+
+  'kgrv groove kit block (drumpat file, ch 9)':
+    'prefix': 'kgrv'
+    'body': '''
+      kgrv f k d = p "grooveKit"
+        $ f
+        $ stack [silence
+          ,kickpat ,snarepat ,clappat ,hhpat ,ridepat ,percpat
+         -- ,chpat ,ohpat   -- (separate closed/open; alt to combined hhpat)
+          ]# ch 9 |* vel d
+    '''
+
 
   'Moog Mother-32':
     'prefix': 'm32'
     'body': '''
       m32 f k d = p "moogMother32" $ do
-        let o = ch 14
+        let o = ch 6
         f
           $ stack [silence
              -- --
@@ -464,7 +558,7 @@
     'prefix': 'mdf'
     'body': '''
       mdf f k d = p "moogDFAM" $ 0.036 <~ do
-        let (osc1,osc2) = (ch 11, ch 12)
+        let (osc1,osc2) = (ch 3, ch 4)
         let pat = "$1"
         f
           $ stack [silence
@@ -480,4 +574,51 @@
             ]# osc2 |* vel 1 |- oct 1
              -- --
           ]# legato 0.25 |* vel d
+    '''
+
+  'hmnx natural harmonics':
+    'prefix': 'hmnx'
+    'body': '''
+      hmnx f k d = p "hmnx" $ do
+        let o   = ch 11
+            pat = "$1"
+        f
+          $ stack [silence
+             -- --
+            ,harmonics A (0,1) k T flow (overlapF 0) ["~"
+              ,pat
+            ]# o |* vel 0.8 |- oct 1
+             -- --
+            ,harmonics E (0,1) k T flow (overlapF 0) ["~"
+              ,pat
+            ]# o |* vel 0.8
+             -- --
+            ,harmonics G (0,1) k T flow (overlapF 0) ["~"
+              ,pat
+            ]# o |* vel 0.8
+             -- --
+            ,harmonics B (0,1) k T flow (overlapF 0) ["~"
+              ,pat
+            ]# o |* vel 0.8
+             -- --
+            -- ,harmonics C (0,1) k T flow (overlapF 0) ["~"    -- lever at C
+            --   ,pat
+            -- ]# o |* vel 0.8 |+ oct 1
+             -- --
+            ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"   -- unfiltered: keygroup decides
+              -- ,pat
+            ]# o |* vel 0.6
+             -- --
+            ,cc 64 "[1@63 0]" #o                                -- damper: accumulation
+             -- --
+          ]# legato 1 |* vel d
+    '''
+
+  'harmonics string (one line for a launcher stack)':
+    'prefix': 'harm'
+    'body': '''
+      ,harmonics ${1:E} (0,1) k T flow (overlapF 0) ["~"
+        ,${2:pat}
+      ]# o |* vel 0.8
+       -- --
     '''

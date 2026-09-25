@@ -189,3 +189,39 @@ spec = do
           -- Query near start: should have testProgA
           evs = queryArc (kProg k) (Arc 0 1)
       all (\e -> value e == testProgA) evs `shouldBe` True
+
+  -- mark / mark': form-relative one-shot placement. Three-node bar form at
+  -- 120 bpm (cps 2): loop = 32 bars = 128 cycles.
+  describe "mark (form-relative cues)" $ do
+    let kin3  = formK 120 [rh 0 0 0 testProgA, rh 16 1 1 testProgA, rh 32 0 0 testProgA]
+        k3    = (kin3, pure 1 :: Pattern Int)
+        onsets to p = [ start (wholeOrPart e) | e <- queryArc p (Arc 0 to), eventHasOnset e ]
+        one   = pure True :: Pattern Bool
+
+    it "fires once per loop at the bar (rh numbering)" $
+      onsets 256 (mark 16 k3 [one]) `shouldBe` [64, 192]
+
+    it "seconds version agrees with bars at the same instant" $ do
+      onsets 128 (mark' 8 k3 [one]) `shouldBe` [16]
+      onsets 128 (mark' 8 k3 [one]) `shouldBe` onsets 128 (mark 4 k3 [one])
+
+    it "markbar / marksec are synonyms; markAt is the generic" $ do
+      onsets 256 (markbar 16 k3 [one]) `shouldBe` onsets 256 (mark 16 k3 [one])
+      onsets 128 (marksec 8 k3 [one]) `shouldBe` onsets 128 (mark' 8 k3 [one])
+      onsets 256 (markAt (Bars 16) k3 [one]) `shouldBe` onsets 256 (mark 16 k3 [one])
+
+    it "squeezes the pattern's first cycle into the one-beat window; the list is stacked" $ do
+      onsets 128 (mark 4 k3 ["1 1" :: Pattern Bool]) `shouldBe` [16, 16.5]
+      onsets 128 (mark 4 k3 [one, one]) `shouldBe` [16, 16]
+
+    it "loop start fires; beyond the loop end and an empty list are silence" $ do
+      onsets 256 (mark 0 k3 [one]) `shouldBe` [0, 128]
+      onsets 256 (mark 40 k3 [one]) `shouldBe` []
+      onsets 256 (mark 16 k3 []) `shouldBe` []
+
+    it "is not kinetics-gated" $
+      onsets 256 (mark 16 (kin3 { kSignal = pure 0 }, pure 1 :: Pattern Int) [one]) `shouldBe` [64, 192]
+
+    it "atemporal forms: lK is silence, a single-node iK fires once at absolute cycles" $ do
+      onsets 256 (mark 4 (lK (pure 1) (pure 1) testProgA (pure 1)) [one]) `shouldBe` []
+      onsets 512 (mark 4 (iK 120 [rh 0 0 0 testProgA] (pure 1)) [one]) `shouldBe` [16]

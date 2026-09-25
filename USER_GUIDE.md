@@ -982,11 +982,12 @@ None is "more correct" — they trade immediacy against decidedness. A performan
 |---|---|
 | Session | `transport` · `state` |
 | Generation | `ctx` · `gen` · `formless` · `dance` |
-| Launchers | `launch` · `p` · `rr` · `slate` · `minimal` · `deeptech` |
+| Launchers | `launch` · `p` · `rr` · `slate` · `harm` · `minimal` · `deeptech` |
 | Groove & lines | `subk` · `walk` |
 | Motifs | `motif` |
 | Orchestra* | `orchsec` · `tutti` · `instr` |
 | Hardware* | `k909` · `kmpc` · `m32` · `mdf` |
+| Studio rig* | `grnd` · `mini` · `jura` · `hmnx` · `slce` · `kgrv` |
 
 (\* rig-specific — see Known exceptions.)
 
@@ -1051,7 +1052,7 @@ s <- seek "none" $ ... $ gen                                 -- offline fallback
 
 **Melody source** — `melodyStateFrom` builds a starting state from a `ScaleSource`, for lines that follow a scale rather than the corpus.
 
-**Display feed** — `displayClock`/`displayClock'` build the 12 Step's LED CC pattern (elapsed seconds, or bar number); the launcher wraps them as `display k` / `display' k`.
+**Display feed** — `displayClock`/`displayClock'` build the 12 Step's LED CC pattern (bar number, or elapsed seconds — unprimed = bars, primed = seconds); the launcher wraps them as `display k` / `display' k`.
 
 **Arrangement** —
 

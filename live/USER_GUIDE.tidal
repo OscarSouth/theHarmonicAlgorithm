@@ -14,6 +14,8 @@
 -- except the groove sections (channel 10, drums). Route channel 1
 -- in your MIDI setup to a polyphonic sound — piano, Rhodes, pad,
 -- polysynth. That's your instrument for the whole walkthrough.
+-- (On the studio rig channel 1 is the `grnd` grand-piano block; the
+-- full map is in documents/LIVE_ENVIRONMENT.md.)
 --
 -- ── THE GRAPH ──
 -- Generation draws on a Neo4j graph of harmonic transitions
@@ -916,8 +918,8 @@ hush
 -- src/Harmonic/Interface/Tidal/Groove.hs
 --
 -- GOAL: Kick and sub bass that follow the harmonic root.
--- subKick combines a kick pattern, a sustained sub, and an
--- MPC-style CC64 sustain mechanism. It locks to the root of
+-- subKick combines a kick pattern and a sub held by note
+-- duration to the next kill boundary. It locks to the root of
 -- whichever chord is active at each onset.
 --
 -- `subKick d k voiceFunc (maxDur, subOn, subOff, kickPat)`
@@ -950,6 +952,63 @@ hush
 -- `fund` — the sub follows the harmonic fundamental instead of
 -- the chord root (inversion-proof low end).
 
+
+-- ── 15.1 — Natural harmonics (hmnx) ──
+-- src/Harmonic/Interface/Tidal/Bridge.hs (harmonics), Utils.hs (mono')
+--
+-- GOAL: play the harmony as natural harmonics of the cittern strings,
+-- through the MPC harmonics keygroup on ch 11. `harmonics` is `arrange`
+-- with the string first: each block is one string, filtered to the
+-- overtones that string can sound (partials 2 3 4 5 of its fundamental,
+-- placed in octave 2 — move it with |+ oct / |- oct). Mono within a
+-- string (latest note wins), poly across the stack. Sustain is the outer
+-- legato; CC64 is one global damper for accumulation.
+
+hmnx f k d = p "hmnx" $ do
+  let o   = ch 11
+      pat = "[0 1 2 3]/4"
+  f
+    $ stack [silence
+       -- --
+      ,harmonics A (0,1) k T flow (overlapF 0) ["~"
+        ,pat
+      ]# o |* vel 0.8 |- oct 1                -- A1 = 33
+       -- --
+      ,harmonics E (0,1) k T flow (overlapF 0) ["~"
+        ,pat
+      ]# o |* vel 0.8                         -- E2 = 40
+       -- --
+      ,harmonics G (0,1) k T flow (overlapF 0) ["~"
+        ,pat
+      ]# o |* vel 0.8                         -- G2 = 43
+       -- --
+      ,harmonics B (0,1) k T flow (overlapF 0) ["~"
+        ,pat
+      ]# o |* vel 0.8                         -- B2 = 47
+       -- --
+      ,cc 64 "[1@63 0]" #o                    -- damper: accumulation
+       -- --
+    ]# legato 1 |* vel d
+
+do
+  let k = iK tempo form (warp "[1 2 3 4]/4")
+  mapM_ id [hush, setbpm tempo
+    , hmnx id k 0.8
+    ]
+
+hush
+
+-- ── FORM-RELATIVE CUES (mark / mark') ──
+-- Place a one-shot at a bar of the form, once per loop, not gated by
+-- kinetics: `mark 32 k [pad 1]` fires MPC pad 1 (ch 12) at bar 32 as
+-- written for `rh` (the 12-step shows bar 33). `mark'` takes seconds.
+-- Unprimed = bars, primed = seconds — the same rule as display / display'.
+
+-- ── TRY THIS ──
+-- Give one string its own contour ("[0 2]/4" on E). Uncomment a C
+-- string (|+ oct 1) when the lever is at C. Add a plain `arrange ... # o`
+-- line: unfiltered, the keygroup decides what sounds. Generate with
+-- `hcOvertones "E A e G B"` and nothing is ever omitted.
 
 -- ══════════════════════════════════════════════════════════
 -- SECTION 16 — Walking lines (walk / lineHarmony)
@@ -1538,11 +1597,12 @@ hush
 -- ── THE PREFIX INDEX (live/snippets.cson) ──
 --   session      transport · state (a full launch block)
 --   generation   ctx · gen · formless · dance
---   launcher     launch · p · rr · slate · minimal · deeptech
+--   launcher     launch · p · rr · slate · harm · minimal · deeptech
 --   groove/lines subk · walk
 --   motifs       motif
 --   orchestra*   orchsec · tutti · instr
 --   hardware*    k909 · kmpc · m32 · mdf
+--   studio rig*  grnd · mini · jura · hmnx · slce · kgrv
 --   (* rig-specific — see KNOWN EXCEPTIONS)
 --
 -- The `state` snippet is the canonical prepared opening: tempo,

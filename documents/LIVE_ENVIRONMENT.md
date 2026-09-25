@@ -33,6 +33,34 @@ channel map.
 
 ---
 
+## Studio rig channel map
+
+The JV-1010 orchestra has its own library-fixed map (`documents/ALGORITHMIC_ORCHESTRATION.md`).
+Everything else — the studio rig — uses the map below. Every channel has exactly one owner.
+
+| ch | block | orbit | patch / device |
+|---|---|---|---|
+| 1 | `grnd` | `piano` | grand piano (soft) |
+| 2 | `mini` | `moog` | Minimoog pad (soft) |
+| 3 | `mdf` osc1 | `moogDFAM` | Moog DFAM |
+| 4 | `mdf` osc2 | `moogDFAM` | Moog DFAM |
+| 5 | `steptrig` | — | DFAM step trigger |
+| 6 | `m32` | `moogMother32` | Moog Mother-32 |
+| 7 | `jura` | `juno` | Juno poly bells (soft) |
+| 8 | `walk` | `lineHarmony` | bass line |
+| 9 | `k909`, `kgrv` | `909kit`, `grooveKit` | drum machines (JV drum map, channel overridden) |
+| 10 | `subk`, `kmpc`, `count`, `metronome`, `display` | `subKick`, `mpckit`, … | MPC sub/kick + kit; 12-step LEDs and display (fixed) |
+| 11 | `hmnx` | `hmnx` | MPC natural-harmonics keygroup |
+| 12 | `slce` | `slce` | MPC misc-sample kit (pads 1–16 = MIDI 36–51) |
+| 13 | `s101` | `s101` | Roland S-1 synth voice (`s1chan`, all `s1` controls + program) |
+| 14 | `gnlr` | `gnlr` | Roland P-6 G.CH — granular engine (`p6granChan`; every `p6` control defaults here) |
+| 15 | `smpl` | `smpl` | Roland P-6 S.CH — the 48 pads at fixed pitch (`p6trigChan`) |
+| 16 | `auto` | `auto` | Roland P-6 Auto CH — focused pad played chromatically; shares 16 with the P-6's device-fixed program change |
+
+Device side: DFAM's MIDI-to-CV on 3/4/5, Mother-32 on 6, S-1 on 13, P-6 Auto/S.CH/G.CH =
+16/15/14 (program change fixed at 16). `hush` lifts CC64 on 10 (`subPedalOff`) and 11 (`hmnxPedalOff`) and sweeps all 16
+via `allNotesOff`.
+
 ## Pulsar
 
 The editor is [Pulsar](https://pulsar-edit.dev/) with the `tidalcycles` package. Install

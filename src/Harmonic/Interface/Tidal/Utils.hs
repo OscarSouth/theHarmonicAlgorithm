@@ -30,8 +30,13 @@ module Harmonic.Interface.Tidal.Utils (
 
     -- * Random gating
     binaryrange,
+
+    -- * Monophony
+    mono', retrig,
 ) where
 
+import Data.List (sortOn)
+import Data.Maybe (mapMaybe)
 import Sound.Tidal.Context
 
 -- | Transpose by whole octaves. @oct 1@ is up an octave, @oct (-1)@ down.
@@ -124,3 +129,40 @@ over ctrl xs =
 -- 'binary' over a random integer in @[lo, hi)@.
 binaryrange :: Pattern Int -> Pattern Int -> Pattern Bool
 binaryrange lo hi = binary $ lo |+ irand (hi - lo)
+
+-- | Monophonic with latest-note priority: each event's whole is truncated at
+-- the next onset in the pattern, so a new note always starts on time and stops
+-- the one before it — a string being re-fingered, not a queue. Tidal's own
+-- 'mono' is the opposite (first-note priority: a later overlapping event is
+-- delayed or dropped). Simultaneous onsets keep only the first. Legato scales
+-- the truncated whole, so @# legato 1@ rings exactly to the next note, @< 1@
+-- leaves a gap, and cranking legato above 1 is unnecessary. Continuous
+-- (whole-less) events pass through untouched.
+mono' :: Pattern a -> Pattern a
+mono' pat = splitQueries $ pat { query = f, steps = Nothing, pureValue = Nothing }
+  where
+    look = 8 :: Time
+    onsetOf = start . wholeOrPart
+    f st =
+      let a    = arc st
+          c0   = sam (start a)
+          wide = query pat st { arc = Arc (c0 - look) (c0 + look + 1) }
+          -- Every discrete event in the window, ordered by onset, one per onset.
+          uniq = dedupe (sortOn onsetOf [ e | e <- wide, whole e /= Nothing ])
+          onsets = map onsetOf uniq
+          nextAfter s0 = case dropWhile (<= s0) onsets of
+                           (x:_) -> Just x
+                           []    -> Nothing
+          build ev =
+            let w  = wholeOrPart ev
+                s0 = start w
+                w' = Arc s0 (maybe (stop w) (min (stop w)) (nextAfter s0))
+            in (\pt -> ev { whole = Just w', part = pt }) <$> subArc a w'
+          analog = [ e | e <- query pat st, whole e == Nothing ]
+      in mapMaybe build uniq ++ analog
+    dedupe [] = []
+    dedupe (e:es) = e : dedupe (dropWhile ((== onsetOf e) . onsetOf) es)
+
+-- | Alias for 'mono'': a new note re-triggers the voice.
+retrig :: Pattern a -> Pattern a
+retrig = mono'

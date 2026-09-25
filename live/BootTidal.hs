@@ -122,22 +122,18 @@ launch = mapM_ ($ silence) [
   -- d1,d2,d3,d4,d5,d6,d7,d8,d9,
   d01,d02,d03,d04,d05,d06,d07,d08,d09,d10,d11,d12,d13,d14,d15,d16
   ,
-  p "sinewave",
   p "piano",
-  p "boeingdrone",
-  p "boeingimpact",
-  p "bassovertones",
-  p "tubeblip",
+  p "moog",
+  p "slce",
   p "909kit",
   p "mpckit",
   p "grooveKit",
   p "moogDFAM",
   p "moogMother32",
-  p "sh101",
   p "juno",
-  p "drumbruteImpact",
   p "subKick",
   p "lineHarmony",
+  p "hmnx",
   p "displayClock",
   p "click",
   p "count",
@@ -146,15 +142,11 @@ launch = mapM_ ($ silence) [
   p "brss",
   p "strg",
   p "perc",
-  p "chalumeau",
-  p "pastorale",
-  p "brillante",
-  p "maestoso",
   p "tutti",
-  p "rolandS1",
-  p "p6Sample",
-  p "p6Kybd",
-  p "p6Gran"
+  p "s101",
+  p "smpl",
+  p "auto",
+  p "gnlr"
   ]
 :}
 
@@ -210,10 +202,11 @@ setContinuo (msb, lsb, pc) = progSel 7 msb lsb pc
 
 allNotesOff = setCC "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]" "[123,64]" 0
 subPedalOff = setCC "10" "64" 0
-launch' = launch >> subPedalOff
-hush = launch >> subPedalOff >> allNotesOff
+hmnxPedalOff = setCC "11" "64" 0
+launch' = launch >> subPedalOff >> hmnxPedalOff
+hush = launch >> subPedalOff >> hmnxPedalOff >> allNotesOff
 launch'' = hush
-hush' = streamHush tidal >> subPedalOff
+hush' = streamHush tidal >> subPedalOff >> hmnxPedalOff
 panic = allNotesOff >> hush'
 hush'' = panic
 
@@ -239,7 +232,7 @@ sync out = [midiClock out, initSync, startSync, stopSync out]
 bpm t = cps (t/60)
 setbpm tempo = p "t" $ bpm tempo
 runSeq = (0, 1, silence)
-steptrig pat = mono $ midinote (toScale [-1, 0, 2, 4, 5, 7, 9, 10] $ (((pat-1) `mod` 8)+1)) |= vel 1 #ch 13
+steptrig pat = mono $ midinote (toScale [-1, 0, 2, 4, 5, 7, 9, 10] $ (((pat-1) `mod` 8)+1)) |= vel 1 #ch 5
 
 -------------------------------------------------------------------------------
 -- Harmonic Algorithm Integration
@@ -273,8 +266,9 @@ putStrLn "theHarmonicAlgorithm V3 boot complete."
 -- LED display feed for the 12 Step. The CC arithmetic lives in
 -- Harmonic.Interface.Tidal.Display; these name the stream that carries it.
 -- Add a single line to your launcher's mapM_ list:  ,display k
---   display  — counter cells show elapsed SECONDS in the form loop
---   display' — counter cells show the current BAR NUMBER instead
+--   display  — counter cells show the current BAR NUMBER in the form loop
+--   display' — counter cells show elapsed SECONDS instead
+-- (time-unit doctrine: unprimed = bars, primed = seconds — as mark / mark')
 display  k = p "displayClock" $ displayClock  k
 display' k = p "displayClock" $ displayClock' k
 
@@ -282,11 +276,23 @@ display' k = p "displayClock" $ displayClock' k
 -- lives in Harmonic.Interface.Tidal.Devices.JV1010.
 
 -------------------------------------------------------------------------------
--- Roland AIRA S-1 (ch 6) and P-6 (ch 3/4/5/16)
+-- Studio rig channel map
 --
--- The full CC maps for both devices live in
--- Harmonic.Interface.Tidal.Devices.S1 and .P6. Configure the S-1 to MIDI
--- channel 6, and the P-6's Auto/S.CH/G.CH to 3/4/5 — the modules assume it.
+--   1 grnd  grand piano (soft)          9 k909 / kgrv   drum machines
+--   2 mini  Minimoog pad (soft)        10 subk / kmpc   MPC sub, kit, 12-step
+--   3 DFAM osc1                        11 hmnx  MPC harmonics keygroup
+--   4 DFAM osc2                        12 slce  MPC misc-sample kit
+--   5 DFAM step trigger (steptrig)     13 s101  Roland S-1 (s1 controls)
+--   6 m32   Moog Mother-32             14 gnlr  P-6 G.CH  granular engine
+--   7 jura  Juno poly bells (soft)     15 smpl  P-6 S.CH  pads, 48 one-shots
+--   8 walk  bass line                  16 auto  P-6 Auto CH focused pad + program change (device-fixed)
+--
+-- One owner per channel. Device side: DFAM's MIDI-to-CV on 3/4/5, Mother-32 on
+-- 6, S-1 on 13, P-6 Auto/S.CH/G.CH = 16/15/14 (its program-change channel is
+-- fixed at 16, so the keyboard channel shares it). Full CC maps:
+-- Harmonic.Interface.Tidal.Devices.S1 and .P6.
+-- The JV-1010 orchestra is a separate rig with its own library-fixed map
+-- (documents/ALGORITHMIC_ORCHESTRATION.md).
 -------------------------------------------------------------------------------
 
 -------------------------------------------------------------------------------

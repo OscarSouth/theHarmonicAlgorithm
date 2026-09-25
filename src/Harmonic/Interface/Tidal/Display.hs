@@ -19,7 +19,7 @@
 -- the signals feeding them. Both functions return a pattern, so the launcher
 -- decides which stream carries it:
 --
--- @, display k@   where   @display k = p \"displayClock\" $ displayClock k@
+-- @, display k@   where   @display k = p \"displayClock\" $ displayClock k@   (bars; @display'@ = seconds)
 module Harmonic.Interface.Tidal.Display
   ( displayClock
   , displayClock'
@@ -28,9 +28,10 @@ module Harmonic.Interface.Tidal.Display
 import Sound.Tidal.Context
 import Harmonic.Interface.Tidal.Form (IK, Kinetics(..))
 
--- | Counter cells show elapsed SECONDS within the form loop.
-displayClock :: IK -> ControlPattern
-displayClock k =
+-- | As 'displayClock', but the counter cells show elapsed SECONDS within the
+-- form loop (time-unit doctrine: unprimed = bars, primed = seconds).
+displayClock' :: IK -> ControlPattern
+displayClock' k =
   let loopSecs  = kLoopSecs (fst k)
       cpsV      = kCps (fst k)
       loopInt   = floor loopSecs :: Int
@@ -79,11 +80,11 @@ displayClock k =
        , thruCh10Fast # midicmd "control" # ctlNum 118 # control secsLoPat
        ]
 
--- | As 'displayClock', but the counter shows the current BAR NUMBER
--- (1-indexed) within the form loop instead of elapsed seconds. One bar is
--- four cycles, so the count ticks in lockstep with the chord selection.
-displayClock' :: IK -> ControlPattern
-displayClock' k =
+-- | Counter cells show the current BAR NUMBER (1-indexed) within the form
+-- loop. One bar is four cycles, so the count ticks in lockstep with the chord
+-- selection. The primed variant shows seconds instead.
+displayClock :: IK -> ControlPattern
+displayClock k =
   let loopSecs     = kLoopSecs (fst k)
       cpsV         = kCps (fst k)
       cyclesPerBar = 4 :: Double

@@ -9,9 +9,10 @@
 -- device must be configured to match:
 --
 -- @
--- Auto CH = 3   keyboard \/ chromatic sample playback (device default 15)
--- S.CH    = 4   global sample trigger, 48 pads at default pitch (default 11)
--- G.CH    = 5   granular engine, notes and CC (device default 4)
+-- Auto CH = 16  keyboard / chromatic sample playback (device default 15) —
+--               shares 16 with the device's own program-change channel
+-- S.CH    = 15  global sample trigger, 48 pads at default pitch (default 11)
+-- G.CH    = 14  granular engine, notes and CC (device default 4)
 -- Program = 16  preset select, fixed on the device
 -- @
 module Harmonic.Interface.Tidal.Devices.P6
@@ -38,8 +39,8 @@ ctl num v = control (v * 127) # midicmd "control" # ctlNum num
 
 -- | Sample triggering answers on channel 4, the granular engine on 5.
 p6trigChan, p6granChan :: Pattern ValueMap
-p6trigChan = ch 4
-p6granChan = ch 5
+p6trigChan = ch 15
+p6granChan = ch 14
 
 -- Preset selection (ch 16, range 0-63)
 -- | Select a preset, 0-63, on the program channel.

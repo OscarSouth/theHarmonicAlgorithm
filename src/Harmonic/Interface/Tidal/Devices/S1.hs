@@ -5,8 +5,8 @@
 -- Every parameter the S-1 exposes over MIDI, as a control function taking a
 -- 0-1 value. CC numbers are quoted from the official Roland chart.
 --
--- The synth answers on MIDI channel 6, baked into each function -- set the
--- S-1 to channel 6 on the device. Patterns compose as usual:
+-- The synth answers on MIDI channel 13, baked into each function -- set the
+-- S-1 to channel 13 on the device. Patterns compose as usual:
 --
 -- @, s1cutoff (lfo saw 0.2 0.9)@
 module Harmonic.Interface.Tidal.Devices.S1
@@ -33,9 +33,9 @@ import Harmonic.Interface.Tidal.Instruments (ch)
 ctl :: Pattern Double -> Pattern Double -> ControlPattern
 ctl num v = control (v * 127) # midicmd "control" # ctlNum num
 
--- | The S-1 listens on MIDI channel 6.
+-- | The S-1 listens on MIDI channel 13.
 s1chan :: Pattern ValueMap
-s1chan = ch 6
+s1chan = ch 13
 
 -- | Pattern and bank selection. 's1seq' addresses a pattern within a bank
 -- of eight, both 1-indexed.
