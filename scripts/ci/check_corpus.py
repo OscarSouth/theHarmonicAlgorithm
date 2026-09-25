@@ -33,8 +33,8 @@ DEFAULT_TARGETS = [
     "live/local/older/misc/2026-05-01_office.tidal",
     "live/local/perform/state.tidal",
     "live/local/older/concert/06-rosslynCastle.tidal",
-    "live/JAZZ_DIAGNOSTIC.tidal",
-    "live/ORCHESTRAL_CATALOGUE.tidal",
+    "live/docs/JAZZ_DIAGNOSTIC.tidal",
+    "live/docs/ORCHESTRAL_CATALOGUE.tidal",
     "live/drumpats/afro-cuban/bolero.tidal",
     "live/drumpats/dub/rockers.tidal",
 ]

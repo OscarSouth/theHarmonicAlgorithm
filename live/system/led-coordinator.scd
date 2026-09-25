@@ -23,7 +23,7 @@
 //   Values: 48..57 = digits 0..9, 65..90 = letters A..Z, 58..64 = symbols/blank.
 //   Same channel as the LEDs (midichan 9 = MIDI ch 10).
 //
-// TIDAL → SC SIGNALS (added by `display k` helper in BootTidal.hs)
+// TIDAL → SC SIGNALS (added by the `display k` (bars) / `display' k` (seconds) helpers in BootTidal.hs)
 //   CC 113 on ch 10: bar number 1..8 at chord onset, value 0 at +1/8 cycle (off).
 //   CC 114 on ch 10: form loop length high byte (kLoopSecs DIV 128).
 //   CC 115 on ch 10: form loop length low byte  (kLoopSecs MOD 128).

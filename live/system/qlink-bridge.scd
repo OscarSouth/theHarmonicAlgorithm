@@ -77,7 +77,7 @@
 // through the /run-code OSC backdoor that superdirt_startup.scd opens on 57121,
 // so the bridge can be re-injected mid-session without restarting the server.
 //
-// live/bin/livecode does that as part of starting the rig; `livecode --attach`
+// live/system/bin/livecode does that as part of starting the rig; `livecode --attach`
 // injects it into a SuperCollider that is already up. See
 // documents/LIVE_ENVIRONMENT.md.
 // ============================================================================

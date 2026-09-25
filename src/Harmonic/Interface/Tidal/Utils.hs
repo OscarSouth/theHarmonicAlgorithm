@@ -30,8 +30,15 @@ module Harmonic.Interface.Tidal.Utils (
 
     -- * Random gating
     binaryrange,
+
+    -- * Sidechain
+    pump,
+    -- * Monophony
+    mono', retrig,
 ) where
 
+import Data.List (sortOn)
+import Data.Maybe (mapMaybe)
 import Sound.Tidal.Context
 
 -- | Transpose by whole octaves. @oct 1@ is up an octave, @oct (-1)@ down.
@@ -124,3 +131,75 @@ over ctrl xs =
 -- 'binary' over a random integer in @[lo, hi)@.
 binaryrange :: Pattern Int -> Pattern Int -> Pattern Bool
 binaryrange lo hi = binary $ lo |+ irand (hi - lo)
+
+-- | A ducking gain envelope — a ghost sidechain. Every onset of the struct
+-- pattern drops the gain to @1 - depth@, which then recovers to @1@ over the
+-- release @rls@. A cycle is a beat here (@cps = bpm\/60@), so @rls@ reads
+-- directly in beats: @1@ is one beat, @0.25@ a quarter of one.
+--
+-- @depth@ is @0@ for no duck, @1@ to duck to silence, and is a pattern, so it
+-- can ride an LFO or the form.
+--
+-- The result is a 'Pattern Double' meant to drive a gain control. It belongs
+-- BESIDE the notes as its own element in a stack, never applied to them:
+--
+-- @, s1pump \"1 0 0 0\" 0.6 0.75 # o@
+--
+-- Applying it to a note pattern with @|*@, @*|@ or @#@ splits every note once
+-- per overlapping envelope step — a held note re-triggers sixteen times, and
+-- drums double-trigger. A hand-written gain pattern coarser than, and aligned
+-- to, the note grid (@|* vel \"0.45 1 0.8 1\"@) is the way to duck note
+-- velocities.
+--
+-- An @rls@ longer than the gap to the next onset interleaves two envelopes: the
+-- older tail\'s recovered values arrive after the new duck and cancel it.
+-- Nothing clamps this.
+pump :: Pattern Bool -> Pattern Double -> Double -> Pattern Double
+pump st depth rls =
+    stack [ rotR (toRational (rls * fromIntegral i / fromIntegral steps))
+                 (struct st (fmap (gainAt i) depth))
+          | i <- [0 .. steps] ]
+  where
+    -- 16 steps is a smooth ramp at roughly 31 CC/s per ducked beat at 118bpm,
+    -- against a DIN budget of about 1000.
+    steps = 16 :: Int
+    gainAt i dp
+      | i == steps = 1                        -- land exactly recovered
+      | otherwise  = 1 - dp * exp (-4.5 * fromIntegral i / fromIntegral steps)
+
+-- | Monophonic with latest-note priority: each event's whole is truncated at
+-- the next onset in the pattern, so a new note always starts on time and stops
+-- the one before it — a string being re-fingered, not a queue. Tidal's own
+-- 'mono' is the opposite (first-note priority: a later overlapping event is
+-- delayed or dropped). Simultaneous onsets keep only the first. Legato scales
+-- the truncated whole, so @# legato 1@ rings exactly to the next note, @< 1@
+-- leaves a gap, and cranking legato above 1 is unnecessary. Continuous
+-- (whole-less) events pass through untouched.
+mono' :: Pattern a -> Pattern a
+mono' pat = splitQueries $ pat { query = f, steps = Nothing, pureValue = Nothing }
+  where
+    look = 8 :: Time
+    onsetOf = start . wholeOrPart
+    f st =
+      let a    = arc st
+          c0   = sam (start a)
+          wide = query pat st { arc = Arc (c0 - look) (c0 + look + 1) }
+          -- Every discrete event in the window, ordered by onset, one per onset.
+          uniq = dedupe (sortOn onsetOf [ e | e <- wide, whole e /= Nothing ])
+          onsets = map onsetOf uniq
+          nextAfter s0 = case dropWhile (<= s0) onsets of
+                           (x:_) -> Just x
+                           []    -> Nothing
+          build ev =
+            let w  = wholeOrPart ev
+                s0 = start w
+                w' = Arc s0 (maybe (stop w) (min (stop w)) (nextAfter s0))
+            in (\pt -> ev { whole = Just w', part = pt }) <$> subArc a w'
+          analog = [ e | e <- query pat st, whole e == Nothing ]
+      in mapMaybe build uniq ++ analog
+    dedupe [] = []
+    dedupe (e:es) = e : dedupe (dropWhile ((== onsetOf e) . onsetOf) es)
+
+-- | Alias for 'mono'': a new note re-triggers the voice.
+retrig :: Pattern a -> Pattern a
+retrig = mono'

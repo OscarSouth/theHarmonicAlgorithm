@@ -642,7 +642,7 @@ strictly-scoped:
   solver rather than inside `arrange` because `lineHarmony ... grid`
   reaches the DP through `beat1PCs`, which an `arrange`-level cache would
   never see.
-- **Compiled live sessions.** `live/bin/ghci` loads the library as `-O2`
+- **Compiled live sessions.** `live/system/bin/ghci` loads the library as `-O2`
   object code rather than bytecode. Measured on 5-PC bars: a 4-bar solve
   goes 0.317 s to 0.0065 s, 8-bar 0.958 s to 0.0212 s, 16-bar 2.390 s to
   0.0528 s (45–49×; `-O0` alone gives 7.7–10×). The object directory must
@@ -731,10 +731,10 @@ line.
 | Generation entry points | `src/Harmonic/Framework/Builder.hs` |
 | Constraint types | `src/Harmonic/Framework/Builder/Types.hs` |
 | TidalCycles boot file | `live/BootTidal.hs` |
-| Compiled-session wrapper | `live/bin/ghci` |
-| Session launcher | `live/bin/livecode` |
+| Compiled-session wrapper | `live/system/bin/ghci` |
+| Session launcher | `live/system/bin/livecode` |
 | SuperCollider startup | `live/superdirt_startup.scd` |
-| Editor configuration | `live/pulsar/` (reference copies) |
+| Editor configuration | `live/system/pulsar/` (reference copies) |
 | Interactive guide | `live/USER_GUIDE.tidal` |
 | Neo4j compose config | `docker-compose.yml` |
 | Package definition | `package.yaml` |

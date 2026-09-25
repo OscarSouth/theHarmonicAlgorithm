@@ -37,7 +37,7 @@
 # pauses, the other source of audible latency under heavy allocation.
 set -e
 
-repo=$(cd "$(dirname "$0")/../.." && pwd)
+repo=$(cd "$(dirname "$0")/../../.." && pwd)
 odir="$repo/.stack-work/live-odir"
 lock="$odir/.session.pid"
 

@@ -31,6 +31,81 @@ and LED state, not synthesis. See
 [ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md) for the instrument and
 channel map.
 
+### Two rigs on one port
+
+There is one MIDI stream and one 16-channel space, and two complete configurations
+compete for it. They are not performed together:
+
+- **The orchestral program** — the JV-1010, sixteen pitched instruments and a drum kit,
+  aimed at simulated orchestral writing. Library-fixed map in
+  [ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md).
+- **The studio rig** — soft synths, the Moog DFAM and Mother-32, the MPC programs and the
+  two AIRA units, aimed at contemporary and jazz material. Map below.
+
+Only one is loaded at a time, so the two maps overlap freely and nothing needs renumbering.
+
+### Studio rig channel map
+
+Every channel has exactly one owner. A block sets its channel with the `ch N` postfix; the
+library carries no launcher-named wrappers, because a block and a wrapper of the same name
+shadow each other in the session.
+
+| ch | block | orbit | patch / device |
+|---|---|---|---|
+| 1 | `grnd` | `piano` | grand piano (soft) |
+| 2 | `mini` | `moog` | Minimoog pad (soft) |
+| 3 | `mdf` osc1 | `moogDFAM` | Moog DFAM |
+| 4 | `mdf` osc2 | `moogDFAM` | Moog DFAM |
+| 5 | `steptrig` | — | DFAM step trigger |
+| 6 | `m32` | `moogMother32` | Moog Mother-32 |
+| 7 | `jura` | `juno` | Juno poly bells (soft) |
+| 8 | `walk` | `lineHarmony` | bass line |
+| 9 | `k909`, `kgrv` | `909kit`, `grooveKit` | drum machines (JV drum map, channel overridden) |
+| 10 | `subk`, `kmpc`, `count`, `metronome`, `display` | `subKick`, `mpckit`, … | MPC sub/kick + kit; 12-step LEDs and display (fixed) |
+| 11 | `hmnx` | `hmnx` | MPC natural-harmonics keygroup |
+| 12 | `slce` | `slce` | MPC misc-sample kit (pads 1–16 = MIDI 36–51) |
+| 13 | `s101` | `s101` | Roland S-1 synth voice (`s1chan`, all `s1` controls + program) |
+| 14 | `gnlr` | `gnlr` | Roland P-6 G.CH — granular engine (`p6granChan`; every `p6` control defaults here) |
+| 15 | `smpl` | `smpl` | Roland P-6 S.CH — the 48 pads at fixed pitch (`p6trigChan`) |
+| 16 | `auto` | `auto` | Roland P-6 Auto CH — focused pad played chromatically; shares 16 with the P-6's device-fixed program change |
+
+Device side: DFAM's MIDI-to-CV on 3/4/5, Mother-32 on 6, S-1 on 13, P-6 Auto/S.CH/G.CH =
+16/15/14 (program change fixed at 16). `hush` lifts CC64 on 10 (`subPedalOff`) and 11
+(`hmnxPedalOff`) and sweeps all 16 via `allNotesOff`.
+
+### The AIRA program
+
+Four performable layers on channels 13–16, one Pulsar snippet each:
+
+| block  | device / layer                         | channel    | CC prefix |
+|--------|----------------------------------------|------------|-----------|
+| `s101` | S-1 synth voice                        | 13         | `s1`      |
+| `gnlr` | P-6 granular engine                    | 14 (G.CH)  | `p6`      |
+| `smpl` | P-6 pads, 48 one-shots at fixed pitch  | 15 (S.CH)  | —         |
+| `auto` | P-6 focused pad, played chromatically  | 16 (Auto)  | `p6`      |
+
+Set the S-1 to MIDI channel 13, and the P-6's Auto / S.CH / G.CH to 16 / 15 / 14; the P-6's
+program-change channel is fixed at 16, so the auto layer shares it. The three P-6 channels
+are received independently, so `smpl`, `auto` and `gnlr` sound together and share only the
+unit's voice pool.
+
+The P-6 has **one** control-change set, received on either its granular or its auto
+channel, so every `p6` control serves both layers. Each defaults to the granular
+channel; a postfix channel retargets it, since `#` takes values from the right:
+
+```haskell
+, p6cutoff (lfo saw 0.2 0.9) # ch 16     -- the same control, on the auto layer
+```
+
+`auto` and `gnlr` read whatever is focused on the unit — the selected pad and the
+selected pattern — so the layer is chosen at the hardware and the material is driven
+from the pattern. `p6src` is the exception: it selects the granular source over MIDI,
+which is what makes that layer sequenceable rather than hand-picked.
+
+The maps and the composite controls (`p6scrub`, `p6cloud`, `p6chaos`, `p6src`,
+`p6env`; `s1chord`, `s1env`, `s1mix`) live in `Harmonic.Interface.Tidal.Devices.S1`
+and `.P6`.
+
 ---
 
 ## Pulsar
@@ -55,22 +130,46 @@ Open the repository root instead and neither file is found. The plugin falls bac
 stock copies, and **the session boots cleanly**: SuperCollider starts, Tidal answers,
 `d1 $ s "bd"` works. None of this project's definitions exist, no error is printed, and
 the failure looks like a Haskell problem rather than a path problem. That is why
-`live/bin/ghc-pkg` exists — the tidal-data-dir fallback shells out to `ghc-pkg`, and
+`live/system/bin/ghc-pkg` exists — the tidal-data-dir fallback shells out to `ghc-pkg`, and
 without a working one the chain skips straight to the wrong boot file.
+
+The layout follows from that resolution rule. Only the files the plugin resolves by name,
+plus the guide you open first, sit at the top level; everything else is one level down:
+
+```
+live/
+  BootTidal.hs            resolved by name at the project root
+  superdirt_startup.scd   resolved by name at the project root
+  USER_GUIDE.tidal        the entry point
+  docs/                   further interactive guides
+  system/                 the rig's machinery — see below
+    bin/                  ghci, ghc-pkg, livecode
+    pulsar/               config, keymap and snippet reference copies
+  drumpats/               the pattern corpus
+  local/                  per-machine tools, git-ignored
+```
+
+Nothing under `system/` or `docs/` is resolved by name, so those are free to move; the two
+files at the top are not.
 
 ### Settings
 
-Settings → Packages → tidalcycles → Settings. `live/pulsar/config.cson` holds an
+Settings → Packages → tidalcycles → Settings. `live/system/pulsar/config.cson` holds an
 annotated copy of the resulting block.
 
 | Setting | Value | Why |
 |---|---|---|
 | **Interpreter** | `Default (ghc installed through cabal)` | `Stack` hardcodes a bare `stack ghci` with no arguments. The plugin spawns its interpreter with no arguments and quotes the whole command, so there is nowhere to put a flag — the flags have to ride on the executable instead. |
-| **Haskell (ghci) path** | `<repo>/live/bin/ghci` | The wrapper. See below. |
+| **Haskell (ghci) path** | `<repo>/live/system/bin/ghci` | The wrapper. See below. |
 | **Boot Tidal Path** | *(empty)* | Resolution by project root, as above. |
 | **Event highlighting** | on, 20 fps | Highlights each event as it sounds. fps must stay under the denominator of the boot file's `cFrameTimespan`, which is `1/30`. |
 | **Show error notifications** | off | Otherwise every line stack or GHC writes to stderr raises a modal notification, including ordinary build chatter. Errors still appear in the plugin console. |
 | **SuperDirt → autostart** | on | Starts SuperCollider with `superdirt_startup.scd` from the project root. |
+
+> **No plugin source edit is required.** Earlier setups patched `stackPrefix` in the
+> package's `lib/ghc.js`. That constant is reachable only through `case 'stack':` — with
+> Interpreter `default` and a `ghciPath`, which the `-O2` wrapper needs anyway, the branch
+> never runs. Nothing in the tidalcycles package needs modifying for this project.
 
 Pulsar omits any setting equal to its schema default when it rewrites `config.cson`, and
 `default` *is* the default for Interpreter — so that line may disappear on its own.
@@ -98,12 +197,12 @@ the quote for `p` followed by a space, which anything containing `chop `, `up ` 
 
 ### Snippets
 
-`live/snippets.cson` is the snippet library — type a prefix, press Tab, fill the
+`live/system/pulsar/snippets.cson` is the snippet library — type a prefix, press Tab, fill the
 tab-stops. Pulsar reads `~/.pulsar/snippets.cson`, so the two must be connected:
 
 ```sh
 mv ~/.pulsar/snippets.cson ~/.pulsar/snippets.cson.bak
-ln -s "$PWD/live/snippets.cson" ~/.pulsar/snippets.cson
+ln -s "$PWD/live/system/pulsar/snippets.cson" ~/.pulsar/snippets.cson
 ```
 
 A symlink rather than a copy, because a copy drifts. This one had: the installed copy was
@@ -114,7 +213,7 @@ while it is running may need a restart to appear.
 ### Keys
 
 The plugin ships no keymap, so without bindings evaluation is only reachable from the
-Packages menu. `live/pulsar/keymap.cson` holds the ones used here — `cmd-enter`,
+Packages menu. `live/system/pulsar/keymap.cson` holds the ones used here — `cmd-enter`,
 `ctrl-enter` and `ctrl-cmd-enter` all bound to `eval-multi-line`, `cmd-shift-enter` to
 `eval-whole-editor`.
 
@@ -122,7 +221,7 @@ Packages menu. `live/pulsar/keymap.cson` holds the ones used here — `cmd-enter
 
 ## The compiled session
 
-`live/bin/ghci` is a wrapper that loads the library as **`-O2` object code** instead of
+`live/system/bin/ghci` is a wrapper that loads the library as **`-O2` object code** instead of
 bytecode. It is the only reason the interpreter setting is `default`.
 
 Why it matters: the cyclic-DP voice-leading solve is the one piece of library code on the
@@ -155,14 +254,14 @@ Two details the wrapper exists to get right:
 ```
 Choose ghc base path
  * custom path configured
-Ghci command: /Users/…/live/bin/ghci
-Ghc-pkg command: /Users/…/live/bin/ghc-pkg
+Ghci command: /Users/…/live/system/bin/ghci
+Ghc-pkg command: /Users/…/live/system/bin/ghc-pkg
 Choose BootTidal.hs path
  > no custom path configured
  * found in the current directory
  * load BootTidal.hs from /Users/…/live/BootTidal.hs
 Listening for external osc messages on 127.0.0.1:6013
-Ok, 47 modules added.
+Ok, 51 modules added.
 [TidalCycles version 1.10.1]
 Listening for external controls on 127.0.0.1:6010
 Connected to SuperDirt.
@@ -180,7 +279,7 @@ Four things to read out of that:
   built and says nothing. If the cache is cold or `src/` has changed you get one line per
   module ending in `…/live-odir/Harmonic/Config.o`; **if those lines end in
   `interpreted`, the wrapper is not being used.**
-- `Ok, 47 modules` rather than 48 — the wrapper targets the library alone, where a bare
+- `Ok, 51 modules` rather than 52 — the wrapper targets the library alone, where a bare
   `stack ghci` also loads `app/Main.hs`. Nothing in the live surface uses it, and dropping
   it removes two spurious warnings (`-threaded` incompatible, duplicate `Paths_` module).
 
@@ -194,7 +293,7 @@ rebuild — and every boot after that only links. Get it over with in a terminal
 than at the start of a set:
 
 ```sh
-live/bin/ghci <<< ':quit'
+live/system/bin/ghci <<< ':quit'
 ```
 
 `stack build` does **not** warm this cache; it writes to its own output directory.
@@ -220,33 +319,41 @@ recorded. It boots the server (44100 Hz, no input channels, enlarged buffers), s
 - **Wraps it in `SafeMIDIOut`.** SuperDirt schedules each event's Note Off independently,
   so two overlapping events on the same note cut each other short. The wrapper
   reference-counts note-offs and adds a precautionary one. It is a **class**, so it must
-  be installed separately — the source is in the tail of the startup file, and it goes in
-  `~/Library/Application Support/SuperCollider/Extensions/SafeMIDIOut.sc`. Without it the
-  file will not compile.
+  be installed separately — `live/system/SafeMIDIOut.sc`, symlinked (never copied) into
+  `Platform.userExtensionDir` (`~/Library/Application Support/SuperCollider/Extensions`
+  on macOS, `~/.local/share/SuperCollider/Extensions` on Linux). Without it the startup
+  file aborts before `sc_ready` and the launcher waits with no error.
 - **Opens an OSC backdoor** — `OSCdef('/run-code')` on **port 57121**, which interprets
   whatever string it is sent. That is how the Q-Link bridge gets injected into a running
   server.
-- **Loads [`live/led-coordinator.scd`](../live/led-coordinator.scd)**, a passive
+- **Loads [`live/system/led-coordinator.scd`](../live/system/led-coordinator.scd)**, a passive
   pitch-class LED state machine that observes the MIDI already flowing through
   `SafeMIDIOut` and drives the 12 Step's ring and 4-character display.
 - **Writes an `sc_ready` stamp** into the SuperCollider support directory, as its last
   act. The launcher waits on that file.
 
-On a fresh machine two absolute paths need changing: the `executeFile` call to
-`led-coordinator.scd`, and the `s.options.device` line naming the audio interface.
+On a fresh machine **one** value needs changing: the `s.options.device` line naming the
+audio interface (and the MIDI priority list, if your interfaces differ). The
+`executeFile` call to `led-coordinator.scd` is now self-locating — it resolves against
+`thisProcess.nowExecutingPath`, captured at file scope because it is nil inside the
+async `s.reboot` closure.
+
+On Linux `s.options.device` should be left **unset**: it names a JACK *server* there,
+not an audio device, and `ServerOptions.devices` raises `Primitive '_ListAudioDevices'
+failed` because enumeration is CoreAudio/PortAudio only.
 
 ---
 
 ## The launcher
 
-`live/bin/livecode` starts the rig in the order the parts depend on each other:
+`live/system/bin/livecode` starts the rig in the order the parts depend on each other:
 
 1. Remove any stale `sc_ready`, so a previous session's stamp cannot be mistaken for this
    one.
 2. Launch Pulsar with `live/` as the project folder; it starts SuperCollider.
 3. Wait for `sc_ready`.
-4. Inject [`live/qlink-bridge.scd`](../live/qlink-bridge.scd) through the OSC backdoor,
-   using [`live/osc-send.py`](../live/osc-send.py) (stdlib only, no python-osc needed).
+4. Inject [`live/system/qlink-bridge.scd`](../live/system/qlink-bridge.scd) through the OSC backdoor,
+   using [`live/system/osc-send.py`](../live/system/osc-send.py) (stdlib only, no python-osc needed).
 5. Paint the bridge's status line in place, so the terminal doubles as a controller
    read-out.
 
@@ -313,19 +420,19 @@ symlink, and has drifted.
 1. GHC 9.10.3 and Stack — `stack.yaml` sets `system-ghc: true`, so GHC must be on the
    PATH. `stack build`.
 2. SuperCollider, plus the SuperDirt and Dirt-Samples quarks.
-3. `SafeMIDIOut.sc` into `~/Library/Application Support/SuperCollider/Extensions/` —
-   source is in the tail of `live/superdirt_startup.scd`.
-4. Fix the two absolute paths in `live/superdirt_startup.scd`, and the MIDI priority list
+3. Symlink `live/system/SafeMIDIOut.sc` into `Platform.userExtensionDir`
+   (`~/Library/Application Support/SuperCollider/Extensions/` on macOS).
+4. Fix `s.options.device` in `live/superdirt_startup.scd`, and the MIDI priority list
    if the interface differs.
 5. Pulsar, plus the `tidalcycles` package.
-6. Symlink `~/.pulsar/snippets.cson` to `live/snippets.cson`; copy the bindings from
-   `live/pulsar/keymap.cson` into `~/.pulsar/keymap.cson`.
+6. Symlink `~/.pulsar/snippets.cson` to `live/system/pulsar/snippets.cson`; copy the bindings from
+   `live/system/pulsar/keymap.cson` into `~/.pulsar/keymap.cson`.
 7. Set Interpreter and the ghci path per the settings table, using this machine's own
-   absolute path to `live/bin/ghci`.
-8. Warm the object cache: `live/bin/ghci <<< ':quit'`.
+   absolute path to `live/system/bin/ghci`.
+8. Warm the object cache: `live/system/bin/ghci <<< ':quit'`.
 9. Docker, for the composer graph — `docker compose up -d neo4j`, then `stack run` once
    to populate it. Only needed for `seek`; the library generates without it.
-10. `live/bin/livecode`.
+10. `live/system/bin/livecode`.
 
 Sound check: [USER_GUIDE.md](../USER_GUIDE.md) §0 walks the three moving parts — MIDI
 out, library in scope, graph reachable — in that order.

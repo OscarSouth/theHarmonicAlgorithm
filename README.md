@@ -212,6 +212,32 @@ makes sound straight away; the second adds the composer corpus.
    documents the Pulsar rig this project is performed on, as one worked example
 3. [Docker](https://www.docker.com/) — only for the composer graph (second path)
 
+### Automated setup (Linux)
+
+`scripts/install-linux.sh` wires all of this up and is safe to re-run — it
+converges to the same state and reports what was already correct:
+
+```bash
+./scripts/install-linux.sh --check        # report only, change nothing
+./scripts/install-linux.sh                # set everything up
+./scripts/install-linux.sh --with-graph   # and load the composer corpus
+```
+
+It installs no system packages — it checks for them and names the command to
+install any that are missing. The one exception is GHC, which it fetches
+through ghcup. Afterwards `livecode` is on your `PATH`.
+
+It exists because several setup steps fail *silently*: without the root
+`CLAUDE.md` stub the repo's own agent guidance never loads; without
+`SafeMIDIOut.sc` the SuperCollider startup aborts before stamping `sc_ready`
+and the launcher waits forever with no error; a copied rather than symlinked
+`snippets.cson` drifts and prefixes stop expanding; and `ppm install` silently
+wipes the local plugin patch on every upgrade. The script handles each, and
+`--check` tells you which are outstanding.
+
+There is no macOS equivalent yet; the repository files it configures are
+cross-platform, only the wiring is Linux-specific.
+
 ### 1. Start here — no database required
 
 ```bash

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The snippet prefix index in USER_GUIDE.md must match live/snippets.cson.
+"""The snippet prefix index in USER_GUIDE.md must match live/system/pulsar/snippets.cson.
 
 Snippets are the primary live-performance interface, and the guide's prefix index
 is how a reader discovers them. A snippet added or renamed without updating the
@@ -8,7 +8,7 @@ table leaves the guide quietly lying.
 import re, sys, pathlib
 
 ROOT  = pathlib.Path(__file__).resolve().parents[2]
-CSON  = ROOT / "live/snippets.cson"
+CSON  = ROOT / "live/system/pulsar/snippets.cson"
 MD    = ROOT / "USER_GUIDE.md"
 
 def cson_prefixes(text):

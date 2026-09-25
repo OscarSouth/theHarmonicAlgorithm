@@ -1,5 +1,5 @@
 name:                theHarmonicAlgorithm
-version:             3.1.0
+version:             3.1.1
 license:             GPL-3.0-only
 author:              "Oscar South"
 maintainer:          "oscarsouth@gmail.com"
@@ -43,7 +43,8 @@ description:         |
     clave\/cascara grids.
   * "Harmonic.Interface.Tidal.Motif" — motivic development operators.
   * "Harmonic.Interface.Tidal.Devices.JV1010" — drum map and continuo bank
-    addressing; @Devices.S1@ and @Devices.P6@ carry the Roland AIRA CC maps.
+    addressing; @Devices.S1@ and @Devices.P6@ carry the Roland AIRA control
+    maps and the composite performance controls over them.
   * "Harmonic.Traversal.WalkingBass" — walking-bass line generation.
 
   == Music theory primitives

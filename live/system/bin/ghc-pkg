@@ -6,6 +6,6 @@
 # project's definitions in it. Cheap to keep the chain intact.
 set -e
 
-repo=$(cd "$(dirname "$0")/../.." && pwd)
+repo=$(cd "$(dirname "$0")/../../.." && pwd)
 
 exec stack --verbosity=error --stack-yaml "$repo/stack.yaml" exec -- ghc-pkg "$@"

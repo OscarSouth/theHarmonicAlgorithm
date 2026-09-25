@@ -23,6 +23,7 @@ import Harmonic.Rules.Types.ProgressionContext (Layer(..))
 import Harmonic.Interface.Tidal.Bridge
 import Harmonic.Interface.Tidal.Form (Kinetics(..), IK)
 import qualified Harmonic.Interface.Tidal.Arranger as A
+import Harmonic.Interface.Tidal.Utils (oct)
 import qualified Harmonic.Evaluation.Analysis.KeyArea as KA
 import qualified Data.Sequence as Seq
 import qualified Data.Map.Strict as Map
@@ -505,3 +506,51 @@ spec = do
       lookupChordAt 6 r `shouldBe` 2
       lookupChordAt 10 r `shouldBe` 3
       lookupChordAt 14 r `shouldBe` 4
+
+  -- harmonics: one string of an overtone instrument. Fundamental in reference
+  -- octave 2 (36 + pc), partials 2 3 4 5 at +12 +19 +24 +28, filtered to the
+  -- bar's voiced pitch classes, floor-mod indexed, never octave-wrapped.
+  describe "harmonics (natural harmonics of one string)" $ do
+    let eMaj  = A.fromChords [[4,8,11]]
+        kinE  = Kinetics (pure 1.0) (pure 1.0) (pure eMaj) [eMaj] 0 0
+        kE    = (kinE, pure 1 :: Pattern Int)
+        bbMaj = A.fromChords [[10,2,5]]
+        kinBb = Kinetics (pure 1.0) (pure 1.0) (pure bbMaj) [bbMaj] 0 0
+        kBb   = (kinBb, pure 1 :: Pattern Int)
+        num v = case v of { VF x -> Just x; VN x -> Just (realToFrac x); _ -> Nothing }
+        onsets p = [ e | e <- queryArc p (Arc 0 4), eventHasOnset e ]
+        midis p = sort [ round (x + 60) :: Int | e <- onsets p
+                       , Just x <- [Map.lookup "note" (value e) >>= num] ]
+        runE  str pats = harmonics str (0,1) kE  T A.flow id pats
+        runBb str pats = harmonics str (0,1) kBb T A.flow id pats
+
+    it "partialOffset places partials 2..5 at +12 +19 +24 +28" $
+      map partialOffset [2,3,4,5] `shouldBe` [12,19,24,28]
+
+    it "E string sounds all four harmonics of E major in the reference octave" $
+      nub (midis (runE Pitch.E ["0 1 2 3"])) `shouldBe` [52,59,64,68]
+
+    it "each string filters to its own viable harmonics" $ do
+      nub (midis (runE Pitch.G ["0 1 2 3"])) `shouldBe` [71]
+      nub (midis (runE Pitch.B ["0 1 2 3"])) `shouldBe` [59,71]
+      nub (midis (runE Pitch.A ["0 1 2 3"])) `shouldBe` [64]
+      nub (midis (runE Pitch.C ["0 1 2 3"])) `shouldBe` [64]   -- C's 5th partial is E
+
+    it "a string with no viable harmonic rests" $
+      onsets (runE Pitch.D ["0 1 2 3"]) `shouldBe` []
+
+    it "indexes by floor-mod, negative-safe, never off the string" $ do
+      midis (runE Pitch.E ["0 3 -1 -4 7"]) `shouldSatisfy` all (`elem` [52,59,64,68])
+      nub (midis (runE Pitch.B ["-1"])) `shouldBe` [71]
+
+    it "enharmonic fundamentals are the same string" $
+      midis (runBb Pitch.Bb ["0 1 2 3"]) `shouldBe` midis (runBb Pitch.A' ["0 1 2 3"])
+
+    it "register composes with oct: A |- oct 1 lands on the A1 string's E" $
+      nub (midis (runE Pitch.A ["0"] |- oct 1)) `shouldBe` [52]
+
+    it "is mono within the string: simultaneous contours collapse to one onset per cycle" $
+      length (onsets (runE Pitch.E ["0", "1"])) `shouldBe` 4
+
+    it "emits no control-change traffic" $
+      [ () | e <- onsets (runE Pitch.E ["0 1"]), Map.member "ctlNum" (value e) ] `shouldBe` []
