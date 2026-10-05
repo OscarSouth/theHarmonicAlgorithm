@@ -5,7 +5,7 @@ module Harmonic.Interface.Tidal.UtilsSpec (spec) where
 
 import Test.Hspec
 import Harmonic.Interface.Tidal.Utils (mono', retrig)
-import Harmonic.Interface.Tidal.Instruments (pad)
+import Harmonic.Interface.Tidal.Instruments (pad, padbank)
 import qualified Data.Map.Strict as Map
 import Sound.Tidal.Context
   (Pattern, Time, ArcF(..), Arc, queryArc, wholeOrPart, eventHasOnset, value, stack, slow, Value(VF, VN))
@@ -42,3 +42,10 @@ spec = describe "mono' (latest-note priority monophony)" $ do
           (Map.lookup "midichan" vm >>= num) `shouldBe` Just 11
           (Map.lookup "sustain" vm >>= num) `shouldBe` Just 0.1
         _ -> expectationFailure ("expected one onset per cycle, got " ++ show (length evs))
+
+    it "padbank n b counts banks as sets of sixteen: padbank 1 3 = pad 33 = MIDI 68, padbank 16 1 = pad 16" $ do
+      let noteOf pat = [ Map.lookup "note" (value e) >>= num | e <- queryArc pat (Arc 0 1), eventHasOnset e ]
+      noteOf (padbank 1 3) `shouldBe` noteOf (pad 33)
+      noteOf (padbank 1 3) `shouldBe` [Just 8]
+      noteOf (padbank 16 1) `shouldBe` noteOf (pad 16)
+

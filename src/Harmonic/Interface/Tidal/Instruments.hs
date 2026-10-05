@@ -6,7 +6,8 @@
 -- routes through, and the studio-rig channel map. Device and section
 -- launchers (@wind@, @strg@, @brss@, @perc@; @grnd@, @hmnx@, @s101@, @gnlr@)
 -- are NOT defined here — they are composed per-performance in the .tidal
--- files (see documents\/ALGORITHMIC_ORCHESTRATION.md) and in the Pulsar
+-- files (documents\/ALGORITHMIC_ORCHESTRATION.md for the orchestra,
+-- documents\/LIVE_ENVIRONMENT.md for the studio rig) and in the Pulsar
 -- snippets, each block owning its channel with the @ch N@ postfix. Library
 -- code never carries a launcher's name: a block and a wrapper of the same
 -- name would shadow each other in the session.
@@ -18,7 +19,7 @@ module Harmonic.Interface.Tidal.Instruments (
 
     -- * Studio rig
     -- $studioRig
-    pad,
+    pad, padbank,
 
     -- * Velocity
     vel,
@@ -66,6 +67,12 @@ p16 = (\pat -> pat # s "thru" # midichan 15)
 -- rhythm, @struct \"1 ~ ~ ~\" (pad 4)@.
 pad :: Int -> ControlPattern
 pad padN = midinote (fromIntegral (35 + padN)) # sustain 0.1 # ch 12
+
+-- | 'pad' addressed as the MPC lays it out: pad @n@ (1..16) of bank @b@, the
+-- banks being successive sets of sixteen pads, not MIDI bank select.
+-- @padbank 1 3@ is pad 1 of bank C = 'pad' 33 = MIDI 68; bank A is @pad@ itself.
+padbank :: Int -> Int -> ControlPattern
+padbank padN bk = pad (padN + 16 * (bk - 1))
 
 -- | Set the MIDI channel from a 1-indexed 'Int', so @ch 1@ is MIDI channel 1.
 -- The general form of 'p10' .. 'p16'; used internally by every orchestral

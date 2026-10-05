@@ -235,7 +235,8 @@ module Harmonic.Lib (
   arrange, arrange', parallel, warp, rep, lookupChordAt,
   lookupChord, lookupProgression,
   overlapF,
-  harmonics, partialOffset,
+  Tuning, ecbc, composite, harmonics, overtoneMap, overtoneTable,
+  compositeSeries, stringPitches, partialOffset,
 
   -- ** Form and kinetics
   FormNode(..), FormTime(..), Transition(..), Kinetics(..), IK,
@@ -341,7 +342,8 @@ import Harmonic.Interface.Tidal.Bridge (
     arrange, arrange', parallel, warp, rep, lookupChordAt,
     lookupChord, lookupProgression,
     overlapF,
-    harmonics, partialOffset
+    Tuning, ecbc, composite, harmonics, overtoneMap, overtoneTable,
+    compositeSeries, stringPitches, partialOffset
   )
 import Harmonic.Interface.Tidal.Arranger (
     rotate, excerpt, insert, switch, clone, extract,

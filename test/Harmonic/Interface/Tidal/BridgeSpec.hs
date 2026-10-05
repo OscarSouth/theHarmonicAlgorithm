@@ -23,7 +23,6 @@ import Harmonic.Rules.Types.ProgressionContext (Layer(..))
 import Harmonic.Interface.Tidal.Bridge
 import Harmonic.Interface.Tidal.Form (Kinetics(..), IK)
 import qualified Harmonic.Interface.Tidal.Arranger as A
-import Harmonic.Interface.Tidal.Utils (oct)
 import qualified Harmonic.Evaluation.Analysis.KeyArea as KA
 import qualified Data.Sequence as Seq
 import qualified Data.Map.Strict as Map
@@ -507,10 +506,12 @@ spec = do
       lookupChordAt 10 r `shouldBe` 3
       lookupChordAt 14 r `shouldBe` 4
 
-  -- harmonics: one string of an overtone instrument. Fundamental in reference
-  -- octave 2 (36 + pc), partials 2 3 4 5 at +12 +19 +24 +28, filtered to the
-  -- bar's voiced pitch classes, floor-mod indexed, never octave-wrapped.
-  describe "harmonics (natural harmonics of one string)" $ do
+  -- The composite overtone series of the fixed instrument ecbc (A2 E3 G3 B3
+  -- C4 — both lever positions, as the MPC keymap holds them): partials 2 3 4 5
+  -- as real pitches, filtered per bar to the voiced classes, indexed 0..
+  -- ascending and floor-mod looped (negatives from the top). harmonics = the
+  -- same mapping restricted to one string's pitches.
+  describe "composite / harmonics (composite overtone series)" $ do
     let eMaj  = A.fromChords [[4,8,11]]
         kinE  = Kinetics (pure 1.0) (pure 1.0) (pure eMaj) [eMaj] 0 0
         kE    = (kinE, pure 1 :: Pattern Int)
@@ -519,38 +520,59 @@ spec = do
         kBb   = (kinBb, pure 1 :: Pattern Int)
         num v = case v of { VF x -> Just x; VN x -> Just (realToFrac x); _ -> Nothing }
         onsets p = [ e | e <- queryArc p (Arc 0 4), eventHasOnset e ]
-        midis p = sort [ round (x + 60) :: Int | e <- onsets p
-                       , Just x <- [Map.lookup "note" (value e) >>= num] ]
-        runE  str pats = harmonics str (0,1) kE  T A.flow id pats
-        runBb str pats = harmonics str (0,1) kBb T A.flow id pats
+        midis p = [ round (x + 60) :: Int | e <- onsets p
+                  , Just x <- [Map.lookup "note" (value e) >>= num] ]
+        comp k pats     = composite (0,1) k T pats
+        str  k st pats  = harmonics st (0,1) k T pats
 
     it "partialOffset places partials 2..5 at +12 +19 +24 +28" $
       map partialOffset [2,3,4,5] `shouldBe` [12,19,24,28]
 
-    it "E string sounds all four harmonics of E major in the reference octave" $
-      nub (midis (runE Pitch.E ["0 1 2 3"])) `shouldBe` [52,59,64,68]
+    it "stringPitches: A2 sounds 57 64 69 73; the C lever string 72 79 84 88" $ do
+      stringPitches (Pitch.A,2) `shouldBe` [57,64,69,73]
+      stringPitches (Pitch.C,4) `shouldBe` [72,79,84,88]
 
-    it "each string filters to its own viable harmonics" $ do
-      nub (midis (runE Pitch.G ["0 1 2 3"])) `shouldBe` [71]
-      nub (midis (runE Pitch.B ["0 1 2 3"])) `shouldBe` [59,71]
-      nub (midis (runE Pitch.A ["0 1 2 3"])) `shouldBe` [64]
-      nub (midis (runE Pitch.C ["0 1 2 3"])) `shouldBe` [64]   -- C's 5th partial is E
+    it "ecbc is both lever positions; its composite series is the keymap" $ do
+      ecbc `shouldBe` [(Pitch.A,2),(Pitch.E,3),(Pitch.G,3),(Pitch.B,3),(Pitch.C,4)]
+      compositeSeries ecbc `shouldBe` [57,64,67,69,71,72,73,74,76,78,79,80,83,84,87,88]
 
-    it "a string with no viable harmonic rests" $
-      onsets (runE Pitch.D ["0 1 2 3"]) `shouldBe` []
+    it "ints index the bar's viable series from the bottom (E major: 64 71 76 80 83 88)" $
+      nub (sort (midis (comp kE ["0 1 2 3 4 5"]))) `shouldBe` [64,71,76,80,83,88]
 
-    it "indexes by floor-mod, negative-safe, never off the string" $ do
-      midis (runE Pitch.E ["0 3 -1 -4 7"]) `shouldSatisfy` all (`elem` [52,59,64,68])
-      nub (midis (runE Pitch.B ["-1"])) `shouldBe` [71]
+    it "negative ints come from the top down" $
+      midis (comp kE ["-1 -2 -3"]) `shouldBe` concat (replicate 4 [88,83,80])
 
-    it "enharmonic fundamentals are the same string" $
-      midis (runBb Pitch.Bb ["0 1 2 3"]) `shouldBe` midis (runBb Pitch.A' ["0 1 2 3"])
+    it "loops: 6 wraps to 0, -8 wraps to 4, a one-tone bar answers every int" $ do
+      nub (midis (comp kE ["6"]))  `shouldBe` [64]
+      nub (midis (comp kE ["-8"])) `shouldBe` [83]
+      nub (midis (comp kBb ["0 1 2 -1"])) `shouldBe` [74]     -- Bb major: only D (74) on the instrument
 
-    it "register composes with oct: A |- oct 1 lands on the A1 string's E" $
-      nub (midis (runE Pitch.A ["0"] |- oct 1)) `shouldBe` [52]
+    it "a string block keeps the same ints but sounds only its own pitches" $ do
+      nub (midis (str kE Pitch.E ["0 1 2 3"])) `shouldBe` [64,71,76,80]
+      onsets (str kE Pitch.E ["4 5"]) `shouldBe` []           -- 83, 88 are not on the E string: silent, not remapped
+      nub (midis (str kE Pitch.A ["0 1 2 3 4 5"])) `shouldBe` [64]
+      length (onsets (str kE Pitch.A ["0 1 2 3 4 5"])) `shouldBe` 4
+      nub (midis (str kE Pitch.G ["0 1 2 3 4 5"])) `shouldBe` [83]
+      nub (midis (str kE Pitch.C ["0 1 2 3 4 5"])) `shouldBe` [88]  -- lever position isolated
 
-    it "is mono within the string: simultaneous contours collapse to one onset per cycle" $
-      length (onsets (runE Pitch.E ["0", "1"])) `shouldBe` 4
+    it "enharmonic string names are the same string" $
+      midis (str kBb Pitch.A' ["0"]) `shouldBe` midis (str kBb Pitch.Bb ["0"])
+
+    it "a bar with no instrument tone rests (F and Bb are unreachable)" $
+      onsets (composite (0,1) kBb T ["0 1"] ) `shouldSatisfy` all (\e -> (Map.lookup "note" (value e) >>= num) == Just 14)
+
+    it "composite is polyphonic; a string is mono (latest-note) within itself" $ do
+      length (onsets (comp kE ["0", "1"])) `shouldBe` 8
+      length (onsets (str kE Pitch.E ["0", "1"])) `shouldBe` 4
+
+    it "overtoneTable names the sources in thesis numbering" $
+      overtoneTable [4,8,11] `shouldBe`
+        [ (0, 64, [(Pitch.A,2),(Pitch.E,1)])
+        , (1, 71, [(Pitch.E,2),(Pitch.B,1)])
+        , (2, 76, [(Pitch.E,1)])
+        , (3, 80, [(Pitch.E,3)])
+        , (4, 83, [(Pitch.G,3),(Pitch.B,1)])
+        , (5, 88, [(Pitch.C,3)]) ]
 
     it "emits no control-change traffic" $
-      [ () | e <- onsets (runE Pitch.E ["0 1"]), Map.member "ctlNum" (value e) ] `shouldBe` []
+      [ () | e <- onsets (comp kE ["0 1"]), Map.member "ctlNum" (value e) ] `shouldBe` []

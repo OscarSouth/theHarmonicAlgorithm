@@ -319,12 +319,13 @@ genJ: the composite-minor key lattice, the mode and pentatonic layer
 derivation, and the walking-bass unification.
 
 **[Algorithmic Orchestration](documents/ALGORITHMIC_ORCHESTRATION.md)** — scoring for
-a virtual orchestra: instrument catalogue, voice lines, divisi, sections,
-blends, and the subKick groove interface.
+a virtual orchestra on the JV-1010: instrument catalogue, voice lines, divisi,
+sections, blends, form and kinetics.
 
 **[The Live Environment](documents/LIVE_ENVIRONMENT.md)** — the editor, boot
-and SuperCollider rig the project is performed on: Pulsar configuration, the
-compiled-session wrapper, MIDI routing, and the failure modes worth recognising.
+and SuperCollider rig the project is performed on, and the instruments behind it:
+Pulsar configuration, the compiled-session wrapper, MIDI routing, the studio rig's
+channel map and MPC programs, the AIRA units, and the failure modes worth recognising.
 
 **[API Reference](https://docs.theharmonicalgorithm.com/)** — generated Haddock
 documentation for all 50 modules, with worked examples on every user-facing
