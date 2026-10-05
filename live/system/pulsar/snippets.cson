@@ -155,6 +155,7 @@
         putStrLn "LAUNCH ¬¬"; print s
         mapM_ id [hush, setbpm tempo
           ,display k
+          -- ,display' k           -- seconds instead of bars
           -- ,metronome 4 $d 0.3
           -- ,count  k $d 0.6
           -- ,grnd f k $d 0.9
@@ -259,7 +260,8 @@
   # s101/smpl/auto/gnlr) are DEVICE-specific. Layers are added quickly with
   # the insertion snippets — `,rr` drops a new arrange voice into a
   # channel-voice stack, `slate` drops a new gated layer into a drum kit,
-  # `cc` drops a modulation line onto a synth.
+  # `cc` drops a modulation line onto a synth, `mark` drops a form-relative
+  # cue (once per loop, at a bar) into any stack.
   # ══════════════════════════════════════════════════════════
 
   'channel voice (arrange on ch N)':
@@ -304,6 +306,18 @@
   'cc modulation line':
     'prefix': 'cc'
     'body': " -- --\n,${1:s1cutoff} (lfo ${2:saw} ${3:0.2} ${4:0.9})\n"
+
+
+  # Form-relative cue line for any stack: fires once per form loop at a bar
+  # (as written for `rh`; the 12-step shows bar N as N+1), not kinetics-gated.
+  # `mark'` takes seconds. Trigger at COLUMN 0 of a ` -- --` separator.
+  'mark cue line':
+    'prefix': 'mark'
+    'body': '''
+      ,mark ${1:32} k [silence
+        ,${2:padbank 1 1} |* vel 0.9
+        ]
+    '''
 
 
   'minimal house slate-stack (dance form)':
@@ -526,14 +540,15 @@
           $ stack [silence
              -- speech — form-relative, once per loop (bars as written in the form; display shows +1)
             ,mark ${1:32} k [silence
-              ,pad 1 |* vel 0.9
-              -- ,pad 5 |* vel 0.7                 -- stack more at the same bar; comment individually
+              ,padbank 1 1 |* vel 0.9
+              -- ,padbank 5 1 |* vel 0.7                 -- stack more at the same bar; comment individually
               ]
-            -- ,mark 96 k [silence, pad 2 |* vel 0.9]
-            -- ,mark' 250 k [silence, pad 3 |* vel 0.9]   -- seconds (marksec)
+            -- ,mark 96 k [silence, padbank 2 1 |* vel 0.9]
+            -- ,mark' 250 k [silence, padbank 3 1 |* vel 0.9]   -- seconds (marksec)
+            -- ,mark 144 k [silence, padbank 1 2 |* vel 0.9] -- bank B pad 1 (banks = sets of 16)
              -- rhythmic — kinetics-gated
             ,slate (0.2,1) k [silence
-              -- ,struct "1 ~ ~ ~" (pad 4) |* vel 0.9
+              -- ,struct "1 ~ ~ ~" (padbank 4 1) |* vel 0.9
               ]
              -- --
           ] |* vel d
@@ -594,35 +609,19 @@
     'body': '''
       hmnx f k d = p "hmnx" $ do
         let o   = ch 11
-            pat = "$1"
+            pat = "$1"                             -- ints into the composite series: "[0,1,2]/4" bottom-up, "[-1,-2,-3]/4" top-down
         f
           $ stack [silence
              -- --
-            ,harmonics A (0,1) k T flow (overlapF 0) ["~"
-              ,pat
-            ]# o |* vel 0.8 |- oct 1
-             -- --
-            ,harmonics E (0,1) k T flow (overlapF 0) ["~"
+            ,composite (0,1) k T ["~"
               ,pat
             ]# o |* vel 0.8
-             -- --
-            ,harmonics G (0,1) k T flow (overlapF 0) ["~"
-              ,pat
-            ]# o |* vel 0.8
-             -- --
-            ,harmonics B (0,1) k T flow (overlapF 0) ["~"
-              ,pat
-            ]# o |* vel 0.8
-             -- --
-            -- ,harmonics C (0,1) k T flow (overlapF 0) ["~"    -- lever at C
+             -- -- per string (A E G B C): same ints, only that string's tones sound (isolate / mute / intra-string sustain)
+            -- ,harmonics A (0,1) k T ["~"
             --   ,pat
-            -- ]# o |* vel 0.8 |+ oct 1
+            -- ]# o |* vel 0.8
              -- --
-            ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"   -- unfiltered: keygroup decides
-              -- ,pat
-            ]# o |* vel 0.6
-             -- --
-            ,cc 64 "[1@63 0]" #o                                -- damper: accumulation
+            -- ,cc 64 "[1@63 0]" #o                 -- damper: accumulation
              -- --
           ]# legato 1 |* vel d
     '''
@@ -630,10 +629,18 @@
   'harmonics string (one line for a launcher stack)':
     'prefix': 'harm'
     'body': '''
-      ,harmonics ${1:E} (0,1) k T flow (overlapF 0) ["~"
+      ,harmonics ${1:E} (0,1) k T ["~"
         ,${2:pat}
       ]# o |* vel 0.8
        -- --
+    '''
+
+  # What do the ints hit? Per chord: int / top-down alias, pitch, MIDI,
+  # sources in thesis notation (A2 / E1). Pitch names are scientific
+  # (60 = C4); the MPC and MIDI Monitor show one octave lower.
+  'overtoneMap (hmnx analysis)':
+    'prefix': 'omap'
+    'body': "overtoneMap ${1:s} ${2:T} [${3:\"[0,1,2]/4\"}]\n"
 
   # ══════════════════════════════════════════════════════════
   # THE AIRA PROGRAM

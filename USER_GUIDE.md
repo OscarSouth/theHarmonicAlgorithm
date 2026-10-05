@@ -982,12 +982,12 @@ None is "more correct" — they trade immediacy against decidedness. A performan
 |---|---|
 | Session | `transport` · `state` |
 | Generation | `ctx` · `gen` · `formless` · `dance` |
-| Launchers | `launch` · `p` · `rr` · `slate` · `cc` · `harm` · `minimal` · `deeptech` |
+| Launchers | `launch` · `p` · `rr` · `slate` · `cc` · `mark` · `harm` · `minimal` · `deeptech` |
 | Groove & lines | `subk` · `walk` |
 | Motifs | `motif` |
 | Orchestra* | `orchsec` · `tutti` · `instr` |
 | Hardware* | `k909` · `kmpc` · `m32` · `mdf` |
-| Studio rig* | `grnd` · `mini` · `jura` · `hmnx` · `slce` · `kgrv` · `s101` · `smpl` · `auto` · `gnlr` |
+| Studio rig* | `grnd` · `mini` · `jura` · `hmnx` · `omap` · `slce` · `kgrv` · `s101` · `smpl` · `auto` · `gnlr` |
 
 (\* rig-specific — see Known exceptions.)
 

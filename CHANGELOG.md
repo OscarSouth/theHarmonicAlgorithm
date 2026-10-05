@@ -113,17 +113,22 @@ was unkillable; the LED coordinator follows the real note-offs.
 
 **`hmnx`** — the Harmonic Algorithm's own instrument: the harmony as natural
 harmonics of the Electric Contrabass Cittern through the MPC keygroup on
-channel 11. `harmonics` is `arrange` for one string (partials 2–5 of its
-fundamental, filtered to the bar's voiced tones); the launcher stacks one per
-string. `mono'` / `retrig` is latest-note-priority monophony, the opposite
-of Tidal's `mono`.
+channel 11. `composite` indexes the thesis's composite overtone series —
+every harmonic the fixed instrument `ecbc` holds (A2 E3 G3, lever B3 and C4,
+as the keymap does), filtered to the bar's voiced tones and compressed to
+`0, 1, 2 …` from the bottom, looping so `-1, -2, -3` reads from the top. Only
+the harmonic context limits the space; no voice function or tuning is
+stated. `harmonics` is the same mapping restricted to one string (isolate,
+mute, sustain), and `overtoneMap s T [pat]` prints what the ints hit in
+thesis notation for each chord of a progression. `mono'` / `retrig` is
+latest-note-priority monophony, the opposite of Tidal's `mono`.
 
 **Form-relative cues** — `mark` / `mark'` (`markbar` / `marksec`) place a
 stacked list once per form loop at a bar or a second, in lockstep with the
 kinetics signal and not gated by it; `pad n` is an MPC misc-sample pad on
-channel 12. Time-unit doctrine across the library: unprimed = bars, primed
-= seconds, so `display k` now shows the bar number and `display' k`
-elapsed seconds.
+channel 12 (`padbank n b` addresses it by the MPC's banks of sixteen).
+Time-unit doctrine across the library: unprimed = bars, primed = seconds,
+so `display k` now shows the bar number and `display' k` elapsed seconds.
 
 ## Version 3.1.0 (2026)
 

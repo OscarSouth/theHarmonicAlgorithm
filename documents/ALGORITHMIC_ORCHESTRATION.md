@@ -468,7 +468,7 @@ subk f k d = p "subKick"
 ## Harmonics — hmnx
 
 `hmnx` is the Harmonic Algorithm's own instrument: the harmony rendered as **natural
-harmonics of the Electric Contrabass Cittern** (tuning `E A e G B`) through the MPC
+harmonics of the Electric Contrabass Cittern** (strings A2 E3 G3 B3, lever to C4 — thesis §2.1) through the MPC
 harmonics keygroup on **MIDI channel 11**. The keygroup is pitch-accurate — each sampled
 overtone sits at the note number of its true sounding pitch — so the keygroup, not the
 code, decides what can sound.
@@ -479,59 +479,78 @@ The four playable partials of the 2016 thesis — octave, fifth, double octave, 
 (partials 2 3 4 5) — sit at `+12 +19 +24 +28` from a string's fundamental:
 
 ```
-open A1 = 33 → 45 52 57 61        open B2 = 47 → 59 66 71 75
-open E2 = 40 → 52 59 64 68        open C3 = 48 → 60 67 72 76   (the B string, Hipshot lever at C)
-open G2 = 43 → 55 62 67 71
+open A2 = 45 → 57 64 69 73        open B3 = 59 → 71 78 83 87
+open E3 = 52 → 64 71 76 80        open C4 = 60 → 72 79 84 88   (the B string, Hipshot lever at C)
+open G3 = 55 → 67 74 79 83
 ```
-Shared pitches (one sample each): 52 (A/E), 59 (E/B), 67 (G/C), 71 (G/B). Playable pitch
+Shared pitches (one sample each): 64 (A/E), 71 (E/B), 79 (G/C), 83 (G/B). Playable pitch
 classes `{0,1,2,3,4,6,7,8,9,11}` — F and B♭ are unreachable and are simply omitted.
+The union of these pitches is the *composite overtone series* the patterns index. Pitch
+names here are scientific (60 = C4); the MPC and MIDI Monitor display one octave lower.
 
-### `harmonics` — one string, a special `arrange`
+### `composite` — the composite overtone series, indexed
 
-`harmonics :: NoteName -> (Double,Double) -> IK -> Layer -> VoiceFunction -> (Progression -> Progression) -> [Pattern Int] -> Pattern ValueMap`
+`composite :: (Double,Double) -> IK -> Layer -> [Pattern Int] -> Pattern ValueMap`
 
-`arrange` with the string first and no register slot. The `NoteName` is the string's
-fundamental, placed in reference octave 2 (36 + pitch class); the launcher puts the
-string in its real octave with `|+ oct` / `|- oct`, exactly as the orchestral blocks do.
-Per bar, the string's viable notes are its harmonic pitches whose pitch class is among
-the bar's voiced tones; a pattern index picks the i-th by floor-mod — never an octave
-wrap, these are fixed sample pitches; a bar with no viable note rests. Within a string
-the contour is `mono'` (latest-note priority: a new harmonic damps the previous); across
-strings the launcher's stack is polyphonic. `harmonics` is a render-time filter only — it
-never reads the generation context's overtone constraint; generating inside the
-instrument's overtone set (`hcOvertones "E A e G B"`) is what keeps every tone playable.
+The instrument is fixed on the backend as `ecbc` — A2 E3 G3 and the top string in both lever
+positions, B3 and C4, exactly what the MPC keymap holds — so no launcher states a tuning.
+Its *composite overtone series* (thesis §2.2) is the union of every string's harmonics:
+`57 64 67 69 71 72 73 74 76 78 79 80 83 84 87 88`. Per bar it is filtered to the pitch
+classes the layer voices (`T` chord tones, `S` pentatonic) and compressed to `0, 1, 2 …`
+ascending; the ints loop by floor-mod, so `"[0,1,2]"` is the three lowest available tones
+from the bottom up and `"[-1,-2,-3]"` the three highest from the top down, whatever size of
+structure is in play (one tone answers every int; a bar with no instrument tone rests). A
+class present in two octaves is two ints. Never an octave wrap — fixed sample pitches.
+Polyphonic. The harmonic context is the only limit on the space; no voice function or
+progression modifier applies (flow and grid voice the same classes).
+
+### `harmonics` — one string, the same ints
+
+`harmonics :: NoteName -> (Double,Double) -> IK -> Layer -> …` is `composite` restricted to
+one string of `ecbc` (A E G B C): the same int → pitch mapping, but only pitches that string
+can sound pass — the rest are silent, not remapped. A string block therefore isolates or
+mutes a string and owns its sustain (`mono'` within the string: a new harmonic damps the
+previous, as on the instrument). Shared pitches across string blocks double into resonance.
+
+### `overtoneMap` — read the ints off the instrument
+
+`overtoneMap s T ["[0,1,2]/4"]` takes a progression context and the layer the block plays
+and prints, per chord, the basic series `0..n-1` with pitch, MIDI number and sources in
+thesis notation (`A2 / E1` = A string overtone 2 or E string overtone 1; OT1 the
+fundamental's class, OT2 the fifth, OT3 the third), the top-down alias beside each int, and
+the contour's ints resolved per chord. `overtoneTable` is its pure core (pitch classes in,
+rows out); `compositeSeries ecbc` is the keymap.
 
 ### The instrument is a launcher block
-
-The tuning lives in the launcher: which strings you instantiate and their octaves. One
-declared `pat` is the default — every string picks it up and filters it to what it can
-sound; a pitch shared by two strings doubles into resonance, curated in performance.
 
 ```haskell
 hmnx f k d = p "hmnx" $ do
   let o   = ch 11
-      pat = "[0 1 2 3]/4"
+      pat = "[0,1,2]/4"                     -- ints into the composite series: bottom-up; "[-1,-2,-3]/4" top-down
   f
     $ stack [silence
-      ,harmonics A (0,1) k T flow (overlapF 0) ["~", pat] # o |* vel 0.8 |- oct 1   -- A1
-      ,harmonics E (0,1) k T flow (overlapF 0) ["~", pat] # o |* vel 0.8            -- E2
-      ,harmonics G (0,1) k T flow (overlapF 0) ["~", pat] # o |* vel 0.8            -- G2
-      ,harmonics B (0,1) k T flow (overlapF 0) ["~", pat] # o |* vel 0.8            -- B2
-      -- ,harmonics C (0,1) k T flow (overlapF 0) ["~", pat] # o |* vel 0.8 |+ oct 1 -- lever at C
-      ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"] # o |* vel 0.6            -- unfiltered: keygroup decides
-      ,cc 64 "[1@63 0]" #o                                                        -- damper: accumulation
+       -- --
+      ,composite (0,1) k T ["~"
+        ,pat
+      ]# o |* vel 0.8
+       -- -- per string (A E G B C): same ints, only that string's tones sound (isolate / mute / intra-string sustain)
+      -- ,harmonics A (0,1) k T ["~"
+      --   ,pat
+      -- ]# o |* vel 0.8
+       -- --
+      -- ,cc 64 "[1@63 0]" #o                 -- damper: accumulation
+       -- --
     ]# legato 1 |* vel d
 ```
 
 - **Sustain** is the outer `# legato`; **CC64** is one global damper for the whole
   instrument (harmonic accumulation), independent of legato. `hmnxPedalOff` lifts it in
   `launch'` / `hush`.
-- **Shared pitches** across strings are handled by SafeMIDIOut (re-articulate, reference-
-  counted note-offs) — no dedupe.
+- **Shared pitches** across string blocks are handled by SafeMIDIOut (re-articulate,
+  reference-counted note-offs) — no dedupe.
 - **`mono'`** (`retrig`) is general: latest-note-priority monophony, the opposite of
   Tidal's first-note `mono`. Set a keygroup mute group per string on the MPC for a
   hardware guarantee regardless of legato.
-- The 12-step pitch-class LEDs follow ch 11 (`~ledCoordinator.watch(10, (45..76))`).
 
 ## Form Declaration
 

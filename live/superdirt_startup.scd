@@ -181,8 +181,7 @@ s.reboot {
       ~midiSafe.onControl = { |c, ct, v| ~ledCoordinator.onControl(c, ct, v) };
       ~ledCoordinator.watch(7, nil);          // ch 8  = lineHarmony, all notes
       ~ledCoordinator.watch(9, (36..47));     // ch 10 = subKick range only
-      ~ledCoordinator.watch(10, (45..76));    // ch 11 = hmnx natural harmonics
-      "====> LED coordinator wired to SafeMIDIOut on ch 8 + ch 10 (subKick range) + ch 11 (hmnx harmonics).".postln;
+      "====> LED coordinator wired to SafeMIDIOut on ch 8 + ch 10 (subKick range).".postln;
     };
 
     "SuperDirt is ready.".postln;

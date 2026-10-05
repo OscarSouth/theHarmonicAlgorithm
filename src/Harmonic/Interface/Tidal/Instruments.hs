@@ -18,7 +18,7 @@ module Harmonic.Interface.Tidal.Instruments (
 
     -- * Studio rig
     -- $studioRig
-    pad,
+    pad, padbank,
 
     -- * Velocity
     vel,
@@ -66,6 +66,12 @@ p16 = (\pat -> pat # s "thru" # midichan 15)
 -- rhythm, @struct \"1 ~ ~ ~\" (pad 4)@.
 pad :: Int -> ControlPattern
 pad padN = midinote (fromIntegral (35 + padN)) # sustain 0.1 # ch 12
+
+-- | 'pad' addressed as the MPC lays it out: pad @n@ (1..16) of bank @b@, the
+-- banks being successive sets of sixteen pads, not MIDI bank select.
+-- @padbank 1 3@ is pad 1 of bank C = 'pad' 33 = MIDI 68; bank A is @pad@ itself.
+padbank :: Int -> Int -> ControlPattern
+padbank padN bk = pad (padN + 16 * (bk - 1))
 
 -- | Set the MIDI channel from a 1-indexed 'Int', so @ch 1@ is MIDI channel 1.
 -- The general form of 'p10' .. 'p16'; used internally by every orchestral
