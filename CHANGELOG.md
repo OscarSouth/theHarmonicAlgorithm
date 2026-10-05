@@ -24,8 +24,9 @@ chooses sample rate and MIDI binding per platform.
 
 **Linux installer** — `scripts/install-linux.sh` wires a fresh machine
 idempotently (`--check` reports without writing); `scripts/pulsar_config.py`
-and `scripts/pulsar-apply-patches` keep the editor settings and the console
-bridge (`scripts/tidal-monitor/`) in step. `documents/PORTING_NOTES.md`
+and `scripts/pulsar-apply-patches` keep the editor settings, the console
+bridge (`scripts/tidal-monitor/`) and the atom-hydra patch (no audio
+analysis, 60 fps default, whole-file eval) in step. `documents/PORTING_NOTES.md`
 records every divergence the port found — most fail silently.
 
 **Studio rig channel map** — one owner per channel: soft synths on 1/2/7,

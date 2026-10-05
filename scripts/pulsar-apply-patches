@@ -1,8 +1,8 @@
 #!/bin/sh
-# Re-apply local modifications to the Pulsar tidalcycles package.
+# Re-apply local modifications to the Pulsar tidalcycles and atom-hydra
+# packages.
 #
-# WHY THIS EXISTS: `ppm install tidalcycles` replaces the whole package
-# directory, so any local change is silently lost on every upgrade -- and the
+# WHY THIS EXISTS: `ppm install` replaces a package's whole directory, so any local change is silently lost on every upgrade -- and the
 # feature just stops working with no error. Run this after any plugin upgrade.
 #
 # PATCH: console-view.js -> POST every console line to the tidal-monitor
@@ -89,3 +89,54 @@ else:
     print("  console-view.js: listener patch %s"
           % ("re-applied" if "sendToListener" in original else "applied"))
 PY
+
+# PATCH: atom-hydra main.js, two edits.
+#
+# 1. Construct Hydra with audio analysis off and a 60 fps default. hydra-synth
+#    defaults detectAudio to true, which opens an audio capture stream and runs
+#    an FFT every frame; atom-hydra never overrides it. Its loop otherwise renders
+#    at the display refresh (120 Hz on the external). The cap goes through
+#    sandbox.set: Hydra copies window.fps into the synth every tick, so a value
+#    written onto the synth alone is lost on the next frame. A patch's own
+#    `fps = N` still overrides it.
+# 2. Declare `range` in evalCode. Upstream assigns it undeclared, and the file is
+#    compiled as a strict-mode module, so whole-file evaluation (ctrl-alt-enter)
+#    throws "range is not defined" before evaluating anything.
+H=~/.pulsar/packages/atom-hydra/lib/main.js
+if [ -f "$H" ]; then
+python3 - "$H" <<'PY2'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+original = s
+
+EDITS = [
+    ("fps/audio",
+     "      canvas: this.canvas,\n      autoLoop: false\n    })\n",
+     "      canvas: this.canvas,\n      autoLoop: false,\n"
+     "      detectAudio: false   // local patch; see scripts/pulsar-apply-patches\n"
+     "    })\n"
+     "    this.hydra.sandbox.set('fps', 60)   // local patch: default cap; `fps = N` overrides\n"),
+    ("evalCode range",
+     "      range = {\n        start: { row: 0, column: 0 },\n",
+     "      const range = {   // local patch; see scripts/pulsar-apply-patches\n"
+     "        start: { row: 0, column: 0 },\n"),
+]
+
+for name, pristine, patched in EDITS:
+    s = s.replace(patched, pristine)          # strip: converge from any prior state
+    n = s.count(pristine)
+    if n != 1:
+        sys.exit("  atom-hydra main.js: expected 1 anchor for %s, found %d -- the "
+                 "package has changed shape; update scripts/pulsar-apply-patches" % (name, n))
+    s = s.replace(pristine, patched)          # apply
+
+if s == original:
+    print("  atom-hydra main.js: fps/audio + evalCode patches already correct")
+else:
+    open(p, "w").write(s)
+    print("  atom-hydra main.js: fps/audio + evalCode patches applied")
+PY2
+else
+  echo "  atom-hydra not installed - skipping"
+fi
