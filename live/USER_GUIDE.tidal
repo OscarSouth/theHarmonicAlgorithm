@@ -41,7 +41,8 @@
 --     documents/ALGORITHMIC_ORCHESTRATION.md and ORCHESTRAL_CATALOGUE.tidal.
 --   * Hardware-bound helpers — the AIRA program's four layers
 --     (s101, smpl, auto, gnlr), the Q-Link controller bridge,
---     the LED display rig, and the MPC kit program behind subKick.
+--     the LED display rig, and the MPC programs (subk, hmnx, slce).
+--     The rig is documented in documents/LIVE_ENVIRONMENT.md.
 --     They're documented in Devices.S1 / .P6 / .JV1010; this guide
 --     stays on the single piano channel plus generic drums.
 --

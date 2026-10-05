@@ -6,7 +6,8 @@
 -- routes through, and the studio-rig channel map. Device and section
 -- launchers (@wind@, @strg@, @brss@, @perc@; @grnd@, @hmnx@, @s101@, @gnlr@)
 -- are NOT defined here — they are composed per-performance in the .tidal
--- files (see documents\/ALGORITHMIC_ORCHESTRATION.md) and in the Pulsar
+-- files (documents\/ALGORITHMIC_ORCHESTRATION.md for the orchestra,
+-- documents\/LIVE_ENVIRONMENT.md for the studio rig) and in the Pulsar
 -- snippets, each block owning its channel with the @ch N@ postfix. Library
 -- code never carries a launcher's name: a block and a wrapper of the same
 -- name would shadow each other in the session.

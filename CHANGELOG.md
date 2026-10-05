@@ -33,6 +33,9 @@ DFAM on 3/4/5, Mother-32 on 6, bass on 8, drum machines on 9, the MPC
 programs on 10/11/12, the AIRA units on 13–16. The launcher snippets
 (`grnd`, `mini`, `jura`, `hmnx`, `slce`, `kgrv`, the AIRA four) carry the
 map; the studio rig and the JV-1010 orchestra are never live together.
+`documents/LIVE_ENVIRONMENT.md` documents the rig end to end — editor, boot,
+channel map, MPC programs, AIRA — and `ALGORITHMIC_ORCHESTRATION.md` is the
+JV-1010 orchestra alone again.
 
 **The AIRA program** — The Roland S-1 and P-6 become four performable
 layers rather than two unused CC maps: `s101` (S-1 synth voice, ch 13),
