@@ -56,10 +56,14 @@
           f = swing8 0.5
           d = (* 1)
           k = iK tempo form r -- (rep s 1)
+          -- k = isolate (-4,2) $ iK tempo form r   -- degrees -4..2 only; isolate' keeps all but
         putStrLn "LAUNCH ¬¬"
         print s
         mapM_ id [hush, setbpm tempo
           -- ,display k
+          -- ,kmap f k T                 -- X3 mapper state: T | S | M | TS | TM | SM | TSM | PT
+          -- ,rc10 f k $d 1               -- RC-10R looper structure
+          -- ,dkit f k $d 0.99            -- RC-10R drum kit, through the MPC
           -- ,count k $d 0.1
           -- ,metronome 4 $d 0.3
           -- ,strg f k  $ d 0.99
@@ -113,28 +117,28 @@
       form = -- symmetric dance form
         --           k     d
         -- INTRO (32) — build from silence
-        [ rh   0    0.0   0.0   s
-        , rh  16    0.2   0.3   s   -- elements layer in
-        , rh' 28    0.35  0.55  s   -- riser: sparse but LOUD (k<d); SNAP -> jump into drop
+        [ rh   1    0.0   0.0   s
+        , rh  17    0.2   0.3   s   -- elements layer in
+        , rh' 29    0.35  0.55  s   -- riser: sparse but LOUD (k<d); SNAP -> jump into drop
         -- FIRST DROP (64, 4x16) — perceptible jump into each 16
-        , rh' 32    0.9   0.7   s   -- THE DROP: full band, restrained loudness (k>d)
-        , rh' 48    0.7   0.82  s   -- thinner but louder (k<d)
-        , rh' 64    0.9   0.8   s   -- full again
-        , rh  80    0.85  0.9   s   -- ramp up toward the break
-        , rh' 94    0.9   0.92  s   -- SNAP -> jump into break
+        , rh' 33    0.9   0.7   s   -- THE DROP: full band, restrained loudness (k>d)
+        , rh' 49    0.7   0.82  s   -- thinner but louder (k<d)
+        , rh' 65    0.9   0.8   s   -- full again
+        , rh  81    0.85  0.9   s   -- ramp up toward the break
+        , rh' 95    0.9   0.92  s   -- SNAP -> jump into break
         -- MID BREAK (16) — saw
-        , rh  96    0.15  0.35  s   -- BREAK: minimal, still present
-        , rh' 110   0.35  0.7   s   -- riser: sparse but LOUD (k<d); SNAP -> jump into second drop
+        , rh  97    0.15  0.35  s   -- BREAK: minimal, still present
+        , rh' 111   0.35  0.7   s   -- riser: sparse but LOUD (k<d); SNAP -> jump into second drop
         -- SECOND DROP (64, 4x16) — the change; climb to peak
-        , rh' 112   1.0   0.9   s   -- SECOND DROP: full band
-        , rh' 128   0.9   0.98  s   -- eased instrumentation, near-max loud (golden zone)
-        , rh  144   1.0   1.0   s   -- EVERYTHING MAX — k and d align at the peak
-        , rh' 160   0.6   1.0   s   -- stripped but still BLARING (k<<d); SNAP -> jump
+        , rh' 113   1.0   0.9   s   -- SECOND DROP: full band
+        , rh' 129   0.9   0.98  s   -- eased instrumentation, near-max loud (golden zone)
+        , rh  145   1.0   1.0   s   -- EVERYTHING MAX — k and d align at the peak
+        , rh' 161   0.6   1.0   s   -- stripped but still BLARING (k<<d); SNAP -> jump
         -- OUTRO (32) — fall away
-        , rh' 176   0.4   0.65  s   -- OUTRO: instant fall
-        , rh  192   0.2   0.3   s   -- winding down
-        , rh  208   0.0   0.0   s   -- silence
-        , rh  212   0.0   0.0   s   -- 4-bar gap (nice to DJs)
+        , rh' 177   0.4   0.65  s   -- OUTRO: instant fall
+        , rh  193   0.2   0.3   s   -- winding down
+        , rh  209   0.0   0.0   s   -- silence
+        , rh  213   0.0   0.0   s   -- 4-bar gap (nice to DJs)
         ]
     '''
 
@@ -152,6 +156,7 @@
           d = (* 1)
           -- k = lK exP exP s r
           k = iK tempo form r -- (rep s 1)
+          -- k = isolate (-4,2) $ iK tempo form r   -- degrees -4..2 only; isolate' keeps all but
         putStrLn "LAUNCH ¬¬"; print s
         mapM_ id [hush, setbpm tempo
           ,display k
@@ -164,6 +169,9 @@
           -- ,subk f k $d 0.99
           -- ,walk f k $d 0.99
           -- ,hmnx f k $d 0.8
+          -- ,kmap f k T                 -- X3 mapper state: T | S | M | TS | TM | SM | TSM | PT
+          -- ,rc10 f k $d 1               -- RC-10R looper structure
+          -- ,dkit f k $d 0.99            -- RC-10R drum kit, through the MPC
           -- ,k909 f k $d 0.99
           -- ,kmpc f k $d 0.99
           -- ,slce f k $d 0.9
@@ -309,7 +317,7 @@
 
 
   # Form-relative cue line for any stack: fires once per form loop at a bar
-  # (as written for `rh`; the 12-step shows bar N as N+1), not kinetics-gated.
+  # (numbered as for `rh`, bar 1 = the start, as the 12 Step shows), not kinetics-gated.
   # `mark'` takes seconds. Trigger at COLUMN 0 of a ` -- --` separator.
   'mark cue line':
     'prefix': 'mark'
@@ -543,9 +551,9 @@
               ,padbank 1 1 |* vel 0.9
               -- ,padbank 5 1 |* vel 0.7                 -- stack more at the same bar; comment individually
               ]
-            -- ,mark 96 k [silence, padbank 2 1 |* vel 0.9]
+            -- ,mark 97 k [silence, padbank 2 1 |* vel 0.9]
             -- ,mark' 250 k [silence, padbank 3 1 |* vel 0.9]   -- seconds (marksec)
-            -- ,mark 144 k [silence, padbank 1 2 |* vel 0.9] -- bank B pad 1 (banks = sets of 16)
+            -- ,mark 145 k [silence, padbank 1 2 |* vel 0.9] -- bank B pad 1 (banks = sets of 16)
              -- rhythmic — kinetics-gated
             ,slate (0.2,1) k [silence
               -- ,struct "1 ~ ~ ~" (padbank 4 1) |* vel 0.9
@@ -641,6 +649,66 @@
   'overtoneMap (hmnx analysis)':
     'prefix': 'omap'
     'body': "overtoneMap ${1:s} ${2:T} [${3:\"[0,1,2]/4\"}]\n"
+
+  # Boss RC-10R: the structural side of the looper. The pedal's switches own
+  # recording, undo/redo, memories and clearing; this block places track
+  # starts/stops, breaks, fills and the A/B groove on the form, and lets the
+  # levels follow it. Messages ride ch 10 CC 70-84, consumed by the X3 and
+  # sent to the pedal on X3 Out C (map in Harmonic.Interface.Tidal.Devices.RC10R).
+  'rc10 RC-10R looper (structure)':
+    'prefix': 'rc10'
+    'body': '''
+      rc10 f k d = p "rc10" $ do
+        f
+          $ stack [silence
+             -- -- loops as instruments: enter / leave with kinetics (LOOP TRACK MODE: PARALLEL)
+            ,rcGate (0.3,1) k 1
+            -- ,rcGate (0.7,1) k 2
+             -- -- tracks on a bar grid
+            -- ,rcTrk1     "[1 0 0 0 0 0 0 0]/32"          -- TRK1 START, first bar of every 8
+            -- ,rcTrk1Stop "[0 0 0 0 0 0 1 0]/32"          -- TRK1 STOP, bar 7 of every 8
+            -- ,rcTrk2     "[0 0 0 0 1 0 0 0]/32"          -- TRK2 START, bar 5 of every 8
+            -- ,rcTrk2Stop "[0 0 0 0 0 0 0 1]/32"          -- TRK2 STOP, last bar of every 8
+            -- ,rcStop     "[0 0 0 0 0 0 0 1]/32"          -- LOOP STOP: both tracks (STOP MODE)
+             -- -- breaks and fills
+            -- ,rcBreak       "[0 0 0 1]/16"               -- ALL BREAK: loops + rhythm, every 4th bar
+            -- ,rcRhythmBreak "[0 0 0 1]/16"               -- RHY BREAK: drums only
+            -- ,rcFill        "[0 0 0 0 0 0 0 1]/32"       -- RHY FILLIN, last bar of every 8
+             -- -- the pedal's own rhythm, at form marks (once per loop)
+            -- ,mark 1  k [silence, rcRhythm "1"]          -- RHY START
+            -- ,mark 33 k [silence, rcPattern "1"]         -- RHY DIVISION: groove A <-> B
+            -- ,mark 49 k [silence, rcRhythmStop "1"]      -- RHY STOP (STOP MODE)
+            -- ,mark 1  k [silence, rcKit 8]               -- 1 Studio 2 Live 3 Light 4 Heavy 5 Rock 6 Metal 7 Jazz 8 Brushes
+             --                                            -- 9 Cajon 10 Drum&Bs 11 R&B 12 Dance 13 Techno 14 Dance Beats 15 Hiphop 16 808+909
+             -- -- levels, 0-1: constants, lfos, or the form's dynamic
+            -- ,rcLoopLevel   (kDynamic (fst k) * d)       -- LOOP LEVEL
+            -- ,rcRhythmLevel (kDynamic (fst k) * d)       -- RHY LEVEL
+            -- ,rcLevel       0.8                          -- TOTAL LEVEL
+             -- --
+            ]
+    '''
+
+  # The RC-10R's drum kit as 16 pads, in the shared drum names (notes 0-15).
+  # x3rc10 turns each hit into ch 10 CC 33-48; the X3 sends it through the MPC's
+  # dkit track (port 2 in, port 3 out) to the pedal's note channel.
+  'dkit RC-10R drum kit (through the MPC)':
+    'prefix': 'dkit'
+    'body': '''
+      dkit f k d = p "dkit" $ do
+        f
+          $ x3rc10 $ stack [silence
+             -- -- 16 pads: kick snap hhcl hhop / ride crash click snare
+             -- --          ride2 crash2 claves snare2 / hhpd bell ftom kick2
+            ,slate (0.2,1) k [silence
+              ,kick "1 ~ ~ 1 ~ ~ 1 ~" |* vel 0.9
+              ,snare "~ 1" |* vel 0.8
+              ]
+            ,slate (0.4,1) k [silence
+              ,hh "x x o x" |* vel 0.6
+              ]
+             -- --
+          ] |* vel d
+    '''
 
   # ══════════════════════════════════════════════════════════
   # THE AIRA PROGRAM

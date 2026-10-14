@@ -44,7 +44,8 @@ description:         |
   * "Harmonic.Interface.Tidal.Motif" — motivic development operators.
   * "Harmonic.Interface.Tidal.Devices.JV1010" — drum map and continuo bank
     addressing; @Devices.S1@ and @Devices.P6@ carry the Roland AIRA control
-    maps and the composite performance controls over them.
+    maps and the composite performance controls over them; @Devices.RC10R@ the
+    Boss RC-10R looper's structural controls.
   * "Harmonic.Traversal.WalkingBass" — walking-bass line generation.
 
   == Music theory primitives
@@ -146,6 +147,7 @@ library:
     - Harmonic.Interface.Tidal.Devices.S1
     - Harmonic.Interface.Tidal.Devices.P6
     - Harmonic.Interface.Tidal.Devices.JV1010
+    - Harmonic.Interface.Tidal.Devices.RC10R
     - Harmonic.Interface.Tidal.OctatripentatonicT
     - Harmonic.Interface.Tidal.PolytonalT
     - Harmonic.Interface.Tidal.ChordscaleT

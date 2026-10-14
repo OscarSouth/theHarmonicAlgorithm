@@ -54,6 +54,7 @@ import qualified Harmonic.Interface.Tidal.OrchestraSpec as OrchestraSpec
 import qualified Harmonic.Interface.Tidal.ArrangerSpec as ArrangerSpec
 import qualified Harmonic.Interface.Tidal.UtilsSpec as UtilsSpec
 import qualified Harmonic.Interface.Tidal.DisplaySpec as DisplaySpec
+import qualified Harmonic.Interface.Tidal.Devices.RC10RSpec as RC10RSpec
 
 main :: IO ()
 main = hspec $ do
@@ -87,4 +88,5 @@ main = hspec $ do
   describe "Harmonic.Interface.Tidal.Arranger" ArrangerSpec.spec
   describe "Harmonic.Interface.Tidal.Utils" UtilsSpec.spec
   describe "Harmonic.Interface.Tidal.Display" DisplaySpec.spec
+  describe "Harmonic.Interface.Tidal.Devices.RC10R" RC10RSpec.spec
   describe "Harmonic.Interface.Tidal.LineHarmony" LineHarmonySpec.spec

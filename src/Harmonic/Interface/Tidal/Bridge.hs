@@ -44,6 +44,9 @@ module Harmonic.Interface.Tidal.Bridge
     -- * Parallelism Harmoniser
   , parallel      -- stack fixed-interval parallel voices over arrange output
 
+    -- * Harmonic state for an external note-mapper
+  , harmonicState
+
     -- * Chord Lookup
   , lookupChordAt
   , lookupChord
@@ -69,7 +72,7 @@ import Harmonic.Interface.Tidal.Form (Kinetics(..), IK)
 import Harmonic.Interface.Tidal.Utils (mono')
 
 import Data.Foldable (toList)
-import Data.List (sort, nub, intercalate)
+import Data.List (sort, nub, nubBy, intercalate)
 import Data.Maybe (isJust)
 import Sound.Tidal.Context hiding (voice)
 
@@ -188,7 +191,7 @@ arrange :: (Double, Double)                     -- ^ Kinetics gate: events pass 
         -> Pattern ValueMap
 arrange (lo, hi) (kin, chordPat) register lyr voiceFunc modifier pats =
   let -- Pre-compute note range filter ONCE (shared across all innerJoin invocations)
-      ranged = voiceRange register (stack pats)
+      ranged = filterValues (kDegrees kin) (voiceRange register (stack pats))  -- the line's range, then the launcher's ('isolate')
       -- The pattern carries the raw context; projection (layer synthesis
       -- for TS\/TM\/SM\/TSM\/PT), the modifier and the voicing all run at
       -- cache build. The audio thread only equality-matches the context —
@@ -438,7 +441,7 @@ arrange' :: (Double, Double)                     -- ^ Kinetics range
          -> Pattern ValueMap
 arrange' (lo, hi) (kin, chordPat) register lyr voiceFunc modifier pats =
   let -- Pre-compute note range filter ONCE (shared across all innerJoin invocations)
-      ranged = voiceRange register (stack pats)
+      ranged = filterValues (kDegrees kin) (voiceRange register (stack pats))  -- the line's range, then the launcher's ('isolate')
       -- Context-keyed cache; see 'arrange' — projection, modifier and
       -- voicing all run at build, never per query.
       progPat = kProg kin
@@ -491,6 +494,48 @@ arrangeLookup' (scales, nChords) chordPat ranged
 -- @
 parallel :: Pattern Note -> ControlPattern -> ControlPattern
 parallel offs pat = pat |+ note offs
+
+-------------------------------------------------------------------------------
+-- Harmonic state for an external note-mapper
+-------------------------------------------------------------------------------
+
+-- | The chosen layer's pitch classes as held MIDI notes, for a device that locks
+-- a played keyboard to the harmony (the rig's MiDiNiNjA X3).
+--
+-- One note per distinct pitch class, MIDI 108-119 (pitch class = note mod 12),
+-- on MIDI channel 10, each held for the length of its chord: the structure
+-- follows the chord grid (@snd k@), so two chords in a bar give two held sets.
+-- Any layer or combination ('T', 'S', 'M', 'TS', ...) and any set size. Degree
+-- indices 0-11 cover the largest set; the indices past a chord's size fold back
+-- onto pitch classes already sent and are dropped, so each chord change costs
+-- one message per pitch class on a DIN line shared with the music.
+--
+-- Each set goes out 'stateLead' ahead of its chord: on the wire before the
+-- chord's own notes, and in place for keys played just before the downbeat.
+--
+-- Channel 10, notes 108-119 sits above everything else on that channel in both
+-- rigs: the JV-map kit (0-9, 60-80), metronome and count, the MPC sub (35-48).
+-- The X3 consumes these notes before they reach the MPC.
+--
+-- @kmap f k lyr = p \"kmap\" $ f $ harmonicState lyr k@   (BootTidal)
+harmonicState :: Layer -> IK -> ControlPattern
+harmonicState lyr k =
+  pure stateLead <~ withEvents (nubBy sameNote)
+    (arrange (0, 1) (allDegrees k) (0, 11) lyr A.lite id
+      [struct (fmap (const True) (snd k)) "[0,1,2,3,4,5,6,7,8,9,10,11]"]
+      |% note 12 |+ note 48
+      # s "thru" # midichan 9 # legato 1 # pF "amp" 1)
+  where
+    sameNote x y = whole x == whole y && part x == part y && value x == value y
+    -- The mapper always gets the whole set, whatever the launcher isolates.
+    allDegrees (kin, chordPat) = (kin { kDegrees = const True }, chordPat)
+
+-- | How far ahead of its chord 'harmonicState' sends a set, in cycles (beats):
+-- 7/64, just under a 32nd note. A key played a 64th before the downbeat
+-- already maps to the new chord; one played a 32nd before still maps to the
+-- old one.
+stateLead :: Time
+stateLead = 7/64
 
 -------------------------------------------------------------------------------
 -- Chord Lookup

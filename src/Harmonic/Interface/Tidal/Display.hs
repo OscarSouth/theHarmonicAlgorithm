@@ -40,22 +40,23 @@ displayClock' k =
       thruCh10     = s "thru" # midichan 9             -- 1 event / cycle (constant CCs, struct-driven onsets)
       thruCh10Fast = fast 30 (s "thru") # midichan 9   -- 30 events / cycle (~56 Hz; for the seconds counter only)
 
-      -- 1-indexed second counter, phase-locked to cycle 0. The displayed
+      -- Seconds elapsed, phase-locked to cycle 0: the number 'at' and 'mark''
+      -- take, so a cue written at 30 fires as the counter reads 30. The displayed
       -- value is a continuous function of cycle time. Emission rate (~56 Hz
       -- at cps 1.867) comes from the *structural* side via thruCh10Fast on
       -- the CC 117/118 lines below — Tidal's `#` is `|>`, which reads
       -- structure from the left and only samples values from the right.
       -- Putting `segment 30` on this sig has no effect on emission rate;
       -- the leftmost pattern in the chain determines onsets.
-      -- Values are 1..n inclusive (first second of the loop displays "1").
-      -- Atemporal forms broadcast 0 continuously (SC treats this as blank).
+      -- Values are 0..n-1 (the first second of the loop displays "0").
+      -- Atemporal forms broadcast 0; SC blanks the counter on loop length 0.
       wholeSecs = floor loopSecs :: Int
       currentSecsPat = if wholeSecs >= 1 && cpsV > 0
         then sig $ \t ->
                let cyclesNow     = realToFrac t :: Double
                    secondsNow    = cyclesNow / cpsV
                    formLocalSecs = secondsNow - fromIntegral (floor (secondsNow / loopSecs) :: Int) * loopSecs
-                   displayed     = (floor formLocalSecs :: Int) + 1
+                   displayed     = floor formLocalSecs :: Int
                in fromIntegral displayed :: Double
         else pure 0
 
@@ -95,7 +96,9 @@ displayClock k =
       thruCh10     = s "thru" # midichan 9             -- 1 event / cycle (constant CCs, struct-driven onsets)
       thruCh10Fast = fast 30 (s "thru") # midichan 9   -- 30 events / cycle (catches the bar-boundary transition)
 
-      -- 1-indexed bar counter, phase-locked to cycle 0. Ticks once per bar
+      -- Musical bar number, phase-locked to cycle 0: the number 'rh' and 'mark'
+      -- take (bar 1 = the start), so a cue written at 61 fires as the counter
+      -- reads 61. Ticks once per bar
       -- (every 4 cycles), in lockstep with the chord selection `snd k`.
       -- Values are 1..loopBars inclusive (first bar of the loop displays "1").
       -- Atemporal forms broadcast 0 continuously (SC treats this as blank).

@@ -20,8 +20,10 @@ SafeMIDIOut {
     noteOn { |chan, note, vel|
         var key = (chan * 128) + note;
         var count = noteOnCounts[key] ? 0;
-        // Precautionary noteOff: clear any sounding note at this pitch
-        midiOut.noteOff(chan, note, 0);
+        // Retrigger: clear this pitch first, but only when it is sounding.
+        // Each message costs about 1 ms on the DIN, so an unconditional
+        // noteOff would add a third to every chord's spread.
+        if(count > 0) { midiOut.noteOff(chan, note, 0) };
         // Send the actual noteOn
         midiOut.noteOn(chan, note, vel);
         // Track reference count

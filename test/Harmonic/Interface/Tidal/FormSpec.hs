@@ -14,6 +14,7 @@ import Harmonic.Interface.Tidal.Form
 import qualified Data.Sequence as Seq
 import qualified Data.Map.Strict as Map
 import Sound.Tidal.Context
+import Control.Exception (evaluate)
 
 -------------------------------------------------------------------------------
 -- Test Fixtures
@@ -55,17 +56,17 @@ spec = do
       fnTrans node `shouldBe` Smooth
 
     it "time unit and transition are orthogonal across at/at'/rh/rh'" $ do
-      fnTime  (rh  4 0 0 testProgA) `shouldBe` Bars 4
-      fnTime  (rh' 4 0 0 testProgA) `shouldBe` Bars 4
+      fnTime  (rh  5 0 0 testProgA) `shouldBe` Bars 5
+      fnTime  (rh' 5 0 0 testProgA) `shouldBe` Bars 5
       fnTime  (at' 4 0 0 testProgA) `shouldBe` Secs 4
       fnTrans (at  4 0 0 testProgA) `shouldBe` Smooth
       fnTrans (at' 4 0 0 testProgA) `shouldBe` Snap
-      fnTrans (rh  4 0 0 testProgA) `shouldBe` Smooth
-      fnTrans (rh' 4 0 0 testProgA) `shouldBe` Snap
+      fnTrans (rh  5 0 0 testProgA) `shouldBe` Smooth
+      fnTrans (rh' 5 0 0 testProgA) `shouldBe` Snap
 
   describe "bars (rh) vs seconds (at)" $ do
-    -- rh 4 at 120bpm = 4 bars * 4 beats = 16 cycles = 8s;  at 8 (120bpm) = 8*2 = 16 cycles = 8s
-    let kBar = formK 120 [at 0 0 0 testProgA, rh 4 1 1 testProgA]
+    -- rh 5 at 120bpm = 4 bars * 4 beats = 16 cycles = 8s;  at 8 (120bpm) = 8*2 = 16 cycles = 8s
+    let kBar = formK 120 [at 0 0 0 testProgA, rh 5 1 1 testProgA]
         kSec = formK 120 [at 0 0 0 testProgA, at 8 1 1 testProgA]
     it "rh resolves bars to the same loop seconds as the equivalent at" $ do
       kLoopSecs kBar `shouldBe` 8
@@ -131,21 +132,21 @@ spec = do
 
   describe "ki (range gating)" $ do
     it "passes events when signal in range" $ do
-      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA) [testProgA] 0 0
+      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA) [testProgA] 0 0 (const True)
           ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
           result = ki (0.3, 0.7) ik (note "0")
           evs = queryArc result (Arc 0 1)
       length evs `shouldSatisfy` (> 0)
 
     it "blocks events when signal outside range" $ do
-      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA) [testProgA] 0 0
+      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA) [testProgA] 0 0 (const True)
           ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
           result = ki (0.6, 0.9) ik (note "0")
           evs = queryArc result (Arc 0 1)
       length evs `shouldBe` 0
 
     it "inclusive at boundaries" $ do
-      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA) [testProgA] 0 0
+      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA) [testProgA] 0 0 (const True)
           ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
           result = ki (0.5, 0.5) ik (note "0")
           evs = queryArc result (Arc 0 1)
@@ -153,14 +154,14 @@ spec = do
 
   describe "slate" $ do
     it "activates patterns when in range" $ do
-      let kin = Kinetics (pure 0.8) (pure 1.0) (pure testProgA) [testProgA] 0 0
+      let kin = Kinetics (pure 0.8) (pure 1.0) (pure testProgA) [testProgA] 0 0 (const True)
           ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
           result = slate (0.5, 1.0) ik [note "0", note "1"]
           evs = queryArc result (Arc 0 1)
       length evs `shouldSatisfy` (> 0)
 
     it "blocks patterns when outside range" $ do
-      let kin = Kinetics (pure 0.2) (pure 1.0) (pure testProgA) [testProgA] 0 0
+      let kin = Kinetics (pure 0.2) (pure 1.0) (pure testProgA) [testProgA] 0 0 (const True)
           ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
           result = slate (0.5, 1.0) ik [note "0", note "1"]
           evs = queryArc result (Arc 0 1)
@@ -168,7 +169,7 @@ spec = do
 
   describe "withForm" $ do
     it "applies function using progression from kinetics" $ do
-      let kin = Kinetics (pure 1.0) (pure 1.0) (pure testProgA) [testProgA] 0 0
+      let kin = Kinetics (pure 1.0) (pure 1.0) (pure testProgA) [testProgA] 0 0 (const True)
           ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
           result = withForm ik (\_ -> note "42")
           evs = queryArc result (Arc 0 1)
@@ -193,35 +194,42 @@ spec = do
   -- mark / mark': form-relative one-shot placement. Three-node bar form at
   -- 120 bpm (cps 2): loop = 32 bars = 128 cycles.
   describe "mark (form-relative cues)" $ do
-    let kin3  = formK 120 [rh 0 0 0 testProgA, rh 16 1 1 testProgA, rh 32 0 0 testProgA]
+    let kin3  = formK 120 [rh 1 0 0 testProgA, rh 17 1 1 testProgA, rh 33 0 0 testProgA]
         k3    = (kin3, pure 1 :: Pattern Int)
         onsets to p = [ start (wholeOrPart e) | e <- queryArc p (Arc 0 to), eventHasOnset e ]
         one   = pure True :: Pattern Bool
 
     it "fires once per loop at the bar (rh numbering)" $
-      onsets 256 (mark 16 k3 [one]) `shouldBe` [64, 192]
+      onsets 256 (mark 17 k3 [one]) `shouldBe` [64, 192]
+
+    it "numbers bars musically: bar 1 is the start of the form" $
+      onsets 256 (mark 1 k3 [one]) `shouldBe` [0, 128]
+
+    it "rejects bar 0 (bars count from 1)" $
+      evaluate (length (queryArc (kSignal (formK 120 [rh 0 0 0 testProgA, rh 5 1 1 testProgA])) (Arc 0 1)))
+        `shouldThrow` anyErrorCall
 
     it "seconds version agrees with bars at the same instant" $ do
       onsets 128 (mark' 8 k3 [one]) `shouldBe` [16]
-      onsets 128 (mark' 8 k3 [one]) `shouldBe` onsets 128 (mark 4 k3 [one])
+      onsets 128 (mark' 8 k3 [one]) `shouldBe` onsets 128 (mark 5 k3 [one])
 
     it "markbar / marksec are synonyms; markAt is the generic" $ do
-      onsets 256 (markbar 16 k3 [one]) `shouldBe` onsets 256 (mark 16 k3 [one])
+      onsets 256 (markbar 17 k3 [one]) `shouldBe` onsets 256 (mark 17 k3 [one])
       onsets 128 (marksec 8 k3 [one]) `shouldBe` onsets 128 (mark' 8 k3 [one])
-      onsets 256 (markAt (Bars 16) k3 [one]) `shouldBe` onsets 256 (mark 16 k3 [one])
+      onsets 256 (markAt (Bars 17) k3 [one]) `shouldBe` onsets 256 (mark 17 k3 [one])
 
     it "squeezes the pattern's first cycle into the one-beat window; the list is stacked" $ do
-      onsets 128 (mark 4 k3 ["1 1" :: Pattern Bool]) `shouldBe` [16, 16.5]
-      onsets 128 (mark 4 k3 [one, one]) `shouldBe` [16, 16]
+      onsets 128 (mark 5 k3 ["1 1" :: Pattern Bool]) `shouldBe` [16, 16.5]
+      onsets 128 (mark 5 k3 [one, one]) `shouldBe` [16, 16]
 
     it "loop start fires; beyond the loop end and an empty list are silence" $ do
-      onsets 256 (mark 0 k3 [one]) `shouldBe` [0, 128]
-      onsets 256 (mark 40 k3 [one]) `shouldBe` []
-      onsets 256 (mark 16 k3 []) `shouldBe` []
+      onsets 256 (mark 1 k3 [one]) `shouldBe` [0, 128]
+      onsets 256 (mark 41 k3 [one]) `shouldBe` []
+      onsets 256 (mark 17 k3 []) `shouldBe` []
 
     it "is not kinetics-gated" $
-      onsets 256 (mark 16 (kin3 { kSignal = pure 0 }, pure 1 :: Pattern Int) [one]) `shouldBe` [64, 192]
+      onsets 256 (mark 17 (kin3 { kSignal = pure 0 }, pure 1 :: Pattern Int) [one]) `shouldBe` [64, 192]
 
     it "atemporal forms: lK is silence, a single-node iK fires once at absolute cycles" $ do
-      onsets 256 (mark 4 (lK (pure 1) (pure 1) testProgA (pure 1)) [one]) `shouldBe` []
-      onsets 512 (mark 4 (iK 120 [rh 0 0 0 testProgA] (pure 1)) [one]) `shouldBe` [16]
+      onsets 256 (mark 5 (lK (pure 1) (pure 1) testProgA (pure 1)) [one]) `shouldBe` []
+      onsets 512 (mark 5 (iK 120 [rh 1 0 0 testProgA] (pure 1)) [one]) `shouldBe` [16]

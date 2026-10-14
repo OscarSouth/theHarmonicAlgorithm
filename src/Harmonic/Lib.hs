@@ -232,7 +232,7 @@ module Harmonic.Lib (
   -- * TidalCycles interface
   -- ** Pattern-level operations
   VoiceFunction, voiceRange,
-  arrange, arrange', parallel, warp, rep, lookupChordAt,
+  arrange, arrange', parallel, harmonicState, warp, rep, lookupChordAt,
   lookupChord, lookupProgression,
   overlapF,
   Tuning, ecbc, composite, harmonics, overtoneMap, overtoneTable,
@@ -241,7 +241,7 @@ module Harmonic.Lib (
   -- ** Form and kinetics
   FormNode(..), FormTime(..), Transition(..), Kinetics(..), IK,
   at, at', rh, rh', iK, lK, formK,
-  ki, slate, withForm,
+  ki, slate, withForm, isolate, isolate',
   mark, mark', markbar, marksec, markAt,
 
   -- ** Arranger functions (voicing paradigms)
@@ -275,6 +275,7 @@ module Harmonic.Lib (
   module Harmonic.Interface.Tidal.Display,
   module Harmonic.Interface.Tidal.Devices.S1,
   module Harmonic.Interface.Tidal.Devices.P6,
+  module Harmonic.Interface.Tidal.Devices.RC10R,
   module Harmonic.Interface.Tidal.Devices.JV1010,
   module Harmonic.Config,
 
@@ -339,7 +340,7 @@ import Harmonic.Rules.Import.CSV
 import Harmonic.Rules.Import.Transform
 import Harmonic.Interface.Tidal.Bridge (
     VoiceFunction, voiceRange,
-    arrange, arrange', parallel, warp, rep, lookupChordAt,
+    arrange, arrange', parallel, harmonicState, warp, rep, lookupChordAt,
     lookupChord, lookupProgression,
     overlapF,
     Tuning, ecbc, composite, harmonics, overtoneMap, overtoneTable,
@@ -362,7 +363,7 @@ import Harmonic.Interface.Tidal.LineHarmony (lineHarmony)
 import Harmonic.Interface.Tidal.Form (
     FormNode(..), FormTime(..), Transition(..), Kinetics(..), IK,
     at, at', rh, rh', iK, lK, formK,
-    ki, slate, withForm,
+    ki, slate, withForm, isolate, isolate',
     mark, mark', markbar, marksec, markAt
   )
 import Harmonic.Interface.Tidal.Instruments
@@ -372,6 +373,7 @@ import Harmonic.Interface.Tidal.Motif
 import Harmonic.Interface.Tidal.Display
 import Harmonic.Interface.Tidal.Devices.S1
 import Harmonic.Interface.Tidal.Devices.P6
+import Harmonic.Interface.Tidal.Devices.RC10R
 import Harmonic.Interface.Tidal.Devices.JV1010
 import Harmonic.Interface.Tidal.OctatripentatonicT (renderTristrataReport, genPReport)
 import Harmonic.Interface.Tidal.PolytonalT (polyLayerViews, genEReport)
