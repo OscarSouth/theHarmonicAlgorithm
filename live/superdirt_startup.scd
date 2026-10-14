@@ -64,6 +64,12 @@ s.reboot {
     s.sync;
     ~dirt.start(57120, [0, 1]);
 
+    // A note with no length of its own ends at 99.9% of its slot, so its
+    // note-off leaves before the next onset instead of queueing beside it on
+    // the DIN (about 1 ms per message). Notes that set legato or sustain keep
+    // theirs: the drums' fixed sustain, and subKick's and kmap's legato 1.
+    ~dirt.orbits.do { |orbit| orbit.set(\legato, 0.999) };
+
     // // MIDI setup (unchanged)
     // MIDIClient.init;
     // try {

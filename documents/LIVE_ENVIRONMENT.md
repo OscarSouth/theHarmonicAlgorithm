@@ -22,7 +22,7 @@ Pulsar ──spawns──> ghci ──> TidalCycles ──OSC──> SuperDirt �
    │                          │                     ├──> 12 Step LED display (CC 20+, 50-53)
    │                          │                     └──> AIRA S-1 / P-6
    │                          │
-   │                          └──cF──> Q-Link controller (CC 100-110, via OSC 6010)
+   │                          └──cF──> Q-Link controller (ch 10, CC 100-111, via OSC 6010)
    │
    └──/editor/highlights (6013)──> event highlighting in the buffer
 ```
@@ -62,7 +62,7 @@ shadow each other in the session.
 | 7 | `jura` | `juno` | Juno poly bells (soft) |
 | 8 | `walk` | `lineHarmony` | bass line |
 | 9 | `k909`, `kgrv` | `909kit`, `grooveKit` | drum machines (JV drum map, channel overridden) |
-| 10 | `subk`, `kmpc`, `count`, `metronome`, `display` | `subKick`, `mpckit`, … | MPC sub/kick + kit; 12-step LEDs and display (fixed) |
+| 10 | `subk`, `kmpc`, `count`, `metronome`, `display`, `kmap`, `rc10` | `subKick`, `mpckit`, … | MPC sub/kick + kit; 12-step LEDs and display (fixed); harmonic state for the X3 mapper (notes 108–119); RC-10R looper lane (CC 70–84); inbound: Q-Links and the 12 Step pedal (CC 100–111) |
 | 11 | `hmnx` | `hmnx` | MPC natural-harmonics keygroup |
 | 12 | `slce` | `slce` | MPC misc-sample kit (pads 1–16 = MIDI 36–51) |
 | 13 | `s101` | `s101` | Roland S-1 synth voice (`s1chan`, all `s1` controls + program) |
@@ -244,14 +244,14 @@ hmnx f k d = p "hmnx" $ do
 A default MPC drum program: pads 1–16 on MIDI 36–51 (bank A), further banks of sixteen
 above it — `padbank n b` is pad `n` of bank `b`, `pad n` is bank A. The six speech samples
 (~30 s each) are placed on the form with `mark` / `mark'`: once per form loop at a bar (as
-written for `rh`; the 12-step shows bar N as N+1) or at a second, not kinetics-gated;
+numbered as for `rh`, bar 1 = the start, as the 12 Step shows) or at a second, not kinetics-gated;
 rhythmic use goes through `slate` as on any kit.
 
 ```haskell
 slce f k d = p "slce" $ do
   f
     $ stack [silence
-      ,mark 32 k [silence, padbank 1 1 |* vel 0.9]          -- the drop
+      ,mark 33 k [silence, padbank 1 1 |* vel 0.9]          -- the drop
       ,mark' 250 k [silence, padbank 1 2 |* vel 0.9]        -- 4:10 in, bank B pad 1
       ,slate (0.2,1) k [silence, struct "1 ~ ~ ~" (padbank 4 1) |* vel 0.9]
     ] |* vel d
@@ -261,6 +261,118 @@ MPC side: the speech pads One Shot; one mute group across them if a later cue sh
 an earlier one.
 
 ---
+
+### Harmonic state for a note-mapper (`kmap`)
+
+`kmap` holds the current chord's pitch classes as MIDI notes **108–119 on channel 10**, one
+note per pitch class, each for the length of its chord. A MIDI device downstream reads them
+as the harmony to lock a played keyboard to: every key is moved to the nearest pitch in the
+set. The rig's device is an external MIDI interface, the MiDiNiNjA X3, which sits between the
+laptop and the MPC. It consumes these notes, so the MPC never receives them.
+
+```haskell
+,kmap f k T          -- in the launcher's mapM_ list
+```
+
+`harmonicState` (`Harmonic.Interface.Tidal.Bridge`) builds the stream; BootTidal binds it to
+the `kmap` pattern slot (`kmap f k lyr = p "kmap" $ f $ harmonicState lyr k`), which `hush`
+silences.
+
+- **The layer is the performance choice.** `T` locks to the triad, `S` to the strata
+  partner, `M` to the mode, and the combinations (`TS`, `TSM`, …) to their unions. The set
+  can be any size, from one pitch class to all twelve.
+- **The degree indices 0–11 cover any chord size.** `lite` voices the layer, indices past
+  the chord's size wrap into the octaves above, and `|% note 12` folds every tone into one
+  octave, placed at 108–119 (pitch class = note mod 12). A pitch class that appears more than once is sent more than once; `SafeMIDIOut`
+  reference-counts the repeated note-ons and sends a single note-off.
+- **The structure follows the chord grid** (`snd k`), so two chords in a bar give two held
+  sets. The launcher's `f` is applied, so a time-stretching `f` keeps the state aligned
+  with the instruments. Swing leaves chord onsets in place, because they fall on bar
+  downbeats.
+- **Channel 10, notes 108–119, is clear of everything else on that channel.** Channel 10 is
+  the rig's control lane in both setups: the MPC sub (35–48), the JV-map kit `kmpc` uses
+  (0–9, 60–80), `metronome` and `count`, and the 12 Step's CCs. Every other channel is a
+  pitched JV-1010 voice in the orchestral setup and would sound the notes.
+
+### The RC-10R looper (`rc10`)
+
+The Boss RC-10R hangs off the X3's third DIN output. Its own switches do the one-off and
+stateful work: recording, undo/redo, phrase memories, clearing. `rc10` does the structural
+work: placing track starts and stops, breaks, fills and the A/B groove on the form, and
+levels that follow it. It follows Tidal's clock, which the X3 sends it alongside the MPC's
+copy. The MPC's own regenerated clock jitters too much for the pedal, which time-stretches
+its loops to chase every wobble.
+
+```haskell
+,rc10 f k $ d 1      -- in the launcher's mapM_ list; the block itself is the `rc10` snippet
+```
+
+The block is a stack of four kinds of line:
+
+| line | does |
+|---|---|
+| `rcGate (0.3,1) k 1` | track 1 enters when the form's kinetics enters the band and leaves when it leaves, like a section at its threshold. Only the crossings send anything |
+| `rcFill "[0 0 0 0 0 0 0 1]/32"` | a press on a repeating grid, written like a drum part (here: the last bar of every 8) |
+| `mark 33 k [silence, rcPattern "1"]` | a press once per form loop, at a bar |
+| `rcLoopLevel (kDynamic (fst k) * d)` | a level following the form's dynamic, sixteen updates per bar |
+
+Presses: `rcTrk1` / `rcTrk1Stop`, `rcTrk2` / `rcTrk2Stop`, `rcStop` (both tracks),
+`rcBreak` (rhythm + loops, rest of the bar), `rcRhythmBreak`, `rcRhythm` / `rcRhythmStop`,
+`rcFill`, `rcPattern` (the PTN1/PTN2 toggle; the pedal holds the state). Levels:
+`rcLoopLevel`, `rcRhythmLevel`, `rcLevel`. Kit: `rcKit 1`–`16`. `hush` silences the
+pattern but sends nothing to the pedal, so loops keep playing; stop them with
+`once $ rcStop "1"`.
+
+Every message is a control change on channel 10, CC 70–84. The X3 consumes that range and
+re-sends it on the pedal's wire, so the MPC never sees it. The pedal's MIDI menu:
+
+| CC | function | CC | function |
+|---|---|---|---|
+| 70 | TRK1 START | 78 | RHY STOP |
+| 71 | TRK1 STOP | 79 | RHY FILLIN |
+| 72 | TRK2 START | 80 | RHY DIVISION |
+| 73 | TRK2 STOP | 81 | LOOP LEVEL |
+| 74 | LOOP STOP | 82 | RHY LEVEL |
+| 75 | ALL BREAK | 83 | TOTAL LEVEL |
+| 76 | RHY BREAK | 84 | rhythm kit (sent as program change on RX NOTE CH) |
+| 77 | RHY START | | |
+
+`RX CONTROL CH` 1, `RX NOTE CH` 2, `SYNC CLOCK` MIDI. For loops arranged as separate
+instruments: LOOP TRACK MODE PARALLEL, SYNC SWITCH ON.
+
+### The pedal's drum kit (`dkit`)
+
+The RC-10R's drum kit plays from Tidal through an MPC track, so it can be recorded
+there and played from the MPC's pads. A `dkit` block is written with the shared drum
+names (`Devices.JV1010`, notes 0–15) and finished by `x3rc10`, which turns each hit into
+a control change on channel 10, CC 33–48: CC 33 + pad, value = the hit's final
+velocity (`amp` × 127; SuperDirt's 0.4 when unset).
+
+```
+Tidal  ch 10 CC 33-48 -> X3 (consumed) -> USB port 2 "Drums": note 19-34, ch 10
+  -> MPC MIDI track "dkit" (pads on notes 19-34; records, plays)
+  -> USB port 3 "Looper", ch 2 -> X3 (pad -> kit note) -> Out C -> RC-10R
+```
+
+The MPC track: a MIDI track with MIDI input X3 Drums, any channel, and output X3 Looper,
+channel 2; its pads are Pad Perform Chromatic C-2 transposed +19 (A01 = G-1 = 19), and
+MIDI Monitor is Merge so Tidal's hits pass through when the track isn't armed. Notes
+19–34 are the free run between the ch 10 kit (0–15, `count` from 8) and the MPC sub
+(35–48), so an All Ports ch 10 track never plays the lane. The kit selected with `rcKit` is the one that plays. The 16
+pads (pad 1 bottom-left; RC-10R note in brackets) extend the rig's 8-voice drum map
+upward by family:
+
+| | col 1 | col 2 | col 3 | col 4 |
+|---|---|---|---|---|
+| row 4 | 13 `hhpd` pedal hat (44) | 14 `bell` ride bell (53) | 15 `ftom` floor tom (41) | 16 `kick2` kick 2 (35) |
+| row 3 | 9 `ride2` ride 2 (59) | 10 `crash2` crash 2 (57) | 11 `claves` claves (75) | 12 `snare2` snare 2 (40) |
+| row 2 | 5 `ride` ride (51) | 6 `crash` crash (49) | 7 `click` side stick (37) | 8 `snare` snare (38) |
+| row 1 | 1 `kick` kick (36) | 2 `snap` clap (39) | 3 `hhcl` hat closed (42) | 4 `hhop` hat open (46) |
+
+`ride2` shares note 8 with `cowbell`, and `crash2` shares note 9 with `fm`, which
+stays for the analogue kit. Some kits put one sound on two notes: snare 2 is snare 1
+in Cajon, Techno and Dance Beats, ride 2 is ride 1 in Drum&Bs, R&B and the Dance
+kits, and crash 2 is crash 1 in R&B.
 
 ## Pulsar
 

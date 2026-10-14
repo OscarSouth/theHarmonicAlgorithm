@@ -34,13 +34,13 @@ testProgression = P.Progression $ Seq.fromList
   ]
 
 fullKin :: P.Progression -> Kinetics
-fullKin pr = Kinetics (pure 1.0) (pure 1.0) (pure (PC.fromProgression pr)) [(PC.fromProgression pr)] 0 0
+fullKin pr = Kinetics (pure 1.0) (pure 1.0) (pure (PC.fromProgression pr)) [(PC.fromProgression pr)] 0 0 (const True)
 
 mutedKin :: P.Progression -> Kinetics
-mutedKin pr = Kinetics (pure 0.0) (pure 1.0) (pure (PC.fromProgression pr)) [(PC.fromProgression pr)] 0 0
+mutedKin pr = Kinetics (pure 0.0) (pure 1.0) (pure (PC.fromProgression pr)) [(PC.fromProgression pr)] 0 0 (const True)
 
 kinAt :: Double -> P.Progression -> Kinetics
-kinAt v pr = Kinetics (pure v) (pure 1.0) (pure (PC.fromProgression pr)) [PC.fromProgression pr] 0 0
+kinAt v pr = Kinetics (pure v) (pure 1.0) (pure (PC.fromProgression pr)) [PC.fromProgression pr] 0 0 (const True)
 
 -------------------------------------------------------------------------------
 -- Onset helpers (mirrors BridgeSpec)
@@ -200,7 +200,7 @@ spec = do
           , mkJ Pt.F [0,2,4,9,10], mkJ Pt.G [0,2,5,9,10] ]
         kinFam fam =
           let ctx = (PC.fromProgression prog13) { PC.pcFamily = fam }
-          in Kinetics (pure 1.0) (pure 1.0) (pure ctx) [ctx] 0 0
+          in Kinetics (pure 1.0) (pure 1.0) (pure ctx) [ctx] 0 0 (const True)
         runFam fam =
           let result = lineHarmony (pure 1.0) (kinFam fam, rep13 fam) root
                          [parseBP_E "[1 2 3 4]/4"]
@@ -233,7 +233,7 @@ spec = do
           polyCtx = PC.ProgressionContext foundation partnersS partnersM Nothing PC.FPoly
           plainCtx = PC.fromProgression foundation
           runCtx ctx =
-            let kin = Kinetics (pure 1.0) (pure 1.0) (pure ctx) [ctx] 0 0
+            let kin = Kinetics (pure 1.0) (pure 1.0) (pure ctx) [ctx] 0 0 (const True)
                 result = lineHarmony (pure 1.0) (kin, rep ctx 1) root
                            [parseBP_E "[1 2 3 4]/4"]
             in [ n | (_, n) <- queryOnsets result (Arc 0 16) ]

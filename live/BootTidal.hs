@@ -134,6 +134,9 @@ launch = mapM_ ($ silence) [
   p "subKick",
   p "lineHarmony",
   p "hmnx",
+  p "kmap",
+  p "rc10",
+  p "dkit",
   p "displayClock",
   p "click",
   p "count",
@@ -271,6 +274,11 @@ putStrLn "theHarmonicAlgorithm V3 boot complete."
 -- (time-unit doctrine: unprimed = bars, primed = seconds — as mark / mark')
 display  k = p "displayClock" $ displayClock  k
 display' k = p "displayClock" $ displayClock' k
+
+-- Harmonic state for the X3 note-mapper: the layer's pitch classes held as
+-- MIDI 108-119 on ch 10 (Harmonic.Interface.Tidal.Bridge.harmonicState).
+-- Launcher line:  ,kmap f k T     (T | S | M | TS | TM | SM | TSM | PT)
+kmap f k lyr = p "kmap" $ f $ harmonicState lyr k
 
 -- The JV-1010 drum map (kick, snap, hhcl/hhop, ride, crash, snare, hh ...)
 -- lives in Harmonic.Interface.Tidal.Devices.JV1010.

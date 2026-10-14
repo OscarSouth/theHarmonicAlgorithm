@@ -554,7 +554,7 @@ The upper voice has kinetics range `(0.7, 1)` — it exists only during the clim
 
 Mix them freely in one form. **Form templates** (inlined in the .tidal, §13): `narrative` — the ~7m24s spectral arc (10 nodes, scale the times to taste); `popForm` — verse-chorus-bridge in bars.
 
-**Try it** — the `dance` snippet (§22) expands a full symmetric arc to edit rather than build. Stretch it to 5 minutes or compress to 20s. Change the upper gate to `(0, 0.3)` — it becomes the lead-in. Flip `rh' 8` to `rh 8` — the hard cut becomes a ramp.
+**Try it** — the `dance` snippet (§22) expands a full symmetric arc to edit rather than build. Stretch it to 5 minutes or compress to 20s. Change the upper gate to `(0, 0.3)` — it becomes the lead-in. Flip `rh' 9` to `rh 9` — the hard cut becomes a ramp.
 
 > **▶ VIDEO — The arc**
 > _~60s: launch the 60-second arc — kinetics rising on screen, the progression switching at the peak, the upper line entering at 0.7 and leaving on the way down._

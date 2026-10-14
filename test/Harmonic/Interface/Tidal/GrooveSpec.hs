@@ -66,7 +66,7 @@ spec = describe "Groove Interface" $ do
   -- discovery on stage.
   describe "subKick note-duration characterisation" $ do
     let prog  = fromChords [[0,4,7]]
-        kin   = Kinetics (pure 1.0) (pure 1.0) (pure prog) [prog] 0 0
+        kin   = Kinetics (pure 1.0) (pure 1.0) (pure prog) [prog] 0 0 (const True)
         k     = (kin, pure 1 :: Pattern Int)
         -- maxDur 1/4 -> autoOff at onset+1 cycle; subOn "1*4" (slow 4) -> onsets
         -- at 0,1,2,3; no manual off; kick every cycle. Each sub note spans [n, n+1).

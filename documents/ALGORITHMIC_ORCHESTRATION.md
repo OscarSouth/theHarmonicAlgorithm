@@ -444,8 +444,8 @@ Prime = snap; `rh` = bar-aligned nodes (bar = 4 beats). Mix freely in one form:
 ```tidal
 form =
   [ at   0   0.0  0.0  s     -- 0s, smooth
-  , rh   8   0.5  0.5  s     -- bar 8, smooth ramp
-  , rh'  16  0.9  0.9  s     -- bar 16, hard SNAP (scene cut)
+  , rh   9   0.5  0.5  s     -- bar 8, smooth ramp
+  , rh'  17  0.9  0.9  s     -- bar 16, hard SNAP (scene cut)
   , at'  120 0.2  0.2  s     -- 120s, snap
   ]
 ```
@@ -539,9 +539,9 @@ s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.25 $ attempt 2 6 $ 
 -- Form: ~370s loop (360s music + 10s silence)
 -- Arc: ritornello -> episode -> return -> peak -> concluding ritornello
 form =
-  [ rh    0    0.0   0.0   s
-  , rh    2    0.5   0.5   s     -- ritornello: full ensemble
-  , rh  166    0.0   0.0   s     -- gap
+  [ rh    1    0.0   0.0   s
+  , rh    3    0.5   0.5   s     -- ritornello: full ensemble
+  , rh  167    0.0   0.0   s     -- gap
   ]
 
 -- ── MOTIFS ───────────────────────────────────────────────

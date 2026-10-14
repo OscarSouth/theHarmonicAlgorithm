@@ -21,12 +21,12 @@ import qualified Harmonic.Rules.Types.Pitch as Pitch
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import Harmonic.Rules.Types.ProgressionContext (Layer(..))
 import Harmonic.Interface.Tidal.Bridge
-import Harmonic.Interface.Tidal.Form (Kinetics(..), IK)
+import Harmonic.Interface.Tidal.Form (Kinetics(..), IK, isolate, isolate')
 import qualified Harmonic.Interface.Tidal.Arranger as A
 import qualified Harmonic.Evaluation.Analysis.KeyArea as KA
 import qualified Data.Sequence as Seq
 import qualified Data.Map.Strict as Map
-import Data.List (nub, sort)
+import Data.List (nub, nubBy, sort)
 import Sound.Tidal.Context
 
 -------------------------------------------------------------------------------
@@ -70,7 +70,7 @@ longerProgression =
 
 -- |Create a pass-through Kinetics for testing: kSignal=1, kDynamic=1, constant progression
 testKinetics :: P.Progression -> Kinetics
-testKinetics prog = Kinetics (pure 1.0) (pure 1.0) (pure (PC.fromProgression prog)) [(PC.fromProgression prog)] 0 0
+testKinetics prog = Kinetics (pure 1.0) (pure 1.0) (pure (PC.fromProgression prog)) [(PC.fromProgression prog)] 0 0 (const True)
 
 -------------------------------------------------------------------------------
 -- Helpers: extract onset events from ControlPattern
@@ -200,7 +200,7 @@ spec = do
     it "a bar with no pitch content emits nothing instead of indexing [] on the audio thread" $ do
       let chordSel = parseBP_E "[1 2 3]/4" :: Pattern Int
           pcE = A.fromChords [[0,4,7], [], [5,9,0]]
-          kinE = Kinetics (pure 1.0) (pure 1.0) (pure pcE) [pcE] 0 0
+          kinE = Kinetics (pure 1.0) (pure 1.0) (pure pcE) [pcE] 0 0 (const True)
           result = arrange (0,1) (kinE, chordSel) (-24,24) T A.lite id
                      [parseBP_E "[0 1 2]"]
       length (queryArc result (Arc 0 1)) `shouldSatisfy` (>= 0)
@@ -395,7 +395,7 @@ spec = do
       let chordSel = parseBP_E "[1 2 3 4]/4" :: Pattern Int
           pcS = PC.ProgressionContext strataFixture strataFixture strataFixture
                   (Just Seq.empty) PC.FStrata
-          kin = Kinetics (pure 1.0) (pure 1.0) (pure pcS) [pcS] 0 0
+          kin = Kinetics (pure 1.0) (pure 1.0) (pure pcS) [pcS] 0 0 (const True)
           aFlow = arrange (0,1) (kin, chordSel) (-24,24) S A.flow id [parseBP_E "[0 1 2 3 4]"]
           aLite = arrange (0,1) (kin, chordSel) (-24,24) S A.lite id [parseBP_E "[0 1 2 3 4]"]
       onsetNotes aFlow (Arc 0 1) `shouldBe` onsetNotes aLite (Arc 0 1)
@@ -405,7 +405,7 @@ spec = do
           tProg = testProgression  -- 3-PC triads
           pcT = PC.ProgressionContext tProg strataFixture modeFixture
                   (Just Seq.empty) PC.FStrata
-          kin = Kinetics (pure 1.0) (pure 1.0) (pure pcT) [pcT] 0 0
+          kin = Kinetics (pure 1.0) (pure 1.0) (pure pcT) [pcT] 0 0 (const True)
           aT  = arrange (0,1) (kin, chordSel) (-24,24) T A.flow id [parseBP_E "[0 1 2]"]
           aT' = arrange (0,1) (testKinetics tProg, chordSel) (-24,24) T A.flow id [parseBP_E "[0 1 2]"]
       onsetNotes aT (Arc 0 1) `shouldBe` onsetNotes aT' (Arc 0 1)
@@ -420,6 +420,27 @@ spec = do
           aS  = arrange (0,1) (kin, chordSel) (-24,24) S A.flow id [parseBP_E "[0 1 2]"]
           aT  = arrange (0,1) (kin, chordSel) (-24,24) T A.flow id [parseBP_E "[0 1 2]"]
       onsetNotes aS (Arc 0 1) `shouldBe` onsetNotes aT (Arc 0 1)
+
+  describe "isolate / isolate' (a launcher-wide degree range carried in k)" $ do
+    let chordSel = parseBP_E "[1 2 3 4]/4" :: Pattern Int
+        k        = (testKinetics testProgression, chordSel)
+        line kk r pat = onsetNotes (arrange (0,1) kk r T A.flow id [parseBP_E pat]) (Arc 0 2)
+
+    it "isolate keeps lo..hi inclusive, exactly as a line's own range" $
+      line (isolate (0,1) k) (-24,24) "0 1 2 3" `shouldBe` line k (0,1) "0 1 2 3"
+
+    it "isolate' keeps only the degrees outside lo..hi" $
+      line (isolate' (0,1) k) (-24,24) "0 1 2 3" `shouldBe` line k (2,3) "0 1 2 3"
+
+    it "intersects with the line's own range" $
+      line (isolate (0,2) k) (1,3) "0 1 2 3" `shouldBe` line k (1,2) "0 1 2 3"
+
+    it "composes" $
+      line (isolate (0,3) (isolate' (1,1) k)) (-24,24) "0 1 2 3" `shouldBe` line k (-24,24) "0 ~ 2 3"
+
+    it "leaves harmonicState (kmap) whole" $
+      [ value e | e <- queryArc (harmonicState T (isolate (0,0) k)) (Arc 0 2) ]
+        `shouldBe` [ value e | e <- queryArc (harmonicState T k) (Arc 0 2) ]
 
   describe "combination selectors through layerForVoicing (per family)" $ do
     let mk5' rootNote ints =
@@ -474,7 +495,7 @@ spec = do
 
     it "arrange with a combination selector plays (genP TSM through the chroma engine)" $ do
       let chordSel = parseBP_E "[1 2 3 4]/4" :: Pattern Int
-          kin = Kinetics (pure 1.0) (pure 1.0) (pure pcS) [pcS] 0 0
+          kin = Kinetics (pure 1.0) (pure 1.0) (pure pcS) [pcS] 0 0 (const True)
           aC  = arrange (0,1) (kin, chordSel) (-24,24) TSM A.flow id [parseBP_E "[0 1 2 3]"]
       length (onsetNotes aC (Arc 0 1)) `shouldSatisfy` (> 0)
 
@@ -513,10 +534,10 @@ spec = do
   -- same mapping restricted to one string's pitches.
   describe "composite / harmonics (composite overtone series)" $ do
     let eMaj  = A.fromChords [[4,8,11]]
-        kinE  = Kinetics (pure 1.0) (pure 1.0) (pure eMaj) [eMaj] 0 0
+        kinE  = Kinetics (pure 1.0) (pure 1.0) (pure eMaj) [eMaj] 0 0 (const True)
         kE    = (kinE, pure 1 :: Pattern Int)
         bbMaj = A.fromChords [[10,2,5]]
-        kinBb = Kinetics (pure 1.0) (pure 1.0) (pure bbMaj) [bbMaj] 0 0
+        kinBb = Kinetics (pure 1.0) (pure 1.0) (pure bbMaj) [bbMaj] 0 0 (const True)
         kBb   = (kinBb, pure 1 :: Pattern Int)
         num v = case v of { VF x -> Just x; VN x -> Just (realToFrac x); _ -> Nothing }
         onsets p = [ e | e <- queryArc p (Arc 0 4), eventHasOnset e ]
@@ -576,3 +597,38 @@ spec = do
 
     it "emits no control-change traffic" $
       [ () | e <- onsets (comp kE ["0 1"]), Map.member "ctlNum" (value e) ] `shouldBe` []
+
+  describe "harmonicState (pitch-class stream for an external note-mapper)" $ do
+
+    let chordSel = parseBP_E "[1 2 3 4]/4" :: Pattern Int
+        mk7 rootNote ints =
+          H.CadenceState (H.Cadence "" H.Unison (map (Pitch.mkPitchClass . fromIntegral) (ints :: [Int]))) rootNote H.FlatSpelling
+        modeProg = P.Progression $ Seq.fromList (replicate 4 (mk7 Pitch.D [0, 2, 4, 5, 7, 9, 11]))  -- D major mode
+        pcT = PC.ProgressionContext testProgression modeProg modeProg (Just Seq.empty) PC.FStrata
+        kin = (Kinetics (pure 1.0) (pure 1.0) (pure pcT) [pcT] 0 0 (const True), chordSel)
+        num v = case v of { VF x -> Just x; VN x -> Just (realToFrac (unNote x)); VI x -> Just (fromIntegral x); _ -> Nothing }
+        pcsIn lyr b = sort (nub [ round (n + 60) - 108 :: Int
+                                | e <- queryArc (harmonicState lyr kin) (Arc (b + 1/4) (b + 3/4))
+                                , Just n <- [Map.lookup "note" (value e) >>= num] ])
+
+    it "holds each chord's pitch classes as MIDI 108-119, chord by chord" $ do
+      pcsIn T 0 `shouldBe` [0, 4, 7]     -- C major (MIDI 108, 112, 115)
+      pcsIn T 1 `shouldBe` [2, 7, 11]    -- G major
+
+    it "sends on MIDI channel 10 (midichan 9), held to the chord boundary" $ do
+      let evs = queryArc (harmonicState T kin) (Arc 0 1)
+      nub [ Map.lookup "midichan" (value e) >>= num | e <- evs ] `shouldBe` [Just 9]
+      nub [ fmap (\w -> stop w - start w) (whole e) | e <- evs ] `shouldBe` [Just 1]
+
+    it "carries a whole mode for the M layer" $
+      pcsIn M 0 `shouldBe` [1, 2, 4, 6, 7, 9, 11]   -- D major mode
+
+    it "sends each pitch class once per chord" $ do
+      let onsets = [ e | e <- queryArc (harmonicState T kin) (Arc 0 2), eventHasOnset e ]
+      length onsets `shouldBe` 6                     -- the second and third chords, three notes each
+      length (nubBy (\x y -> whole x == whole y && value x == value y) onsets) `shouldBe` 6
+
+    it "sends each set 7/64 of a cycle ahead of its chord" $
+      sort (nub [ start w | e <- queryArc (harmonicState T kin) (Arc 0 2)
+                          , eventHasOnset e, Just w <- [whole e] ])
+        `shouldBe` [1 - 7/64, 2 - 7/64]

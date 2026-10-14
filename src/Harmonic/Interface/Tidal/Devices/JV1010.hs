@@ -13,6 +13,20 @@
 -- two-symbol grid instead (@x@ closed, @o@ open), so one pattern carries both
 -- hats.
 --
+-- Notes 0-15 are a 16-pad grid (pad = note + 1, pad 1 bottom-left), the layout
+-- the MPC kits and the RC-10R's @dkit@ share. Pads 9-16 extend each family
+-- upward:
+--
+-- @
+-- 13 hhpd     14 bell     15 ftom     16 kick2
+--  9 ride2    10 crash2   11 claves   12 snare2
+--  5 ride      6 crash     7 click     8 snare
+--  1 kick      2 snap      3 hhcl      4 hhop
+-- @
+--
+-- \'cowbell\' keeps note 8 (where \'ride2\' sits on the pedal), and \'fm\'
+-- keeps note 9 for the analogue kit.
+--
 -- A continuo voice is a full bank address — @(bank msb, bank lsb, program)@ —
 -- so any card or internal set is reachable, not just the Orchestral board.
 -- The JV-1010 selects a patch with Bank Select (CC0 msb \/ CC32 lsb) followed
@@ -23,7 +37,8 @@ module Harmonic.Interface.Tidal.Devices.JV1010
   ( -- * Drum kit (channel 10)
     kick, kick', kick'', kick2, kick2', snap, hhcl, hhcl', hhop, hhop',
     ride, ride', crash, click, click', snare, snare', cowbell, fm, fm',
-    rimshot, rimshot', hh, hh'
+    rimshot, rimshot', hh, hh',
+    ride2, crash2, claves, snare2, hhpd, bell, ftom
 
     -- * Continuo bank addressing
   , ContinuoVoice
@@ -40,14 +55,15 @@ kitChan :: Pattern ValueMap
 kitChan = ch 10
 
 -- | One drum voice each, taking a boolean rhythm. The primed names are the
--- +60 alternate kit; @kick2@ and @kick2'@ are the second bass drum.
+-- +60 alternate kit; @kick''@ and @kick2'@ are the second bass drum.
 kick, kick', kick'', kick2, kick2', snap, hhcl, hhcl', hhop, hhop',
   ride, ride', crash, click, click', snare, snare', cowbell, fm, fm',
-  rimshot, rimshot' :: Pattern Bool -> ControlPattern
+  rimshot, rimshot', ride2, crash2, claves, snare2, hhpd, bell, ftom
+  :: Pattern Bool -> ControlPattern
 kick pat = struct pat $ midinote "0" # kitChan # sustain 0.05
 kick' pat = struct pat $ midinote "60" # kitChan # sustain 0.05
 kick'' pat = struct pat $ midinote "70" # kitChan # sustain 0.05
-kick2 pat = struct pat $ midinote "70" # kitChan # sustain 0.05
+kick2 pat = struct pat $ midinote "15" # kitChan # sustain 0.05
 kick2' pat = struct pat $ midinote "80" # kitChan # sustain 0.05
 snap pat = struct pat $ midinote "1" # kitChan # sustain 0.05
 hhcl pat = struct pat $ midinote "2" # kitChan # sustain 0.05
@@ -66,6 +82,13 @@ fm pat = struct pat $ midinote "9" # kitChan # sustain 0.05
 fm' pat = struct pat $ midinote "69" # kitChan # sustain 0.05
 rimshot pat = struct pat $ midinote "[6,7]" # kitChan # sustain 0.05
 rimshot' pat = struct pat $ midinote "[66,67]" # kitChan # sustain 0.05
+ride2 pat = struct pat $ midinote "8" # kitChan # sustain 0.05
+crash2 pat = struct pat $ midinote "9" # kitChan # sustain 0.05
+claves pat = struct pat $ midinote "10" # kitChan # sustain 0.05
+snare2 pat = struct pat $ midinote "11" # kitChan # sustain 0.05
+hhpd pat = struct pat $ midinote "12" # kitChan # sustain 0.05
+bell pat = struct pat $ midinote "13" # kitChan # sustain 0.05
+ftom pat = struct pat $ midinote "14" # kitChan # sustain 0.05
 
 -- | Both hats from one grid: @x@ (or @1@) closed, @o@ (or @2@) open.
 hh, hh' :: Pattern String -> ControlPattern

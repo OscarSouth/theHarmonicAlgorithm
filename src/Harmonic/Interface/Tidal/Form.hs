@@ -16,10 +16,10 @@
 --
 -- @
 -- form =           -- time    k     d
---   [ rh    0      0.0   0.0   s
---   , rh   16      0.2   0.3   s    -- elements layer in
---   , rh'  28      0.35  0.55  s    -- riser: sparse but loud, then snap
---   , rh   32      1.0   1.0   s    -- drop
+--   [ rh    1      0.0   0.0   s
+--   , rh   17      0.2   0.3   s    -- elements layer in
+--   , rh'  29      0.35  0.55  s    -- riser: sparse but loud, then snap
+--   , rh   33      1.0   1.0   s    -- drop
 --   ]
 -- @
 --
@@ -63,6 +63,8 @@ module Harmonic.Interface.Tidal.Form
   , marksec
   , markAt
   , kinPick
+  , isolate
+  , isolate'
   , withForm
 
   ) where
@@ -75,8 +77,10 @@ import Sound.Tidal.Context
 -- Types
 -------------------------------------------------------------------------------
 
--- |A node's position in time — wall-clock 'Secs' or musical 'Bars' (4\/4).
--- Resolved to Tidal cycles at realization (see 'formK'). Mix freely in one form.
+-- |A node's position in time — wall-clock 'Secs' elapsed (0 = the start) or
+-- musical 'Bars' (4\/4), numbered from 1 as the 12 Step counts them (bar 1 =
+-- the start). Resolved to Tidal cycles at realization (see 'formK'). Mix freely
+-- in one form.
 data FormTime = Secs Double | Bars Double
   deriving (Show, Eq)
 
@@ -117,6 +121,9 @@ data Kinetics = Kinetics
                                                --   with Tidal's actual cps because both are
                                                --   derived from the same @bpm@ on every launcher
                                                --   re-evaluation.
+  , kDegrees  :: Int -> Bool                   -- ^ Launcher-wide degree filter, applied by
+                                               --   'arrange' on top of each line's own range
+                                               --   ('isolate', 'isolate''); @const True@ = all.
   }
 
 -- |Performance context: Kinetics bundled with chord selection pattern.
@@ -128,11 +135,12 @@ type IK = (Kinetics, Pattern Int)
 -------------------------------------------------------------------------------
 
 -- |Form node builders. Time unit and transition are orthogonal:
--- @at@\/@at'@ take wall-clock seconds, @rh@\/@rh'@ take bars (rehearsal marks, 4\/4);
--- unprimed = smooth transition, primed = snap. @at@ is unchanged from before.
+-- @at@\/@at'@ take wall-clock seconds elapsed, @rh@\/@rh'@ take musical bar
+-- numbers (rehearsal marks, 4\/4, bar 1 = the start of the form);
+-- unprimed = smooth transition, primed = snap.
 --
--- @at  0 0 0 s@   seconds, smooth   @rh  8 0.5 0.5 s@   bars, smooth
--- @at' 60 1 1 s@  seconds, snap     @rh' 16 0.9 0.9 s@  bars, snap
+-- @at  0 0 0 s@   seconds, smooth   @rh  10 0.5 0.5 s@   bars, smooth
+-- @at' 60 1 1 s@  seconds, snap     @rh' 18 0.9 0.9 s@  bars, snap
 at, at', rh, rh' :: Double -> Double -> Double -> PC.ProgressionContext -> FormNode
 at  t k d pc = FormNode (Secs t) k d pc Smooth
 at' t k d pc = FormNode (Secs t) k d pc Snap
@@ -155,7 +163,7 @@ lK :: Pattern Double          -- ^ Kinetics signal (0-1, live)
    -> PC.ProgressionContext   -- ^ Active 3-layer progression
    -> Pattern Int             -- ^ Chord-selection pattern
    -> IK
-lK sigP dyn pc chordPat = (Kinetics sigP dyn (pure pc) [pc] 0 0, chordPat)
+lK sigP dyn pc chordPat = (Kinetics sigP dyn (pure pc) [pc] 0 0 (const True), chordPat)
 
 -------------------------------------------------------------------------------
 -- Realization
@@ -166,17 +174,23 @@ lK sigP dyn pc chordPat = (Kinetics sigP dyn (pure pc) [pc] 0 0, chordPat)
 beatsPerBar :: Double
 beatsPerBar = 4
 
+-- |Bars are numbered musically: bar 1 starts at cycle 0, as the 12 Step counts.
+barCycles :: Double -> Double
+barCycles b
+  | b < 1     = error ("bar " ++ show b ++ ": bars count from 1 (bar 1 = the start of the form)")
+  | otherwise = (b - 1) * beatsPerBar
+
 -- |Resolve a node's position to Tidal cycles from form start.
 nodeCycles :: Double -> FormNode -> Double
 nodeCycles cpsV nd = case fnTime nd of
   Secs secs -> secs * cpsV
-  Bars b    -> b * beatsPerBar
+  Bars b    -> barCycles b
 
 -- |Node position in wall-clock seconds (for 'kLoopSecs' \/ the display).
 nodeSecs :: Double -> FormNode -> Double
 nodeSecs cpsV nd = case fnTime nd of
   Secs secs -> secs
-  Bars b    -> b * beatsPerBar / cpsV
+  Bars b    -> barCycles b / cpsV
 
 -- |Realize a form definition into Kinetics signals at a given BPM.
 -- Single-node forms produce constant signals (global state).
@@ -207,6 +221,7 @@ formK bpm nodes0 = Kinetics
                   (_:_:_) -> nodeSecs cpsV (last nodes)   -- multi-node: form duration (seconds)
                   _       -> 0                           -- single-node or empty: atemporal
   , kCps      = cpsV
+  , kDegrees  = const True
   }
   where
     cpsV = bpm / 60
@@ -273,22 +288,23 @@ slate band k pats = ki band k $ stack pats
 -- so a cue and the kinetics can never drift apart. NOT kinetics-gated: a
 -- placement is absolute (the launcher's @|* vel d@ still applies).
 --
--- Time-unit doctrine: unprimed = bars, primed = seconds. 'mark' takes bars as
--- written for 'rh' nodes (bar 0 = cycle 0; the 12-step displays bar N as N+1);
--- 'mark'' takes seconds as for 'at' nodes and, like them, assumes cps has been
--- constant since cycle 0. 'markbar' \/ 'marksec' are synonyms.
+-- Time-unit doctrine: unprimed = bars, primed = seconds. 'mark' takes musical
+-- bar numbers as written for 'rh' nodes (bar 1 = cycle 0, the number the 12 Step
+-- shows); 'mark'' takes seconds elapsed as for 'at' nodes (the 12 Step's seconds
+-- counter reads the same) and, like them, assumes cps has been constant since
+-- cycle 0. 'markbar' \/ 'marksec' are synonyms.
 --
 -- Atemporal forms (single node, 'lK') fire once at absolute cycles. A time at
 -- or beyond the loop end, or no cps, is silence.
 --
--- @, mark 32 k [ pad 1 |* vel 0.9 ]      -- speech sample on the drop@
+-- @, mark 34 k [ pad 1 |* vel 0.9 ]      -- speech sample on the drop@
 markAt :: FormTime -> IK -> [Pattern a] -> Pattern a
 markAt ft (kin, _) pats =
   let body  = stack pats
       cpsV  = kCps kin
       loopC = realToFrac (kLoopSecs kin * cpsV) :: Time
       c     = realToFrac (case ft of
-                            Bars b -> b * beatsPerBar
+                            Bars b -> barCycles b
                             Secs t -> t * cpsV) :: Time
   in if cpsV <= 0 then silence
      else if loopC <= 0 then playFor c (c + 1) (rotR c body)
@@ -330,6 +346,24 @@ kinPick (kin, _) pats =
                     | otherwise = x >  lo && x <= hi
         in mask (fmap inWin (kSignal kin)) p
   in stack (zipWith window [0 :: Int ..] pats)
+
+-- |A degree range for every line the launcher starts, applied in 'k':
+--
+-- @k = isolate (-4,2) $ iK tempo form (rep s 4)@
+--
+-- 'isolate' keeps degree indices lo..hi (inclusive), as a line's own
+-- @(-9,9)@ does; 'isolate'' keeps only those outside it (lo and hi dropped).
+-- Each line's own range still applies, so the two intersect, and calls
+-- compose: @isolate (-9,4) . isolate' (0,0)@ is -9..4 without degree 0.
+-- Lines that don't voice degree indices (drums, walking bass, subKick,
+-- harmonics, kmap) are unaffected.
+isolate, isolate' :: (Int, Int) -> IK -> IK
+isolate  (lo, hi) = withDegrees (\d -> d >= lo && d <= hi)
+isolate' (lo, hi) = withDegrees (\d -> d < lo || d > hi)
+
+withDegrees :: (Int -> Bool) -> IK -> IK
+withDegrees keep (kin, chordPat) =
+  (kin { kDegrees = \d -> kDegrees kin d && keep d }, chordPat)
 
 -- |Bridge helper: apply a function taking 'Harmonic.Rules.Types.ProgressionContext.ProgressionContext' to a Kinetics context.
 -- Uses innerJoin to reactively switch when the form changes progressions.

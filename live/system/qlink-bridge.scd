@@ -2,6 +2,11 @@
 	~statusFilePath = Platform.userAppSupportDir ++ "/sc_status.line";
 	~maxVal = 127*2;
 	~osc = NetAddr.new("127.0.0.1", 6010);
+	// The Q-Links (CC 100-110) and the 12 Step's expression pedal (CC 111) arrive
+	// on MIDI channel 10. Channel 10 is filtered out of the JV-1010's feed at the
+	// U6, so these CCs never reach a JV part. Tidal sends nothing on CC 100-111
+	// of channel 10, so its own stream (heard back via Midi Through) cannot alias them.
+	~qlinkChan = 9;  // MIDI channel 10, zero-based
 
 	// --- INITIALIZATION: 4 encoders, 7 new absolute CCs ---
 	~qlinkValues =
@@ -37,7 +42,7 @@
 	MIDIFunc.cc({ |val, num, chan, src|
 		var index, oscValue;
 		// Listen for all CCs from 100 to 110
-		if (chan == 0 and: { (100..110).includes(num) }) {
+		if (chan == ~qlinkChan and: { (100..110).includes(num) }) {
 			index = num - 100;
 			
 			// If it's a relative encoder (index 0-3)
@@ -59,7 +64,7 @@
 		};
 
 		// Additional absolute CCs (outside 100-110 range)
-		if (chan == 0 and: { [111].includes(num) }) {
+		if (chan == ~qlinkChan and: { [111].includes(num) }) {
 			oscValue = val / 127.0;
 			~osc.sendMsg("/ctrl", num.asString, oscValue);
 			("CC" ++ num.asString ++ " → " ++ oscValue.round(0.001).asString).postln;

@@ -797,15 +797,15 @@ do
 --
 --   at   seconds   smooth (ramp between nodes)
 --   at'  seconds   snap   (hold, then jump on the exact time)
---   rh   bars      smooth (rh = "rehearsal mark"; bar = 4 beats)
+--   rh   bars      smooth (rh = "rehearsal mark"; bar = 4 beats; bar 1 = the start)
 --   rh'  bars      snap
 --
 -- Snap suits hard cuts; bars align nodes to the metre. Mix them:
 cutForm =
-  [ rh   0   0.0  0.0  sA   -- bar 0: silence
-  , rh   4   0.5  0.6  sA   -- bar 4: smooth fade-in
-  , rh'  8   1.0  1.0  sB   -- bar 8: SNAP to full
-  , rh  16   0.4  0.5  sB   -- bar 16: ramp back down
+  [ rh   1   0.0  0.0  sA   -- bar 1: silence
+  , rh   5   0.5  0.6  sA   -- bar 5: smooth fade-in
+  , rh'  9   1.0  1.0  sB   -- bar 9: SNAP to full
+  , rh  17   0.4  0.5  sB   -- bar 17: ramp back down
   , at' 40   0.0  0.0  sA   -- 40s: snap to silence (mixing units is fine)
   ]
 
@@ -834,19 +834,19 @@ narrative sA sB =
 --
 -- Pop form (~3m at 112 BPM; verse-chorus-bridge in bars):
 popForm sV sC sBr =
-  [ rh   0  0.3  0.5  sV    -- verse
-  , rh  16  0.7  0.8  sC    -- chorus
-  , rh  32  0.35 0.5  sV    -- verse 2
-  , rh  48  0.75 0.85 sC    -- chorus 2
-  , rh  64  0.5  0.6  sBr   -- bridge
-  , rh  80  0.9  1.0  sC    -- final chorus
-  , rh  96  0.0  0.0  sV    -- out
+  [ rh   1  0.3  0.5  sV    -- verse
+  , rh  17  0.7  0.8  sC    -- chorus
+  , rh  33  0.35 0.5  sV    -- verse 2
+  , rh  49  0.75 0.85 sC    -- chorus 2
+  , rh  65  0.5  0.6  sBr   -- bridge
+  , rh  81  0.9  1.0  sC    -- final chorus
+  , rh  97  0.0  0.0  sV    -- out
   ]
 
 -- ── TRY THIS ──
 -- Stretch arcForm to 5 minutes or compress to 20s. Change the
 -- upper line's gate `(0.7, 1)` to `(0, 0.3)` — it becomes the
--- lead-in instead. Flip `rh' 8` to `rh 8` — the hard cut
+-- lead-in instead. Flip `rh' 9` to `rh 9` — the hard cut
 -- becomes a ramp.
 
 hush
@@ -1003,7 +1003,7 @@ hush
 
 -- ── FORM-RELATIVE CUES (mark / mark') ──
 -- Place a one-shot at a bar of the form, once per loop, not gated by
--- kinetics: `mark 32 k [pad 1]` fires MPC pad 1 (ch 12) at bar 32 as
+-- kinetics: `mark 33 k [pad 1]` fires MPC pad 1 (ch 12) at bar 32 as
 -- written for `rh` (the 12-step shows bar 33). `mark'` takes seconds;
 -- `padbank n b` is pad n of bank b, banks being the MPC's sets of 16.
 -- Unprimed = bars, primed = seconds — the same rule as display / display'.
