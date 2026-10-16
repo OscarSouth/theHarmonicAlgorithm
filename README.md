@@ -84,7 +84,7 @@ enjoy the music and art that it can create, through art published on YouTube:
 > it is clipped from a longer stream and patterns synthesizers musically.
 > There are some shorter quickstart/demonstrative style videos below.
 >
-> <a href="https://youtu.be/YiIWXFjyKSk"><img src="https://img.youtube.com/vi/YiIWXFjyKSk/maxresdefault.jpg" alt="Overview/Demonstration" width="540"></a>
+> <a href="https://youtu.be/2w_mH8NWdsA"><img src="https://img.youtube.com/vi/2w_mH8NWdsA/maxresdefault.jpg" alt="Overview/Demonstration" width="540"></a>
 ___
 
 ## Research
