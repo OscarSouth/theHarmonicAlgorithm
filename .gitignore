@@ -64,6 +64,9 @@ notes
 # Personal / private live material (never published)
 live/local/
 
+# This machine's tooling and private notes, kept out of Pulsar's live/ tree
+/local/
+
 # Personal practice curriculum (private for now)
 documents/practice/
 

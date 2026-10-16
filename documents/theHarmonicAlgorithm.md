@@ -317,7 +317,7 @@ The reverse mapping algorithm: for each chord pitch `p` and each string fundamen
 
 ### 6.2 The 64 Audio Examples in TidalCycles
 
-The file `live/local/older/Referenced/theHarmonicAlgorithm.tidal` — the author's own material, not distributed with the repository — encodes all 64 musical exercises from the thesis (Audio Examples 3--66) as TidalCycles-compatible data structures. Each example is a named binding that can be loaded as a `Progression`:
+The file `live/local/archive/Referenced/theHarmonicAlgorithm.tidal` — the author's own material, not distributed with the repository — encodes all 64 musical exercises from the thesis (Audio Examples 3--66) as TidalCycles-compatible data structures. Each example is a named binding that can be loaded as a `Progression`:
 
 ```haskell
 s = prog ex45    -- ii-V-I cadence resolving to D major
@@ -327,7 +327,7 @@ This transforms the static thesis charts into a playable, composable performance
 
 ### 6.3 Performance: The Parting Glass
 
-The file `live/local/older/Referenced/thePartingGlass.tidal`, likewise undistributed, realises the three arrangements from the Reflections score as TidalCycles performance pieces. Each 16-bar arrangement is encoded using note-name constructors, with form selection by key:
+The file `live/local/archive/Referenced/thePartingGlass.tidal`, likewise undistributed, realises the three arrangements from the Reflections score as TidalCycles performance pieces. Each 16-bar arrangement is encoded using note-name constructors, with form selection by key:
 
 ```haskell
 s = stateEm    -- Em Aeolian version (default)

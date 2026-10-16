@@ -12,75 +12,79 @@
 
 ___
 ### Welcome to The Harmonic Algorithm :)
-###### this is an expression of my musical mind — it feels kind of like an 'LLM' (but there's no AI here, just old school counting and music theory) for navigating through and interacting with musical harmonic state in real time, while experiencing it.
+###### This codebase is an expression of my musical mind -- it provides structure for navigating through and interacting with musical harmonic state in real time, while experiencing it. Traversing the harmonic space feels kind of like an 'LLM', but there's no AI here, just old school counting and music theory, implemented in Haskell. 
 ___
 
-The Harmonic Algorithm, written in Haskell, using Neo4j as a backend
-and integrated highly with TidalCycles, generates musical domain
-specific data inside user defined constraints then filters it down and
-probabilistically ranks it using a tailored Markov Chain model trained on
-ingested musical data from the Yale Classical Archives Corpus. This presents
-a unique tool in the hands of the composer or performer which can be used
-as a writing aid, analysis device, for instrumental study or even in live
-performance.
+The Harmonic Algorithm system, intergrated with TidalCycles, generates
+musical harmony states inside user defined musical constraints, then
+ranks it using a tailored 'cube' of Markov Chain matrices trained on the
+Yale Classical Archives Corpus. This presents a unique tool in the hands 
+of the composer or performer which can be used as a composing aid, 
+analysis device, for instrumental study or even in live performance.
 
-This open-source project is based on a long term research agenda that I've
+This open-source project is based on a long term creative agenda that I've
 pursued for many years, originating from an interest as an electric bass player
-in performance and composition, utilising the overtones of the instrument.
+utilising the overtones of the instrument in performance and composition.
 
 The Harmonic Algorithm takes the underpinning theoretical ideas from this
 research and realises them as a Haskell library with deep TidalCycles
 integration for live coding. Under the hood, harmonic transitions from over
-488 composers are stored in a Neo4j graph database. The system learns how
-harmony moves — not just what chords exist, but how they lead into one
-another — and uses this knowledge to generate progressions that feel
-musically coherent while remaining endlessly surprising.
+500 composers are stored in a Neo4j graph database. The system memorises how
+harmony moves, and uses this knowledge to generate progressions that feel
+musically coherent while remaining endlessly surprising. 
+No AI -- just counting and music theory.
 
 The core idea draws on Geraint Wiggins' Creative Systems Framework: define
 the *rules* of what's harmonically possible, *evaluate* the quality of each
 option using corpus statistics and dissonance scoring, then *traverse* the
-space probabilistically — balancing between the familiar and the unexpected.
+space probabilistically, balancing between the familiar and the unexpected.
 
-The project is built around four principles:
+The project is built around four 'named entities':
 
-- **The Harmonic Algorithm** — the generative engine. An R→E→T pipeline
+- **The Harmonic Algorithm** -- A *Rules→Evaluation→Traversal* pipeline
   that produces harmonic progressions from learned transition probabilities,
-  originating in a 2016 exhaustive overtone analysis and realised
-  computationally in Haskell with Neo4j as the graph backend.
+  originating in a 2016 exhaustive overtone analysis of bass guitar, realised
+  computationally in Haskell with Neo4j as a graph traversal backend.
 
-- **Algorithmic Orchestration** — the performance paradigm. Musical elements
-  are abstracted into harmony (contexts and generation), form (the spectral
-  narrative), and interfaces (instrument timbres, voice lines, and divisi),
-  enabling live-coded orchestral scoring via TidalCycles.
+- **Algorithmic Orchestration** -- Did you ever want to write for the
+  orchestra using Haskell code? What if that system could only produce viable
+  arrangements that could be notated and would be playable by a real orchestra?
+  How about if *The Harmonic Algorithm* was the harmony engine powering it?
+  What if I could 'play' the orchestra in real time in using TidalCycles?
+  These are all questions I asked myself, so I built a system that can do it.
+  It give the concept of *composing functions* a whole new meaning.
 
-- **The Spectral Narrative** — the structural framework. Macro-level
-  compositional arc encoded as programmable kinetics signals over wall-clock
-  seconds or bars, with smooth or snap transitions, carrying continuous
+- **The Spectral Narrative** -- A structural framework for musical form. 
+  Macro-level compositional arcs encoded as programmable 'kinetics' signals
+  in seconds or bars, with smooth or snap transitions, carrying continuous
   intensity and dynamics envelopes that drive instrument activation, voice
-  density, and harmonic switching.
+  density, and harmonic layer switching. It's how I turn code into composition.
 
-- **Octatripentatonics** — the harmonic-organisation research frontier.
-  Every progression carries its harmony in three densities at once —
-  chords, pentatonics and modes: genP walks them through a curated space
-  of interlocking five-note scales, and every gen / genJ result derives
-  them by chordscale key-area analysis. It's my own ongoing thread of
-  music theory, grown out of the system and now feeding back into it
+- **Octatripentatonics** -- Where things get weird. A whole new system 
+  of harmonic organisation based on 8 note tonal areas (octa), divided into
+  three overlapping pentatonic scales (tripentatonics) which any combination
+  of two of will produce a different 7 tone key signature. You can ignore it
+  or embrace it, but if you think that wacky music theory ideas are cool,
+  then check out the system and tonal structure elements:
   ([OCTATRIPENTATONICS.md](documents/OCTATRIPENTATONICS.md),
   [CHORDSCALE.md](documents/CHORDSCALE.md)).
 
-The system has grown into a genuinely performable instrument along the
-way. Mid-piece, I can regenerate just the two bars that aren't working and
-keep everything else; ask for a dozen candidate progressions and have the
-best one picked for me; or bring in a walking bassline that follows the
-changes like a duet partner. All of it live, all of it code.
+The system has grown with me over the years and I've mainly used it privately
+in the studio to have fun playing with synthesizers, orchestral modules, and
+as a very soliloquistic jamming-buddy that never drops from the session
+at the last minute. I've performed a few concerts here and there too.
 
-> ### ▶ VIDEO — The whole thing in miniature
-> _~60s: lead "C maj" → seek "*" → a launcher on one piano channel; layer
-> an hcPedal constraint, then wrap it in a kinetics arc with two gated
-> voices rising and falling over ~45 seconds._
+I figure that it'd be nice to make the whole system available publicly as 
+an open source project, whether for people to use creatively or to just
+enjoy the music and art that it can create, through art published on YouTube:
+[The Harmonic Algorithm Youtube Channel](https://www.youtube.com/@theharmonicalgorithm)
+
+> ### ▶ VIDEO: Overview/Demonstration:
+> This is a longer form musical tour of The Harmonic Algorithm concepts,
+> it is clipped from a longer stream and patterns synthesizers musically.
+> There are some shorter quickstart/demonstrative style videos below.
 >
-> `[ youtube link — TBD ]`
-
+> <a href="https://youtu.be/YiIWXFjyKSk"><img src="https://img.youtube.com/vi/YiIWXFjyKSk/maxresdefault.jpg" alt="Overview/Demonstration" width="540"></a>
 ___
 
 ## Research
@@ -100,105 +104,60 @@ as a creative system can be accessed here:
 
 ___
 
-## What It Sounds Like
+## Quick Start
 
-The same starting chord can lead to radically different musical outcomes.
-A single parameter — entropy — controls the balance between familiar harmonic
-motion and surprising, exploratory leaps:
-
-> ### ▶ VIDEO — Entropy, heard
-> _~30s: the same starting state at entropy 0.2 (smooth, conventional,
-> close cadences) and 0.8 (unexpected turns, distant modulations)._
+> ### ▶ VIDEO: Quick Start
+> Start simple: a starting chord, a length and an entropy value are all it
+> takes to generate a progression, it is combined with a TidalCycles pattern
+> that you can voice and play. Constraints then narrow the harmonic space to fit
+> your musical context, here with a key and a falling root motion. You can also
+> declare a progression by hand, like the Neapolitan cadence this example
+> ends on:
 >
-> `[ youtube link — TBD ]`
-
-The system also lets you blend the harmonic sensibilities of different composers.
-These aren't presets — they're weighted combinations of learned transition
-probabilities:
-
-> ### ▶ VIDEO — Composer blending, heard
-> _~40s: seek "bach" (functional harmony, clear cadences), seek "debussy"
-> (colour, modal inflections), then "bach:30 debussy:70" — functional
-> foundations wearing impressionistic colour._
+> <a href="https://youtu.be/rm50o6OcGe4"><img src="https://img.youtube.com/vi/rm50o6OcGe4/maxresdefault.jpg" alt="Quick Start" width="540"></a>
 >
-> `[ youtube link — TBD ]`
-
-(And if you can't run Docker right now: `seek "none"` bypasses the graph
-entirely — progressions shaped by your context filters and entropy alone.)
-
-> ### ▶ VIDEO — Building a piece, live
-> _~90s: a live coding session assembled section by section from the User
-> Guide — starting state → context with hcPedal → generation → launcher →
-> a second arrange voice → a multi-node kinetics form, the full arc rising
-> and falling on a single piano channel._
->
-> `[ youtube link — TBD ]`
+> Code: [`live/examples/00-QUICK_START.tidal`](live/examples/00-QUICK_START.tidal)
 
 ___
 
-## What It Looks Like
+## Musical Control
 
-Let's start simple. Here's what it looks like to generate your first
-progression — just a starting chord, a length, and an entropy value:
-
-> ### ▶ VIDEO — First generation
-> _~15s: User Guide §1 in the TidalCycles editor — `start <- lead "C maj"`,
-> then `s <- seek "*" $ cue start $ len 8 $ entropy 0.5 $ gen'`, the
-> diagnostics printing bar by bar with candidate pools visible._
+> ### ▶VIDEO: Entropy Levels
+> The same starting chord can lead to radically different musical outcomes.
+> Entropy controls the balance between familiar harmonic motion and
+> surprising, exploratory leaps or less common harmonic textures:
+> 
+> <a href="https://youtu.be/5L2lJQ1dM_M"><img src="https://img.youtube.com/vi/5L2lJQ1dM_M/maxresdefault.jpg" alt="Entropy Levels" width="540"></a>
 >
-> `[ youtube link — TBD ]`
+> Code: [`live/examples/01-ENTROPY_LEVELS.tidal`](live/examples/01-ENTROPY_LEVELS.tidal)
 
-Now let's apply some constraints. The Harmonic Algorithm lets you filter
-by key signature, overtone palette, and root motion — narrowing the
-harmonic possibilities to match your musical context:
+The system also lets you blend the harmonic taste of different composers.
+These are the weighted combinations of learned transition probabilities:
 
-> ### ▶ VIDEO — Narrowing the space
-> _~20s: User Guide §4 — layering hcKey "0#", then hcPedal "C", then
-> consonant onto hContext, re-running gen' after each. The candidate pools
-> shrink visibly as the constraints tighten._
+> ### ▶ VIDEO: Composer Blending
+> The system also lets you blend the harmonic taste of different composers.
+> These are the weighted combinations of learned transition probabilities.
+> If you want to run the system without the graph: `seek "none"` bypasses it 
+> entirely, so progressions are shaped by your context filters and entropy alone.
 >
-> `[ youtube link — TBD ]`
-
-Things get interesting when you bring this into TidalCycles. The library
-integrates directly — generated progressions become patterns you can
-manipulate, voice, and perform live:
-
-> ### ▶ VIDEO — Patterns meet harmony
-> _~20s: User Guide §9 — the same progression and pattern under arrange,
-> then arrange', then with overlapF 2: pattern-across-chords vs
-> pattern-within-chords vs natural legato sustain._
+> <a href="https://youtu.be/ci5GKpaIiZk"><img src="https://img.youtube.com/vi/ci5GKpaIiZk/maxresdefault.jpg" alt="Composer Blending" width="540"></a>
 >
-> `[ youtube link — TBD ]`
+> Code: [`live/examples/02-COMPOSER_BLENDING.tidal`](live/examples/02-COMPOSER_BLENDING.tidal)
 
-You don't always need the algorithm to generate for you. Sometimes you
-want to build progressions by hand — the changes to a standard, a
-specific harmonic idea — and use the library's voicing and arrangement
-tools to bring them to life:
-
-> ### ▶ VIDEO — By hand
-> _~15s: User Guide §11 — `prog (notesToPCs <$> [[C,E,G], [F,A,C],
-> [G,B,D], [A,C,E]])`, launched through the same launcher as the
-> generated examples._
+> ### ▶ VIDEO: Form and Kinetics
+> A named component, 'The Spectral Narrative' provides a macro level syntax to
+> control 'kinetics' (a proxy for density or layering in arrangement), dynamics
+> and modulation. This makes it very easy and flexible to create full compositions.
 >
-> `[ youtube link — TBD ]`
-
-And here's the composer blending in action — switching between learned
-styles and hearing how the same harmonic starting point leads to
-completely different musical journeys:
-
-> ### ▶ VIDEO — Blends, on screen
-> _~20s: User Guide §5 — one context and cue state under seek "bach",
-> "debussy", and "bach:30 debussy:70", each audible; the gen' header
-> showing the composer string and, for blends, the portmanteau name._
+> <a href="https://youtu.be/pAGnlrfvTIQ"><img src="https://img.youtube.com/vi/pAGnlrfvTIQ/maxresdefault.jpg" alt="Form and Kinetics" width="540"></a>
 >
-> `[ youtube link — TBD ]`
-
+> Code: [`live/examples/03-FORM_AND_KINETICS.tidal`](live/examples/03-FORM_AND_KINETICS.tidal)
 ___
 
 ## Installation
 
-There are two ways in. The first needs nothing but the repository and
-makes sound straight away; the second adds the composer corpus.
+The project can be run just with the codebase and tooling, then setting up
+the graph in Docker allows full traversal of the composer corpus.
 
 ### Dependencies
 
@@ -214,7 +173,7 @@ makes sound straight away; the second adds the composer corpus.
 
 ### Automated setup (Linux)
 
-`scripts/install-linux.sh` wires all of this up and is safe to re-run — it
+`scripts/install-linux.sh` wires all of this up and is safe to re-run. It
 converges to the same state and reports what was already correct:
 
 ```bash
@@ -223,7 +182,7 @@ converges to the same state and reports what was already correct:
 ./scripts/install-linux.sh --with-graph   # and load the composer corpus
 ```
 
-It installs no system packages — it checks for them and names the command to
+It installs no system packages, it checks for them and names the command to
 install any that are missing. The one exception is GHC, which it fetches
 through ghcup. Afterwards `livecode` is on your `PATH`.
 
@@ -238,7 +197,7 @@ wipes the local plugin patch on every upgrade. The script handles each, and
 There is no macOS equivalent yet; the repository files it configures are
 cross-platform, only the wiring is Linux-specific.
 
-### 1. Start here — no database required
+### 1. Start here, no database required
 
 ```bash
 git clone https://github.com/OscarSouth/theHarmonicAlgorithm

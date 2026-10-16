@@ -1,0 +1,66 @@
+putStrLn ""
+
+tempo = 90
+
+ -- | FORM AND KINETICS
+
+ -- PIANO INTERFACE
+grnd f k d = p "piano" $ do
+  let o = ch 1
+  f
+    $ stack [silence
+       -- --
+      ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"
+        ,"[0 1 [2,3]@6]/4"                                -- chord arpeggiation
+      ]# o |* vel 0.8
+       -- --
+      ,arrange (0.6,1) k (-9,9) T flow (overlapF 0) ["~"
+        ,"[8@3 9?]/4" |- "[0 1 2 3]/4"                    -- top line melody, above 0.6
+        ,"[~ 7?]?/4"                                      -- mid bar melody note
+      ]# o |* vel 0.8
+       -- --
+      ,arrange (0.3,1) k (-9,9) T grid (overlapF 0) ["~"
+        ,"[0 3]/4"                                        -- bass tone, above 0.3
+      ]# o |* vel 0.7 |- oct 1
+       -- --
+      ,ki (0.7,1) k $ ped "[1@7 ~]/4" # o                 -- sustain pedal down, at high kinetics only
+      ,ped "[~@7 0]/4" # o                                -- lifted on the last 8th of every bar
+       -- --
+    ]# legato 0.99 |* vel d
+
+ctx = invSkip 1 -- no consecutive inversions
+  $ hcPedal "C" -- pedal/drone C note
+  -- $ hcKey "0#"  -- C major / A minor
+  $ hContext
+
+s <- lead "C maj" >>= -- start on C major
+  \start
+  -> seek "*"   -- use combined graph of all composers
+  $ cue start
+  $ tonal ctx
+  $ len 4       -- generate an 8 bar progression
+  $ entropy 0.4 -- entropy set to moderate
+  $ gen
+
+ -- FORM / KINETICS
+form = --    ki    dyn
+  [ rh   1   0.2   0.3   s   -- arpeggio alone, quiet
+  , rh   5   0.5   0.6   s   -- ramps towards the bass entering
+  , rh'  9   1.0   1.0   s   -- snap to full, the melody enters
+  , rh  17   0.3   0.4   s   -- ramp back down
+  , rh  21   0.0   0.0   s   -- out
+  ]
+
+ -- LAUNCHER
+do
+  let
+    f = id . swing8 0.62
+    d = (* 1)
+    k = iK tempo form (rep s 1)
+  putStrLn "LAUNCH ¬¬"
+  print s
+  mapM_ id [launch, setbpm tempo, display k
+    ,grnd f k $ d 0.9
+    ]
+
+hush

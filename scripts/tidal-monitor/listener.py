@@ -13,7 +13,7 @@ reason to expose the console on any other interface. This machine is taken to
 venues.
 
 Run:  python3 scripts/tidal-monitor/listener.py
-      (live/local/livecode-perform starts it automatically)
+      (live/system/bin/livecode starts it automatically)
 """
 from flask import Flask, request
 import logging

@@ -1,0 +1,51 @@
+putStrLn ""
+
+tempo = 90
+
+-- | COMPOSER BLENDING
+
+ -- PIANO INTERFACE
+grnd f k d = p "piano" $ do
+  let o = ch 1
+  f
+    $ stack [silence
+       -- --
+      ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~" -- THE RIGHT HAND
+        ,"[0,1,2]/2"                                   -- chords played as blocks
+      ]# o |* vel 0.8 |+ oct 1
+       -- --
+      ,arrange (0,1) k (-9,9) T grid (overlapF 0) ["~" -- THE LEFT HAND
+        ,"[0]/2"                                       -- bass tone
+      ]# o |* vel 0.6 |- oct 1
+       -- --
+      ,ped "[0]/4" # o                                -- no sustain
+       -- --
+    ]# legato 0.99 |* vel d
+
+ctx = hContext                 -- no harmonic filters
+
+s <- lead "C maj" >>=          -- start on C major
+  \start
+  -- -> seek "bach"
+  -- -> seek "beethoven"
+  -- -> seek "bach:3 beethoven:2" -- proportional blend of 2 composers
+  -> seek "none"               -- bypass the graph
+  $ cue start
+  $ tonal ctx
+  $ len 4                     -- 4 bar progression
+  $ entropy 0.2               -- entropy set to mild
+  $ gen
+
+ -- LAUNCHER
+do
+  let
+    f = id . swing8 0.5
+    d = (* 1)
+    k = iK tempo [at 0 1 1 s] (rep s 0.5)
+  putStrLn "LAUNCH ¬¬"
+  print s
+  mapM_ id [launch, setbpm tempo
+    ,grnd f k $ d 0.9
+    ]
+
+hush

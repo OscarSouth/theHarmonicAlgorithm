@@ -23,20 +23,25 @@ BOOT = "live/BootTidal.hs"
 DONE = "__CORPUS_CHECK_COMPLETE__"
 
 # The files that exercise the live surface hardest: a full performance state,
-# a launcher with every instrument family, a walking-bass score, and a drum
-# part. Add to this list rather than widening it to a glob — the point is a
-# fast gate on representative code, not a whole-corpus sweep.
+# a launcher with every instrument family, a walking-bass score, a drum part,
+# and the README video examples. Add to this list rather than widening it to a
+# glob — the point is a fast gate on representative code, not a whole-corpus
+# sweep.
 # Order matters: files are fed to one session the way a performer evaluates
 # them, arrangement before launcher. `live/local` is git-ignored, so those
 # entries are checked on the performer's machine and skipped in CI.
 DEFAULT_TARGETS = [
-    "live/local/older/misc/2026-05-01_office.tidal",
+    "live/local/archive/misc/2026-05-01_office.tidal",
     "live/local/perform/state.tidal",
-    "live/local/older/concert/06-rosslynCastle.tidal",
+    "live/local/archive/concert/06-rosslynCastle.tidal",
     "live/docs/JAZZ_DIAGNOSTIC.tidal",
     "live/docs/ORCHESTRAL_CATALOGUE.tidal",
     "live/drumpats/afro-cuban/bolero.tidal",
     "live/drumpats/dub/rockers.tidal",
+    "live/examples/00-QUICK_START.tidal",
+    "live/examples/01-ENTROPY_LEVELS.tidal",
+    "live/examples/02-COMPOSER_BLENDING.tidal",
+    "live/examples/03-FORM_AND_KINETICS.tidal",
 ]
 
 # A binding at column 0 followed by `=` is a declaration group; anything else

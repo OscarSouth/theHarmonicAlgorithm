@@ -101,7 +101,7 @@ s.reboot {
       // socket.
       //
       // MIDI therefore reaches hardware only if something routes Midi Through --
-      // see live/local/midi-autoconnect, started by live/system/bin/livecode. No
+      // see local/bin/autoconnect, started by live/system/bin/livecode. No
       // fallback entries: Midi Through always exists, so nothing below it is
       // reachable.
       [ ["Midi Through", "Midi Through Port-0"] ]
