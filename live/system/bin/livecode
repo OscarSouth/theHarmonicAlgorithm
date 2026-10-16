@@ -136,7 +136,7 @@ cd "$live" || exit 1
 # Optional machine-local session hook, called as `session-hook start|stop`. The
 # repository carries the mechanism; the content is per-machine and gitignored.
 # Absent, the rig starts unchanged.
-HOOK="$repo/live/local/session-hook"
+HOOK="$repo/local/bin/session-hook"
 [ -x "$HOOK" ] && "$HOOK" start
 
 [ "$monitor" -eq 1 ] && start_monitor

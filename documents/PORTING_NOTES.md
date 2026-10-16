@@ -378,7 +378,7 @@ Three of them had already drifted before we started, and one of those blocked th
 | `~/.pulsar/styles.less`, `init.js` | editor appearance/behaviour | not in the repo; a machine rebuild loses them | ⚠ unversioned |
 | shell functions (`liveCode`, `start_qlinks`) in `.bashrc` / `.zshrc` | launchers | duplicated per machine and already divergent between them | ✅ both now delegate to `live/bin/livecode` |
 | root `CLAUDE.md` | imports `.github/CLAUDE.md` | **gitignored, so a fresh clone does not have it** and none of the repo's agent guidance loads. The clone looks complete | ✅ documented in setup below |
-| `live/local/*` (thermal, display, offload, affinity) | machine-specific tuning | genuinely per-machine — correct to stay gitignored | ✅ by design |
+| `local/bin/*` (thermal, display, offload) | machine-specific tuning | genuinely per-machine — correct to stay gitignored | ✅ by design |
 
 ### Recommendation: make `SafeMIDIOut.sc` a real file
 
@@ -603,7 +603,7 @@ A GUI plus four Python processes, autostarted at login, existed solely to restor
 connections — and restored them by exact port name, which is the thing that cannot work
 here (§24).
 
-Replaced by `live/local/midi-autoconnect`: rules are `out-substring|in-substring`, so
+Replaced by `local/bin/autoconnect`: rules are `out-substring|in-substring`, so
 `U2MIDI Pro MIDI 1` matches whatever node prefix the device enumerates as. `pw-link -m`
 streams `=` existing / `+` added / `-` removed (confirmed empirically with `pw-loopback`),
 so reacting to `+` gives hotplug re-linking for free. Started by the session, not at login.
@@ -614,19 +614,19 @@ were in the saved `<graph>` **and** `Glob.open_done_once` is true — i.e. on a 
 session open (`main_loop.py:261-270`). Its own header concedes the behaviour "is
 (probably) not suitable if we start the ray-jackpatch client once the session is already
 loaded". Opening RaySession on an **empty** session removes even that: no
-`saved_connections`, no `<graph>`, so the condition can never be satisfied. `live/local/patchbay`
+`saved_connections`, no `<graph>`, so the condition can never be satisfied. `local/bin/patchbay`
 opens exactly that, and the third process it starts — `ray-jackpatch_to_osc` — only reads
 the graph to draw the canvas.
 
 **A generic hook, not machine specifics in the repo.** `live/bin/livecode` gained:
 
 ```sh
-HOOK="$repo/live/local/session-hook"
+HOOK="$repo/local/bin/session-hook"
 [ -x "$HOOK" ] && "$HOOK" start      # before Pulsar
 [ -x "$HOOK" ] && "$HOOK" stop       # in cleanup
 ```
 
-The repo carries the mechanism; device names stay in gitignored `live/local/`. A machine
+The repo carries the mechanism; device names stay in the gitignored repo-root `local/`. A machine
 without the hook is unaffected, and macOS can supply its own or none.
 
 ---

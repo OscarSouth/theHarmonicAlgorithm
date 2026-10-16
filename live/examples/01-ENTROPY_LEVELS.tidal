@@ -1,0 +1,52 @@
+putStrLn ""
+
+tempo = 90
+
+ -- | ENTROPY LEVELS
+
+ -- PIANO INTERFACE
+grnd f k d = p "piano" $ do
+  let o = ch 1
+  f
+    $ stack [silence
+       -- --
+      ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"    -- THE RIGHT HAND
+        ,"[0 1 [2,3]@6]/4"                                -- chord arpeggiation
+        ,"[8@3 9?]/4" |- "[0 1 2 3]/4"                    -- top line melody
+      ]# o |* vel 0.8
+       -- --
+      ,arrange (0,1) k (-9,9) T grid (overlapF 0) ["~"    -- THE LEFT HAND
+        ,"[0]/4"                                          -- bass tone
+      ]# o |* vel 0.6 |- oct 1
+       -- --
+      ,ped "[0]/4" # o                                -- no sustain
+       -- --
+    ]# legato 0.99 |* vel d
+
+ctx = invSkip 1 -- no consecutive inversions
+  $ hcKey "0#" -- C major / A minor
+  $ hContext
+
+s <- lead "C maj" >>= -- start on C major
+  \start
+  -> seek "*"   -- use combined graph of all composers
+  $ cue start
+  $ tonal ctx
+  $ len 4       -- generate a 4 bar progression
+  -- $ entropy 0.1 -- entropy set to low
+  $ entropy 0.9 -- entropy set to high
+  $ gen
+
+ -- LAUNCHER
+do
+  let
+    f = id . swing8 0.62
+    d = (* 1)
+    k = iK tempo [at 0 1 1 s] (rep s 1)
+  putStrLn "LAUNCH ¬¬"
+  print s
+  mapM_ id [launch, setbpm tempo
+    ,grnd f k $ d 0.9
+    ]
+
+hush

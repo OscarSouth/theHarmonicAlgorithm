@@ -1,0 +1,93 @@
+putStrLn ""
+
+tempo = 90
+
+ -- | QUICK START
+
+ -- PIANO INTERFACE
+grnd f k d = p "piano" $ do
+  let o = ch 1
+  f
+    $ stack [silence
+       -- --
+      ,arrange (0,1) k (-9,9) T flow (overlapF 0) ["~"    -- THE RIGHT HAND
+        ,"[0 1 2 3]/2"                                    -- chord arpeggiation
+      ]# o |* vel 0.8 |+ oct 1
+       -- --
+      ,arrange (0,1) k (-9,9) T grid (overlapF 0) ["~"    -- THE LEFT HAND
+        ,"[0]/4"                                          -- bass tone
+      ]# o |* vel 0.6 |- oct 1
+       -- --
+      ,ped "[1@7 0]/4" # o                                -- sustain pedal, released at end of bar
+       -- --
+    ]# legato 0.99 |* vel d
+
+ -- GENERATE A PROGRESSION
+s <- lead "C maj" >>= -- start on C major
+  \start
+  -> seek "*"   -- use combined graph of all composers
+  $ cue start
+  $ len 4       -- generate a 4 bar progression
+  $ entropy 0.4 -- entropy set to moderate
+  $ gen'        -- print each bar as it is chosen
+
+ -- LAUNCHER
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo [at 0 1 1 s] (rep s 1)
+  putStrLn "LAUNCH ¬¬"
+  print s
+  mapM_ id [launch, setbpm tempo
+    ,grnd f k $ d 0.9
+    ]
+
+ -- NARROW THE HARMONIC SPACE
+ctx = invSkip 1         -- no consecutive inversions
+  $ hcKey "0#"          -- C major / A minor
+  $ hcRoots "0# fall1"  -- roots descend diatonically
+  $ hContext
+
+s <- lead "C maj" >>=   -- start on C major
+  \start
+  -> seek "*"           -- use combined graph of all composers
+  $ cue start
+  $ tonal ctx           -- only chords that fit the context
+  $ len 4               -- generate a 4 bar progression
+  $ entropy 0.4         -- entropy set to moderate
+  $ gen'                -- print each bar as it is chosen
+
+ -- LAUNCHER
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo [at 0 1 1 s] (rep s 1)
+  putStrLn "LAUNCH ¬¬"
+  print s
+  mapM_ id [launch, setbpm tempo
+    ,grnd f k $ d 0.9
+    ]
+
+ -- DECLARE A PROGRESSION BY HAND
+s = prog (notesToPCs <$> -- Neapolitan cadence in C minor
+  [ [C, Eb, G]           -- i   C minor
+  , [Ab, C, Eb]          -- VI  Ab major
+  , [Db, F, Ab]          -- bII Db major, the Neapolitan
+  , [G, B, D, F]         -- V7  G dominant seventh
+  ])
+
+ -- LAUNCHER
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo [at 0 1 1 s] (rep s 1)
+  putStrLn "LAUNCH ¬¬"
+  print s
+  mapM_ id [launch, setbpm tempo
+    ,grnd f k $ d 0.9
+    ]
+
+hush
