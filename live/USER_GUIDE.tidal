@@ -4,42 +4,52 @@
 --
 -- This file is a hands-on walkthrough. Scroll from top to bottom
 -- and execute each block as you go. Every section introduces one
--- concept, builds on the last, and leaves bindings available for
--- the next section. Try the narrative prompts — change a value,
--- re-execute, listen.
+-- concept and leaves its bindings available for the sections
+-- after it; each section's "Uses:" line names what it needs from
+-- earlier ones. Try the prompts: change a value, re-execute,
+-- listen.
 --
 -- ── MIDI OUTPUT ──
 -- This system outputs MIDI on TidalCycles channels 1–16 (d01–d16).
 -- Everything in this guide transmits on MIDI channel 1 (d01),
 -- except the groove sections (channel 10, drums). Route channel 1
--- in your MIDI setup to a polyphonic sound — piano, Rhodes, pad,
+-- in your MIDI setup to a polyphonic sound: piano, Rhodes, pad,
 -- polysynth. That's your instrument for the whole walkthrough.
 -- (On the studio rig channel 1 is the `grnd` grand-piano block; the
 -- full map is in documents/LIVE_ENVIRONMENT.md.)
 --
 -- ── THE GRAPH ──
 -- Generation draws on a Neo4j graph of harmonic transitions
--- learned from 488 composers (Yale Classical Archives Corpus).
--- Start it before you begin:
+-- learned from over 10,000 compositions by over 1,000 classical
+-- and jazz composers (the Yale Classical Archives Corpus and the
+-- Jazz-Chord-Progressions-Corpus): 8,441 classical pieces by
+-- 488 composers, most of all Mozart, Bach, Scarlatti and
+-- Beethoven, and 2,614 jazz tunes by 679 composers, led by
+-- Richard Rodgers, Thelonious Monk, Harold Arlen and Duke
+-- Ellington. documents/COMPOSERS.md has the full breakdown and
+-- every composer key. Load the graph once from the release dump
+-- (README.md, "Add the composer graph"), then start it before
+-- you begin:
 --
 --     docker compose up -d neo4j
 --
 -- Confirm: curl -s http://localhost:7474 responds. If you can't
--- run Docker right now, `seek "none"` (Section 5) runs every
--- example on the built-in consonance fallback instead.
+-- run Docker right now, `seek "none"` (Section 5) runs the
+-- classical examples on the built-in consonance fallback instead.
+-- Jazz generation (Section 21) needs the graph.
 --
 -- ── SETUP ──
 -- Requires live/BootTidal.hs loaded with Harmonic.Lib. It carries the
 -- d01–d16 MIDI streams and hush/panic; the helpers themselves are
--- library modules — ch/vel in Instruments, oct in Utils, the drum
+-- library modules: ch/vel in Instruments, oct in Utils, the drum
 -- map in Devices.JV1010.
 --
 -- ── KNOWN EXCEPTIONS ──
 -- Two areas are deliberately out of scope here:
 --   * The Algorithmic Orchestration system (16-instrument virtual
---     orchestra) — depends on a specific hardware/MIDI rig. See
+--     orchestra), which depends on a specific hardware/MIDI rig. See
 --     documents/ALGORITHMIC_ORCHESTRATION.md and ORCHESTRAL_CATALOGUE.tidal.
---   * Hardware-bound helpers — the AIRA program's four layers
+--   * Hardware-bound helpers: the AIRA program's four layers
 --     (s101, smpl, auto, gnlr), the Q-Link controller bridge,
 --     the LED display rig, and the MPC programs (subk, hmnx, slce).
 --     The rig is documented in documents/LIVE_ENVIRONMENT.md.
@@ -57,8 +67,8 @@ hush
 -- SECTION 0 — Setup & sound check
 -- ══════════════════════════════════════════════════════════
 --
--- GOAL: Confirm the three moving parts — MIDI, the library, and
--- the graph — before anything musical.
+-- GOAL: Confirm the three moving parts (MIDI, the library and
+-- the graph) before anything musical.
 
 -- 1. MIDI: you should hear one middle C on the piano channel.
 once $ note "0" # ch 01 # legato 0.9
@@ -87,22 +97,21 @@ hush
 -- src/Harmonic/Framework/Builder.hs          (seek, cue, len, entropy, gen)
 --
 -- GOAL: Understand the generation chain you just ran.
--- No sound yet — just the progression printed to the REPL.
+-- No sound yet, just the progression printed to the REPL.
 
 -- `lead` builds a starting chord from a readable string.
--- Format: "<root> <quality> (<movement>)" — all optional.
+-- Format: "<root> <quality> (<movement>)", all optional.
 start <- lead "C maj"
 
 -- `seek` is the terminal that runs the whole modifier chain.
 -- "*" aggregates the full composer corpus. The modifiers:
---   cue      — the starting state
---   len      — how many chords
---   entropy  — 0.0–1.0+: how far down the ranked candidate pool
---              the traversal is willing to reach. The value times
---              ten is the rank it AIMS at — 0.2 reaches for about
---              the second-ranked continuation, 0.9 for the ninth.
---              A target, not a script: the draw is a distribution
---              around it.
+--   cue      the starting state
+--   len      how many chords
+--   entropy  0.0–1.0+: how far down the ranked candidate pool
+--            the traversal is willing to reach. The value times
+--            ten is the rank it aims at: 0.2 reaches for about
+--            the second-ranked continuation, 0.9 for the ninth.
+--            It's a target; the draw is a distribution around it.
 -- Omit cue entirely and the opening chord is drawn to fit: inside
 -- the tonal context for gen/genE (uncued under hcKey "3b" opens in
 -- three flats), from inside the stratum for genP, and from the jazz
@@ -116,8 +125,7 @@ print s
 -- Change "C maj" to "E min" or "Bb 7 (7)" and re-execute.
 -- Change `len 4` to `len 8`. Try `entropy 0.2` (conventional,
 -- cadence-hungry) vs `entropy 0.9` (adventurous, distant
--- modulations). Regenerate a few times at each — entropy is a
--- distribution, not a script.
+-- modulations). Regenerate a few times at each.
 
 hush
 
@@ -130,31 +138,38 @@ hush
 --
 -- GOAL: See what the algorithm is actually doing.
 -- Swap `gen` for `gen'` to get a compact bar-by-bar diagnostic.
+-- Uses: start (Section 1).
 
 s <- seek "*" $ cue start $ len 4 $ entropy 0.5 $ gen'
 
--- Sample gen' output (read the inline annotations):
+-- Sample gen' output (the opening of one run):
 --
---   Generation: C maj → 4 chords (entropy 0.5)
+--   Generation: C ( tritone -> maj ) → 4 chords (ent 0.5)
+--   Mode: online (composers: all)
 --   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
---     1: C maj [starting state]
+--     1: C ( tritone -> maj ) [starting state]
 --
---     2: C → G  [14G/660F]  asc 7 → G maj  [graph] γ=3
---        Candidates: G maj | G dom7 | G min | E min | ...
+--     2: C → C  [467G/660F]  pedal → C 7no5  [graph] γ=5
+--        Candidates: C maj | C min_1stInv | C 7no3 | ...
+--
+--     3: C → A  [639G/660F]  desc 3 → F# min_1stInv  [graph] γ=5
 --      …
 --
--- Fields, left to right:
+-- The Mode line says whether the graph was reached and which
+-- composers were drawn on. Fields, left to right:
 --   1, 2, 3        bar number
---   C → G          root movement (prior → posterior)
+--   C → A          root movement (prior → posterior)
 --   [NG/MF]        candidate pool: N graph, M fallback
---   asc 7          movement class (ascending 7 semitones)
---   G maj          selected chord at the posterior root
+--   desc 3         movement class (descending 3 semitones;
+--                  pedal keeps the root)
+--   F# min_1stInv  selected chord at the posterior root (first
+--                  inversion, so A is in the bass)
 --   [graph/fallback] which pool the selection came from
 --   γ=N            index chosen by gamma-entropy sampling
 --                  (lower = safer, higher = more exploratory)
 --   Candidates     top alternatives at the same root
 
--- gen'' adds verbose transform and advance traces — pitch-class
+-- gen'' adds verbose transform and advance traces: pitch-class
 -- arithmetic, DB-stored vs computed functionality, every step of
 -- the render pipeline. Try it once:
 s <- seek "*" $ cue start $ len 4 $ entropy 0.5 $ gen''
@@ -165,16 +180,16 @@ s <- seek "*" $ cue start $ len 4 $ entropy 0.5 $ gen''
 --
 --   {B: E2/G3, D: A3}
 --
--- means B is producible as string E overtone 2 OR string G
--- overtone 3. Overtones cover the playable harmonic domain —
+-- means B is producible as string E overtone 2 or string G
+-- overtone 3. Overtones cover the playable harmonic domain:
 -- OT1 root, OT2 perfect fifth, OT3 major third. "/" separates
 -- alternative sources; "+" joins several node positions on one
 -- string.
 
 -- ── WHEN TO USE ──
---   gen    — fast, just the progression
---   gen'   — understand selection, see the candidate pool
---   gen''  — debug rendering, see every computation step
+--   gen    fast, just the progression
+--   gen'   understand selection, see the candidate pool
+--   gen''  debug rendering, see every computation step
 
 hush
 
@@ -187,24 +202,24 @@ hush
 --
 -- GOAL: Turn a progression into sound.
 -- This is the first audible generation. Make sure MIDI ch 1 is
--- routed.
+-- routed. Uses: tempo (Section 0), start (Section 1).
 
 s <- seek "*" $ cue start $ len 4 $ entropy 0.5 $ gen
 
--- A single-node form — constant kinetics & dynamics, one
+-- A single-node form: constant kinetics and dynamics, one
 -- progression. `at time kinetics dynamics progression` defines a
 -- form node; with one node the signals are constant. (Section 13
 -- builds real multi-node forms.)
 form = [ at 0 1 1 s ]
 
 -- `iK tempo formNodes chordSelectionPattern` bundles everything a
--- launcher needs. `rep s 1` auto-derives "one chord per bar".
+-- launcher needs. `rep s 1` derives "one chord per bar".
 k = iK tempo form (rep s 1)
 
--- A minimal launcher. `p01` is our pattern 01 — routed to d01
--- (MIDI channel 1). `f` is a transformation (id here), `k` the
--- IK context, `d` a dynamics scalar. This launcher is reused
--- throughout the guide.
+-- A minimal launcher. `p01` is pattern 01, routed to d01 (MIDI
+-- channel 1). `f` is a transformation (id here), `k` the IK
+-- context, `d` a dynamics scalar. Later sections reuse this
+-- launcher.
 p01 f k d = d01 $ do
   let o = ch 01
   f
@@ -222,16 +237,16 @@ do
     ]
 
 -- Anatomy of the arrange call:
---   (0, 1)       kinetics range — play when kinetics is inside
+--   (0, 1)       kinetics range: play when kinetics is inside
 --   k            the IK context
 --   (-9, 9)      register bounds (semitones around centre)
 --   T            progression layer (T = triads; S/M in Section 19)
 --   flow         voicing function (Section 7)
 --   (overlapF 0) progression modifier (Section 9)
---   ["~", pat]   patterns of voicing DEGREES (0 = lowest voice)
+--   ["~", pat]   patterns of voicing degrees (0 = lowest voice)
 
 -- ── TRY THIS ──
--- Change the pattern to "[0 1 2 3 4 5 6 7]/8" — twice the
+-- Change the pattern to "[0 1 2 3 4 5 6 7]/8" for twice the
 -- density. Try "[0 2 1 3]/4" for a different contour. One cycle
 -- is one beat; a bar-length pattern carries /4.
 
@@ -245,20 +260,20 @@ hush
 -- src/Harmonic/Rules/Constraints/Filter.hs  (filter string syntax)
 --
 -- GOAL: Constrain what the generator can choose from.
--- Modifiers compose right-to-left with `$`. Comment lines out to
+-- Modifiers compose right to left with `$`. Comment lines out to
 -- fall back to defaults. Everything builds on `hContext`, the
--- chromatic default.
+-- chromatic default. Uses: tempo, start, p01 (Sections 0–3).
 --
---   hcOvertones "E A D G"  — pitch palette: each named fundamental
---                            expands to {root, P5, M3} — its
---                            playable overtone set
---   hcKey       "0#"       — key signature (0#=C, 1#=G, 2b=Bb)
---   hcRoots     "C E G"    — allowed bass notes
---   hcPedal     "C"        — required tone in every chord
---   hcPedal     "C G?"     — C required, G preferred
---   consonant              — drift toward calmer harmony
---   dissonant              — drift toward increasing tension
---   invSkip N              — min non-inversions between inversions
+--   hcOvertones "E A D G"  pitch palette: each named fundamental
+--                          expands to {root, P5, M3}, its
+--                          playable overtone set
+--   hcKey       "0#"       key signature (0#=C, 1#=G, 2b=Bb)
+--   hcRoots     "C E G"    allowed bass notes
+--   hcPedal     "C"        required tone in every chord
+--   hcPedal     "C G?"     C required, G preferred
+--   consonant              drift toward calmer harmony
+--   dissonant              drift toward increasing tension
+--   invSkip N              min non-inversions between inversions
 
 -- Start with everything chromatic
 ctx0 = hContext
@@ -273,7 +288,7 @@ ctx = invSkip 1
     $ hcKey "0#"
     $ hContext
 
--- Regenerate with the new context — `tonal` passes it in
+-- Regenerate with the new context; `tonal` passes it in
 s <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen'
 
 -- Relaunch with the same launcher
@@ -292,9 +307,9 @@ do
 --   "rise"/"fall"  force stepwise ascending/descending bass
 
 -- ── TRY THIS ──
--- Swap `consonant` for `dissonant` and re-run — the tension
--- rises bar over bar. Remove `hcPedal "C?"` — the held C lets
--- go. Add `hcOvertones "E A D G"` and watch gen' annotate every
+-- Swap `consonant` for `dissonant` and re-run: the tension rises
+-- bar over bar. Remove `hcPedal "C?"` and the held C lets go.
+-- Add `hcOvertones "E A D G"` and watch gen' annotate every
 -- palette tone with its string/overtone sources.
 
 hush
@@ -306,29 +321,31 @@ hush
 -- src/Harmonic/Evaluation/Database/Query.hs  (composer weight parsing)
 --
 -- GOAL: Channel the harmonic style of individual composers, or
--- weighted blends of several.
+-- weighted blends of several. Uses: tempo, start, p01, ctx
+-- (Sections 0–4).
 --
 -- The `seek` string selects the corpus view:
 --   "*"                    aggregate across all composers
 --   "bach"                 one composer's transition edges
---   "bach:25 debussy:75"   weighted blend — the gen' header shows
+--   "bach:25 debussy:75"   weighted blend; the gen' header shows
 --                          a portmanteau ("Bachdebussy")
---   "none"                 OFFLINE — bypass the graph entirely and
---                          use the consonance fallback. This is the
---                          escape hatch when Docker isn't available;
---                          every example in this guide still runs.
--- Names are case-insensitive.
+--   "none"                 offline: bypass the graph entirely and
+--                          use the consonance fallback. Every
+--                          classical example in this guide still
+--                          runs this way.
+-- Names are case-insensitive; documents/COMPOSERS.md lists every
+-- composer key.
 
 -- Single composer
 s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen'
 
--- Different composer — compare the harmonic character
+-- Different composer: compare the harmonic character
 s <- seek "debussy" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen'
 
 -- Weighted blend
 s <- seek "bach:25 debussy:75" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen'
 
--- Offline fallback — no graph, still musical
+-- Offline fallback: no graph, still musical
 s <- seek "none" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen'
 
 -- Play any of them:
@@ -340,8 +357,8 @@ do
 
 -- ── TRY THIS ──
 -- Compare Bach's cadential pull with Debussy's modal inflections
--- on the same seed and context. Stack a composer you know with
--- one you don't — hear what they share. Then run the same chain
+-- on the same seed and context. Blend a composer you know with
+-- one you don't and hear what they share. Then run the same chain
 -- with "none" and hear what the corpus was adding.
 
 hush
@@ -354,25 +371,27 @@ hush
 -- src/Harmonic/Evaluation/Scoring/Progression.hs (the scoring)
 --
 -- GOAL: Generate several candidate progressions and keep the
--- best, instead of accepting the first.
+-- best, instead of accepting the first. Uses: tempo, start, p01,
+-- ctx (Sections 0–4).
 --
---   attempt N K  — up to K attempts, stop early once N viable
---                  ones are collected, return the single highest
---                  scoring progression
---   viability T  — the score floor an attempt must clear to count
---                  as viable (default 0.5; 0.0 = structural only)
+--   attempt N K  up to K attempts; stop early once N viable ones
+--                are collected; return the single highest-scoring
+--                progression
+--   viability T  the score floor an attempt must clear to count
+--                as viable (default 0.5; 0.0 = structural only)
 --
--- Scoring ranks by cadence-favourability (dominant weight), plus
--- resolution, voice-leading and motion terms. `attempt` wraps any
--- generation chain — gen, genFrom, genP — uniformly.
+-- Scoring weights cadence favourability at half, root motion and
+-- voice leading at a quarter each; mode validity is a gate, not a
+-- weight. `attempt` wraps any generation chain (gen, genFrom,
+-- genP) in the same way.
 
 -- Best of up to 12, stop at 3 viable:
 s <- seek "*" $ attempt 3 12 $ cue start $ tonal ctx $ len 8 $ entropy 0.6 $ gen
 
--- With Verbose verbosity, a full scoreboard prints after the
--- run — one row per attempt with per-term scores, a viability
--- marker, the truncated chord sequence, and "← PICK" on the
--- winner. Watch what "better" means to the evaluator:
+-- With Verbose verbosity a full scoreboard prints after the run:
+-- one row per attempt with per-term scores, a viability marker,
+-- the truncated chord sequence, and "← PICK" on the winner. It
+-- shows what the evaluator rewards:
 s <- seek "*" $ attempt 3 12 $ cue start $ tonal ctx $ len 8 $ entropy 0.6 $ gen''
 
 -- Stricter search / structural-only:
@@ -388,7 +407,7 @@ do
 -- ── TRY THIS ──
 -- Raise entropy to 0.9 and watch the scoreboard: more attempts
 -- fail viability, and the spread between best and worst widens.
--- `attempt 1 1` is a no-op — the scoreboard stays quiet.
+-- `attempt 1 1` is a no-op, so the scoreboard stays quiet.
 
 hush
 
@@ -402,13 +421,14 @@ hush
 --
 -- GOAL: Change the vertical texture without changing the harmony.
 -- Same progression, same pattern, swap the voicing function.
+-- Uses: tempo, start, ctx (Sections 0–4).
 --
---   flow  — smoothest voice leading (cyclic DP, any inversion)
---   grid  — root locked in bass, smooth upper voices
---   lite  — raw intervals, no voice leading
---   literal — as written, register-normalised only
---   root  — root note only (bass line)
---   fund  — harmonic fundamental always (sub bass, kick)
+--   flow     smoothest voice leading (cyclic DP, any inversion)
+--   grid     root locked in bass, smooth upper voices
+--   lite     raw intervals, no voice leading
+--   literal  as written, register-normalised only
+--   root     root note only (bass line)
+--   fund     harmonic fundamental always (sub bass, kick)
 
 s <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
 
@@ -421,7 +441,7 @@ do
 
 hush
 
--- Now grid — listen to the bass locking down
+-- Now grid: listen to the bass locking down
 do
   let k = iK tempo [at 0 1 1 s] (rep s 1)
   mapM_ id [hush, setbpm tempo
@@ -441,8 +461,8 @@ hush
 
 -- ── TRY THIS ──
 -- Stack two arrange calls with different voicings in a single
--- launcher (flow for chords, root for bass) — Section 17 builds
--- a full four-voice texture this way.
+-- launcher (flow for chords, root for bass). Section 17 builds a
+-- full four-voice texture this way.
 
 
 -- ══════════════════════════════════════════════════════════
@@ -451,10 +471,11 @@ hush
 -- src/Harmonic/Interface/Tidal/Bridge.hs   (warp, rep)
 --
 -- GOAL: Control which chord plays when.
+-- Uses: tempo, start, p01, ctx (Sections 0–4).
 --
---   rep s N    — one chord per bar × N (auto-derived length)
---   warp "..." — explicit 1-indexed selection in mininotation,
---                divisor = physical bars over which to step
+--   rep s N     one chord per bar × N (length derived)
+--   warp "..."  explicit 1-indexed selection in mininotation;
+--               the divisor is the physical bars to step over
 
 s <- seek "*" $ cue start $ tonal ctx $ len 4 $ entropy 0.5 $ gen
 
@@ -495,10 +516,10 @@ do
 hush
 
 -- ── TRY THIS ──
--- warp "[1 2 3 4 3 2 1 4]/4"  — 8 chord events over 4 bars
--- warp "[1 2 3 4]/8"           — slower: 4 chords over 8 bars
--- warp "[1(3,8) 2]/4"          — euclidean rhythm on chord 1
--- warp "[1 . [2 3]]/4"         — nested rhythm
+-- warp "[1 2 3 4 3 2 1 4]/4"   8 chord events over 4 bars
+-- warp "[1 2 3 4]/8"           slower: 4 chords over 8 bars
+-- warp "[1(3,8) 2]/4"          euclidean rhythm on chord 1
+-- warp "[1 . [2 3]]/4"         nested rhythm
 -- Indices wrap modulo the progression length.
 
 
@@ -508,17 +529,17 @@ hush
 -- src/Harmonic/Interface/Tidal/Bridge.hs  (arrange, arrange')
 --
 -- GOAL: Understand how patterns interact with progression
--- changes.
+-- changes. Uses: tempo, start, ctx (Sections 0–4).
 --
---   arrange   — pattern runs at its own speed; pitches map to
---               whichever chord is active at each onset
---   arrange'  — pattern is redistributed within each chord slot;
---               every chord gets the full pattern, compressed
+--   arrange   the pattern runs at its own speed; pitches map to
+--             whichever chord is active at each onset
+--   arrange'  the pattern is redistributed within each chord
+--             slot; every chord gets the full pattern, compressed
 --
 -- Notes that cross a harmony boundary sustain naturally (a new
 -- onset is only generated within the chord that started the
 -- note). `overlapF N` merges pitches from N bars ahead into each
--- chord's pitch set for even smoother legato; `progOverlapB` /
+-- chord's pitch set for smoother legato; `progOverlapB` and
 -- `progOverlap` (Section 10) are the backward and bidirectional
 -- forms at the progression level.
 
@@ -549,7 +570,7 @@ hush
 -- ── TRY THIS ──
 -- arrange feels like a melody flowing over changing chords.
 -- arrange' feels like an arpeggiator locked to each chord.
--- Change `overlapF 0` to `overlapF 2` — neighbouring chords'
+-- Change `overlapF 0` to `overlapF 2`: neighbouring chords'
 -- pitches merge into the current set (smoother legato).
 
 
@@ -560,22 +581,23 @@ hush
 --
 -- GOAL: Transform harmony in real time with pure functions.
 -- All return a new progression. Chain them freely.
+-- Uses: tempo, start, p01, ctx (Sections 0–4).
 --
---   rotate N          — rotate by N bars
---   excerpt start end — extract a range (1-indexed, inclusive)
---   transposeP N      — transpose by N semitones
---   reverse           — reverse the order
---   fuse [a, b, c]    — concatenate progressions
---   fuse2 a b         — binary fuse
---   interleave a b    — alternating chords
---   expandP N         — each chord repeated N times
---   insert cs N p     — replace bar N with a CadenceState
---   switch M N        — swap bars M and N
---   clone M N         — copy bar M to position N
---   extract N p       — pull out a single CadenceState
---   progOverlapF N    — merge pitches from N bars ahead
---   progOverlapB N    — merge pitches from N bars behind
---   progOverlap N     — merge in both directions
+--   rotate N           rotate by N bars
+--   excerpt start end  extract a range (1-indexed, inclusive)
+--   transposeP N       transpose by N semitones
+--   reverse            reverse the order
+--   fuse [a, b, c]     concatenate progressions
+--   fuse2 a b          binary fuse
+--   interleave a b     alternating chords
+--   expandP N          each chord repeated N times
+--   insert cs N p      replace bar N with a CadenceState
+--   switch M N         swap bars M and N
+--   clone M N          copy bar M to position N
+--   extract N p        pull out a single CadenceState
+--   progOverlapF N     merge pitches from N bars ahead
+--   progOverlapB N     merge pitches from N bars behind
+--   progOverlap N      merge in both directions
 
 s <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
 
@@ -635,7 +657,7 @@ hush
 -- `progOverlapF 1 s` merges each chord with its neighbour
 -- (natural sustain across transitions)
 -- `genGrid` in a seek chain skips traversal entirely and prints
--- the candidate grid — a raw view of the R component.
+-- the candidate grid, a raw view of the R component.
 
 
 -- ══════════════════════════════════════════════════════════
@@ -647,11 +669,11 @@ hush
 --
 -- GOAL: Build progressions by hand when you have specific
 -- changes in mind. Use generation when you want suggestions.
--- Generated and explicit progressions are interchangeable —
+-- Generated and explicit progressions are interchangeable:
 -- every voicing, arrangement, form and manipulation applies to
--- both.
+-- both. Uses: tempo, p01 (Sections 0–3).
 
--- Pitch-class list construction — explicit intervals per bar
+-- Pitch-class list construction: explicit intervals per bar
 sExplicit = fromChords
   [ [0, 4, 7]    -- C maj
   , [5, 9, 0]    -- F maj
@@ -659,7 +681,7 @@ sExplicit = fromChords
   , [9, 0, 4]    -- A min
   ]
 
--- Note-name syntax — more readable. `notesToPCs` maps NoteName
+-- Note-name syntax, more readable. `notesToPCs` maps NoteName
 -- lists to pitch classes. Accidentals: prime = sharp (C' is C#,
 -- F' is F#), and flat names exist too (Db, Eb, …).
 sNamed = prog (notesToPCs <$>
@@ -677,12 +699,12 @@ sStates = fromCadenceStates
   , initCadenceState 2 "A" [0, 3, 7]   -- A min, asc 2
   ]
 
--- Keep a progression across sessions — generated or explicit.
+-- Keep a progression across sessions, generated or explicit.
 -- `save` prints the whole context as a chart: one bar per line,
 -- the T | S | M layers side by side (plus a strata column for
 -- genP material), shaped as a complete `name = recall …`
 -- statement. Copy the printed block into this file; evaluating
--- it next session binds the identical context — every note,
+-- it next session binds the identical context: every note,
 -- chord name (the graph key), movement, spelling and provenance.
 save "verse" sNamed
 
@@ -709,9 +731,10 @@ hush
 -- ── TRY THIS ──
 -- Build your own 8-bar progression with note names. Apply a
 -- Section 10 manipulation: `transposeP 2 sNamed`. Interleave it
--- with a generated progression — hand and machine in one form.
--- Then `save "keeper" s` on a generation you like, and paste the
--- block under a heading of its own: a repertoire file grows.
+-- with a generated progression, so hand-written and generated
+-- harmony share one form. Then `save "keeper" s` on a generation
+-- you like, and paste the block under a heading of its own: a
+-- repertoire file grows.
 
 
 -- ══════════════════════════════════════════════════════════
@@ -720,15 +743,15 @@ hush
 -- src/Harmonic/Framework/Builder.hs  (genFrom, genFrom', genFrom'')
 --
 -- GOAL: Keep the progression you like; regenerate only the bars
--- you don't. Surgery, not do-over.
+-- you don't. Uses: tempo, start, p01, ctx (Sections 0–4).
 --
---   genFrom s a b — regenerate bars a..b of s (1-indexed,
---                   wrap-aware: on a 5-bar progression,
---                   genFrom s 4 2 walks 4,5,1,2 and keeps 3).
+--   genFrom s a b  regenerate bars a..b of s (1-indexed and
+--                  wrap-aware: on a 5-bar progression,
+--                  genFrom s 4 2 walks 4,5,1,2 and keeps 3).
 --
--- The cue is auto-inferred from the bar before `a` so the new
--- material connects; override with `cue`. The printed grid is
--- always the FULL spliced progression — you see the source with
+-- The cue is inferred from the bar before `a` so the new
+-- material connects; override it with `cue`. The printed grid is
+-- always the full spliced progression: you see the source with
 -- the new bars in place. Composes with the whole modifier chain,
 -- including `attempt`.
 
@@ -744,8 +767,8 @@ print s8'      -- diff bars 3–4 by eye
 s8'' <- seek "*" $ attempt 3 12 $ entropy 0.5 $ genFrom s8 3 4
 
 -- Diagnostic variants mirror gen:
---   genFrom'   — standard per-bar trace
---   genFrom''  — verbose + scoreboard under attempt
+--   genFrom'   standard per-bar trace
+--   genFrom''  verbose, plus the scoreboard under attempt
 
 do
   let k = iK tempo [at 0 1 1 s8''] (rep s8'' 1)
@@ -754,8 +777,8 @@ do
     ]
 
 -- ── TRY THIS ──
--- Regenerate the FINAL bars (genFrom s8 7 8) — the seam back to
--- bar 1 is handled (the progression cycles). Then a wrapping
+-- Regenerate the final bars (genFrom s8 7 8); the seam back to
+-- bar 1 is handled, since the progression cycles. Then a wrapping
 -- range (genFrom s8 7 2). A/B each patch against the original.
 
 hush
@@ -769,14 +792,15 @@ hush
 -- GOAL: Program a macro-level arc in wall-clock time.
 -- A form is a list of `at time kinetics dynamics progression`
 -- nodes. Between nodes the kinetics and dynamics interpolate
--- linearly; the progression switches discretely at each node.
+-- linearly; the progression switches at each node.
+-- Uses: tempo (Section 0), start (Section 1).
 --
--- The kinetics signal (0–1) drives range-gating on `arrange`:
+-- The kinetics signal (0–1) drives range gating on `arrange`:
 -- patterns with kinetics range `(lo, hi)` only play when the
 -- current value is inside that window. The dynamics signal (0–1)
 -- drives the amplitude envelope.
 
--- Two progressions — one calm, one adventurous
+-- Two progressions: one calm, one adventurous
 sA <- seek "*" $ cue start $ tonal (consonant $ hcKey "0#" $ hContext) $ len 4 $ entropy 0.3 $ gen
 sB <- seek "*" $ cue start $ tonal (dissonant $ hcKey "0#" $ hContext) $ len 4 $ entropy 0.85 $ gen
 
@@ -816,7 +840,7 @@ do
 
 -- ── SNAP TRANSITIONS & BAR-BASED NODES ──
 -- `at` is the seconds/smooth constructor. Three siblings vary
--- two orthogonal axes — time unit and transition:
+-- two independent things, the time unit and the transition:
 --
 --   at   seconds   smooth (ramp between nodes)
 --   at'  seconds   snap   (hold, then jump on the exact time)
@@ -827,7 +851,7 @@ do
 cutForm =
   [ rh   1   0.0  0.0  sA   -- bar 1: silence
   , rh   5   0.5  0.6  sA   -- bar 5: smooth fade-in
-  , rh'  9   1.0  1.0  sB   -- bar 9: SNAP to full
+  , rh'  9   1.0  1.0  sB   -- bar 9: snap to full
   , rh  17   0.4  0.5  sB   -- bar 17: ramp back down
   , at' 40   0.0  0.0  sA   -- 40s: snap to silence (mixing units is fine)
   ]
@@ -867,10 +891,10 @@ popForm sV sC sBr =
   ]
 
 -- ── TRY THIS ──
--- Stretch arcForm to 5 minutes or compress to 20s. Change the
--- upper line's gate `(0.7, 1)` to `(0, 0.3)` — it becomes the
--- lead-in instead. Flip `rh' 9` to `rh 9` — the hard cut
--- becomes a ramp.
+-- Stretch arcForm to 5 minutes or compress it to 20s. Change the
+-- upper line's gate `(0.7, 1)` to `(0, 0.3)` and it becomes the
+-- lead-in instead. In cutForm, flip `rh' 9` to `rh 9` and the
+-- hard cut becomes a ramp.
 
 hush
 
@@ -881,17 +905,19 @@ hush
 -- src/Harmonic/Interface/Tidal/Form.hs  (lK, ki, slate, withForm)
 --
 -- GOAL: Drive kinetics from a live signal instead of a keyframed
--- form — the arc becomes a control you perform.
+-- form, so the arc becomes a control you perform.
+-- Uses: tempo, start, p01, ctx (Sections 0–4), p01arc (Section 13).
 --
---   lK kinSig dynSig s chordSel — build an IK from any two
+--   lK kinSig dynSig s chordSel  build an IK from any two
 --     `Pattern Double` signals (0–1). Everything downstream
 --     (range gating, dynamics) behaves exactly as with iK.
 --
 -- Any signal works: an LFO, a random walk, a MIDI CC. (The
--- Q-Link controller bridge in BootTidal.hs — qlink1..4, xyX/xyY,
--- exP — supplies hardware CC signals on this interface; see the
--- source comments. The LED display feed `display k` is likewise
--- hardware-specific; both are pointers, not walkthrough scope.)
+-- Q-Link controller bridge in BootTidal.hs, qlink1..4, xyX/xyY
+-- and exP, supplies hardware CC signals on this interface; see
+-- the source comments. The LED display feed `display k` is
+-- likewise hardware-specific. Both are pointers, outside this
+-- walkthrough.)
 
 s <- seek "*" $ cue start $ tonal ctx $ len 8 $ entropy 0.5 $ gen
 
@@ -906,11 +932,11 @@ do
 hush
 
 -- ── GATING HELPERS ──
--- The same range-gating that arrange applies is available on ANY
+-- The range gating that arrange applies is available on any
 -- pattern:
 --
---   ki (lo, hi) k pat      — mask pat to the kinetics window
---   slate (lo, hi) k pats  — stack pats, gated as one
+--   ki (lo, hi) k pat      mask pat to the kinetics window
+--   slate (lo, hi) k pats  stack pats, gated as one
 --
 -- slate builds kinetics-layered drum kits and texture stacks
 -- without arrange:
@@ -929,8 +955,8 @@ do
 
 -- ── TRY THIS ──
 -- Replace the LFO with `slow 16 $ lfo sine 0 1`, or a random
--- walk (`segment 8 $ perlin`). `withForm k f` gives f the active
--- progression reactively — for building custom pattern functions
+-- walk (`segment 8 $ perlin`). `withForm k f` passes f the active
+-- progression as the form moves, for custom pattern functions
 -- that follow form switches.
 
 hush
@@ -945,10 +971,11 @@ hush
 -- subKick combines a kick pattern and a sub held by note
 -- duration to the next kill boundary. It locks to the root of
 -- whichever chord is active at each onset.
+-- Uses: tempo, start, p01, ctx (Sections 0–4).
 --
 -- `subKick d k voiceFunc (maxDur, subOn, subOff, kickPat)`
--- routes to MIDI channel 10. (A complementary MPC kit program
--- renders the full-range sub+kick; any drum sound on ch 10
+-- routes to MIDI channel 10. (A companion MPC kit program
+-- renders the full-range sub and kick; any drum sound on ch 10
 -- works for the walkthrough.)
 
 subk f k d = p "subKick"
@@ -959,8 +986,8 @@ subk f k d = p "subKick"
       , "1*4"              -- kick: four on the floor
     )
 
--- The primed form takes a LIST in each slot and walks every list
--- across the kinetics range on its own grid (N items = N equal
+-- The primed form takes a list in each slot and walks every list
+-- across the kinetics range on its own grid (N items, N equal
 -- windows, as kinPick does for lineHarmony; a one-item list means
 -- "always"). The sub grows and relaxes with the form.
 subk' f k d = p "subKick"
@@ -986,8 +1013,9 @@ hush
 -- ── TRY THIS ──
 -- Change the kick to "[1 0 0 1]" (pushed) or a clave
 -- (`son32` gates work anywhere: kick son32). Swap `root` for
--- `fund` — the sub follows the harmonic fundamental instead of
--- the chord root (inversion-proof low end).
+-- `fund` and the sub follows the harmonic fundamental instead of
+-- the chord root, which keeps the low end steady through
+-- inversions.
 
 
 -- ── 15.1 — Natural harmonics (hmnx) ──
@@ -996,8 +1024,8 @@ hush
 --
 -- GOAL: play the harmony as natural harmonics of the cittern strings,
 -- through the MPC harmonics keygroup on ch 11. The instrument is fixed
--- on the backend (`ecbc`: A2 E3 G3, top string as B3 and C4 — what the
--- keymap holds). The pattern indexes its COMPOSITE OVERTONE SERIES
+-- on the backend (`ecbc`: A2 E3 G3, top string as B3 and C4, which is
+-- what the keymap holds). The pattern indexes its COMPOSITE OVERTONE SERIES
 -- (thesis §2.2) filtered to the bar's voiced tones and compressed to
 -- 0 1 2 … ascending. Ints loop, so "[0,1,2]" is the three lowest
 -- available tones and "[-1,-2,-3]" the three highest, whatever the
@@ -1042,7 +1070,7 @@ hush
 -- kinetics: `mark 33 k [pad 1]` fires MPC pad 1 (ch 12) at bar 32 as
 -- written for `rh` (the 12-step shows bar 33). `mark'` takes seconds;
 -- `padbank n b` is pad n of bank b, banks being the MPC's sets of 16.
--- Unprimed = bars, primed = seconds — the same rule as display / display'.
+-- Unprimed = bars, primed = seconds, the same rule as display / display'.
 
 -- ── TRY THIS ──
 -- Flip the contour to "[-1,-2,-3]/4" and hear the same harmony from the
@@ -1057,48 +1085,40 @@ hush
 -- src/Harmonic/Interface/Tidal/LineHarmony.hs
 -- src/Harmonic/Traversal/WalkingBass.hs
 --
--- GOAL: A walking bassline synthesised from the progression —
--- consonant anchors on the strong beats (root on 1; P5/root/3rds
--- on 3), weighted connectors on 2 and 4 preferring sandwich
--- motion and approach tones, with a soft direction-persistence
--- bias on the beat-1 contour. The line is fixed to the
--- double-bass register (E1–C3) and derives its character from
--- the harmony (progression-level consonance scales strictness).
+-- GOAL: A walking bass line built from the progression. The
+-- strong beats carry consonant anchors (root on 1; P5, root or a
+-- third on 3). Beats 2 and 4 are weighted connectors preferring
+-- sandwich motion and approach tones, with a soft bias towards
+-- keeping the beat-1 contour's direction. The line sits in the
+-- double-bass register (E1–C3).
+-- Uses: tempo (Section 0), start (Section 1).
 --
--- The walk follows the PERFORMED bar order: warp / rep
--- selections are resolved at eval time, repeated bars walk as
--- neighbours (root–fifth alternation), and approach tones aim
--- at the bar that actually comes next. Non-periodic selections
--- (`?`, euclidean, sub-bar values) fall back to stored order
--- with a printed notice.
---
--- Connector tones on beats 2/4 draw on the KEY-AREA palette —
--- the same whole-progression analysis behind the chordscale
--- S/M layers (Section 19): under a plain selection the bass
--- walks the sets those layers display. Under a reordering
--- selection the walk re-analyses the performed sequence
--- (deliberately — it hears what is actually played), and its
--- lines add chromatic approach tones beyond any stored set.
+-- The walk follows the bars in the order they're performed:
+-- warp / rep selections are resolved as the pattern plays, a
+-- repeated bar walks root to fifth, and approach tones aim at the
+-- bar that actually comes next. Selections that don't repeat
+-- cleanly (`?`, euclidean, sub-bar values) fall back to stored
+-- order with a printed notice. Connector tones come from the same
+-- key-area analysis as the chordscale layers (Section 19); when a
+-- selection reorders the bars, the walk re-analyses what's
+-- actually played.
 --
 --   lineHarmony d k voiceFn patterns
---     d        — dynamics: applied once inside lineHarmony (do
---                NOT also |* vel d outside — that squares it).
---                Dynamics also STEER the walk: bars quieter than
---                the piece's own mean bias the register arc up,
---                louder bars down, and a sudden drop (0.25+
---                between bars) resets the line to its lowest
---                note. Only eval-time-sampleable dynamics count:
---                the d argument and form-node dynamics — live
---                control signals and downstream |* vel are
---                walk-neutral.
---     voiceFn  — beat-1 anchor voicing: `root` or `fund`
---     patterns — 1-indexed BEAT POSITIONS (1 2 3 4), not degrees:
---                which beats of each bar the line sounds on.
---                NOTE kinPick windowing: the list length N
---                partitions the kinetics signal into N windows
---                and plays ONLY the pattern whose window holds
---                the current signal — a leading "~" makes the
---                low-kinetics half silent.
+--     d        dynamics, applied once inside lineHarmony (don't
+--              also |* vel d outside, which squares it). Bars
+--              quieter than the piece's own mean push the
+--              register up, louder bars push it down, and a
+--              sudden drop (0.25+ between bars) resets the line
+--              to its lowest note. Only the d argument and
+--              form-node dynamics steer the walk; live control
+--              signals and a downstream |* vel don't.
+--     voiceFn  beat-1 anchor voicing: `root` or `fund`
+--     patterns 1-indexed beat positions (1 2 3 4), not degrees:
+--              which beats of each bar the line sounds on. A
+--              list of N patterns splits the kinetics signal
+--              into N windows and plays only the pattern whose
+--              window holds the current value, so a leading "~"
+--              silences the low-kinetics half.
 
 walk f k d = p "lineHarmony"
   $ f
@@ -1118,11 +1138,12 @@ do
 hush
 
 -- ── THE SAME WALK, A DIFFERENT FAMILY ──
--- Nothing in the block changes. The family the progression came
--- from is what changes the line: genJ reads the chart through
--- the per-quality bass vocabulary (a 13th's omitted fifth is
--- restored, an altered dominant walks its #5, notated colours
--- stay off the strong beats).
+-- Nothing in the block changes; the family the progression came
+-- from is what changes the line. genJ reads each chord symbol's
+-- bass vocabulary: the fifth a 13th chord omits is restored, an
+-- altered dominant's #5 stands in for the natural 5, and the
+-- notated colours (b9 #9 #11 b13) stay off the strong beats while
+-- remaining available as weak-beat tension.
 
 sJ16 <- seek "*" $ len 8 $ entropy 0.4 $ genJ
 
@@ -1132,31 +1153,19 @@ do
 
 hush
 
--- genP walks its strata chroma the same way; genE walks its
--- foundation (T) layer, the one that owns the bass.
+-- genP walks its strata chroma, and for octatripentatonic
+-- progressions (Section 19) the connector pool reweights towards
+-- the 5-PC strata set. genE walks its foundation (T) layer, the
+-- one that owns the bass.
 
--- Sparser walks — the beat-position patterns compose like any
+-- Sparser walks: the beat-position patterns compose like any
 -- Tidal pattern:
---   ["~", "[1 3]/4"]        — two-feel (beats 1 and 3)
---   ["~", "[1 2 ~ 4]/4"]    — skip beat 3
---   ["~", "[1 [2 2] 3 4]/4"] — an eighth-note fill on beat 2
---
--- For octatripentatonic progressions (Section 19) the line's
--- connector pool automatically reweights toward the 5-PC strata
--- set — the walk speaks the same dialect as the harmony.
---
--- For polytonal progressions (Section 20) the walk reads the
--- foundation (T) layer — the layer that owns the bass.
---
--- For jazz progressions (Section 21) each bar is read through its
--- chord symbol's bass vocabulary: the fifth a 13th chord omits is
--- restored, an altered dominant's #5 stands in for the natural 5,
--- and notated colours (b9 #9 #11 b13) never land on strong beats —
--- they stay available as weak-beat tension. Nothing to switch on;
--- the walk follows the progression's family.
+--   ["~", "[1 3]/4"]         two-feel (beats 1 and 3)
+--   ["~", "[1 2 ~ 4]/4"]     skip beat 3
+--   ["~", "[1 [2 2] 3 4]/4"] an eighth-note fill on beat 2
 
 -- ── TRY THIS ──
--- Mute the pad and listen to the line alone — the strong beats
+-- Mute the pad and listen to the line alone: the strong beats
 -- carry the changes by themselves. Swap `root` for `fund` on an
 -- inversion-heavy progression and hear beat 1 stabilise.
 
@@ -1168,8 +1177,9 @@ hush
 -- live/docs/ORCHESTRAL_CATALOGUE.tidal     (instrument catalogue)
 -- documents/ALGORITHMIC_ORCHESTRATION.md        (full orchestration system)
 --
--- GOAL: Address stacked voices as independent patterns — each
+-- GOAL: Address stacked voices as independent patterns, each
 -- with its own kinetics range, voicing function and register.
+-- Uses: tempo (Section 0), start (Section 1).
 --
 -- The core idea: stack several `arrange` calls in one launcher,
 -- each reading a different voicing degree in a different octave.
@@ -1180,15 +1190,15 @@ p01satb f k d = d01 $ do
   let o = ch 01
   f
     $ stack [silence
-      -- Soprano — top voice
+      -- Soprano: top voice
       , arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~"
         , "[3]/1"
       ] # o |+ oct 1 |* vel 0.7
-      -- Alto — upper middle
+      -- Alto: upper middle
       , arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~"
         , "[2]/1"
       ] # o |* vel 0.6
-      -- Tenor — lower middle
+      -- Tenor: lower middle
       , arrange (0, 1) k (-9, 9) T flow (overlapF 0) ["~"
         , "[1]/1"
       ] # o |* vel 0.6
@@ -1210,8 +1220,8 @@ hush
 -- When a voice splits into desks, each desk is quieter than the
 -- undivided line. Divisi handles the split and the equal-power
 -- (1/sqrt n) compensation. Each voice carries three tiers in one
--- voiceLines record — base, ', '' — all ordinary degree
--- patterns; unset tiers default one/two degrees up.
+-- voiceLines record (base, ', ''), all ordinary degree patterns;
+-- unset tiers default to one and two degrees up.
 p01div f k d = d01 $ do
   let o  = ch 01
       vl = voiceLines {_vl = "~"
@@ -1233,18 +1243,18 @@ do
 hush
 
 -- With the orchestral instrument functions the same split is one
--- line — `divisi 2 violin1 T (0, 1) k vl grid Soprano` — and
--- primed voices (Soprano', Bass8vb') pick desks manually. The
--- full system (16 instruments — 14 pitched, 2 unpitched — articulations, section blocks,
--- timbral blends) lives in documents/ALGORITHMIC_ORCHESTRATION.md; it
--- depends on a specific MIDI rig, so this guide stops at the
--- paradigm.
+-- line, `divisi 2 violin1 T (0, 1) k vl grid Soprano`, and primed
+-- voices (Soprano', Bass8vb') pick desks by hand. The full system
+-- (16 instruments, 14 pitched and 2 unpitched, with articulations,
+-- section blocks and timbral blends) is in
+-- documents/ALGORITHMIC_ORCHESTRATION.md; it depends on a specific
+-- MIDI rig, so this guide stops at the principle.
 
--- ── THE LAYER ARGUMENT IS WHERE THE FAMILIES ARRIVE ──
+-- ── THE LAYER ARGUMENT IS WHERE THE FAMILIES COME IN ──
 -- On a genP context the S layer is that bar's five-note strata
 -- and M its seven-note mode, so the same call becomes pentatonic
--- or modal material over the same harmony — degrees, not chord
--- tones. Swap S for M, or TS / TSM for the unions.
+-- or modal material over the same harmony, in degrees rather than
+-- chord tones. Swap S for M, or TS / TSM for the unions.
 
 sP17 <- seek "*" $ len 8 $ entropy 0.4 $ genVI
 
@@ -1265,8 +1275,9 @@ hush
 --
 -- GOAL: Name the recurring material a piece is built from, and
 -- develop it with the classic tools instead of retyping strings.
+-- Uses: tempo (Section 0), start (Section 1).
 --
--- Motifs are plain patterns — a `Pattern Bool` rhythm and a
+-- Motifs are plain patterns: a `Pattern Bool` rhythm and a
 -- `Pattern Int` contour (voicing degrees, realised against the
 -- harmony by `arrange`, so a contour tracks the chords).
 
@@ -1287,8 +1298,8 @@ s <- seek "*" $ cue start $ tonal (hcKey "0#" $ hContext) $ len 4 $ entropy 0.5 
 --   contour |+ 2        transposition   "<0 1>" <~ rhythm rotation
 --
 -- ── SCOPE: cycle vs bar ──
--- These transforms work on the CYCLE. One cycle is one beat here, so a
--- bar-length figure carries `/4` and spans four cycles — and Tidal's `rev`
+-- These transforms work on the cycle. One cycle is one beat here, so a
+-- bar-length figure carries `/4` and spans four cycles, and Tidal's `rev`
 -- then reverses each beat on its own rather than retrograding the phrase.
 -- `retro` is provided for this (Motif, beside `mirror`):
 --
@@ -1297,15 +1308,15 @@ s <- seek "*" $ cue start $ tonal (hcKey "0#" $ hContext) $ len 4 $ entropy 0.5 
 --   retroN 8 motif   -- retrograde over n cycles (here, two bars)
 --
 -- The same caveat applies to rotation. `~>` shifts in cycles, so shifting a
--- figure by a multiple of its own period is a silent no-op — rotating
+-- figure by a multiple of its own period does nothing: rotating
 -- `"[3 2 0 1]*4"` (period 1/4 cycle) by 1/4 lands back on itself. Rotate
 -- bar-scoped material, or shift by a fraction of the period:
 --
 --   0.5 ~> contour                      -- canon at the half-beat
 --
--- Check a development before trusting it. Note that `queryArc` returns
--- events in query order, NOT time order, so inspect with the start time
--- attached or sort first — otherwise a working `rev` looks like a no-op:
+-- Check a development before trusting it. `queryArc` returns events in
+-- query order, not time order, so inspect with the start time attached
+-- or sort first; otherwise a working `rev` looks like a no-op:
 --
 --   [ (wholeStart e, value e) | e <- queryArc (rev contour) (Arc 0 1) ]
 
@@ -1329,9 +1340,9 @@ do
 
 -- ── TRY THIS ──
 -- Re-execute the panel with `contour = "[0 1 2 3]/4"` or
--- `rhythm = bossa32` and hear p01mot reprogram in one step.
--- Swap `mirror 3` for `rev`. Claves in Groove: son32,
--- rumba32, bossa32, bellpat32 (+ 23 rotations: son23 etc).
+-- `rhythm = bossa32` and p01mot changes in one step. Swap
+-- `mirror 3` for `retro`. Claves in Groove: son32, rumba32,
+-- bossa32, bellpat32 (+ 2-3 rotations: son23 etc).
 
 hush
 
@@ -1351,37 +1362,40 @@ hush
 --   M  mode layer    7 PCs   a diatonic mode per bar (genP)
 --
 -- The `arrange` layer argument selects which one patterns read.
--- Combination selectors synthesize unions per bar: TS / TM / SM
--- (pairs), TSM (all three) and PT (the tones every layer shares),
--- rooted on the lowest constituent layer — the foundation owns a
--- merged bass. On genE contexts (SECTION 20) S and M are partner
--- TRIADS and the pairs are 4-note structures.
--- The strata-first generator `genP` populates the layers by
--- walking eleven canonical pentatonic STRATA (I–XI) grouped into
--- twelve curated TRISTRATA whose pairwise unions are diatonic
--- modes (documents/OCTATRIPENTATONICS.md). gen and genJ DERIVE
--- theirs by chordscale analysis: the whole progression segments
--- into key areas (major, or composite minor), M = the key as the
--- mode on each bar's root, S = the pentatonic that best covers
--- the bar's guide tones with the fewest changes. The walking
--- bass reads the SAME analysis, so it walks what the layers
--- display.
+-- Combined selectors are bar-by-bar unions: TS / TM / SM (pairs),
+-- TSM (all three) and PT (the tones every layer shares), rooted
+-- on the lowest layer in them, so the foundation owns a merged
+-- bass. Uses: tempo (Section 0).
 --
---   genP <label>  — seed the walk at a strata; 33 aliases:
+-- How each family fills the layers:
+--   genP        walks eleven canonical pentatonic strata (I–XI),
+--               grouped into twelve curated tristrata whose
+--               pairwise unions are diatonic modes
+--               (documents/OCTATRIPENTATONICS.md)
+--   genE        S and M are partner triads, and the pairs are
+--               4-note structures (Section 20)
+--   gen, genJ   derive the layers by chordscale analysis: the
+--               progression divides into key areas (major, or
+--               composite minor); M = the key as the mode on each
+--               bar's root, S = the pentatonic that best covers
+--               the bar's guide tones with the fewest changes.
+--               The walking bass reads the same analysis.
+--
+--   genP <label>  seed the walk at a strata; 33 aliases:
 --   genI..genXI (+ ' standard / '' verbose diagnostics)
 --
--- genP picks its own starting chord from INSIDE the stratum it
+-- genP picks its own starting chord from inside the stratum it
 -- names, so genI..genXI work uncued. Pass `cue` for a particular
--- door in; a chord that escapes the stratum is reported with the
--- triads that would have fitted, never silently swapped.
+-- way in; a chord that falls outside the stratum is reported with
+-- the triads that would have fitted, never silently swapped.
 
 start <- lead "E min"
 
 -- Standard verbosity prints per-bar triad + strata (5 PCs) +
--- mode (7 PCs) + tristrata identity — the full anatomy:
+-- mode (7 PCs) + tristrata identity, the full anatomy:
 pc19 <- seek "*" $ cue start $ len 8 $ entropy 0.5 $ genVI'
 
--- Hear the three densities of the SAME harmony — swap the layer:
+-- Hear three densities of the same harmony by swapping the layer:
 p19 layer = do
   let k = iK tempo [at 0 1 1 pc19] (rep pc19 1)
   mapM_ id [hush, setbpm tempo
@@ -1397,15 +1411,15 @@ hush
 
 -- ── STEERING THE WALK ──
 
--- Lock to one tristrata (#5 = IV-VI-X) — three strata, one
+-- Lock to one tristrata (#5 = IV-VI-X): three strata, one
 -- eight-tone world:
 pcLock <- seek "*" $ cue start $ tonal (hcTristrata "5" hContext) $ len 8 $ entropy 0.5 $ genVI'
 
--- Per-bar RELATIVE position (1..3) inside the active tristrata
--- (length auto-set from the list):
+-- Per-bar relative position (1..3) inside the active tristrata
+-- (length set from the list):
 pcRel <- seek "*" $ cue start $ relStrata "1 1 2 2 3 3" $ genVI'
 
--- Per-bar ABSOLUTE strata labels:
+-- Per-bar absolute strata labels:
 pcAbs <- seek "*" $ cue start $ absStrata "I V X" $ genI'
 
 -- Provenance + triads in one report:
@@ -1413,7 +1427,7 @@ genPReport pcAbs
 
 -- ── CHORDSCALE LAYERS (gen / genJ) ──
 
--- The same p19 selectors work on gen/genJ results — S plays the
+-- The same p19 selectors work on gen/genJ results: S plays the
 -- analysis pentatonics, M the detected modes. The report prints
 -- key | form | mode | pentatonic per bar, with boundary (<),
 -- override (!) and out-of-key (*) flags:
@@ -1426,16 +1440,16 @@ handCS = chordscale (fromChords [[0,4,7], [9,0,4], [2,5,9], [7,11,2]])
 -- ── CONTINUITY BOOSTS ──
 -- The walk prefers staying put. Three multipliers bias it
 -- (defaults 0.90 / 0.80 / 0.70; 1.0 disables that bias):
---   sameBoost — same strata as the previous bar
---   flipBoost — same strata as two bars ago (alternation)
---   triBoost  — same tristrata as the previous bar
+--   sameBoost  same strata as the previous bar
+--   flipBoost  same strata as two bars ago (alternation)
+--   triBoost   same tristrata as the previous bar
 pcFree <- seek "*" $ cue start $ sameBoost 1.0 $ triBoost 1.0 $ len 8 $ genVI'
 
 -- ── TRY THIS ──
--- `p19 S` under a soloist (you) is pentatonic practice with
--- moving ground. `attempt 3 12 $ ... $ genVI''` ranks whole
+-- `p19 S` under a soloist (you) is pentatonic practice over
+-- moving harmony. `attempt 3 12 $ ... $ genVI''` ranks whole
 -- walks. The walking bass (Section 16) reweights automatically
--- over genP progressions — stack `walk` under `p19 M`.
+-- over genP progressions: stack `walk` under `p19 M`.
 
 hush
 
@@ -1447,21 +1461,22 @@ hush
 -- src/Harmonic/Interface/Tidal/PolytonalT.hs     (genEReport)
 --
 -- GOAL: Three simultaneous triad progressions from one walk.
--- The T layer is a foundation walk byte-identical to gen (all
--- R constraints bind it alone — the foundation owns the bass).
--- S and M are partner triad chains, each a corpus-valid walk
--- of its own, sharing exactly 2 pitch classes with that bar's
--- foundation triad and unioning to exactly 5 — so any pair of
+-- The T layer is a foundation walk identical to gen; every R
+-- constraint binds it alone, because the foundation owns the
+-- bass. S and M are partner triad chains, each a corpus-valid
+-- walk of its own, sharing exactly 2 pitch classes with that
+-- bar's foundation triad for a union of exactly 5, so any pair of
 -- layers sounds a 4-note structure and all three the pentad.
--- The traversal picks freely per bar between the two admitted
--- geometries: common-dyad (every pair = 4 tones) and
--- base-anchored (T-pairs = 4 tones, S+M = the pentad).
+-- The walk chooses between two geometries bar by bar:
+--   common-dyad    every pair of layers sounds 4 tones
+--   base-anchored  T+S and T+M sound 4 tones, S+M the pentad
+-- Uses: tempo (Section 0).
 
 start <- lead "C maj"
 
--- Zero prime prints the foundation grid plus the combined TSM
--- grid; genE' adds a per-bar table (partners, pair structures,
--- pentad, pivot tones); genE'' adds the selection facts.
+-- The unprimed form prints the foundation grid plus the combined
+-- TSM grid; genE' adds a per-bar table (partners, pair
+-- structures, pentad, pivot tones); genE'' adds the selection facts.
 pc20 <- seek "*" $ cue start $ len 8 $ entropy 0.3 $ genE'
 
 -- Play the layers: T alone, a partner alone (its own roots and
@@ -1482,37 +1497,37 @@ genEReport pc20
 
 -- ── COMPOSES LIKE EVERYTHING ELSE ──
 --
--- Two things differ here from the other three families.
+-- Two things work differently from the other three families.
 --
--- EVERY LAYER VOICES AS HARMONY — the caller's flow/grid solve,
--- SM and TSM pentads included. A genE pentad is three stacked
--- triads sounding at once, a polytonal SONORITY rather than a
--- scale form, so vertical voice leading is the right question;
--- the pentatonic/modal layers of gen/genP/genJ take lattice
--- semantics instead precisely because they are not that.
+-- Every layer is voiced as harmony: the caller's flow/grid
+-- solves every layer, the SM and TSM pentads included. A genE
+-- pentad is three stacked triads sounding at once, a polytonal
+-- sonority rather than a scale, so vertical voice leading is the
+-- right treatment; the pentatonic and modal layers of
+-- gen/genP/genJ use the lattice instead.
 --
--- ATTEMPT RANKS ALL THREE LAYERS — half the weight on the
--- foundation, a quarter on each partner — plus a DIVERGENCE axis:
--- how often the partners take the base-anchored geometry, and how
--- widely the three roots spread. Divergence is the point of the
--- family, so it competes with quality rather than breaking ties.
--- Raising K raises both; genE'' shows the trade in its own
--- scoreboard columns.
+-- attempt ranks all three layers: half the weight on the
+-- foundation and a quarter on each partner, plus a divergence
+-- score for how often the partners take the base-anchored
+-- geometry and how widely the three roots spread. Divergence is
+-- what this family is for, so it competes with quality rather
+-- than breaking ties. Raising K raises both; genE'' shows the
+-- trade-off in its own scoreboard columns.
 pc20'' <- seek "*" $ cue start $ len 8 $ attempt 3 12 $ entropy 0.4 $ genE''
 
 -- Regeneration is family-aware: the partner chains regenerate
 -- with the foundation range, seeded from the kept bars:
 pc20r <- seek "*" $ entropy 0.3 $ genFrom pc20 3 5
 
--- Partners honour the harmonic space (key / roots / overtones)
--- but ignore rise/fall direction specs and drift — those bind
+-- Partners respect the harmonic space (key / roots / overtones)
+-- but ignore rise/fall direction specs and drift; those bind
 -- the foundation alone, and the partner lines stay free:
 pc20k <- seek "*" $ cue start $ len 8 $ tonal (hcKey "0#" $ consonant hContext) $ genE'
 
--- Cues are triadic (a 4-note cue is refused — the combined
--- structures come from the layers). Hand-built 4-note material
--- still enters via lead' and plays as-is; regenerating it
--- produces triads with a printed notice:
+-- Cues are triadic (a 4-note cue is refused, because the
+-- combined structures come from the layers). Hand-built 4-note
+-- material still enters via lead' and plays as written;
+-- regenerating it produces triads with a printed notice:
 start' <- lead' "Eb Gb Bb Db"        -- Eb m7, hand-built, plays as-is
 pcHand <- seek "*" $ cue start' $ len 4 $ genGrid
 pcHandR <- seek "*" $ entropy 0.3 $ genFrom pcHand 2 3   -- prints the triad-downgrade notice
@@ -1531,13 +1546,14 @@ hush
 -- src/Harmonic/Framework/Builder/JazzGen.hs   (the jazz walk)
 -- src/Harmonic/Rules/Import/Jazz.hs           (parser + namer)
 --
--- GOAL: leadsheet changes — m7, 7#9, 13b9#11, slash chords —
+-- GOAL: leadsheet changes (m7, 7#9, 13b9#11, slash chords)
 -- walked with the same modifier chain, trained on the
 -- Jazz-Chord-Progressions-Corpus (Bunks et al., ISMIR 2023;
 -- 2,614 tunes). The jazz graph (:Change) lives beside the
 -- classical one; chords come out at corpus arity (3-6 tones)
--- and there is deliberately NO consonance fallback — the
--- corpus is rich enough that the graph IS the pool.
+-- and there is deliberately no consonance fallback: the corpus
+-- is rich enough that the graph is the pool. Uses: tempo
+-- (Section 0).
 
 -- Cue with leadJ: leadsheet symbols in their own quality
 -- namespace (lead/lead' and the triadic tables are untouched).
@@ -1550,26 +1566,26 @@ pc21 <- seek "*" $ cue jstart $ len 8 $ entropy 0.3 $ genJ'
 
 -- ── ONE SEEK SPEC, BOTH CORPORA ──
 -- Jazz names blend by corpus weights (substring-matched:
--- "monk" finds theloniousmonk and the co-credits). A CLASSICAL
+-- "monk" finds theloniousmonk and the co-credits). A classical
 -- name steers instead: each step, the chord's most consonant
 -- embedded triad asks the classical graph what that composer
 -- would do next, and jazz candidates containing a recommended
--- triad get boosted. steer dials the strength.
+-- triad get a boost. steer sets the strength.
 pc21b <- seek "theloniousmonk:60 johncoltrane:40" $ cue jstart $ len 8 $ entropy 0.5 $ genJ'
 pc21s <- seek "debussy" $ steer 8 $ cue jstart $ len 8 $ entropy 0.3 $ genJ'
 pc21m <- seek "monk debussy" $ cue jstart $ len 8 $ entropy 0.3 $ genJ'
--- (seek "none" is refused — the jazz graph has no offline mode.)
+-- (seek "none" is refused: the jazz graph has no offline mode.)
 
 -- ── THE USUAL MODIFIERS ──
 -- tonal runs the same R filters over jazz candidates (key of C
--- pins the walk to diatonic corpus vocabulary — Am7, Dm7,
--- G7sus4, CM7...); genFrom regenerates jazz-natively; attempt
--- ranks against the jazz graph's own cadence statistics.
+-- pins the walk to diatonic corpus vocabulary: Am7, Dm7,
+-- G7sus4, CM7...); genFrom regenerates as jazz; attempt ranks
+-- against the jazz graph's own cadence statistics.
 pc21k <- seek "*" $ cue jstart $ tonal (hcKey "0#" hContext) $ len 8 $ entropy 0.4 $ genJ'
 pc21r <- seek "*" $ entropy 0.6 $ genFrom pc21 3 4
 pc21a <- seek "*" $ attempt 3 8 $ cue jstart $ len 8 $ entropy 0.4 $ genJ''
 
--- Play it: ordinary ProgressionContext — voicings, kinetics and
+-- Play it: an ordinary ProgressionContext. Voicings, kinetics and
 -- arrange all work unchanged on 3-6-tone chords, and the walking
 -- bass reads the jazz vocabulary automatically (Section 16).
 p21 = do
@@ -1582,14 +1598,14 @@ p21 = do
 p21
 
 -- genJ results carry chordscale S/M layers like every gen
--- result (Section 19) — the analysis view:
+-- result (Section 19). The analysis view:
 chordscaleReport pc21
 
 -- ── TRY THIS ──
 -- The guided tour with live database probes is
--- live/docs/JAZZ_DIAGNOSTIC.tidal — work down it section by section.
--- Compare pc21 and pc21s grids: the Debussy steer audibly drags
--- the walk into maj7 colour. Then mute the pad and listen to the
+-- live/docs/JAZZ_DIAGNOSTIC.tidal; work down it section by section.
+-- Compare the pc21 and pc21s grids: the Debussy steer pulls the
+-- walk into maj7 colour. Then mute the pad and listen to the
 -- bass alone: on a 13th chord it reaches the fifth the voicing
 -- never states, and it steps around the altered tones.
 
@@ -1599,41 +1615,41 @@ hush
 -- ══════════════════════════════════════════════════════════
 -- SECTION 22 — Snippets & the liveness gradient
 -- ══════════════════════════════════════════════════════════
--- live/system/pulsar/snippets.cson   (the snippet library — Pulsar format)
+-- live/system/pulsar/snippets.cson   (the snippet library, Pulsar format)
 --
--- GOAL: Choose, deliberately, how much of a performance is
--- prepared and how much is conjured at the keyboard.
+-- GOAL: Choose deliberately how much of a performance is
+-- prepared and how much is made at the keyboard.
 --
 -- The snippet library (live/system/pulsar/snippets.cson, for Pulsar with the
 -- TidalCycles grammar: type a prefix, press Tab, fill the
 -- tab-stops) scaffolds every structure this guide has built.
 -- Three working modes, on a gradient:
 --
---   PREPARED STATE FILE — a complete launch block evaluated in
+--   PREPARED STATE FILE: a complete launch block evaluated in
 --     one gesture. Instant sound, everything decided in advance.
 --     Fastest to music; least is decided live.
 --
---   SNIPPET EXPANSION — structure arrives from the library,
+--   SNIPPET EXPANSION: structure arrives from the library, and
 --     decisions (key, composer, entropy, patterns) are made live
---     at the tab-stops. The skeleton is given; the choices are
---     yours, in front of the audience.
+--     at the tab-stops, in front of the audience.
 --
---   BLANK PAGE — everything typed. Slowest to music; every
+--   BLANK PAGE: everything typed. Slowest to music; every
 --     decision is visible and live.
 --
--- None is "more correct" — they trade immediacy against
--- decidedness. A performance can move along the gradient:
--- open from a state file, develop by snippet, end blank-page.
+-- None is more correct than another; each trades immediacy
+-- against how much is decided in advance. A performance can move
+-- along the gradient: open from a state file, develop by snippet,
+-- end on a blank page.
 --
 -- ── WHAT EARNS A PREFIX ──
--- A snippet prepares a REPEATED, FIDDLY syntax path around a
+-- A snippet prepares a repeated, fiddly path of syntax around a
 -- musical action, so the hands reach for music rather than
--- boilerplate — not one block per feature. Fewer prefixes is
--- better: less to recall mid-performance. Short memorable
--- things live in this guide instead — switching generation
--- family is four characters ($ gen -> $ genJ), a verbosity
--- prime is one. If a body is a line you would type faster
--- than you would remember the prefix, it is not a snippet.
+-- boilerplate; it isn't one block per feature. Fewer prefixes are
+-- better: less to recall mid-performance. Short memorable things
+-- live in this guide instead: switching generation family is
+-- four characters ($ gen -> $ genJ), a verbosity prime is one.
+-- If you'd type a line faster than you'd remember its prefix, it
+-- shouldn't be a snippet.
 --
 -- ── THE PREFIX INDEX (live/system/pulsar/snippets.cson) ──
 --   session      transport · state (a full launch block)
@@ -1642,22 +1658,20 @@ hush
 --   groove/lines subk · walk
 --   motifs       motif
 --   orchestra*   orchsec · tutti · instr
---   hardware*    k909 · kmpc · m32 · mdf
+--   hardware*    k909 · kmpc · m32 · mdf · rc10 · dkit
 --   studio rig*  grnd · mini · jura · hmnx · omap · slce · kgrv · s101 · smpl · auto · gnlr
---   (* rig-specific — see KNOWN EXCEPTIONS)
+--   (* rig-specific; see KNOWN EXCEPTIONS)
 --
--- The `state` snippet is the canonical prepared opening: tempo,
+-- The `state` snippet is the standard prepared opening: tempo,
 -- context, a generated progression under `attempt`, a one-node
--- form, and a launcher with commented instrument lines — the
--- same shape this guide has been building by hand since
--- Section 3. Everything you've learned here IS the snippet
--- library's content; the gradient is just how much of it you
--- re-derive in the moment.
+-- form, and a launcher with commented instrument lines. It's the
+-- same shape this guide builds by hand from Section 3 on, and a
+-- quick way to set up the bindings any later section uses.
 
 -- ── TRY THIS ──
 -- Rebuild Section 3's launcher from memory on a blank page,
--- timing yourself. Then do it from the `state` snippet. The
--- difference is the gradient, felt.
+-- timing yourself. Then do it from the `state` snippet, and
+-- compare.
 
 hush
 
@@ -1667,19 +1681,24 @@ hush
 -- ══════════════════════════════════════════════════════════
 --
 -- INSTRUMENT CATALOGUE
---   live/docs/ORCHESTRAL_CATALOGUE.tidal  — range tests per instrument
+--   live/docs/ORCHESTRAL_CATALOGUE.tidal   range tests per instrument
 --
 -- DOCUMENTATION
---   USER_GUIDE.md                — readable version of this guide
---   CHANGELOG.md                 — V3 feature summary
---   documents/OCTATRIPENTATONICS.md        — strata/tristrata reference
---   documents/POLYTONAL.md                 — genE polytonal framework
---   documents/CHORDSCALE.md                — key areas & chordscale layers
---   documents/ALGORITHMIC_ORCHESTRATION.md — virtual orchestra
---   documents/ARCHITECTURE.md              — R→E→T, layers, graph schema
+--   USER_GUIDE.md                          readable version of this guide
+--   documents/COMPOSERS.md                 the corpora and every composer key
+--   documents/CHORDSCALE.md                key areas & chordscale layers
+--   documents/OCTATRIPENTATONICS.md        strata/tristrata reference
+--   documents/POLYTONAL.md                 genE polytonal framework
+--   documents/ALGORITHMIC_ORCHESTRATION.md virtual orchestra
+--   documents/LIVE_ENVIRONMENT.md          the studio and stage rig
+--   documents/ARCHITECTURE.md              R→E→T, layers, graph schema
+--   CHANGELOG.md                           V3 feature summary
+--
+-- JAZZ
+--   live/docs/JAZZ_DIAGNOSTIC.tidal        guided tour of the jazz graph
 --
 -- DRUM PATTERNS
---   live/drumpats/               — genre pattern library
+--   live/drumpats/                         genre pattern library
 --     (kick/snare/hh helpers in Devices.JV1010)
 --
 -- ── QUICK REFERENCE ──
@@ -1702,21 +1721,21 @@ hush
 --   hcTristrata "5" · relStrata "1 2 3" · absStrata "I V X"
 --   sameBoost/flipBoost/triBoost N · genPReport pc
 --
--- Chordscale (gen / genJ — automatic S/M layers):
+-- Chordscale (gen / genJ, automatic S/M layers):
 --   chordscaleReport s        -- key | form | mode | penta per bar
 --   chordscale ctx            -- opt a hand-built context in
 --
--- Context modifiers (compose with $, right-to-left):
+-- Context modifiers (compose with $, right to left):
 --   hContext, hcOvertones, hcKey, hcRoots, hcPedal,
 --   consonant, dissonant, invSkip, hcTristrata
 --
--- Voicing functions: flow, grid, lite, root, fund
+-- Voicing functions: flow, grid, lite, literal, root, fund
 --
 -- Chord selection: rep s 1, warp "[1 2 3 4]/4"
 --
 -- Arrangement:
 --   arrange  (lo,hi) k (-9,9) LAYER voicing modifier [pats] # ch N
---   arrange' — squeeze variant · LAYER = T | S | M
+--   arrange' is the squeeze variant · LAYER = T | S | M | TS | TM | SM | TSM | PT
 --
 -- Form node: at time kinetics dynamics progression   (secs, smooth)
 --   at' = secs+snap · rh = bars+smooth · rh' = bars+snap
@@ -1725,11 +1744,12 @@ hush
 --
 -- Groove & lines:
 --   subKick d k root (maxDur, subOn, subOff, kickPat)   -- ch 10
+--   subKick' d k root ([..], [..], [..], [..])          -- lists walk the k range
 --   lineHarmony d k root ["~", "[1 2 3 4]/4"]           -- walking bass
 --
 -- Motifs: (rhythm, contour, motif) = (.., .., rhythm >:< contour)
---   develop: rev, mirror axis, slow/fast, |+, <~, struct / >:<
---   claves (BootTidal): son32, rumba32, bossa32, bellpat32 (+ 23s)
+--   develop: retro, mirror axis, slow/fast, |+, <~, struct / >:<
+--   claves (BootTidal): son32, rumba32, bossa32, bellpat32 (+ 2-3 rotations)
 --
 -- Manipulation: rotate, excerpt, transposeP, reverse, fuse, fuse2,
 --               interleave, expandP, insert, switch, clone, extract,
@@ -1737,9 +1757,8 @@ hush
 --
 -- Explicit: fromChords [[0,4,7], ...] · prog (notesToPCs <$> [[C,E,G]])
 --           fromCadenceStates [initCadenceState mov "Root" [ints], ...]
+--           save "name" s · name = recall "triad" ["C E G | C E G | C E G", ...]
 --
--- Snippets (Pulsar): transport · state · ctx · gen · formless ·
---   dance · launch · p · rr · slate · minimal · deeptech ·
---   subk · walk · motif
+-- Snippets (Pulsar): the full index is in Section 22.
 
 hush

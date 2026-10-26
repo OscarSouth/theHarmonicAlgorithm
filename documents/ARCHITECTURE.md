@@ -12,8 +12,9 @@ newer subsystems, [OCTATRIPENTATONICS.md](OCTATRIPENTATONICS.md) and
 ## 1. Overview
 
 theHarmonicAlgorithm generates harmonic progressions from transitions
-learned across 488 composers of the Yale Classical Archives Corpus
-(YCACL), and plays them through TidalCycles. Generation:
+learned across over 10,000 compositions by over 1,000 classical and jazz
+composers (the Yale Classical Archives Corpus, YCACL, and the
+Jazz-Chord-Progressions-Corpus), and plays them through TidalCycles. Generation:
 
 1. Cadence transitions are stored in Neo4j as a weighted graph.
 2. Harmonic constraints define what is *valid* (overtones, key, roots,
