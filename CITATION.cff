@@ -1,0 +1,107 @@
+# version and date-released track the latest GitHub release.
+cff-version: 1.2.0
+message: "If you use The Harmonic Algorithm in your work, please cite it as below."
+type: software
+title: "The Harmonic Algorithm"
+authors:
+  - family-names: South
+    given-names: Oscar
+    email: oscarsouth@gmail.com
+    website: "https://theHarmonicAlgorithm.com"
+version: 3.1.0
+date-released: 2026-08-30
+repository-code: "https://github.com/OscarSouth/theHarmonicAlgorithm"
+url: "https://theHarmonicAlgorithm.com"
+license: GPL-3.0-only
+abstract: >-
+  The Harmonic Algorithm system, integrated with TidalCycles, generates
+  musical harmony states inside user defined musical constraints, then ranks
+  it using a tailored 'cube' of Markov Chain matrices trained on the Yale
+  Classical Archives Corpus. This presents a unique tool in the hands of the
+  composer or performer which can be used as a composing aid, analysis
+  device, for instrumental study or even in live performance.
+keywords:
+  - algorithmic composition
+  - generative music
+  - live coding
+  - TidalCycles
+  - Haskell
+  - Neo4j
+  - music theory
+  - harmony
+  - orchestration
+  - Markov chains
+references:
+  - type: report
+    title: "The Harmonic Algorithm"
+    authors:
+      - family-names: South
+        given-names: Oscar
+    year: 2016
+    url: "https://github.com/OscarSouth/theHarmonicAlgorithm/blob/main/documents/The_Harmonic_Algorithm_2016.pdf"
+  - type: report
+    title: "The Harmonic Algorithm: Reflections"
+    authors:
+      - family-names: South
+        given-names: Oscar
+    year: 2016
+    url: "https://github.com/OscarSouth/theHarmonicAlgorithm/blob/main/documents/Harmonic_Algorithm_Reflections_2016.pdf"
+  - type: report
+    title: "Data Science In The Creative Process: Composing With Functions"
+    authors:
+      - family-names: South
+        given-names: Oscar
+    year: 2018
+    institution:
+      name: "Dublin Business School"
+    url: "https://github.com/OscarSouth/theHarmonicAlgorithm/blob/main/documents/Data_Science_In_The_Creative_Process_2018.pdf"
+  - type: article
+    title: "A preliminary framework for description, analysis and comparison of creative systems"
+    authors:
+      - family-names: Wiggins
+        given-names: Geraint A.
+    journal: "Knowledge-Based Systems"
+    volume: 19
+    issue: 7
+    start: 449
+    end: 458
+    year: 2006
+  - type: article
+    title: "The Yale-Classical Archives Corpus"
+    authors:
+      - family-names: White
+        given-names: Christopher Wm.
+      - family-names: Quinn
+        given-names: Ian
+    journal: "Empirical Musicology Review"
+    volume: 11
+    issue: 1
+    year: 2016
+  - type: conference-paper
+    title: "Modeling Harmonic Similarity for Jazz Using Co-occurrence Vectors and the Membrane Area"
+    authors:
+      - family-names: Bunks
+        given-names: Carey
+      - family-names: Weyde
+        given-names: Tillman
+      - family-names: Dixon
+        given-names: Simon
+      - family-names: Di Giorgi
+        given-names: Bruno
+    collection-title: "Proceedings of the 24th International Society for Music Information Retrieval Conference (ISMIR)"
+    year: 2023
+  - type: software
+    title: "TidalCycles"
+    authors:
+      - family-names: McLean
+        given-names: Alex
+    url: "https://tidalcycles.org"
+    license: GPL-3.0-only
+  - type: book
+    title: "The Craft of Musical Composition, Book 1"
+    authors:
+      - family-names: Hindemith
+        given-names: Paul
+    publisher:
+      name: "Schott Music"
+    year: 1937
