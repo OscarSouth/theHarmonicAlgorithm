@@ -79,10 +79,8 @@ the SIL Open Font License. The licence text ships alongside the font files in
 ## 8. Musical influences
 
 The drum pattern library (`live/drumpats/`) is assembled from many free and
-open sources. Among them, a handful of patterns were referenced from *Pocket
-Operations*, and heavily modified and expanded in the process:
+open sources as well as my own musical taste. Among them, a handful of patterns 
+were referenced from *Pocket Operations*, modified and expanded in the process:
 
 > Wenzel, P. *Pocket Operations — a collection of classic drum machine
 > patterns.* Shittyrecording Studio. https://shittyrecording.studio
-
-Referenced with the author's permission.
