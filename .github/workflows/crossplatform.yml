@@ -1,11 +1,14 @@
 name: Cross-platform build
 
-# Kept OFF the pull-request path deliberately. Haskell CI on Windows is slow and
-# prone to toolchain flakiness; making it a required check would stall ordinary work
-# for reasons that have nothing to do with the change under review.
+# Kept OFF the pull-request path deliberately: a weekly, automated form of the
+# release-time "a fresh clone builds and tests" verification, so a drift in the
+# toolchain or the snapshot surfaces on its own schedule rather than inside an
+# unrelated review.
 #
-# Continuous, automated form of the release-time "fresh clone builds on every
-# platform" verification.
+# Linux only. macOS is the author's own machine and is verified there daily;
+# GitHub's macOS images move faster than GHC's bundled linker (the macOS 26
+# image's 27.0 SDK already defeats GHC 9.10.3), so a hosted mac leg reports
+# image drift, not project breakage. Windows has never been a target.
 on:
   schedule:
     - cron: '0 5 * * 1'      # Mondays, 05:00 UTC
@@ -16,16 +19,14 @@ permissions:
 
 jobs:
   build:
-    name: ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false        # one platform failing must not hide the others
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+    name: Fresh clone (ubuntu-latest)
+    runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - name: Checkout
+        uses: actions/checkout@v7
 
-      - uses: haskell-actions/setup@v2
+      - name: Setup Haskell
+        uses: haskell-actions/setup@v2
         with:
           ghc-version: '9.10.3'
           enable-stack: true
@@ -46,6 +47,5 @@ jobs:
 
       - name: Summarise
         if: always()
-        shell: bash
         run: |
-          echo "- ${{ matrix.os }} -> ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- ubuntu-latest -> ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"

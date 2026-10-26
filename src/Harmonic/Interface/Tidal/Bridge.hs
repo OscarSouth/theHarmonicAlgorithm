@@ -510,7 +510,7 @@ parallel offs pat = pat |+ note offs
 -- onto pitch classes already sent and are dropped, so each chord change costs
 -- one message per pitch class on a DIN line shared with the music.
 --
--- Each set goes out 'stateLead' ahead of its chord: on the wire before the
+-- Each set goes out @stateLead@ ahead of its chord: on the wire before the
 -- chord's own notes, and in place for keys played just before the downbeat.
 --
 -- Channel 10, notes 108-119 sits above everything else on that channel in both

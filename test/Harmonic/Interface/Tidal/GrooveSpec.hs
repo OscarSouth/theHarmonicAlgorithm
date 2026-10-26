@@ -101,6 +101,40 @@ spec = describe "Groove Interface" $ do
       subEvs `shouldSatisfy` (not . null)
       [ p | e <- subEvs, Just p <- [field "note" (value e)] ] `shouldSatisfy` all (< (-12))
 
+  describe "subKick' kinetics lists" $ do
+    let prog    = fromChords [[0,4,7]]
+        kAt x   = (Kinetics (pure x) (pure 1.0) (pure prog) [prog] 0 0 (const True), pure 1 :: Pattern Int)
+        num v   = case v of { VF x -> Just x; VN x -> Just (realToFrac x); _ -> Nothing }
+        field f vm = Map.lookup f vm >>= num
+        isSub e = case field "note" (value e) of
+                    Just nn -> let m = round (nn + 60) :: Int in m >= 36 && m <= 47
+                    Nothing -> False
+        evs p   = [ e | e <- queryArc p (Arc 0 8), eventHasOnset e ]
+        onsets p = [ start (wholeOrPart e) | e <- evs p, isSub e ]
+        spans  p = [ (start (wholeOrPart e), stop (wholeOrPart e)) | e <- evs p, isSub e ]
+        kicks  p = [ start (wholeOrPart e) | e <- evs p, field "note" (value e) == Just (-12) ]
+
+    it "singleton lists reproduce subKick exactly" $
+      let a = subKick  (pure 1.0) (kAt 0.7) fund (1/4, "1*4", "~", "1*4")
+          b = subKick' (pure 1.0) (kAt 0.7) fund ([1/4], ["1*4"], ["~"], ["1*4"])
+          ev p = [ (wholeOrPart e, value e) | e <- evs p ]
+      in ev b `shouldBe` ev a
+
+    it "walks the onset list by kinetics window: lower half first item, upper half second" $ do
+      let p x = subKick' (pure 1.0) (kAt x) fund ([1/4], ["1*2", "1*4"], ["~"], ["~"])
+      onsets (p 0.2) `shouldBe` [0, 2, 4, 6]
+      onsets (p 0.9) `shouldBe` [0, 1, 2, 3, 4, 5, 6, 7]
+
+    it "walks the max-length list: held (manual-off only) below, one cycle above" $ do
+      let p x = subKick' (pure 1.0) (kAt x) fund ([1, 1/4], ["1*2"], ["~"], ["~"])
+      spans (p 0.9) `shouldBe` [(0,1), (2,3), (4,5), (6,7)]
+      spans (p 0.2) `shouldSatisfy` (\ss -> map fst ss == [0, 2, 4, 6] && all (\(s0, e0) -> e0 - s0 > 1) ss)
+
+    it "lists have independent grids (2-item onsets vs 3-item kick at k 0.5)" $ do
+      let p = subKick' (pure 1.0) (kAt 0.5) fund ([1/4], ["1*2", "1*4"], ["~"], ["[~]", "1*2", "1*4"])
+      onsets p `shouldBe` [0, 2, 4, 6]   -- 0.5 is a boundary: lower window
+      kicks  p `shouldBe` [0, 2, 4, 6]   -- (1/3, 2/3]: middle item
+
   describe "noteoff (note-length truncate)" $ do
     let spans p = [ (start w, stop w - start w)
                   | e <- queryArc p (Arc 0 4), eventHasOnset e, value e, let w = wholeOrPart e ]

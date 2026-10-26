@@ -2,6 +2,31 @@
 
 __________________________________________________________________________________
 
+## Version 3.2.0 (2026)
+
+Progressions outlive the session. `save "verse" s` prints a generated or
+hand-built context as a chart — one bar per line, the T | S | M layers side
+by side, a strata column for `genP` material — shaped as a complete
+`verse = recall …` statement. Pasted into the live file, that block binds
+the identical context in any later session: every note in its stored
+spelling, every chord name (the graph key `genFrom` and `seek` depend on),
+every approach movement and every bar of strata provenance. `recall` is
+pure, so saved progressions re-evaluate freely and can be hand-written in
+the same lead-sheet idiom (`"C E G | C E G | C E G"` names itself through
+the corpus namer). The emitted text is parsed back and compared before it
+is printed, so a block that would not round-trip is reported, never
+emitted.
+
+The sub grows with the form. `subKick'` takes a list in each of the four
+slots (maximum length, onsets, manual offs, kick) and walks every list across
+the kinetics range on its own grid, the way `lineHarmony` already walks its
+pattern list — N items, N equal windows — so a held drone, a sparse
+euclidean groove and a rotating, phasing peak pattern are one block, and the
+kick can interlock with the sub where the energy is. `subKick` is unchanged,
+the all-singletons case.
+
+__________________________________________________________________________________
+
 ## Version 3.1.1 (2026)
 
 A consolidation patch. The rig now runs from two machines: the Linux port

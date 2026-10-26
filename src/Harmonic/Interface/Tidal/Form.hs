@@ -122,7 +122,7 @@ data Kinetics = Kinetics
                                                --   derived from the same @bpm@ on every launcher
                                                --   re-evaluation.
   , kDegrees  :: Int -> Bool                   -- ^ Launcher-wide degree filter, applied by
-                                               --   'arrange' on top of each line's own range
+                                               --   @arrange@ on top of each line's own range
                                                --   ('isolate', 'isolate''); @const True@ = all.
   }
 
@@ -347,7 +347,7 @@ kinPick (kin, _) pats =
         in mask (fmap inWin (kSignal kin)) p
   in stack (zipWith window [0 :: Int ..] pats)
 
--- |A degree range for every line the launcher starts, applied in 'k':
+-- |A degree range for every line the launcher starts, applied in @k@:
 --
 -- @k = isolate (-4,2) $ iK tempo form (rep s 4)@
 --

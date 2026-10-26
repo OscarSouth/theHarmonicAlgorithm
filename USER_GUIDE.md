@@ -471,6 +471,8 @@ sStates = fromCadenceStates
 
 `prog` is an alias for `fromChords`; `notesToPCs` maps `NoteName` lists to pitch classes.
 
+To keep a progression across sessions, `save "verse" s` prints it as a chart — one bar per line, the T | S | M layers side by side — shaped as a complete `verse = recall …` statement; pasted into the live file, that block binds the identical context next time. `recall` is pure and reads hand-written bars too.
+
 **Try it** — build your own 8-bar progression, apply `transposeP 2`, then `interleave` it with a generated one — hand and machine in one form.
 
 > **▶ VIDEO — By hand**
@@ -630,6 +632,8 @@ do
 ```
 
 Routes to MIDI channel 10. (A complementary MPC kit program renders the full-range sub+kick; any drum sound on channel 10 works for the walkthrough.)
+
+`subKick'` takes a list in each of the four slots and walks every list across the kinetics range on its own grid (N items, N equal windows, as `kinPick` does for `lineHarmony`), so a held drone, a sparse euclidean groove and a busy peak pattern are one block.
 
 **Try it** — push the kick (`"[1 0 0 1]"`), or swap `root` for `fund` — the sub follows the harmonic fundamental instead of the chord root (inversion-proof low end).
 
@@ -986,7 +990,7 @@ None is "more correct" — they trade immediacy against decidedness. A performan
 | Groove & lines | `subk` · `walk` |
 | Motifs | `motif` |
 | Orchestra* | `orchsec` · `tutti` · `instr` |
-| Hardware* | `k909` · `kmpc` · `m32` · `mdf` |
+| Hardware* | `k909` · `kmpc` · `m32` · `mdf` · `rc10` · `dkit` |
 | Studio rig* | `grnd` · `mini` · `jura` · `hmnx` · `omap` · `slce` · `kgrv` · `s101` · `smpl` · `auto` · `gnlr` |
 
 (\* rig-specific — see Known exceptions.)

@@ -16,7 +16,9 @@
 -- @
 --
 -- (dynamics, context, voice strategy, then (maxDur, sub-on, manual-off,
--- kick) pattern strings). Dynamics discipline: the launcher @d@ is the
+-- kick) pattern strings). @subKick'@ takes a list in each of those four
+-- slots and walks every list across the kinetics range on its own grid, so
+-- the sub grows and relaxes with the form. Dynamics discipline: the launcher @d@ is the
 -- only dynamic applied — 'subKick' deliberately ignores the form's
 -- 'kDynamic' envelope, so the sub holds its level while the orchestra
 -- swells and ducks around it.
@@ -28,6 +30,7 @@
 module Harmonic.Interface.Tidal.Groove
   ( fund
   , subKick
+  , subKick'
   , holdToNext
   , noteoff
     -- * Clave and cascara grids
@@ -39,7 +42,7 @@ import qualified Harmonic.Rules.Import.Jazz as J
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Progression as P
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
-import Harmonic.Interface.Tidal.Form (Kinetics(..), IK, ki)
+import Harmonic.Interface.Tidal.Form (Kinetics(..), IK, ki, kinPick)
 import Data.List (nub, sortOn)
 import Data.Maybe (catMaybes, mapMaybe)
 import Data.Foldable (toList)
@@ -162,10 +165,39 @@ subKick :: Pattern Double
          -> (Time, String, String, String)
          -> Pattern ValueMap
 subKick dyn k voiceFunc (maxDur, subOnStr, subOffStr, kickStr) =
+  subKick' dyn k voiceFunc ([maxDur], [subOnStr], [subOffStr], [kickStr])
+
+-- | 'subKick' with a list in every tuple slot, each walked across the
+-- kinetics range on its own grid: a list of N items splits @[0,1]@ into N
+-- equal windows exactly as 'kinPick' does (boundaries belong to the lower
+-- window), and the item whose window holds the current 'kSignal' is the one
+-- in force. The four lists are independent — three note lengths and four
+-- onset patterns coexist, thirds against quarters — and a one-item list
+-- means "always". A note keeps the maximum length of the window it started
+-- under even if the signal has moved on before its auto-off falls due.
+--
+-- @
+-- subKick' d k root
+--   ( [ 1, 1\/2, 1\/4 ]                          -- held, 2 beats, 1 beat
+--   , [ \"[1]\/2\", \"[1(3,8)]\/2\", \"[1(3,8,2)]\" ] -- onsets, sparse to busy
+--   , [ \"[~]\", \"[~ ~ ~ 1]\/2\" ]                 -- manual offs
+--   , [ \"1*4\", \"[1*4, 1(3,8,2)]\" ] )           -- kick
+-- @
+subKick' :: Pattern Double
+          -> IK
+          -> (P.Progression -> [[Int]])
+          -> ([Time], [String], [String], [String])
+          -> Pattern ValueMap
+subKick' dyn k voiceFunc (maxDurs, subOnStrs, subOffStrs, kickStrs) =
   let (kin, chordPat) = k
-      subOnPat  = slow 4 $ parseBP_E subOnStr
-      subOffPat = slow 4 $ parseBP_E subOffStr
-      kickPat   = slow 4 $ parseBP_E kickStr
+      bar = slow 4 . parseBP_E
+      subOnPat  = kinPick k (map bar subOnStrs)
+      subOffPat = kinPick k (map bar subOffStrs)
+      kickPat   = kinPick k (map bar kickStrs)
+      -- Kill boundaries: the manual offs plus, per window, every onset shifted
+      -- by maxDur*4; a maxDur of 1 or more means manual-off only there.
+      autoOffs   = kinPick k [ if m >= 1 then silence else pure (m * 4) ~> subOnPat | m <- maxDurs ]
+      killBounds = stack [subOffPat, autoOffs]
       progPat = fmap PC.triadLayer (kProg kin)
       uniqueProgs = nub (map PC.triadLayer (kProgs kin))
       cache = [(p, let raw = voiceFunc p
@@ -179,13 +211,13 @@ subKick dyn k voiceFunc (maxDur, subOnStr, subOffStr, kickStr) =
         Nothing  -> let raw = voiceFunc prog
                     in (map normalizeToSubRange raw, length raw)
   in cacheForced `seq` innerJoin $ fmap (\prog ->
-       subKickCoreP (lookupCache prog) subOnPat subOffPat kickPat chordPat dyn k maxDur
+       subKickCoreP (lookupCache prog) subOnPat killBounds kickPat chordPat dyn k
      ) progPat
 
--- |Cached subKick core: takes pre-computed (normPitches, nChords) and
--- pre-parsed patterns, and carries the note-duration \/ kill-boundary logic.
--- LEDs are not emitted here — the SC-side coordinator derives them from
--- outgoing MIDI on ch 10.
+-- |Cached subKick core: takes pre-computed (normPitches, nChords), the
+-- onset pattern, its kill boundaries and the kick pattern, and carries the
+-- note-duration logic. LEDs are not emitted here — the SC-side coordinator
+-- derives them from outgoing MIDI on ch 10.
 subKickCoreP :: ([Int], Int)
               -> Pattern Bool
               -> Pattern Bool
@@ -193,9 +225,8 @@ subKickCoreP :: ([Int], Int)
               -> Pattern Int
               -> Pattern Double
               -> IK
-              -> Time
               -> Pattern ValueMap
-subKickCoreP (normPitches, nChords) subOnPat subOffPat kickPat chordPat dyn k maxDur
+subKickCoreP (normPitches, nChords) subOnPat killBounds kickPat chordPat dyn k
   | nChords == 0 = silence
   | otherwise =
   let
@@ -206,12 +237,6 @@ subKickCoreP (normPitches, nChords) subOnPat subOffPat kickPat chordPat dyn k ma
     dynGate = fmap (> 0) dyn
     thru = s "thru" # midichan 9
     chordIdx = fmap (\i -> (i - 1) `mod` nChords) chordPat
-
-    -- Kill boundaries: manual offs (subOffPat) plus auto offs (each onset +
-    -- maxDur*4). maxDur >= 1 means manual-off only.
-    killBounds
-      | maxDur >= 1 = subOffPat
-      | otherwise   = stack [subOffPat, (pure (maxDur * 4)) ~> subOnPat]
 
     -- Note-ons with pitch sampled once per onset, then each whole extended to
     -- the next kill boundary and emitted as a real note (legato 1 -> SuperDirt
