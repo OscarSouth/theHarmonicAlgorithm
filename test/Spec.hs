@@ -52,6 +52,7 @@ import qualified Harmonic.Interface.Tidal.GrooveSpec as GrooveSpec
 import qualified Harmonic.Interface.Tidal.FormSpec as FormSpec
 import qualified Harmonic.Interface.Tidal.OrchestraSpec as OrchestraSpec
 import qualified Harmonic.Interface.Tidal.ArrangerSpec as ArrangerSpec
+import qualified Harmonic.Interface.Tidal.RecallSpec as RecallSpec
 import qualified Harmonic.Interface.Tidal.UtilsSpec as UtilsSpec
 import qualified Harmonic.Interface.Tidal.DisplaySpec as DisplaySpec
 import qualified Harmonic.Interface.Tidal.Devices.RC10RSpec as RC10RSpec
@@ -86,6 +87,7 @@ main = hspec $ do
   describe "Harmonic.Interface.Tidal.Form" FormSpec.spec
   describe "Harmonic.Interface.Tidal.Orchestra" OrchestraSpec.spec
   describe "Harmonic.Interface.Tidal.Arranger" ArrangerSpec.spec
+  describe "Harmonic.Interface.Tidal.Recall" RecallSpec.spec
   describe "Harmonic.Interface.Tidal.Utils" UtilsSpec.spec
   describe "Harmonic.Interface.Tidal.Display" DisplaySpec.spec
   describe "Harmonic.Interface.Tidal.Devices.RC10R" RC10RSpec.spec

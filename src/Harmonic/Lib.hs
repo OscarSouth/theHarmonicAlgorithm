@@ -252,9 +252,11 @@ module Harmonic.Lib (
 
   -- ** Explicit progression construction
   fromChords, prog,
+  -- ** Save and recall (progressions as paste-able text)
+  save, recall,
 
   -- ** Groove interface (drums and sub bass)
-  subKick, holdToNext, fund, noteoff,
+  subKick, subKick', holdToNext, fund, noteoff,
   son32, son23, rumba32, rumba23, bossa32, bossa23,
   bellpat32, bellpat23,
 
@@ -356,7 +358,7 @@ import Harmonic.Interface.Tidal.Arranger (
     lead, lead', leadJ, parseLeadTokens, LeadToken(..)
   )
 import Harmonic.Interface.Tidal.Groove
-  ( subKick, holdToNext, fund, noteoff
+  ( subKick, subKick', holdToNext, fund, noteoff
   , son32, son23, rumba32, rumba23, bossa32, bossa23
   , bellpat32, bellpat23 )
 import Harmonic.Interface.Tidal.LineHarmony (lineHarmony)
@@ -379,4 +381,5 @@ import Harmonic.Interface.Tidal.OctatripentatonicT (renderTristrataReport, genPR
 import Harmonic.Interface.Tidal.PolytonalT (polyLayerViews, genEReport)
 import Harmonic.Evaluation.Analysis.KeyArea (chordscale)
 import Harmonic.Interface.Tidal.ChordscaleT (renderChordscaleReport, chordscaleReport)
+import Harmonic.Interface.Tidal.Recall (save, recall)
 import Harmonic.Config

@@ -642,6 +642,7 @@ hush
 -- SECTION 11 — Explicit composition (non-generation path)
 -- ══════════════════════════════════════════════════════════
 -- src/Harmonic/Interface/Tidal/Arranger.hs  (fromChords, prog)
+-- src/Harmonic/Interface/Tidal/Recall.hs    (save, recall)
 -- src/Harmonic/Rules/Types/Pitch.hs         (notesToPCs, NoteName)
 --
 -- GOAL: Build progressions by hand when you have specific
@@ -676,6 +677,26 @@ sStates = fromCadenceStates
   , initCadenceState 2 "A" [0, 3, 7]   -- A min, asc 2
   ]
 
+-- Keep a progression across sessions — generated or explicit.
+-- `save` prints the whole context as a chart: one bar per line,
+-- the T | S | M layers side by side (plus a strata column for
+-- genP material), shaped as a complete `name = recall …`
+-- statement. Copy the printed block into this file; evaluating
+-- it next session binds the identical context — every note,
+-- chord name (the graph key), movement, spelling and provenance.
+save "verse" sNamed
+
+-- What `save` prints (and what you paste back). `recall` is pure,
+-- so the binding re-evaluates freely. Hand-writing is fine too:
+-- a bar like "C E G | C E G | C E G" names itself through the
+-- corpus namer and reads as a pedal.
+verse = recall "triad"
+  [ "C E G maj (pedal) | C E G maj (pedal) | C E G maj (pedal)"
+  , "F A C maj (pedal) | F A C maj (pedal) | F A C maj (pedal)"
+  , "G B D maj (pedal) | G B D maj (pedal) | G B D maj (pedal)"
+  , "A C E min (pedal) | A C E min (pedal) | A C E min (pedal)"
+  ]
+
 -- Play the note-named version
 do
   let k = iK tempo [at 0 1 1 sNamed] (rep sNamed 1)
@@ -689,6 +710,8 @@ hush
 -- Build your own 8-bar progression with note names. Apply a
 -- Section 10 manipulation: `transposeP 2 sNamed`. Interleave it
 -- with a generated progression — hand and machine in one form.
+-- Then `save "keeper" s` on a generation you like, and paste the
+-- block under a heading of its own: a repertoire file grows.
 
 
 -- ══════════════════════════════════════════════════════════
@@ -935,6 +958,19 @@ subk f k d = p "subKick"
       , "[0 1 0 0]"       -- sub bass off: control
       , "1*4"              -- kick: four on the floor
     )
+
+-- The primed form takes a LIST in each slot and walks every list
+-- across the kinetics range on its own grid (N items = N equal
+-- windows, as kinPick does for lineHarmony; a one-item list means
+-- "always"). The sub grows and relaxes with the form.
+subk' f k d = p "subKick"
+  $ f
+    $ subKick' d k root
+      ( [ 1, 1/2, 1/4 ]                                  -- held -> 2 beats -> 1 beat
+      , [ "[1]/2", "[1(3,8)]/2", "[1(3,8,<0 2>)]" ]      -- onsets, sparse to busy
+      , [ "[~]", "[~ ~ ~ 1]/2" ]                         -- manual offs
+      , [ "1*4", "[1*4, 1(3,8,<0 2>)]" ]                 -- kick
+      )
 
 s <- seek "*" $ cue start $ tonal ctx $ len 4 $ entropy 0.5 $ gen
 

@@ -114,6 +114,9 @@ rcRhythmBreak = pressCC 76
 -- Preset rhythm
 -------------------------------------------------------------------------------
 
+-- | The preset-rhythm footswitches: RHY START, RHY STOP (observing the pedal's
+-- STOP MODE), RHY FILLIN, and RHY DIVISION, which toggles PTN1 \/ PTN2 with the
+-- pedal holding the state between presses.
 rcRhythm, rcRhythmStop, rcFill, rcPattern :: Pattern Bool -> ControlPattern
 rcRhythm     = pressCC 77   -- RHY START
 rcRhythmStop = pressCC 78   -- RHY STOP, observing the pedal's STOP MODE

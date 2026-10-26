@@ -20,7 +20,7 @@ Key directories:
 - `src/Harmonic/Evaluation/` - Scoring and database queries (Dissonance, VoiceLeading, Query, Markov)
 - `src/Harmonic/Traversal/` - Probabilistic selection
 - `src/Harmonic/Framework/` - Builder (R→E→T orchestration)
-- `src/Harmonic/Interface/Tidal/` - TidalCycles interface (Bridge, Arranger, Groove, Instruments, Utils, Motif, Display, Devices/)
+- `src/Harmonic/Interface/Tidal/` - TidalCycles interface (Bridge, Arranger, Groove, Recall, Instruments, Utils, Motif, Display, Devices/)
 - `test/` - HSpec + QuickCheck test suite
 - `live/` - TidalCycles scripts and boot configuration
 

@@ -152,6 +152,22 @@ subk f k d = p "subKick"
 - Sub group gates at `(0.1, 1)`, kick at `(0.2, 1)` via `ki`
 - `maxDur < 1` triggers auto-off; `maxDur >= 1` means manual-off only
 
+`subKick'` takes a list in each of the four slots and walks every list across the
+kinetics range on its own grid — N items split 0–1 into N equal windows, as `kinPick`
+does for `lineHarmony`, boundaries belonging to the lower window — so the sub grows and
+relaxes with the form. A one-item list means "always"; `subKick` is the all-singletons case.
+
+```tidal
+subk f k d = p "subKick"
+  $ f
+    $ subKick' d k root
+      ( [ 1, 1/2, 1/4 ]                                   -- held -> 2 beats -> 1 beat
+      , [ "[1]/2", "[1(3,8)]/2", "[1(3,8,<0 2>)]" ]       -- onsets, sparse to busy
+      , [ "[~]", "[~ ~ ~ 1]/2" ]                          -- manual offs
+      , [ "1*4", "[1*4, 1(3,8,<0 2>)]" ]                  -- kick
+      )
+```
+
 ### Channel 11 — natural harmonics (`hmnx`)
 
 `hmnx` is the Harmonic Algorithm's own instrument: the harmony rendered as **natural
