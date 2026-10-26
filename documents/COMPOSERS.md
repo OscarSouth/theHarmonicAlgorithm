@@ -1,11 +1,69 @@
 # Composer Catalogue
 
-Every composer key carried by the classical (`:Cadence`) graph, and the
-syntax for using them. Keys are exactly as stored on the graph's edge
-weights — this list is the authority for spelling. The jazz (`:Change`)
-graph carries its own, much larger key set (over 1,100 names, one per
-credited writer); `genJ` matches those by substring, and they are not
-catalogued here.
+The graph holds harmonic transitions learned from over 10,000 compositions
+by over 1,000 classical and jazz composers. This page breaks the two corpora
+down, then lists every composer key carried by the classical (`:Cadence`)
+graph and the syntax for using them. Keys are exactly as stored on the
+graph's edge weights — this list is the authority for spelling.
+
+## The corpora at a glance
+
+| | classical — Yale Classical Archives Corpus | jazz — Jazz-Chord-Progressions-Corpus |
+|---|---|---|
+| compositions | 8,441 pieces | 2,614 tunes |
+| composers | 488 | 679 with a sole credit (1,336 counting co-writers, who are mostly lyricists) |
+| graph | `:Cadence`, 488 composer keys | `:Change`, 1,133 credit keys |
+| concentration | the 13 most represented composers wrote half the pieces; median 3 pieces per composer, 174 composers with one | a long tail: the 20 most represented composers cover 29% of tunes, and half the tunes need 71 composers; median 1 tune per composer, 413 composers with one |
+
+Together: 11,055 compositions by 1,161 composers. Six people appear in both
+corpora (Corelli, Gershwin, Herbert, Lehár, Pachelbel, Romberg) and are
+counted once.
+
+**How each side is counted.** Classical: one piece per YCACL source file;
+composers are the 488 keys left after slug curation merges the 494 source
+folders (`anonymous` is one of them). Jazz: one tune per corpus file;
+writers come from each tune's `ComposedBy` credit, split on *and*, *&*,
+commas and slashes, excluding *Unknown* (15 tunes) and *Traditional* (21).
+A composer is a writer with at least one sole credit (679); the 657 who only
+ever appear as co-writers are counted separately, since most are lyricists
+(Gus Kahn, Leo Robin, Sammy Cahn…). 87% of tunes include at least one
+sole-credited composer. Four hyphenated credits are left unsplit, which makes
+no material difference.
+
+### Most represented
+
+| classical | pieces | | jazz | tunes |
+|---|---|---|---|---|
+| Mozart | 685 | | Richard Rodgers | 66 |
+| Bach | 652 | | Thelonious Monk | 60 |
+| Scarlatti | 617 | | Harold Arlen | 51 |
+| Beethoven | 372 | | Duke Ellington | 48 |
+| Haydn | 359 | | Charlie Parker | 46 |
+| Schubert | 223 | | John Coltrane | 45 |
+| Telemann | 223 | | Wayne Shorter | 42 |
+| Chopin | 204 | | Cole Porter | 42 |
+| Brahms | 199 | | Horace Silver | 40 |
+| Handel | 191 | | Irving Berlin | 35 |
+| Sor | 174 | | Miles Davis | 35 |
+| Vivaldi | 167 | | George Gershwin | 34 |
+
+### Shape
+
+- **Classical, by period** (8,204 dated pieces, 1548–1968, median 1798):
+  before 1700 5.5% · 1700s 46.6% · 1800s 42.0% · 1900s 5.8%.
+- **Classical, by composer nationality:** Germany 28.6% · Austria 18.0% ·
+  Italy 17.4% · France 8.5% · Spain 4.3% · England 4.3% · Russia 4.2%.
+  Period and nationality come from the YCAC metadata, which matches 8,305 of
+  the 8,441 pieces.
+- **Jazz, by credits per tune:** one writer 80% · two 15% · three or more 5%.
+
+### Jazz keys
+
+The jazz graph's 1,133 keys are one per credit line, normalised by
+`normalizeComposer`, so co-writers share a key
+(`billystrayhornandmiltonraskin`). `genJ` matches keys by substring, so one
+name reaches every credit that contains it: `"strayhorn"` finds Billy
+Strayhorn's solo and co-written credits alike. They are not catalogued here.
 
 ## Syntax
 

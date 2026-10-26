@@ -8,7 +8,8 @@ synopsis:            "Real-time harmonic progression generation for TidalCycles 
 description:         |
   A live performance instrument for generating and shaping harmonic
   progressions in real time while patterning musical data within them, trained
-  on 488 composers from the Yale Classical Archives Corpus. It integrates
+  on over 10,000 compositions by over 1,000 classical and jazz composers (the
+  Yale Classical Archives Corpus and the Jazz-Chord-Progressions-Corpus). It integrates
   with TidalCycles via a kinetics framework handling form, five voicing
   strategies, a launcher paradigm \'conducting\' the musical abstracts
   reactively, and a preconfigured virtual orchestra mapping based on

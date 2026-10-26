@@ -29,7 +29,8 @@ utilising the overtones of the instrument in performance and composition.
 The Harmonic Algorithm takes the underpinning theoretical ideas from this
 research and realises them as a Haskell library with deep TidalCycles
 integration for live coding. Under the hood, harmonic transitions from over
-500 composers are stored in a Neo4j graph database. The system memorises how
+10,000 compositions by over 1,000 classical and jazz composers are stored in a
+Neo4j graph database. The system memorises how
 harmony moves, and uses this knowledge to generate progressions that feel
 musically coherent while remaining endlessly surprising. 
 No AI -- just counting and music theory.
@@ -221,8 +222,10 @@ You can also explore in the REPL with `stack ghci`.
 
 ### 2. Add the composer graph
 
-The graph holds harmonic transitions learned from 488 composers. Start
-Neo4j, then load the pre-built database published with the
+The graph holds harmonic transitions learned from 8,441 classical pieces by
+488 composers (the Yale Classical Archives Corpus) and 2,614 jazz tunes (the
+Jazz-Chord-Progressions-Corpus), with a breakdown in the
+[Composer Catalogue](documents/COMPOSERS.md). Start Neo4j, then load the pre-built database published with the
 [latest release](https://github.com/OscarSouth/theHarmonicAlgorithm/releases):
 
 ```bash
