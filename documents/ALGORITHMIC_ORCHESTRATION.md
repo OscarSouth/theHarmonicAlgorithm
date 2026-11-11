@@ -4,9 +4,26 @@ Scoring music for a virtual orchestra via TidalCycles live coding. This document
 
 ## Signal Chain
 
-Code → TidalCycles → SuperDirt → MIDI → Roland JV-1010 → orchestral music
+Code → TidalCycles → SuperDirt → MIDI → the declared rig → orchestral music
 
-## JV-1010 Configuration (16 MIDI Channels)
+## Rigs
+
+Every instrument function reads its channel and range from a `Rig`
+(`Harmonic.Interface.Tidal.Orchestra`), and the boot file declares which module
+is on the port:
+
+```haskell
+rig = jv1010      -- home: Roland JV-1010
+rig = nanoSynth   -- studio: Alesis NanoSynth
+```
+
+The plain names (`flute`, `violin1`, `pizz` …) are bound to that rig in
+`live/BootTidal.hs`, so a performance file never names a channel and the same
+block plays on either module. A rig is channels only: an instrument's range is
+its own and lives with the instrument, whatever module plays it. `setupRig` sends a module its cold configuration
+where it has one (the NanoSynth); `rigName rig` is printed at boot.
+
+### JV-1010 (16 MIDI Channels)
 
 | Channel | Instrument      | Type              |
 |---------|----------------|-------------------|
@@ -27,16 +44,49 @@ Code → TidalCycles → SuperDirt → MIDI → Roland JV-1010 → orchestral mu
 | 15      | Strings legg   | String artic      |
 | 16      | Strings arco   | String artic      |
 
-This table is the JV-1010 rig only. The studio rig (soft synths, DFAM/P-6, M32/S-1, MPC,
-drum machines) has its own map in `documents/LIVE_ENVIRONMENT.md`. The two rigs are never
-live together.
+Strings are laid out by technique: every section shares a channel per
+articulation (`pizz` 12, `spicc` 13, `marc` 14, `legg` 15, `arco` 16).
+Patches are a Performance stored on the module. Definitions: `jv1010` in
+`Harmonic.Interface.Tidal.Devices.JV1010`.
 
-### The continuo voice (ch 7)
+### NanoSynth (16 MIDI Channels)
 
-The orchestra above is a fixed, deliberate configuration — it is not extended.
-The one permitted variation is **channel 7**, which may be voiced as any pitched
-polyphonic plucked, keyboard, mallet or choral colour. Set it **once per
-movement** in the launcher; never hot-swap it mid-flow.
+| Channel | Instrument          | Patch (program / bank) |
+|---------|---------------------|------------------------|
+| 1       | Flute               | 74 / Preset 3  SingleFlut |
+| 2       | Oboe                | 68 / Preset 3  Ebony Oboe |
+| 3       | Bassoon             | 70 / Preset 2  SoloBasoon |
+| 4       | Horn                | 60 / User  FlugelSolo |
+| 5       | Trombone, bass trombone | 57 / User  Bone Tone |
+| 6       | Timpani, with tuba  | 60 / Preset 4  Documentar |
+| 7       | Strings pizzicato   | 45 / Preset 3  Pizz Pluck |
+| 8       | Orchestra hit (bass drum) | 55 / Preset 3  Danz Hitz |
+| 9       | Harp (continuo)     | 46 / Preset 3  Harpitz |
+| 10      | service channel (MPC) | 127 / User; `nanoKit` for the module's kit |
+| 11      | Clarinet            | 71 / Preset 2  1stClarnet |
+| 12      | silent              | 127 / User |
+| 13      | Violin 1            | 49 / GM  Slo String |
+| 14      | Violin 2            | 49 / GM  Slo String |
+| 15      | Cello               | 43 / Preset 3  Celli |
+| 16      | Double bass, with viola | 41 / User  BiViola |
+
+One section per channel; `pizz` routes any string to 7 and the other
+articulation tags are identity; the tam-tam has no voice. The module is
+configured from code — `setupRig` once after power-up — and the full
+reference (ranges, mix, the 640-program list, how the module is addressed)
+is [NANOSYNTH.md](NANOSYNTH.md). Definitions: `nanoSynth` in
+`Harmonic.Interface.Tidal.Devices.NanoSynth`.
+
+The studio rig (soft synths, DFAM/P-6, M32/S-1, MPC, drum machines) has its own map
+in `documents/LIVE_ENVIRONMENT.md`. No two of these programs are ever live together.
+
+### The continuo voice
+
+The orchestra is a fixed, deliberate configuration — it is not extended.
+The one permitted variation is the continuo channel (`rigContinuo`: JV-1010
+**7**, NanoSynth **9**), which may be voiced as any pitched polyphonic
+plucked, keyboard, mallet or choral colour. Set it **once per movement** in
+the launcher; never hot-swap it mid-flow.
 
 ```tidal
 mapM_ id [hush, setbpm tempo
@@ -66,6 +116,11 @@ arithmetic is handled); reach the internal sets with `presetA` / `presetB`.
 Definitions live in `Harmonic.Interface.Tidal.Devices.JV1010`. Two constants
 need confirming against the device the first time this is used: `orchLSB` (the
 expansion card's bank) and the `organV` patch number.
+
+On the NanoSynth a voice is `nanoVoice program bank` (the bank in the msb
+slot; the module reads CC0 only): `nanoHarpV` (Harpitz) and `nanoHarpsichordV`
+(8'4'Harpsi). The JV voices are JV addresses, as the drum names are JV notes —
+use the voices of the rig you declared.
 
 ## Performance Architecture
 
@@ -121,26 +176,24 @@ Every block (section or blend) has the same two-part structure:
 
 ### Pitched (arrange + clip + octave)
 
-Each instrument is a partial application of `instrument range channel`:
+Each instrument applies `instrument` to its own range (Tidal note space) and
+the channel it reads from the rig:
 
 ```haskell
-instrument :: (Int, Int) -> Int -> Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
+instrument :: (Int, Int) -> Int -> Instrument
+flute, oboe, clarinet, … :: Rig -> Instrument
+flute = instrument (-12, 26) . rigFlute   -- C3–D6 (MIDI 48–86)
 ```
 
-Pipeline: `arrange` → `# ch` → `|+ oct` → `clip`
-
-```haskell
-flute    = instrument (-12, 26)  1   -- C3-D6  (MIDI 48-86)
-oboe     = instrument ( -2, 33)  2   -- Bb3-A6 (MIDI 58-93)
-clarinet = instrument (-22, 34)  3   -- D2-Bb6 (MIDI 38-94)
--- etc.
-```
+Pipeline: `arrange` → `# ch` → `|+ oct` → `clip`. The boot file binds the
+rig (`flute = O.flute rig`), so in a session `flute T (0,1) k vl flow Soprano`
+is the whole call.
 
 ### Unpitched (struct-based)
 
 ```haskell
-bassdrum pat = struct pat $ midinote 36 # ch 9 # sustain 0.05
-tamtam   pat = struct pat $ midinote 31 # ch 11 # sustain 0.5
+bassdrum, tamtam :: Rig -> Pattern Bool -> ControlPattern
+-- JV-1010: MIDI 36 on ch 9 and MIDI 31 on ch 11; a rig without the voice is silent
 ```
 
 ## Instrument Catalogue
@@ -203,15 +256,17 @@ not JV-1010 voices; they are documented in [LIVE_ENVIRONMENT.md](LIVE_ENVIRONMEN
 
 ### String Articulations
 
-Strings default to arco (ch 16). Override with `#`:
+Postfix tags. On the JV-1010 strings default to arco (ch 16) and a tag
+re-routes the line; on the NanoSynth only `pizz` has a destination and the
+other tags leave the line on its section's channel:
 
-| Articulation | Ch | Alias | Usage |
-|---|---|---|---|
-| Pizzicato | 12 | `pizz` | `# pizz` or `tutti pizz f k $ d 0.7` |
-| Spiccato | 13 | `spicc` | `# spicc` |
-| Marcato | 14 | `marc` | `# marc` |
-| Legato | 15 | `legg` | `# legg` |
-| Arco | 16 | `arco` | Default (same as string channel) |
+| Articulation | Alias | JV-1010 ch | NanoSynth | Usage |
+|---|---|---|---|---|
+| Pizzicato | `pizz` | 12 | ch 7 | `# pizz` or `tutti pizz f k $ d 0.7` |
+| Spiccato | `spicc` | 13 | identity | `# spicc` |
+| Marcato | `marc` | 14 | identity | `# marc` |
+| Legato | `legg` | 15 | identity | `# legg` |
+| Arco | `arco` | 16 | identity | Default |
 
 ### JV-1010 Pan Positions
 
@@ -336,14 +391,13 @@ articulation aliases, composes with `# pizz`:
 
 ## String Articulations
 
-Channel routing with default arco:
+Each tag is a field of the rig — a channel where the module routes by
+technique, `noArt` (identity under `#`) where it does not:
 
 ```haskell
-pizz  = ch 12    -- pizzicato
-spicc = ch 13    -- spiccato
-marc  = ch 14    -- marcato
-legg  = ch 15    -- legato
-arco  = ch 16    -- arco (default)
+pizz, spicc, marc, legg, arco :: Rig -> ControlPattern
+-- jv1010:    ch 12, 13, 14, 15, 16
+-- nanoSynth: ch 7, then noArt for the rest
 ```
 
 Override with `#`:
@@ -375,6 +429,91 @@ tutti pizz f k $ d 0.7
 | `brillante` | Bright top (flute 8va at high k) | flute 8va, flute, oboe, clarinet     |
 | `maestoso`  | Full winds + brass (climactic)   | wind + horn, trombone                |
 | `tutti`     | Full orchestra                   | strings + winds + brass + timpani    |
+
+## Score mode (literal / linear)
+
+The kinetics workflow voices a progression under a form: the composer decides *what kind* of
+material plays at each level of the arc and the instruments read their notes from the chords.
+Score mode is the other way of writing — note for note, on a bar timeline — in the same
+blocks, with the same form, rig, ranges, articulation tags and dynamics vocabulary. The
+progression is the same slot: a key written as a one-bar context, or anything `gen`, `genJ`,
+`recall` or `fromChords` produced.
+
+| Piece | What it does |
+|---|---|
+| `inKey D "major"` | a one-bar `ProgressionContext`: the tonic triad on T (the mode's degrees 1 3 5), the key's pentatonic on S (its parent major key's, rooted on the tonic where it belongs to it — A minor gives A C D E G), the mode on M. Names: `major`/`ionian`, `minor`/`aeolian`, the church modes, `melodic minor`, `harmonic minor`, `harmonic major`, any `ModeQuality` constructor, `chromatic` (all twelve, a degree is a semitone). An unknown name is an error at declaration. Round-trips through `save`. |
+| `flute' M 1 "p" k degrees` | the literal form of each instrument: a layer, an octave, a dynamic mark (or a pattern of marks, sampled at every onset) and a degree pattern read against that layer of the chord current at the onset — the selection rule of `arrange`. Degree 0 is the bar's root at the lattice's bass anchor (the root in [-12,-1]), so `flute T` and `flute' T` agree on where 0 sits; `n` indexes the bar's closed position above it and wraps by octave. The octave pattern lands before the clip: `1` the melodic register, `0` the bass, `"[1,2]"` two flutes, `"[[1] [~]]/16"` drops the notes under its rest. Same range, channel and tags as the plain form (`# pizz`); amp = mark × the form's dynamic, as in `arrange`. |
+| `bars b1 b2 $ pat` | a block on score bar numbers, 1-indexed, end inclusive, four cycles per bar; a `seqP` triple, so each block's pattern starts from its own cycle 0 at the block's first beat |
+| `score pre blocks` | `seqP` behind `pre` bars of pre-roll; `preroll pre k` delays the form the same way so `display k` counts score bars |
+| `dyn`, `ramp` | the mark table (`ffff` 1.0 … `p` 0.40 … `pppp` 0.25); a 64-step line across one cycle (`slow 16 $ ramp 1 1.2` is a four-bar swell on one line; the form's nodes are the arc) |
+
+**The format.** A piece is one statement: `tempo` is the only tempo number outside the list;
+the movement list opens with the tempo blocks (`bars a b $ bpm t` — the base, then every change,
+in bar order), then every stack written out under its bar range; a block that recurs is
+`let`-bound inside the piece's `do` (it sees `k`); the launcher never calls `setbpm` — the stream
+owns the clock, and `hush` clears any stale tempo pattern; `tempo` also drives `iK`, so the
+display clock agrees with the base tempo.
+
+```tidal
+tempo = 88
+pre   = 3
+key   = inKey D "major"
+form  = [rh 1 1 0.5 key, rh 3 1 0.6 key, rh 9 1 0.78 key, rh 23 1 0.5 key]   -- the arc, in score bars
+
+andante f k d = p "score" $ do
+  let ostinato = stack [silence                       -- recurs at [1] and [3]
+        ,clarinet' M 1 "p" k "[[-2 1 -1 2 -2 1 -1 ~] [~ [-2 1 -1 2]] [[-2 1 -1 ~] ~]]/12"
+        ]
+  f $ score pre
+    [bars 1 23 $ bpm tempo                            -- tempo first
+    ,bars 1 9  $ ostinato
+    ,bars 1 9  $ stack [silence
+       ,viola'      M 1 "mp" k "[~ -5 ~ -7]/4" # pizz
+       ,cello'      M 0 "p"  k "[-4 . 2@3 ~ . -6 . 0@3 ~]/4" # pizz
+       ,contrabass' M 0 "p"  k "[-4 ~ -6 ~]/4" # pizz
+       ]
+    ,bars 3 9  $ stack [silence
+       ,flute'   M "[1,2]" "p"  k "[5 [2 4 . 5] [4 3 2 4 . 5] [4 5] ~!3]/28"
+       ,violin1' M 1       "mp" k "[12 [9 11 . 12] [11 10 9 11 . 12] [11 12] ~!3]/28"
+       ]
+    ,bars 17 22 $ ostinato
+    ] |* vel d
+
+do
+  let f = id; d = (* 1)
+      k = preroll pre $ iK tempo form (rep key 1)
+  mapM_ id [hush, resetCycles, display k, andante f k $ d 0.8]
+```
+
+One cycle is a beat, so a three-bar ostinato is `"…/12"` and a seven-bar phrase `"…/28"`; blocks
+run on their own clock, so the ostinato begins on its first bar wherever it is placed and a
+`"<~ -2!2>"` alternation counts its passes from the entry. Ties over bar lines are durations
+(`"[5@7 ~ 5@4 ~@2 5@22]/18"` holds B through a coda of eighteen beats), not sustain-pedal
+messages. A kinetics line stacks in the same block (`,violin1 T (0,1) k vl flow Soprano`); a
+literal line is gated like any other (`ki (0.5,1) k $ …`). Swap `key` for a generated or recalled
+progression and the same lines follow its bars: T reads each chord, S its pentatonic, M its key
+area.
+
+The 2021 concert files map onto this line for line:
+
+| 2021 | now |
+|---|---|
+| `rh a b` (3-bar pre-roll baked in), `rh 0 0` the pickup | `bars a b`, `bars 0 0`, the pre-roll in `score pre` / `preroll pre` |
+| `k = mode (5-7) $ F \\ mMaj` (relative minor) | `inKey D "minor"` |
+| `instr "p" +| note (k "…")` | `instr' M 1 "p" k "…"` |
+| `|- 12`, `|+ 12`, `|- "[24,12]"`, `|+ "[[12] [~]]/4"` (semitones) | the octave argument: `0`, `2`, `"[-1,0]"`, `"[[1] [~]]/16"` |
+| `k ("…" |+ "[0,9]")`, `k $ "…" |+ 12` (degrees) | unchanged, on the degree pattern (`|+` keeps the line's structure) |
+| `transpose st key pat` | `… + st` on the degrees (the clarinets were sounding degrees already) |
+| `slow 4 $ stack [… "…/3" …]` | no `slow 4`; divisors ×4 (`/3` → `/12`) |
+| `lfo saw lo hi`, `cat [1.1, lfo …]` | `ramp lo hi`, or the form's nodes |
+| `meter t m s`, mid-piece tempi, `setcps` | `bars a b $ bpm t` blocks at the head of the list (a 6/4 piece: `tempo = 66 * 4 / 6`, four cycles a bar); never `setbpm` in the launcher |
+| `cc 11 … #hn` (expression per instrument) | `cc 11 … # ch (rigHorn rig)` |
+| `ped … #vc` for a tie | a duration |
+| `moog`, `cc 1 … #m32` (studio synths, ch 12) | kept on `# ch 12` under a `studio synth` comment |
+
+The worked port is the author's Stravinsky Suite No. 1 Andante (`live/local/Suites/Stravinsky/`,
+with its bar-by-bar reconciliation against the Chester score); the tracked example is
+`live/examples/04-SCORE.tidal`, the opening of a 2021 concert piece.
 
 ## Motifs
 

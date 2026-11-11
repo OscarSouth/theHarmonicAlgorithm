@@ -36,12 +36,14 @@ DEFAULT_TARGETS = [
     "live/local/archive/concert/06-rosslynCastle.tidal",
     "live/docs/JAZZ_DIAGNOSTIC.tidal",
     "live/docs/ORCHESTRAL_CATALOGUE.tidal",
+    "live/docs/NANOSYNTH_CATALOGUE.tidal",
     "live/drumpats/afro-cuban/bolero.tidal",
     "live/drumpats/dub/rockers.tidal",
     "live/examples/00-QUICK_START.tidal",
     "live/examples/01-ENTROPY_LEVELS.tidal",
     "live/examples/02-COMPOSER_BLENDING.tidal",
     "live/examples/03-FORM_AND_KINETICS.tidal",
+    "live/examples/04-SCORE.tidal",
 ]
 
 # A binding at column 0 followed by `=` is a declaration group; anything else

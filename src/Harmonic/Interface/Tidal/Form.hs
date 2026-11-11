@@ -49,6 +49,7 @@ module Harmonic.Interface.Tidal.Form
   , rh'
   , iK
   , lK
+  , preroll
 
     -- * Realization
   , formK
@@ -165,6 +166,18 @@ lK :: Pattern Double          -- ^ Kinetics signal (0-1, live)
    -> Pattern Int             -- ^ Chord-selection pattern
    -> IK
 lK sigP dyn pc chordPat = (Kinetics sigP dyn (pure pc) [pc] 0 0 (const True), chordPat)
+
+-- |Delay a performance context by @n@ bars, so a form written in score bars
+-- lines up with a sequence that 'Harmonic.Interface.Tidal.Score.score'
+-- starts after @n@ bars of pre-roll: the kinetics, the dynamic arc, the
+-- progression and the chord selection all move together.
+--
+-- @k = preroll pre $ iK tempo form (rep key 1)@
+preroll :: Int -> IK -> IK
+preroll nBars (kin, chordPat) =
+  let sh :: Pattern a -> Pattern a
+      sh = rotR (fromIntegral nBars * realToFrac beatsPerBar)
+  in (kin { kSignal = sh (kSignal kin), kDynamic = sh (kDynamic kin), kProg = sh (kProg kin) }, sh chordPat)
 
 -------------------------------------------------------------------------------
 -- Realization

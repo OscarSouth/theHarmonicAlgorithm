@@ -1,0 +1,218 @@
+-- ══════════════════════════════════════════════════════════
+-- NANOSYNTH CATALOGUE — Cold Configuration and Range Tests
+-- ══════════════════════════════════════════════════════════
+--
+-- The studio orchestra: an Alesis NanoSynth, one section per
+-- channel, every string section sharing one pizzicato channel.
+-- Boot with `rig = nanoSynth` in live/BootTidal.hs.
+--
+-- Walk this file top to bottom once after power-up and listen:
+-- each block is one message the module receives. `setupRig` at
+-- the end sends the whole configuration in one go; the blocks
+-- above it are the same messages, one at a time, so a wrong
+-- patch is found by ear and corrected on its own line.
+--
+-- Signal chain: TidalCycles -> SuperDirt -> iCA4+ DIN -> U6 (ch 10 to the MPC only) -> NanoSynth
+--
+-- Bank Select is CC0 alone (0 GM, 1 User, 2-4 Preset); the
+-- module ignores CC32 and switches bank at once, keeping the
+-- program number. User 127 is the hard-wired silent program.
+--
+-- Tidal note 0 = MIDI 60 = middle C (C4)
+
+
+-- ── INSTRUMENTATION — bank then program, one channel at a time ──
+
+-- FLUTE (Ch 1) — Preset 3 / 74  SingleFlut
+once $ nanoProgram 1 (74, 3)
+
+-- OBOE (Ch 2) — Preset 3 / 68  Ebony Oboe
+once $ nanoProgram 2 (68, 3)
+
+-- BASSOON (Ch 3) — Preset 2 / 70  SoloBasoon
+once $ nanoProgram 3 (70, 2)
+
+-- HORN (Ch 4) — User / 60  FlugelSolo   (Preset 3 / 60 is HornExpans)
+once $ nanoProgram 4 (60, 1)
+
+-- TROMBONE (Ch 5) — User / 57  Bone Tone
+once $ nanoProgram 5 (57, 1)
+
+-- TIMPANI with TUBA (Ch 6) — Preset 4 / 60  Documentar
+once $ nanoProgram 6 (60, 4)
+
+-- STRINGS PIZZICATO (Ch 7) — Preset 3 / 45  Pizz Pluck
+once $ nanoProgram 7 (45, 3)
+
+-- ORCHESTRA HIT, bass drum (Ch 8) — Preset 3 / 55  Danz Hitz
+once $ nanoProgram 8 (55, 3)
+
+-- HARP, continuo (Ch 9) — Preset 3 / 46  Harpitz   (harpsichord: User / 6  8'4'Harpsi)
+once $ nanoProgram 9 (46, 3)
+
+-- SERVICE CHANNEL (Ch 10) — User / 127, the blank program: the MPC owns 10
+-- (sub, kit, click, count, display). With the module alone on the chain,
+-- `once $ nanoKit` puts 15ips Kit here instead.
+once $ nanoProgram 10 (127, 1)
+
+-- once $ nanoKit
+
+-- CLARINET (Ch 11) — Preset 2 / 71  1stClarnet
+once $ nanoProgram 11 (71, 2)
+
+-- SILENT (Ch 12) — User / 127, the blank program
+once $ nanoProgram 12 (127, 1)
+
+-- VIOLIN 1 (Ch 13) — GM / 49  Slo String
+once $ nanoProgram 13 (49, 0)
+
+-- VIOLIN 2 (Ch 14) — GM / 49  Slo String
+once $ nanoProgram 14 (49, 0)
+
+-- CELLO (Ch 15) — Preset 3 / 43  Celli
+once $ nanoProgram 15 (43, 3)
+
+-- DOUBLE BASS with VIOLA (Ch 16) — User / 41  BiViola
+once $ nanoProgram 16 (41, 1)
+
+-- The alternative for Ch 16: Preset 3 / 41  C-Bs&Viola, a contrabass-and-viola split
+-- once $ nanoProgram 16 (41, 3)
+
+-- The same, as raw messages: bank on CC0, then the program.
+-- setCC 1 0 3
+-- once $ midicmd "program" # progNum 74 # ch 1
+
+
+-- ── PROPORTION — channel volume, CC7 ─────────────────────
+
+once $ nanoTable 7 nanoLevel
+
+
+-- ── POSITIONING — pan, CC10 (−1..1 sent as 0..1) ─────────
+
+once $ nanoTable 10 [ (c, (p + 1) / 2) | (c, p) <- nanoPan ]
+
+
+-- ── DEPTH — reverb send, CC91 ────────────────────────────
+
+once $ nanoTable 91 nanoDepth
+
+
+-- ── MODULATION ZERO — CC1 off, the orchestra hit open ────
+
+once $ nanoTable 1 nanoMod
+
+
+-- ── EXPRESSION — CC11 full, Ch 12 closed ─────────────────
+
+once $ nanoTable 11 nanoExpr
+
+
+-- ── RANGES — the instruments' own (Orchestra.hs), shared with the JV-1010 ──
+-- Beneath each: the zone the 2021 concert probed on this patch. Where the two
+-- differ the patch may thin out at an end of the range — listen, and note it.
+
+-- FLUTE (Ch 1) — C3 to D6 (MIDI 48-86)
+once $ note "[-12 26]*2" # ch 1 # legato 0.8
+-- 2021 probe on SingleFlut: 0..33 (piccolo 14..48)
+
+-- OBOE (Ch 2) — Bb3 to A6 (MIDI 58-93)
+once $ note "[-2 33]*2" # ch 2 # legato 0.8
+-- 2021 probe on Ebony Oboe: -2..31 (cor anglais -8..24)
+
+-- BASSOON (Ch 3) — Bb1 to Eb5 (MIDI 32-75)
+once $ note "[-28 15]*2" # ch 3 # legato 0.8
+-- 2021 probe on SoloBasoon: -26..15
+
+-- HORN (Ch 4) — B1 to F5 (MIDI 31-77)
+once $ note "[-29 17]*2" # ch 4 # legato 0.8
+-- 2021 probe on FlugelSolo: -27..17
+
+-- TROMBONE (Ch 5) — Bb1 to F5 (MIDI 32-77)
+once $ note "[-28 17]*2" # ch 5 # legato 0.8
+-- 2021 probe on Bone Tone: -8..24 (bass trombone -26..8)
+
+-- BASS TROMBONE (Ch 5) — A0 to G3 (MIDI 21-55)
+once $ note "[-39 -5]*2" # ch 5 # legato 0.8
+
+-- TIMPANI (Ch 6) — D2 to C4 (MIDI 38-60)
+once $ note "[-22 0]*2" # ch 6
+-- 2021 probe on Documentar: timpani -34..-15, solo tuba -6..7, snares -10 -9 -8 — TEST 9:
+-- does the timpani zone reach D2-C4, and does the tuba sustain on a held note above it?
+-- once $ note "[-34 -15]*2" # ch 6
+-- once $ note "[-6 7]*2" # ch 6 # legato 2
+
+-- HARP (Ch 9) — B1 to F#7 (MIDI 31-102)
+once $ note "[-29 42]*2" # ch 9 # legato 0.8
+-- not probed in 2021
+
+-- CLARINET (Ch 11) — D2 to Bb6 (MIDI 38-94)
+once $ note "[-22 34]*2" # ch 11 # legato 0.8
+-- 2021 probe on 1stClarnet: -10..31 (bass clarinet -22..14)
+
+-- VIOLIN 1 (Ch 13) — G3 to A7 (MIDI 55-105)
+once $ note "[-5 45]*2" # ch 13 # legato 0.8
+-- 2021 probe on Slo String: -5..43
+
+-- VIOLIN 2 (Ch 14) — G3 to A7
+once $ note "[-5 45]*2" # ch 14 # legato 0.8
+
+-- CELLO (Ch 15) — C2 to C6 (MIDI 36-84)
+once $ note "[-24 24]*2" # ch 15 # legato 0.8
+-- 2021 probe on Celli: -24..19
+
+-- DOUBLE BASS (Ch 16) — C1 to C4 (MIDI 24-60)
+once $ note "[-36 0]*2" # ch 16 # legato 0.8
+-- 2021 probe on BiViola, low: -36..-2
+
+-- VIOLA (Ch 16) — C3 to E6 (MIDI 48-88)
+once $ note "[-12 28]*2" # ch 16 # legato 0.8
+-- 2021 probe on BiViola, mid: -12..33
+
+-- PIZZICATO (Ch 7) — the strings' shared pluck, C1 to A7
+once $ note "[-36 45]*2" # ch 7 # legato 0.8
+
+-- ORCHESTRA HIT (Ch 8) — as the bass drum, four octaves down
+once $ bassdrum "t"
+
+
+-- ── KIT (Ch 10) — General MIDI note numbers; only after `once $ nanoKit` ──
+
+once $ gmKick "1"
+
+once $ gmSnare "1"
+
+once $ gmHatClosed "1"
+
+once $ gmRide "1"
+
+once $ gmCrash "1"
+
+once $ gmTamb "1"
+
+once $ gmChimes "1"
+
+
+-- ── CONTINUO (Ch 9) ──────────────────────────────────────
+
+setContinuo nanoHarpV
+
+setContinuo nanoHarpsichordV
+
+
+-- ── THE WHOLE CONFIGURATION IN ONE GO ────────────────────
+
+setupRig
+
+
+-- ── THROUGH THE INSTRUMENTS ──────────────────────────────
+--
+-- With the rig declared, the modern surface plays unchanged:
+--
+--   , violin1 T (0,1) k vl flow Soprano          -- Ch 13
+--   , violin1 T (0,1) k vl flow Soprano # pizz   -- Ch 7
+--   , viola   T (0,1) k vl flow Alto             -- Ch 16, with the bass
+--   , divisi 2 cello T (0,1) k vl grid Bass      -- Ch 15
+--
+-- `spicc`, `marc`, `legg` and `arco` leave a line on its own
+-- channel here; `tamtam` is silent.

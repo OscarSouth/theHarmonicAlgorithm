@@ -48,13 +48,20 @@ fi
 ready_file="$sc_dir/sc_ready"
 status_file="$sc_dir/sc_status.line"
 
-# Pulsar: explicit override, then PATH, then the macOS bundle.
+# Pulsar: explicit override, then the macOS bundle, then PATH. The bundle
+# binary runs as a child of this terminal, so macOS charges camera access
+# (Hydra's initCam) to the terminal's grant. ppm's wrapper goes through `open`
+# instead, which leaves Pulsar needing a grant of its own that is never
+# prompted for: the stream opens and delivers no frames.
+bundle=/Applications/Pulsar.app/Contents/MacOS/Pulsar
 if [ -n "${PULSAR:-}" ]; then
   :
+elif [ -x "$bundle" ]; then
+  PULSAR=$bundle
 elif command -v pulsar >/dev/null 2>&1; then
   PULSAR=$(command -v pulsar)
 else
-  PULSAR=/Applications/Pulsar.app/Contents/MacOS/Pulsar
+  PULSAR=$bundle
 fi
 
 # A shell wrapper starts with a shebang; the real Electron binary does not.

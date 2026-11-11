@@ -72,6 +72,7 @@
 --
 -- * "Harmonic.Framework.Builder" — the generation engine and every modifier
 -- * "Harmonic.Interface.Tidal.Orchestra" — the 15 orchestral instruments
+-- * "Harmonic.Interface.Tidal.Score" — score mode: bar blocks, key degrees, dynamic marks
 -- * "Harmonic.Interface.Tidal.Arranger" — voicing strategies and rearranging
 -- * "Harmonic.Interface.Tidal.Form" — form and kinetics
 --
@@ -240,7 +241,7 @@ module Harmonic.Lib (
 
   -- ** Form and kinetics
   FormNode(..), FormTime(..), Transition(..), Kinetics(..), IK,
-  at, at', rh, rh', iK, lK, formK,
+  at, at', rh, rh', iK, lK, preroll, formK,
   ki, slate, withForm, isolate, isolate',
   mark, mark', markbar, marksec, markAt,
 
@@ -272,6 +273,7 @@ module Harmonic.Lib (
   -- ** Instruments and orchestra
   module Harmonic.Interface.Tidal.Instruments,
   module Harmonic.Interface.Tidal.Orchestra,
+  module Harmonic.Interface.Tidal.Score,
   module Harmonic.Interface.Tidal.Utils,
   module Harmonic.Interface.Tidal.Motif,
   module Harmonic.Interface.Tidal.Display,
@@ -279,6 +281,7 @@ module Harmonic.Lib (
   module Harmonic.Interface.Tidal.Devices.P6,
   module Harmonic.Interface.Tidal.Devices.RC10R,
   module Harmonic.Interface.Tidal.Devices.JV1010,
+  module Harmonic.Interface.Tidal.Devices.NanoSynth,
   module Harmonic.Config,
 
   -- * Internal (advanced use only)
@@ -364,12 +367,13 @@ import Harmonic.Interface.Tidal.Groove
 import Harmonic.Interface.Tidal.LineHarmony (lineHarmony)
 import Harmonic.Interface.Tidal.Form (
     FormNode(..), FormTime(..), Transition(..), Kinetics(..), IK,
-    at, at', rh, rh', iK, lK, formK,
+    at, at', rh, rh', iK, lK, preroll, formK,
     ki, slate, withForm, isolate, isolate',
     mark, mark', markbar, marksec, markAt
   )
 import Harmonic.Interface.Tidal.Instruments
 import Harmonic.Interface.Tidal.Orchestra
+import Harmonic.Interface.Tidal.Score
 import Harmonic.Interface.Tidal.Utils
 import Harmonic.Interface.Tidal.Motif
 import Harmonic.Interface.Tidal.Display
@@ -377,6 +381,7 @@ import Harmonic.Interface.Tidal.Devices.S1
 import Harmonic.Interface.Tidal.Devices.P6
 import Harmonic.Interface.Tidal.Devices.RC10R
 import Harmonic.Interface.Tidal.Devices.JV1010
+import Harmonic.Interface.Tidal.Devices.NanoSynth
 import Harmonic.Interface.Tidal.OctatripentatonicT (renderTristrataReport, genPReport)
 import Harmonic.Interface.Tidal.PolytonalT (polyLayerViews, genEReport)
 import Harmonic.Evaluation.Analysis.KeyArea (chordscale)
