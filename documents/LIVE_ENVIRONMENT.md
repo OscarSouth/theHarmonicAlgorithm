@@ -40,11 +40,11 @@ compete for it. They are not performed together:
 
 - **The home orchestra** — the Roland JV-1010, sixteen pitched instruments and a drum kit,
   aimed at simulated orchestral writing. Library-fixed map in
-  [ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md); `rig = jv1010` in the boot file.
+  [ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md); `rig = jv1010`, the boot file's default.
 - **The studio orchestra** — the Alesis NanoSynth, one section per channel behind the same
   instrument functions, reached through a CME U6 that splits the iCA4+ DIN to the MPC
   (everything) and to the nano (everything but channel 10) and merges the MPC's own out into
-  the nano line. `rig = nanoSynth` in the boot file, then `setupRig` once after power-up to
+  the nano line. `rig = nanoSynth` in that machine's `live/local/rig.hs`, then `setupRig` once after power-up to
   send the module its patches and mix ([NANOSYNTH.md](NANOSYNTH.md)). Chain below.
 - **The studio rig** — soft synths, the Moog DFAM and Mother-32, the MPC programs and the
   two AIRA units, aimed at contemporary and jazz material. Map below.
@@ -332,7 +332,7 @@ and only the MPC's own programs (channels 7 and 10) cross USB to the MPC, which 
 JV with human input: the mapped keyboard, its pads and sequences. Channel 7, the continuo,
 goes both ways, so the MPC's `grnd` program can stand in when the JV is off. The studio
 rig has no X3: its U6 sends the whole stream to the MPC and the MPC filters by track (see
-"Studio MIDI chain (NanoSynth)" below).
+"Studio MIDI chain (NanoSynth)" above).
 
 ```haskell
 ,kmap f k T          -- in the launcher's mapM_ list

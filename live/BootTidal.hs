@@ -173,13 +173,21 @@ ped = cc 64
 --
 -- One orchestral module answers on the port. Declare it here and every
 -- instrument name below resolves to its channel map, so performance files and
--- snippets never name a channel: `jv1010` at home, `nanoSynth` in the studio.
+-- snippets never name a channel. The default is the JV-1010; a machine with
+-- another module keeps a one-line `live/local/rig.hs` (`rig = nanoSynth`),
+-- which is gitignored and read here when present. The path is relative to the
+-- repository root, the directory the interpreter starts in.
 -- The names are bound from the qualified module so the binding is not
 -- self-referential.
 -------------------------------------------------------------------------------
 
-rig = nanoSynth
--- rig = jv1010
+rig = jv1010
+
+:{
+:def localRig \_ -> let f = "live/local/rig.hs" in
+  System.IO.Error.catchIOError (readFile f >>= \src -> length src `seq` pure (":script " ++ f)) (\_ -> pure "")
+:}
+:localRig
 
 :{
 flute      = O.flute rig

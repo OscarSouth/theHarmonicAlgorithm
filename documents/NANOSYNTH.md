@@ -2,7 +2,7 @@
 
 The studio orchestra. A 64-voice General MIDI module on the Alesis QS engine,
 driven from the same performer surface as the Roland JV-1010 at home: declare
-`rig = nanoSynth` in `live/BootTidal.hs` and `violin1 T (0,1) k vl flow Soprano # pizz`
+`rig = nanoSynth` in `live/local/rig.hs` and `violin1 T (0,1) k vl flow Soprano # pizz`
 sounds on it unchanged. This document is the device reference — the rig as
 configured, how the module is addressed, and its complete program list.
 Methodology lives in [ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md);

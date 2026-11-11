@@ -10,11 +10,13 @@ Code → TidalCycles → SuperDirt → MIDI → the declared rig → orchestral 
 
 Every instrument function reads its channel and range from a `Rig`
 (`Harmonic.Interface.Tidal.Orchestra`), and the boot file declares which module
-is on the port:
+is on the port. The tracked default is the JV-1010; a machine with another module
+keeps a one-line, gitignored `live/local/rig.hs`, which the boot file reads when
+it is there:
 
 ```haskell
-rig = jv1010      -- home: Roland JV-1010
-rig = nanoSynth   -- studio: Alesis NanoSynth
+rig = jv1010      -- live/BootTidal.hs: Roland JV-1010, the default
+rig = nanoSynth   -- live/local/rig.hs in the studio: Alesis NanoSynth
 ```
 
 The plain names (`flute`, `violin1`, `pizz` …) are bound to that rig in
