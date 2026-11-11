@@ -938,6 +938,11 @@ hush
 --   ki (lo, hi) k pat      mask pat to the kinetics window
 --   slate (lo, hi) k pats  stack pats, gated as one
 --
+-- A window includes its lower edge and excludes its upper one,
+-- except that a window reaching 1 includes 1. Windows that meet,
+-- such as (0, 0.35) and (0.35, 0.7), hand over at the shared
+-- value without both playing.
+--
 -- slate builds kinetics-layered drum kits and texture stacks
 -- without arrange:
 

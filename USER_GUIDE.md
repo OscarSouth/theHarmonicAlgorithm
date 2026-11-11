@@ -505,6 +505,8 @@ d10 $ stack
   ]
 ```
 
+A window includes its lower edge and excludes its upper one, except that a window reaching 1 includes 1. Windows that meet, such as `(0, 0.35)` and `(0.35, 0.7)`, hand over at the shared value without both playing.
+
 **Try it.** The `slate` snippet (§22) inserts one gated layer. Replace the LFO with `slow 16 $ lfo sine 0 1` or `segment 8 $ perlin`. `withForm k f` passes the active progression to a custom pattern function as the form moves.
 
 <!-- video §14 -->

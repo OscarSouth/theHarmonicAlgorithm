@@ -1,8 +1,8 @@
 # Third-Party Notices
 
 Every third-party source this project draws on: the two corpora behind the
-graphs, the libraries it builds against, the theory it implements, and the
-influences behind its pattern library.
+graphs, the libraries it builds against, the theory it implements, the hardware
+firmware it grew from, and the influences behind its pattern library.
 
 ## 1. YCACL — classical (`:Cadence` graph)
 
@@ -76,7 +76,23 @@ The generated API documentation is set in Geist and Geist Mono, licensed under
 the SIL Open Font License. The licence text ships alongside the font files in
 `.github/haddock-theme/fonts/OFL.txt`.
 
-## 8. Musical influences
+## 8. MiDiNiNjA X3
+
+The firmware in `firmware/x3/` runs on the MiDiNiNjA X3, a Teensy 4.0 MIDI
+interface designed by Matt Todman, and began as a fork of his firmware for it:
+
+> Todman, M. *MiDiNiNjA* — `MiDiNiNjA_X3_V1_CLEAN_MUTE`.
+> https://github.com/submodify/MiDiNiNjA
+
+The DIN port instances, the LED blink state machine, the button polling and the
+pad-mute idea come from that code. The upstream repository carries no licence
+file, so those parts remain Matt Todman's and are included here with credit.
+Everything else in the firmware is this project's own, under GPL-3.0.
+
+It builds against the Teensy core (PJRC, MIT), the Arduino MIDI Library
+(Francois Best, lathoub; MIT) and OneButton (Matthias Hertel; BSD-3-Clause).
+
+## 9. Musical influences
 
 The drum pattern library (`live/drumpats/`) is assembled from many free and
 open sources as well as my own musical taste. Among them, a handful of patterns 

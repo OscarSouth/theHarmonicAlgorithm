@@ -284,7 +284,14 @@ an earlier one.
 note per pitch class, each for the length of its chord. A MIDI device downstream reads them
 as the harmony to lock a played keyboard to: every key is moved to the nearest pitch in the
 set. The rig's device is an external MIDI interface, the MiDiNiNjA X3, which sits between the
-laptop and the MPC. It consumes these notes, so the MPC never receives them.
+laptop and the MPC. It consumes these notes, so the MPC never receives them. Its firmware is
+in [`firmware/x3/`](../firmware/x3/README.md).
+
+The X3 also splits the laptop's stream. Tidal's JV channels go straight to the JV-1010,
+and only the MPC's own programs (channels 7 and 10) cross USB to the MPC, which feeds the
+JV with human input: the mapped keyboard, its pads and sequences. Channel 7, the continuo,
+goes both ways, so the MPC's `grnd` program can stand in when the JV is off. The studio
+rig, which has no X3, follows the same pattern through its MIDI hub.
 
 ```haskell
 ,kmap f k T          -- in the launcher's mapM_ list
@@ -358,23 +365,26 @@ instruments: LOOP TRACK MODE PARALLEL, SYNC SWITCH ON.
 
 ### The pedal's drum kit (`dkit`)
 
-The RC-10R's drum kit plays from Tidal through an MPC track, so it can be recorded
-there and played from the MPC's pads. A `dkit` block is written with the shared drum
+The RC-10R's drum kit plays from Tidal straight through the X3, and from the MPC's pads
+through an MPC track. A `dkit` block is written with the shared drum
 names (`Devices.JV1010`, notes 0–15) and finished by `x3rc10`, which turns each hit into
 a control change on channel 10, CC 33–48: CC 33 + pad, value = the hit's final
 velocity (`amp` × 127; SuperDirt's 0.4 when unset).
 
 ```
-Tidal  ch 10 CC 33-48 -> X3 (consumed) -> USB port 2 "Drums": note 19-34, ch 10
-  -> MPC MIDI track "dkit" (pads on notes 19-34; records, plays)
-  -> USB port 3 "Looper", ch 2 -> X3 (pad -> kit note) -> Out C -> RC-10R
+Tidal     ch 10 CC 33-48 -> X3 (consumed; pad -> kit note, ch 2) -> Out C -> RC-10R
+MPC pads  track "dkit": notes 19-34 -> USB port 3 "Looper", ch 2 -> X3 (pad -> kit note) -> Out C
 ```
 
-The MPC track: a MIDI track with MIDI input X3 Drums, any channel, and output X3 Looper,
-channel 2; its pads are Pad Perform Chromatic C-2 transposed +19 (A01 = G-1 = 19), and
-MIDI Monitor is Merge so Tidal's hits pass through when the track isn't armed. Notes
-19–34 are the free run between the ch 10 kit (0–15, `count` from 8) and the MPC sub
-(35–48), so an All Ports ch 10 track never plays the lane. The kit selected with `rcKit` is the one that plays. The 16
+Tidal's lane never crosses USB. The round trip through the MPC intermittently held
+every message in flight by 20–36 ms, which was audible as a slipped hit. The MPC's channel 10 pad-mute
+(controller mode, note 9) and the X3's button hold silence the lane at the X3; the
+MPC no longer sees it.
+
+The MPC track: a MIDI track with output X3 Looper, channel 2; its pads A01–A16 send
+notes 19–34 in order (A01 = G-1), with track Transpose 0. Notes 19–34 are the free run
+between the ch 10 kit (0–15, `count` from 8) and the MPC sub (35–48), so an All Ports
+ch 10 track never plays them. The kit selected with `rcKit` is the one that plays. The 16
 pads (pad 1 bottom-left; RC-10R note in brackets) extend the rig's 8-voice drum map
 upward by family:
 

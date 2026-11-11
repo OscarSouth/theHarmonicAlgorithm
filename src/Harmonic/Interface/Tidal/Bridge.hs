@@ -68,7 +68,7 @@ import Harmonic.Rules.Types.ProgressionContext (Layer(..))
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as Pitch
 import qualified Harmonic.Interface.Tidal.Arranger as A
-import Harmonic.Interface.Tidal.Form (Kinetics(..), IK)
+import Harmonic.Interface.Tidal.Form (Kinetics(..), IK, inBand)
 import Harmonic.Interface.Tidal.Utils (mono')
 
 import Data.Foldable (toList)
@@ -181,7 +181,7 @@ layerForVoicing lyr ctx =
 -- "Harmonic.Interface.Tidal.Orchestra" is a thin wrapper around it.
 --
 -- @d1 $ arrange (0,1) k (-9,9) T flow id [\"0 1 2 3\"]@
-arrange :: (Double, Double)                     -- ^ Kinetics gate: events pass only while 'kSignal' sits inside @(lo, hi)@ — the same predicate as 'Harmonic.Interface.Tidal.Form.ki', applied here so every instrument line carries its own activation band
+arrange :: (Double, Double)                     -- ^ Kinetics gate: events pass only while 'kSignal' is in the band — 'Harmonic.Interface.Tidal.Form.inBand', the predicate behind 'Harmonic.Interface.Tidal.Form.ki', applied here so every instrument line carries its own activation band
         -> IK                                    -- ^ Performance context (kinetics + chord selection)
         -> (Int, Int)                            -- ^ Degree-index trim for the input patterns (scale degrees, not MIDI; instrument-range clipping happens later via clip)
         -> Layer                                 -- ^ Progression layer to voice — single (T | S | M) or synthesized combination (TS | TM | SM | TSM | PT)
@@ -218,7 +218,7 @@ arrange (lo, hi) (kin, chordPat) register lyr voiceFunc modifier pats =
         Just hit -> hit
         Nothing  -> voicingsOf ctx
   in cacheForced `seq` (|* pF "amp" (kDynamic kin)) $
-     mask (fmap (\x -> x >= lo && x <= hi) (kSignal kin)) $
+     mask (fmap (inBand (lo, hi)) (kSignal kin)) $
        innerJoin $ fmap (\ctx ->
          arrangeLookup (lookupCache ctx) chordPat ranged
        ) progPat
@@ -352,7 +352,7 @@ seriesPlay keep monoString (lo, hi) (kin, chordPat) lyr pats =
         Nothing  -> viableSeries lyr ctx
       voicing = if monoString then mono' else id
   in cacheForced `seq` (|* pF "amp" (kDynamic kin)) $
-     mask (fmap (\x -> x >= lo && x <= hi) (kSignal kin)) $
+     mask (fmap (inBand (lo, hi)) (kSignal kin)) $
        innerJoin $ fmap (\ctx ->
          midinote (fmap fromIntegral (voicing (seriesLookup (lookupCache ctx) keep chordPat contour)))
        ) progPat
@@ -457,7 +457,7 @@ arrange' (lo, hi) (kin, chordPat) register lyr voiceFunc modifier pats =
         Just hit -> hit
         Nothing  -> voicingsOf ctx
   in cacheForced `seq` (|* pF "amp" (kDynamic kin)) $
-     mask (fmap (\x -> x >= lo && x <= hi) (kSignal kin)) $
+     mask (fmap (inBand (lo, hi)) (kSignal kin)) $
        innerJoin $ fmap (\ctx ->
          arrangeLookup' (lookupCache ctx) chordPat ranged
        ) progPat

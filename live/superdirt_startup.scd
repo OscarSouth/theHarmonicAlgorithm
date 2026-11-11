@@ -91,8 +91,8 @@ s.reboot {
     // NOTE: thisProcess.platform.name -- NOT Platform.name, which returns the
     // string "Platform" (the class name) and compares false against \linux.
     ~midiPriorities = if (thisProcess.platform.name == \linux) {
-      // LINUX: bind the kernel's always-present virtual port and let the
-      // patchbay route it onward to hardware. Deliberately hardware-agnostic --
+      // LINUX: bind the kernel's always-present virtual port and let an ALSA
+      // sequencer connection carry it onward to hardware. Deliberately hardware-agnostic --
       // swap or replug an interface and nothing here changes.
       //
       // A direct device binding is not stable on Linux: the PipeWire node name
@@ -100,9 +100,12 @@ s.reboot {
       // full speed") and changes whenever the device enumerates on a different
       // socket.
       //
-      // MIDI therefore reaches hardware only if something routes Midi Through --
-      // see local/bin/autoconnect, started by live/system/bin/livecode. No
-      // fallback entries: Midi Through always exists, so nothing below it is
+      // MIDI therefore reaches hardware only if something connects Midi Through
+      // to a device -- see local/bin/autoconnect, started by
+      // live/system/bin/livecode. Connect it over the ALSA sequencer (aconnect),
+      // not through PipeWire's Midi-Bridge: the bridge moves MIDI once per graph
+      // cycle, delaying every message by one quantum (21.3 ms at 1024/48000).
+      // No fallback entries: Midi Through always exists, so nothing below it is
       // reachable.
       [ ["Midi Through", "Midi Through Port-0"] ]
     } {

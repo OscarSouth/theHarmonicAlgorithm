@@ -652,6 +652,33 @@ the symlink, so a broken link blocked its own fix. The probe now runs under
 repair. Worth carrying into any macOS installer: never call `sclang` unbounded from a
 setup script.
 
+---
+
+## 27. MIDI over the ALSA sequencer, not PipeWire's bridge — **[env]**
+
+PipeWire's Midi-Bridge mirrors every ALSA sequencer port into the graph so that graph
+clients and patchbays can link MIDI. It moves events once per graph cycle, so a MIDI link
+made through it delays **every message by one quantum**: 21.3 ms at 1024/48000, and a
+different amount whenever the quantum changes. Nothing in this rig needs MIDI in the
+graph — `sclang` writes and reads the ALSA sequencer, MIDIVisualizer reads raw ALSA — so
+the bridge is pure latency on the path to hardware.
+
+Measured 2026-11-05 with a probe CC on ch 1 out through the hardware chain and back to the
+U2 input, 4,176 messages each way:
+
+| route Midi Through → U2 | round trip, median | p99 |
+|---|---|---|
+| `pw-link` (through the bridge) | 33.2 ms | 38.5 ms |
+| `aconnect` (direct subscription) | 11.9 ms | 16.4 ms |
+
+`local/bin/autoconnect` therefore links MIDI with `aconnect` and audio with `pw-link`. The
+substring rules of §25 carry over unchanged: an ALSA sequencer port name ("U2MIDI Pro
+MIDI 1") holds no USB bus path, unlike the PipeWire node name (§24). The bridge stays
+enabled and idle — its ports appearing is what wakes the hotplug watcher — and
+`autoconnect status` flags a pair linked both ways, which would send every message twice.
+Graph patchbays draw PipeWire links only, so the MIDI links are visible in
+`autoconnect status` and `aconnect -l`, not on a canvas.
+
 ## Checked and fine — do not re-raise
 
 - **[ok]** `shasum -a 256 -c` in README §2 — `shasum` **is** present on Ubuntu 24.04
