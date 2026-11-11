@@ -49,6 +49,26 @@ be offline for a dump, so the script stops the container and restarts it via a t
 
 ---
 
+## midi2score.py
+
+Harvests a Standard MIDI File (a LilyPond or MuseScore render of an edition) into score-mode
+text: one `harp' M 1 "p" k (staff beats [...])` line per monophonic voice of each track, one
+string per bar, for `bars` blocks in a piece. Pure Python; run it with `-I` on a downloaded
+file. Degrees are chromatic on C at octave 1 (`inKey C "chromatic"`), ties over bar lines are
+one step, a note another track already sounds at the same instant is dropped (hidden-head
+doubles in LilyPond editions), the 2/4 bar is two beats of its block; the report on stderr
+lists the bar count, the time signatures, the range, every dropped note and every cross-bar
+tie (a block boundary must not cut one).
+
+```bash
+python3 -I scripts/midi2score.py piece.mid --blocks 1-16,17-46 --mark pp
+```
+
+The method and its rules are in `documents/ALGORITHMIC_ORCHESTRATION.md` ("Harvesting from
+MIDI").
+
+---
+
 ## ci/
 
 Checks used by `.github/workflows/ci.yml`. Every one runs locally too — the point is that
