@@ -331,7 +331,8 @@ The X3 also splits the laptop's stream. Tidal's JV channels go straight to the J
 and only the MPC's own programs (channels 7 and 10) cross USB to the MPC, which feeds the
 JV with human input: the mapped keyboard, its pads and sequences. Channel 7, the continuo,
 goes both ways, so the MPC's `grnd` program can stand in when the JV is off. The studio
-rig, which has no X3, follows the same pattern through its MIDI hub.
+rig has no X3: its U6 sends the whole stream to the MPC and the MPC filters by track (see
+"Studio MIDI chain (NanoSynth)" below).
 
 ```haskell
 ,kmap f k T          -- in the launcher's mapM_ list

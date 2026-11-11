@@ -286,7 +286,8 @@ formStep cpsV nodes  accessor =
 -------------------------------------------------------------------------------
 
 -- |Kinetics band membership, the one predicate behind every kinetics gate
--- ('ki', 'slate', the instrument lines' activation bands, 'rcGate'):
+-- ('ki', 'slate', the instrument lines' activation bands,
+-- 'Harmonic.Interface.Tidal.Devices.RC10R.rcGate'):
 -- @lo <= x < hi@, and a band reaching 1 includes 1. Bands that meet hand over
 -- at the shared value with no overlap: at exactly 0.35, @(0.35, 0.7)@ plays and
 -- @(0, 0.35)@ does not, so a voice written in both never sounds twice.
