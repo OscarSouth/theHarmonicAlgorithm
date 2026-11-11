@@ -1715,6 +1715,9 @@ hush
 --                        stream owns the clock, never setbpm
 --   dyn "p"              the mark table, ffff 1.0 … p 0.40 … pppp 0.25
 --   ramp lo hi           a 64-step line across one cycle
+--   staff beats strs     one string per bar joined into a weighted
+--                        sequence over a block's beats (a harvested
+--                        transcription: scripts/midi2score.py)
 
 key = inKey D "major"
 

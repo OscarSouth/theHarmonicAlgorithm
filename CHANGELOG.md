@@ -28,7 +28,10 @@ a generated or recalled progression as readily as a key. `bars b1 b2 $ pat`
 places a block on score bar numbers (each on its own clock), `score pre` and
 `preroll pre` run the piece and the form behind a pre-roll, the form's nodes
 are the dynamic arc, `dyn` the mark table and `ramp` a bar-length line. The
-2021 concert files port onto it line for line (`live/examples/04-SCORE.tidal`).
+2021 concert files port onto it line for line (`live/examples/04-SCORE.tidal`). A
+transcription that exists as a MIDI render of an edition is harvested rather than
+typed: `scripts/midi2score.py` writes it as `staff` lines, one string per bar,
+voice by voice.
 
 Kinetics bands are half-open: a line's `(lo, hi)` plays from `lo` up to but not
 including `hi` (a band reaching 1 includes 1), so bands that meet hand over at

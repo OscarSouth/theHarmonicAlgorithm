@@ -517,6 +517,26 @@ The worked port is the author's Stravinsky Suite No. 1 Andante (`live/local/Suit
 with its bar-by-bar reconciliation against the Chester score); the tracked example is
 `live/examples/04-SCORE.tidal`, the opening of a 2021 concert piece.
 
+### Harvesting from MIDI
+
+A transcription whose notation exists as a MIDI render of an edition (a LilyPond or MuseScore
+setting of a public-domain print) is harvested rather than typed: `scripts/midi2score.py
+piece.mid --blocks 1-16,17-46 --mark p` writes one `harp' M 1 "p" k (staff beats [...])` line
+per voice, one string per bar, ready to drop under `bars`. Degrees are chromatic on C at
+octave 1 (`key = inKey C "chromatic"`), so a degree is the note itself — a piano transcription
+needs every accidental. Each staff is split into monophonic voices (a note joins the first voice
+free at its onset; equal onset and length make a chord `[a,b]`), the bar's tick GCD is the unit
+(triplets fall out as `@2` against `@3`), a note held over a bar line is one step whose weight
+spans it, a note another staff already sounds at the same instant is dropped (LilyPond editions
+double a note with hidden heads to carry a slur across staves), and a 2/4 bar is two beats of its
+block. `staff beats strs` joins the strings into one weighted sequence over the block's beats, so
+the text stays bar by bar beside the score for checking. Dynamics are not in such renders: the
+marks, the hairpins (the form's arc) and the tempo words are read from the print. A block
+boundary must not cut a tie — the script reports every cross-bar tie, and a block that holds a
+2/4 bar ends half a bar early (`bars 87 93.5`), after which the score's bar N starts at N − 0.5.
+The worked harvest is Debussy's first Arabesque on the continuo channel
+(`live/local/Suites/Debussy/`), checked note for note against the render.
+
 ## Motifs
 
 Motifs are the recurring material a piece is built from. They are **plain patterns**, not a new
