@@ -30,13 +30,11 @@
 -- Presses take a gate, like the drum names: @rcFill \"[0 0 0 0 0 0 0 1]\/32\"@,
 -- @mark 33 k [silence, rcBreak \"1\"]@, @once $ rcStop \"1\"@.
 --
--- The pedal's drum kit is played through the MPC on a second lane, ch 10
--- CC 33-48: CC 33 + pad, value = velocity. The X3 consumes it and sends each
--- hit as note 19-34 (pad + 19, clear of every other ch 10 note) out of its USB
--- port 2 (Drums) to an MPC MIDI track (pads Chromatic C-2 transposed +19), which
--- records or plays it and sends it on through port 3
--- (Looper); the X3 translates those notes to the kit's own and plays them on
--- the note channel. A @dkit@ block is written with the shared drum names
+-- The pedal's drum kit is played on a second lane, ch 10 CC 33-48: CC 33 +
+-- pad, value = velocity. The X3 consumes it and plays each hit as the kit's
+-- own note on the note channel, straight out to the pedal; it does not pass
+-- through the MPC. The MPC's pads reach the same kit separately. A @dkit@
+-- block is written with the shared drum names
 -- ("Harmonic.Interface.Tidal.Devices.JV1010", notes 0-15) and finished by
 -- 'x3rc10'.
 module Harmonic.Interface.Tidal.Devices.RC10R
@@ -63,7 +61,7 @@ module Harmonic.Interface.Tidal.Devices.RC10R
 import qualified Data.Map.Strict as Map
 import Sound.Tidal.Context
 import Harmonic.Interface.Tidal.Instruments (ch)
-import Harmonic.Interface.Tidal.Form (Kinetics(..), IK, beatsPerBar)
+import Harmonic.Interface.Tidal.Form (Kinetics(..), IK, beatsPerBar, inBand)
 
 -- The lane every RC-10R message rides: channel 10, consumed by the X3.
 rcLane :: Pattern ValueMap
@@ -150,13 +148,13 @@ levelCC num v = ccRaw num (fmap (\x -> fromIntegral (round (max 0 (min 1 x) * 12
 
 -- | A recorded track that enters and leaves with the form, like a section at
 -- its kinetics threshold: TRK@trk@ START on the first bar the form's kinetics is
--- inside @(lo, hi)@, TRK@trk@ STOP on the first bar it is outside. Sampled at
+-- in the band ('inBand'), TRK@trk@ STOP on the first bar it is outside. Sampled at
 -- each downbeat; only the crossings send anything, so no state is kept.
 rcGate :: (Double, Double) -> IK -> Int -> ControlPattern
 rcGate (lo, hi) k trk =
   let bar      = realToFrac beatsPerBar :: Time
-      inBand   = fmap (\x -> x >= lo && x <= hi) (kSignal (fst k))
-      now      = slow (pure bar) (segment 1 (fast (pure bar) inBand))   -- one sample per bar, at the downbeat
+      bandOn   = fmap (inBand (lo, hi)) (kSignal (fst k))
+      now      = slow (pure bar) (segment 1 (fast (pure bar) bandOn))   -- one sample per bar, at the downbeat
       before   = bar `rotR` now                            -- the previous bar's sample
       edge f   = filterValues id (f <$> now <*> before)
       entering = edge (\a b -> a && not b)

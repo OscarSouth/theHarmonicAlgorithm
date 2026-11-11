@@ -49,12 +49,14 @@ module Harmonic.Interface.Tidal.Form
   , rh'
   , iK
   , lK
+  , preroll
 
     -- * Realization
   , formK
 
     -- * Primitives
   , beatsPerBar
+  , inBand
   , ki
   , slate
   , mark
@@ -165,6 +167,18 @@ lK :: Pattern Double          -- ^ Kinetics signal (0-1, live)
    -> IK
 lK sigP dyn pc chordPat = (Kinetics sigP dyn (pure pc) [pc] 0 0 (const True), chordPat)
 
+-- |Delay a performance context by @n@ bars, so a form written in score bars
+-- lines up with a sequence that 'Harmonic.Interface.Tidal.Score.score'
+-- starts after @n@ bars of pre-roll: the kinetics, the dynamic arc, the
+-- progression and the chord selection all move together.
+--
+-- @k = preroll pre $ iK tempo form (rep key 1)@
+preroll :: Int -> IK -> IK
+preroll nBars (kin, chordPat) =
+  let sh :: Pattern a -> Pattern a
+      sh = rotR (fromIntegral nBars * realToFrac beatsPerBar)
+  in (kin { kSignal = sh (kSignal kin), kDynamic = sh (kDynamic kin), kProg = sh (kProg kin) }, sh chordPat)
+
 -------------------------------------------------------------------------------
 -- Realization
 -------------------------------------------------------------------------------
@@ -271,10 +285,19 @@ formStep cpsV nodes  accessor =
 -- Primitives
 -------------------------------------------------------------------------------
 
+-- |Kinetics band membership, the one predicate behind every kinetics gate
+-- ('ki', 'slate', the instrument lines' activation bands,
+-- 'Harmonic.Interface.Tidal.Devices.RC10R.rcGate'):
+-- @lo <= x < hi@, and a band reaching 1 includes 1. Bands that meet hand over
+-- at the shared value with no overlap: at exactly 0.35, @(0.35, 0.7)@ plays and
+-- @(0, 0.35)@ does not, so a voice written in both never sounds twice.
+inBand :: (Double, Double) -> Double -> Bool
+inBand (lo, hi) x = x >= lo && (x < hi || (hi >= 1 && x <= hi))
+
 -- |Range gate: mask a pattern by kinetics signal level.
--- Events pass only when kSignal is within the (lo, hi) range.
+-- Events pass only while kSignal is in the band (see 'inBand').
 ki :: (Double, Double) -> IK -> Pattern a -> Pattern a
-ki (lo, hi) (kin, _) = mask (fmap (\x -> x >= lo && x <= hi) (kSignal kin))
+ki band (kin, _) = mask (fmap (inBand band) (kSignal kin))
 
 -- |Gated stack: stack patterns and gate by kinetics range.
 slate :: (Double, Double) -> IK -> [Pattern a] -> Pattern a

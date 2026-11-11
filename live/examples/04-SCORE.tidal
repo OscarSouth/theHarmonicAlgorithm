@@ -1,0 +1,96 @@
+putStrLn ""
+
+ -- | SCORE MODE
+ --
+ -- The literal, linear way of writing beside the generated one: blocks on bar
+ -- numbers, scale degrees read against a layer of the progression the form
+ -- carries, dynamics as marks, the same instruments and articulations as the
+ -- kinetics workflow (`flute' M 1 "p" k degrees` beside `flute T (0,1) k vl
+ -- flow Soprano`). The key is a one-bar progression (`inKey D "minor"`: D F A |
+ -- D F G A C | D minor); swap it for a generated or recalled progression and the
+ -- same lines follow its chords (T), pentatonics (S) or key areas (M).
+ --
+ -- Material: the opening of "Snowflake" (udagan-sensoria-concert, 2021), ported
+ -- line for line. Degree 0 is D at the bass anchor; the octave argument lifts
+ -- it (1 = the register the 2021 file wrote in, 0 / -1 / -2 its octaves down,
+ -- 2 its octave up, "[-1,0]" two octaves of the same note).
+ --
+ -- The piece is one statement: tempo blocks first (the stream owns the clock —
+ -- no `setbpm` in the launcher), then every stack under its bar range. One
+ -- cycle is a beat and four cycles a bar; the piece is in 6/4, so `tempo` is
+ -- 66 × 4 / 6 cycles a minute, and bar 0 is the pickup — a free, stretched bar
+ -- before the pulse settles. Blocks run on their own clock: a "…/4" figure is
+ -- one bar wherever its block starts, a `slow 16 $ ramp 1 1.2` grows across a
+ -- four-bar block.
+
+tempo = 66 * 4 / 6     -- 6/4 at crotchet = 66: four cycles a bar
+pre   = 1              -- one bar of pre-roll, so the pickup bar is bar 0
+key   = inKey D "minor"
+form  = [rh 1 1 0.8 key, rh 7 1 1 key, rh 8 1 0.9 key]
+
+intro = "[4 6 7 8 7 6]/2"
+
+ -- ── THE PIECE ───────────────────────────────────────────
+
+snowflake f k d = p "score" $ f $ score pre
+  [bars 0 0 $ bpm (66 / 8)                   -- the pickup bar, free and slow
+  ,bars 1 8 $ bpm tempo
+   -- The pickup: the bass figure under a rising harp and violins.
+  ,bars 0 0 $ stack [silence
+     ,contrabass' M (-2) "pp"   k "[7@2 8@2 [9@7 ~] 7@2 6 1 [4@7 ~] 2@2 1 4@9]/4"
+     ,cello'      M (-1) "pp"   k "[7@2 8@2 [9@7 ~] 7@2 6 1 [4@7 ~] 2@2 1 4@9]/4"
+     ,harp'       M 2    "pp"   k "[~@3 [4 6 7 8 7 6]*2]/4"
+     ,violin1'    M 1    "ppp"  k "[~@3 [4 6 7 8 7 6]*2]/4"
+     ,violin2'    M 1    "pppp" k "[~@3 [6 8 11 13 11 8]*2]/4"
+     ]
+   -- The verse: a pedal D in three octaves, oboe and clarinet in sixths.
+  ,bars 1 2 $ stack [silence
+     ,cello'      M "[-1,0]" "pp"   k "[0]/4" # pizz
+     ,violin2'    M 1        "ppp"  k "[4]/4"
+     ,violin1'    M 2        "ppp"  k "[0]/4"
+     ,clarinet'   M 0        "ppp"  k "[6 8 11 13 11 8]/2"
+     ,oboe'       M 0        "pp"   k "[4 6 7 8 7 6]/2"
+     ]
+   -- Four bars of growth: the winds swell, the harp sustains, the violins hold.
+  ,bars 3 6 $ stack [silence
+     ,clarinet'   M 0 "pppp" k "[6 8 11 13 11 8]/2" |* vel (slow 16 $ ramp 1 1.2)
+     ,oboe'       M 0 "ppp"  k "[4 6 7 8 9 6]/2"    |* vel (slow 16 $ ramp 1 1.2)
+     ,harp'       M 1 "mp"   k "[4 6 7 8 9 6]/2" # sustain 4 |* vel (slow 16 $ ramp 0.8 1.2)
+     ,violin1'    M 1 "ppp"  k "[7 6 4@2]/16"
+     ,violin2'    M 1 "ppp"  k "[4 0 2 0]/16"
+     ,bassoon'    M 0 "pppp" k "[~ ~ 0 ~]/16"       -- the third bar only
+     ,horn'       M 1 "pp"   k "[~ ~ ~ 6]/16"       -- the fourth
+     ,bassoon'    M 0 "ppp"  k "[~ ~ ~ -1]/16"
+     ]
+   -- The turn: a chord held on the harp, the winds and brass answering.
+  ,bars 7 7 $ stack [silence
+     ,oboe'       M 0    "pppp" k "[13 6 8]"
+     ,clarinet'   M 0    "ppp"  k "[4]"
+     ,harp'       M 1    "f"    k "[[4, 13] 6 8]" # sustain 10
+     ,violin1'    M 1    "pppp" k "[4]/4"
+     ,violin2'    M 1    "pppp" k "[-1]/4"
+     ,horn'       M 0    "ppp"  k "[13 6 8]"
+     ,trombone'   M (-1) "pp"   k "[4]/4"
+     ,bassoon'    M 0    "p"    k "[1]/4"
+     ]
+   -- Bar 8: the horn settles, the harp and a pizzicato cello restate the intro.
+  ,bars 8 8 $ stack [silence
+     ,horn'       M 1 "pppp" k "[0]/4"
+     ,harp'       M 1 "pp"   k intro # sustain 10
+     ,cello'      M 0 "pp"   k intro # pizz
+     ]
+  ] |* vel d
+   -- (the 2021 file also had a Minimoog on three of these bars; the synth is
+   -- not part of the orchestra, so its lines are left out here)
+
+ -- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let f = id
+      d = (* 1)
+      k = preroll pre $ iK tempo form (rep key 1)
+  mapM_ id [hush, resetCycles, display k
+    ,snowflake f k $ d 0.9
+    ]
+
+hush

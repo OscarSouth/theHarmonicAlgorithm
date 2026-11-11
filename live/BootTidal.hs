@@ -33,6 +33,8 @@
 import Sound.Tidal.Context hiding (defaultConfig)
 import qualified Sound.Tidal.Config as TidalConfig
 import Harmonic.Lib
+import qualified Harmonic.Interface.Tidal.Orchestra as O
+import Control.Concurrent (threadDelay)
 
 import System.IO (hSetEncoding, stdout, utf8)
 hSetEncoding stdout utf8
@@ -146,6 +148,8 @@ launch = mapM_ ($ silence) [
   p "strg",
   p "perc",
   p "tutti",
+  p "score",
+  p "t",
   p "s101",
   p "smpl",
   p "auto",
@@ -165,11 +169,79 @@ setCC c n val = once $ control (val) #io n c where io n c = (midi #midicmd "cont
 ped = cc 64
 
 -------------------------------------------------------------------------------
--- Continuo voice (ch 7) — the plucked/keyboard colour
+-- Rig
+--
+-- One orchestral module answers on the port. Declare it here and every
+-- instrument name below resolves to its channel map, so performance files and
+-- snippets never name a channel. The default is the JV-1010; a machine with
+-- another module keeps a one-line `live/local/rig.hs` (`rig = nanoSynth`),
+-- which is gitignored and read here when present. The path is relative to the
+-- repository root, the directory the interpreter starts in.
+-- The names are bound from the qualified module so the binding is not
+-- self-referential.
+-------------------------------------------------------------------------------
+
+rig = jv1010
+
+:{
+:def localRig \_ -> let f = "live/local/rig.hs" in
+  System.IO.Error.catchIOError (readFile f >>= \src -> length src `seq` pure (":script " ++ f)) (\_ -> pure "")
+:}
+:localRig
+
+:{
+flute      = O.flute rig
+oboe       = O.oboe rig
+clarinet   = O.clarinet rig
+bassoon    = O.bassoon rig
+horn       = O.horn rig
+trombone   = O.trombone rig
+basstrom   = O.basstrom rig
+harp       = O.harp rig
+timpani    = O.timpani rig
+violin1    = O.violin1 rig
+violin2    = O.violin2 rig
+viola      = O.viola rig
+cello      = O.cello rig
+contrabass = O.contrabass rig
+-- score mode: the same instruments as `flute' "p" pitches` (Harmonic.Interface.Tidal.Score)
+flute'      = O.flute' rig
+oboe'       = O.oboe' rig
+clarinet'   = O.clarinet' rig
+bassoon'    = O.bassoon' rig
+horn'       = O.horn' rig
+trombone'   = O.trombone' rig
+basstrom'   = O.basstrom' rig
+harp'       = O.harp' rig
+timpani'    = O.timpani' rig
+violin1'    = O.violin1' rig
+violin2'    = O.violin2' rig
+viola'      = O.viola' rig
+cello'      = O.cello' rig
+contrabass' = O.contrabass' rig
+bassdrum   = O.bassdrum rig
+tamtam     = O.tamtam rig
+pizz       = O.pizz rig
+spicc      = O.spicc rig
+marc       = O.marc rig
+legg       = O.legg rig
+arco       = O.arco rig
+:}
+
+-- Cold configuration of the declared module: each one-shot fires, then a
+-- tenth of a second passes before the next so the module never queues. Run
+-- once after power-up. A rig whose patches live on the device sends nothing.
+:{
+setupRig :: IO ()
+setupRig = mapM_ (\pat -> once pat >> threadDelay 100000) (rigSetup rig)
+:}
+
+-------------------------------------------------------------------------------
+-- Continuo voice — the plucked/keyboard colour, on the rig's continuo channel
 --
 -- The orchestra is a fixed, deliberate configuration. The one permitted
--- variation is the ch-7 continuo voice, which may be sounded as any pitched
--- polyphonic plucked / keyboard / mallet / choral colour.
+-- variation is the continuo voice (JV-1010 ch 7), which may be sounded as any
+-- pitched polyphonic plucked / keyboard / mallet / choral colour.
 --
 -- Set ONCE per movement, in the launcher's mapM_ list — never hot-swapped
 -- mid-flow. `setContinuo` is IO (), so it sits alongside `hush` and `setbpm`:
@@ -200,7 +272,7 @@ progSel c msb lsb pc = mapM_ id
 -- Harmonic.Interface.Tidal.Devices.JV1010.
 :{
 setContinuo :: ContinuoVoice -> IO ()
-setContinuo (msb, lsb, pc) = progSel 7 msb lsb pc
+setContinuo (msb, lsb, pc) = progSel (rigContinuo rig) msb lsb pc
 :}
 
 allNotesOff = setCC "[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16]" "[123,64]" 0
@@ -233,6 +305,10 @@ startSync = bar 6 6 $ midicmd "start" #midi
 stopSync out = bar (out+1) (out+1) $ midicmd "stop" #midi
 sync out = [midiClock out, initSync, startSync, stopSync out]
 bpm t = cps (t/60)
+-- A running pattern: Tidal sets the clock at every onset that carries `cps`,
+-- so a piece whose tempo lives in its own stream (score-mode `bars … $ cps`)
+-- must not also run this — `hush` (via `launch`) stops "t" and the clock keeps
+-- its last value.
 setbpm tempo = p "t" $ bpm tempo
 runSeq = (0, 1, silence)
 steptrig pat = mono $ midinote (toScale [-1, 0, 2, 4, 5, 7, 9, 10] $ (((pat-1) `mod` 8)+1)) |= vel 1 #ch 5
@@ -264,7 +340,7 @@ steptrig pat = mono $ midinote (toScale [-1, 0, 2, 4, 5, 7, 9, 10] $ (((pat-1) `
 -- All types are Phase B (MusicData has been deprecated).
 -------------------------------------------------------------------------------
 
-putStrLn "theHarmonicAlgorithm V3 boot complete."
+putStrLn $ "theHarmonicAlgorithm V3 boot complete. rig: " ++ rigName rig
 
 -- LED display feed for the 12 Step. The CC arithmetic lives in
 -- Harmonic.Interface.Tidal.Display; these name the stream that carries it.

@@ -24,6 +24,8 @@
 //   Same channel as the LEDs (midichan 9 = MIDI ch 10).
 //
 // TIDAL → SC SIGNALS (added by the `display k` (bars) / `display' k` (seconds) helpers in BootTidal.hs)
+//   Consumed here: onControl returns true for them, so SafeMIDIOut never sends
+//   them to the hardware.
 //   CC 113 on ch 10: bar number 1..8 at chord onset, value 0 at +1/8 cycle (off).
 //   CC 114 on ch 10: form loop length high byte (kLoopSecs DIV 128).
 //   CC 115 on ch 10: form loop length low byte  (kLoopSecs MOD 128).
@@ -213,6 +215,12 @@
         // the HUSH blink. Idempotent across 16-channel broadcast — only the
         // first one triggers since subsequent ones see mode = \hushing.
         if (ctl == 123 and: { self.displayMode == \active }) { self.beginHushing };
+
+        // The display protocol is Tidal -> SuperCollider only: true tells
+        // SafeMIDIOut to keep it off the wire. CC 117/118 alone run at 30 per
+        // cycle, and no device reads them. Tidal's values arrive as Floats, and
+        // includes compares by identity, so the number is made an Integer first.
+        (chan == self.displayChannel) and: { [113, 114, 115, 117, 118].includes(ctl.asInteger) }
     },
 
     // --- Display protocol handlers -------------------------------------------

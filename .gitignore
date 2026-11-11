@@ -70,6 +70,10 @@ live/local/
 # Personal practice curriculum (private for now)
 documents/practice/
 
+# X3 firmware build output
+firmware/x3/build/
+firmware/x3/build-debug/
+
 # Cleared-out material staged for the archive disc (never published)
 archive/
 

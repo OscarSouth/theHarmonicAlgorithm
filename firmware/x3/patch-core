@@ -1,0 +1,106 @@
+#!/bin/sh
+# Give the Teensy 4 core named USB-MIDI ports.
+#
+# The teensy3 core attaches a string descriptor to every USB-MIDI jack and
+# exposes them as weak symbols (usb_string_midi_port1..16) that a sketch's
+# name.c overrides. The teensy4 core leaves every iJack at 0, so hosts number
+# the ports. This ports the teensy3 mechanism into teensy4/usb_desc.c:
+#
+#   1. iJack on every jack descriptor -> string index 0x05 + cable
+#   2. weak usb_string_midi_portN, defaulting to "Port N"
+#   3. string-table entries 0x0305.. for those strings
+#
+# The patched file is always regenerated from the pristine copy saved beside it
+# (usb_desc.c.orig), so a re-run converges from any state. A core upgrade lands
+# in a new version directory and is patched afresh. Every anchor must match
+# exactly once per expected site, or the script stops without writing.
+#
+# When the file changes, the cached core builds for the Teensy 4.0 are deleted:
+# arduino-cli keys that cache on board options, not on core source.
+set -e
+CORE=${CORE:-$HOME/.arduino15/packages/teensy/hardware/avr/1.62.0/cores/teensy4}
+F=$CORE/usb_desc.c
+[ -f "$F" ] || { echo "teensy4 core not found at $CORE"; exit 1; }
+[ -f "$F.orig" ] || cp "$F" "$F.orig"
+
+rc=0
+python3 - "$F" <<'PY' || rc=$?
+import re, sys
+
+path = sys.argv[1]
+src = open(path + ".orig").read()
+current = open(path).read()
+
+def need(count, what, n):
+    if count != n:
+        sys.exit("  usb_desc.c: expected %d %s, found %d -- the core has changed "
+                 "shape; update patch-core" % (n, what, count))
+
+# 1. iJack indices. The first cable's four jacks are written out longhand
+#    (twice: high-speed and full-speed configurations); later cables use the
+#    MIDI_INTERFACE_JACK_PAIR macro, which gains a fifth argument.
+ijack = re.compile(r"^(\s*)0,(\s*// iJack)$", re.M)
+need(len(ijack.findall(src)), "first-cable iJack lines", 8)
+s = ijack.sub(r"\g<1>0x05,\2", src)
+
+old_macro = ("\t#define MIDI_INTERFACE_JACK_PAIR(a, b, c, d) \\\n"
+             "\t\t6, 0x24, 0x02, 0x01, (a), 0, \\\n"
+             "\t\t6, 0x24, 0x02, 0x02, (b), 0, \\\n"
+             "\t\t9, 0x24, 0x03, 0x01, (c), 1, (b), 1, 0, \\\n"
+             "\t\t9, 0x24, 0x03, 0x02, (d), 1, (a), 1, 0,\n")
+new_macro = ("\t#define MIDI_INTERFACE_JACK_PAIR(a, b, c, d, e) \\\n"
+             "\t\t6, 0x24, 0x02, 0x01, (a), (e), \\\n"
+             "\t\t6, 0x24, 0x02, 0x02, (b), (e), \\\n"
+             "\t\t9, 0x24, 0x03, 0x01, (c), 1, (b), 1, (e), \\\n"
+             "\t\t9, 0x24, 0x03, 0x02, (d), 1, (a), 1, (e),\n")
+need(s.count(old_macro), "MIDI_INTERFACE_JACK_PAIR definitions", 2)
+s = s.replace(old_macro, new_macro)
+
+pair = re.compile(r"MIDI_INTERFACE_JACK_PAIR\((\d+), (\d+), (\d+), (\d+)\)")
+need(len(pair.findall(s)), "MIDI_INTERFACE_JACK_PAIR uses", 30)
+s = pair.sub(lambda m: "MIDI_INTERFACE_JACK_PAIR(%s, %s, %s, %s, 0x%02X)"
+             % (m.group(1), m.group(2), m.group(3), m.group(4),
+                5 + (int(m.group(1)) - 1) // 4), s)
+
+# 2. Weak port-name symbols with "Port N" defaults, after the serial-number alias.
+alias_anchor = ('extern struct usb_string_descriptor_struct usb_string_serial_number\n'
+                '        __attribute__ ((weak, alias("usb_string_serial_number_default")));\n')
+need(s.count(alias_anchor), "serial-number alias", 1)
+names = ["#ifdef MIDI_INTERFACE  // patch-core: named USB-MIDI ports"]
+for n in range(1, 17):
+    label = "Port %d" % n
+    names += ["#if MIDI_NUM_CABLES >= %d" % n,
+              "extern struct usb_string_descriptor_struct usb_string_midi_port%d" % n,
+              '        __attribute__ ((weak, alias("usb_string_midi_port%d_default")));' % n,
+              "struct usb_string_descriptor_struct usb_string_midi_port%d_default = {" % n,
+              "        %d," % (2 + 2 * len(label)),
+              "        3,",
+              "        {%s}" % ",".join("'%s'" % ch for ch in label),
+              "};",
+              "#endif"]
+names += ["#endif", ""]
+s = s.replace(alias_anchor, alias_anchor + "\n".join(names))
+
+# 3. String-table entries, ahead of the language/manufacturer/product/serial rows.
+table_anchor = "        {0x0300, 0x0000, (const uint8_t *)&string0, 0},\n"
+need(s.count(table_anchor), "string-table anchor", 1)
+rows = ["#ifdef MIDI_INTERFACE  // patch-core"]
+for n in range(1, 17):
+    rows += ["#if MIDI_NUM_CABLES >= %d" % n,
+             "\t{0x%04X, 0x0409, (const uint8_t *)&usb_string_midi_port%d, 0}," % (0x0304 + n, n),
+             "#endif"]
+rows += ["#endif", ""]
+s = s.replace(table_anchor, "\n".join(rows) + table_anchor)
+
+if s == current:
+    print("  teensy4 usb_desc.c: port-name patch already correct")
+    sys.exit(0)
+open(path, "w").write(s)
+print("  teensy4 usb_desc.c: port-name patch applied")
+sys.exit(3)
+PY
+case $rc in
+  0) ;;
+  3) rm -rf "$HOME"/.cache/arduino/cores/teensy_avr_teensy40* ;;
+  *) exit $rc ;;
+esac

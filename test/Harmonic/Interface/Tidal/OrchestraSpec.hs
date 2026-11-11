@@ -10,7 +10,12 @@ import qualified Harmonic.Rules.Types.Progression as P
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as Pitch
 import Harmonic.Interface.Tidal.Orchestra
-import Harmonic.Interface.Tidal.Form (Kinetics(..))
+import Harmonic.Interface.Tidal.Devices.JV1010 (jv1010)
+import Harmonic.Interface.Tidal.Form (Kinetics(..), lK)
+import Harmonic.Interface.Tidal.Score (inKey)
+import qualified Harmonic.Rules.Types.ProgressionContext as PC
+import qualified Harmonic.Interface.Tidal.Arranger as A
+import Data.List (nub)
 import Harmonic.Rules.Types.ProgressionContext (Layer(..))
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
@@ -121,14 +126,14 @@ spec = do
           evs = queryArc clipped (Arc 0 1)
       length evs `shouldSatisfy` (> 0)
 
-  describe "Articulations" $ do
+  describe "Articulations (JV-1010)" $ do
     it "articulation values are distinct channel patterns" $ do
       let extract p = queryArc p (Arc 0 1)
-          pEvs  = extract pizz
-          sEvs  = extract spicc
-          mEvs  = extract marc
-          lEvs  = extract legg
-          aEvs  = extract arco
+          pEvs  = extract (pizz jv1010)
+          sEvs  = extract (spicc jv1010)
+          mEvs  = extract (marc jv1010)
+          lEvs  = extract (legg jv1010)
+          aEvs  = extract (arco jv1010)
       -- All should produce events
       length pEvs `shouldSatisfy` (> 0)
       length sEvs `shouldSatisfy` (> 0)
@@ -206,11 +211,97 @@ spec = do
 
   describe "Unpitched percussion" $ do
     it "bassdrum produces events on struct true" $ do
-      let pat = bassdrum "t" :: ControlPattern
+      let pat = bassdrum jv1010 "t" :: ControlPattern
           evs = queryArc pat (Arc 0 1)
       length evs `shouldSatisfy` (> 0)
 
     it "tamtam produces events on struct true" $ do
-      let pat = tamtam "t" :: ControlPattern
+      let pat = tamtam jv1010 "t" :: ControlPattern
           evs = queryArc pat (Arc 0 1)
       length evs `shouldSatisfy` (> 0)
+
+  describe "JV-1010 map (pinned)" $ do
+    let pcx  = PC.fromProgression testProgA
+        kin  = Kinetics (pure 1.0) (pure 1.0) (pure pcx) [pcx] 0 0 (const True)
+        k    = (kin, parseBP_E "1" :: Pattern Int)
+        num v = case v of { VF x -> Just x; VN x -> Just (realToFrac (unNote x)); VI x -> Just (fromIntegral x); _ -> Nothing }
+        chans p = nub [ c | ev <- queryArc p (Arc 0 4), Just c <- [Map.lookup "midichan" (value ev) >>= num] ]
+        notes p = queryNotes p (Arc 0 4)
+        play instr v = instr jv1010 T (0,1) k voiceLines A.flow v
+        -- (instrument, voice that lands inside its range, channel, bounds)
+        pins = [ ("flute",      play flute      Soprano,  0, (-12, 26))
+               , ("oboe",       play oboe       Soprano,  1, ( -2, 33))
+               , ("clarinet",   play clarinet   Alto,     2, (-22, 34))
+               , ("bassoon",    play bassoon    Bass8vb,  3, (-28, 15))
+               , ("horn",       play horn       Tenor,    4, (-29, 17))
+               , ("trombone",   play trombone   Bass,     5, (-28, 17))
+               , ("basstrom",   play basstrom   Bass15vb, 5, (-39, -5))
+               , ("harp",       play harp       Soprano,  6, (-29, 42))
+               , ("timpani",    play timpani    Bass,     7, (-22,  0))
+               , ("violin1",    play violin1    Soprano, 15, ( -5, 45))
+               , ("violin2",    play violin2    Soprano, 15, ( -5, 45))
+               , ("viola",      play viola      Alto,    15, (-12, 28))
+               , ("cello",      play cello      Bass,    15, (-24, 24))
+               , ("contrabass", play contrabass Bass8vb, 15, (-36,  0))
+               ]
+
+    it "every instrument sounds, on its channel, inside its range" $
+      [ (nm, chans p, all (\n -> n >= fromIntegral lo && n <= fromIntegral hi) (notes p), not (null (notes p)))
+      | (nm, p, _, (lo, hi)) <- pins ]
+        `shouldBe` [ (nm, [c], True, True) | (nm, _, c, _) <- pins ]
+
+    it "articulations re-route the strings: pizz 12, spicc 13, marc 14, legg 15, arco 16" $
+      [ chans (play violin1 Soprano # art jv1010) | art <- [pizz, spicc, marc, legg, arco] ]
+        `shouldBe` [[11], [12], [13], [14], [15]]
+
+    it "bass drum is MIDI 36 on channel 9; tam-tam MIDI 31 on channel 11" $ do
+      -- 'midinote' lands in the note field, offset by 60
+      let hit p = [ (extractNote (value ev), Map.lookup "midichan" (value ev) >>= num) | ev <- queryArc p (Arc 0 1) ]
+      hit (bassdrum jv1010 "t") `shouldBe` [(Just (-24), Just 8)]
+      hit (tamtam jv1010 "t")   `shouldBe` [(Just (-29), Just 10)]
+
+    it "the record holds the map the instruments read" $ do
+      map ($ jv1010) [rigFlute, rigOboe, rigClarinet, rigBassoon, rigHorn, rigTrombone, rigBasstrom, rigHarp, rigTimpani]
+        `shouldBe` [1, 2, 3, 4, 5, 6, 6, 7, 8]
+      map ($ jv1010) [rigViolin1, rigViolin2, rigViola, rigCello, rigContrabass]
+        `shouldBe` [16, 16, 16, 16, 16]
+      rigContinuo jv1010 `shouldBe` 7
+      rigSetup jv1010 `shouldSatisfy` null
+
+  describe "noArt" $
+    it "is the identity under #" $ do
+      let base = note 1 # amp 0.5 :: ControlPattern
+      map value (queryArc (base # noArt) (Arc 0 1)) `shouldBe` map value (queryArc base (Arc 0 1))
+
+  describe "score mode (primed instruments)" $ do
+    let chanOf v = case v of { VF x -> Just x; VN x -> Just (realToFrac (unNote x)); VI x -> Just (fromIntegral x); _ -> Nothing }
+        evs p = [ (extractNote (value ev), extractAmp (value ev), Map.lookup "midichan" (value ev) >>= chanOf)
+                | ev <- queryArc p (Arc 0 1) ]
+        keyC = lK 1 1 (inKey Pitch.C "major") (pure 1)
+
+    it "reads degrees against the IK's progression, the mark as amp, on the rig's channel" $
+      evs (flute' jv1010 M 1 "p" keyC "0 7") `shouldBe` [(Just 0, Just 0.40, Just 0), (Just 12, Just 0.40, Just 0)]
+
+    it "samples a pattern of marks at each onset" $
+      map (\(_, a, _) -> a) (evs (violin1' jv1010 M 1 "p mf" keyC "0 0 0 0"))
+        `shouldBe` [Just 0.40, Just 0.40, Just 0.55, Just 0.55]
+
+    it "scales by the form's dynamic like arrange" $
+      map (\(_, a, _) -> a) (evs (flute' jv1010 M 1 "p" (lK 1 0.5 (inKey Pitch.C "major") (pure 1)) "0"))
+        `shouldBe` [Just 0.20]
+
+    it "clips to the instrument's range after the octave" $ do
+      evs (flute' jv1010 M 0 "p" keyC "0") `shouldSatisfy` ((== 1) . length)     -- C3 is the flute's floor
+      evs (flute' jv1010 M (-1) "p" keyC "0") `shouldBe` []                      -- C2 is below it
+      evs (contrabass' jv1010 M 1 "p" keyC "1") `shouldBe` []                     -- D4 is above the bass's ceiling
+
+    it "answers to the articulation tags" $
+      map (\(_, _, c) -> c) (evs (cello' jv1010 T 0 "p" keyC "0" # pizz jv1010)) `shouldBe` [Just 11]
+
+    it "T and T' agree on where degree 0 sits (the bar root at the bass anchor)" $ do
+      let pcx = PC.fromProgression testProgA
+          kin = Kinetics (pure 1.0) (pure 1.0) (pure pcx) [pcx] 0 0 (const True)
+          k   = (kin, pure 1 :: Pattern Int)
+          plain  = queryNotes (cello jv1010 T (0,1) k voiceLines { bass = "0" } A.grid Bass) (Arc 0 1)
+          primed = queryNotes (cello' jv1010 T 0 "p" k "0") (Arc 0 1)
+      take 1 primed `shouldBe` take 1 plain

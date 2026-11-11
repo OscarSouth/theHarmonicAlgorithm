@@ -18,15 +18,28 @@ s.reboot {
   // 44100. thisProcess.platform.name, not Platform.name — see the MIDI list.
   s.options.sampleRate = if (thisProcess.platform.name == \linux) { 48000 } { 44100 };
 
-  // 2. Audio output device — uncomment ONE (comment the others).
-  //    AIRA devices appear over USB when connected; both run at 44.1 kHz.
-  // Left unset on Linux: s.options.device names a JACK *server* there, not an
-  // audio device, and ServerOptions.devices raises "Primitive
-  // '_ListAudioDevices' failed" because enumeration is CoreAudio/PortAudio only.
-  // Unset connects to the default server; routing belongs in the patchbay.
-  // s.options.device = "MacBook Pro Speakers";  // macOS rig
-  // s.options.device = "P-6";
-  // s.options.device = "S-1";
+  // 2. Audio device, macOS: one device for both sides, chosen by priority from
+  //    what CoreAudio offers — the studio's iConnectAUDIO4+ (16 outputs, the
+  //    iPad convolution return), else the built-in speakers. Left unset, SC
+  //    opens the default input (the MacBook microphone) beside the default
+  //    output; when those are different devices scsynth exits during start
+  //    ("exited with exit code 0" straight after the driver line) and SuperDirt
+  //    never comes up. The AIRA units ("P-6", "S-1") can be put first here when
+  //    they are the output. Left unset on Linux: s.options.device names a JACK
+  //    *server* there, not an audio device, and ServerOptions.devices raises
+  //    "Primitive '_ListAudioDevices' failed" because enumeration is
+  //    CoreAudio/PortAudio only; routing belongs in the patchbay.
+  if (thisProcess.platform.name != \linux) {
+    var wanted = ["iConnectAUDIO4+", "MacBook Pro Speakers"];
+    var present = ServerOptions.outDevices;
+    var chosen = wanted.detect { |nm| present.includesEqual(nm) };
+    if (chosen.notNil) {
+      s.options.device = chosen;
+      ("====> audio device: " ++ chosen).postln;
+    } {
+      "====> audio device: none of the priority list found; using the system defaults".postln;
+    };
+  };
 
   // 3. Set input channels to 0. This is the simplest way to fix the
   //    sample rate mismatch error if you don't need audio input.
@@ -91,8 +104,8 @@ s.reboot {
     // NOTE: thisProcess.platform.name -- NOT Platform.name, which returns the
     // string "Platform" (the class name) and compares false against \linux.
     ~midiPriorities = if (thisProcess.platform.name == \linux) {
-      // LINUX: bind the kernel's always-present virtual port and let the
-      // patchbay route it onward to hardware. Deliberately hardware-agnostic --
+      // LINUX: bind the kernel's always-present virtual port and let an ALSA
+      // sequencer connection carry it onward to hardware. Deliberately hardware-agnostic --
       // swap or replug an interface and nothing here changes.
       //
       // A direct device binding is not stable on Linux: the PipeWire node name
@@ -100,9 +113,12 @@ s.reboot {
       // full speed") and changes whenever the device enumerates on a different
       // socket.
       //
-      // MIDI therefore reaches hardware only if something routes Midi Through --
-      // see local/bin/autoconnect, started by live/system/bin/livecode. No
-      // fallback entries: Midi Through always exists, so nothing below it is
+      // MIDI therefore reaches hardware only if something connects Midi Through
+      // to a device -- see local/bin/autoconnect, started by
+      // live/system/bin/livecode. Connect it over the ALSA sequencer (aconnect),
+      // not through PipeWire's Midi-Bridge: the bridge moves MIDI once per graph
+      // cycle, delaying every message by one quantum (21.3 ms at 1024/48000).
+      // No fallback entries: Midi Through always exists, so nothing below it is
       // reachable.
       [ ["Midi Through", "Midi Through Port-0"] ]
     } {

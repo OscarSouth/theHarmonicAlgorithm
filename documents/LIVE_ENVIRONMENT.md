@@ -28,22 +28,28 @@ Pulsar ──spawns──> ghci ──> TidalCycles ──OSC──> SuperDirt �
 ```
 
 Tidal never touches audio hardware here. Every sound is MIDI, sent through SuperDirt's
-`thru` device to the JV-1010 and the two AIRA units. SuperCollider is doing MIDI routing
-and LED state, not synthesis. The JV-1010 orchestra's channel map is in
-[ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md); the studio rig's is below.
+`thru` device to whichever module the chain holds. SuperCollider is doing MIDI routing
+and LED state, not synthesis. The orchestral channel maps are in
+[ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md) (JV-1010) and
+[NANOSYNTH.md](NANOSYNTH.md); the studio rig's is below.
 
-### Two rigs on one port
+### Three programs on one port
 
-There is one MIDI stream and one 16-channel space, and two complete configurations
+There is one MIDI stream and one 16-channel space, and three complete configurations
 compete for it. They are not performed together:
 
-- **The orchestral program** — the JV-1010, sixteen pitched instruments and a drum kit,
+- **The home orchestra** — the Roland JV-1010, sixteen pitched instruments and a drum kit,
   aimed at simulated orchestral writing. Library-fixed map in
-  [ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md).
+  [ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md); `rig = jv1010`, the boot file's default.
+- **The studio orchestra** — the Alesis NanoSynth, one section per channel behind the same
+  instrument functions, reached through a CME U6 that splits the iCA4+ DIN to the MPC
+  (everything) and to the nano (everything but channel 10) and merges the MPC's own out into
+  the nano line. `rig = nanoSynth` in that machine's `live/local/rig.hs`, then `setupRig` once after power-up to
+  send the module its patches and mix ([NANOSYNTH.md](NANOSYNTH.md)). Chain below.
 - **The studio rig** — soft synths, the Moog DFAM and Mother-32, the MPC programs and the
   two AIRA units, aimed at contemporary and jazz material. Map below.
 
-Only one is loaded at a time, so the two maps overlap freely and nothing needs renumbering.
+Only one is loaded at a time, so the maps overlap freely and nothing needs renumbering.
 
 ### Studio rig channel map
 
@@ -106,6 +112,40 @@ which is what makes that layer sequenceable rather than hand-picked.
 The maps and the composite controls (`p6scrub`, `p6cloud`, `p6chaos`, `p6src`,
 `p6env`; `s1chord`, `s1env`, `s1mix`) live in `Harmonic.Interface.Tidal.Devices.S1`
 and `.P6`.
+
+## Studio MIDI chain (NanoSynth)
+
+One DIN out of the iCA4+ carries Tidal's `thru` stream; a CME U6MIDI Pro splits it and
+merges the MPC back in. The X3 note-mapper is a home-rig device and is not in this chain.
+
+```
+laptop ─USB─ iCA4+ ─DIN out───────────► U6 MIDI In 1
+MPC MIDI OUT ─────────────────────────► U6 MIDI In 2
+
+U6 MIDI Out 1 ◄ In 1, everything                   ──► MPC MIDI IN     (service lane + whatever the MPC records)
+U6 MIDI Out 2 ◄ In 1 + In 2, channel 10 filtered   ──► NanoSynth MIDI IN
+U6 MIDI Out 3 ◄ In 2, everything                   ──► iCA4+ DIN IN    (the Q-Link / 12 Step return, CC 100-111 ch 10)
+```
+
+Unlike the home rig's X3, which passes only the MPC's own channels across USB, the U6 sends
+the whole stream to the MPC (Out 1): the MPC filters by track, so this costs nothing and lets
+it record any channel.
+
+The rules the U6 preset (`nano studio`) encodes, and why:
+
+- Out 2 carries no channel-10 traffic from either source, so the display, LED, `kmap`,
+  RC-10R and Q-Link lanes never reach the orchestra; the nano's channel 10 is blank anyway,
+  and `nanoKit` only needs the filter lifted. No CC or program-change filter sits on Out 2:
+  `setupRig`'s bank selects and program changes must arrive intact.
+- In 2 never routes to Out 1 (the MPC would hear itself) and In 1 never routes to Out 3
+  (Tidal's stream would come back into the laptop). Those are the two loops.
+- The MPC's MIDI thru is off, globally and per track: it receives all sixteen channels and its
+  out is merged into the nano line, so a thru would double every note at the nano.
+- The MPC follows Tidal's clock on Out 1, as before.
+- The U6's USB-C is for configuration; afterwards a charger powers it. While it is on the
+  laptop its ports appear in CoreMIDI, but the SuperDirt priority list does not name them,
+  so nothing changes. A U2MIDI Pro plugged in at the studio would outrank the iCA4+ in that
+  list; leave it at home.
 
 ## The MPC programs
 
@@ -284,7 +324,15 @@ an earlier one.
 note per pitch class, each for the length of its chord. A MIDI device downstream reads them
 as the harmony to lock a played keyboard to: every key is moved to the nearest pitch in the
 set. The rig's device is an external MIDI interface, the MiDiNiNjA X3, which sits between the
-laptop and the MPC. It consumes these notes, so the MPC never receives them.
+laptop and the MPC. It consumes these notes, so the MPC never receives them. Its firmware is
+in [`firmware/x3/`](../firmware/x3/README.md).
+
+The X3 also splits the laptop's stream. Tidal's JV channels go straight to the JV-1010,
+and only the MPC's own programs (channels 7 and 10) cross USB to the MPC, which feeds the
+JV with human input: the mapped keyboard, its pads and sequences. Channel 7, the continuo,
+goes both ways, so the MPC's `grnd` program can stand in when the JV is off. The studio
+rig has no X3: its U6 sends the whole stream to the MPC and the MPC filters by track (see
+"Studio MIDI chain (NanoSynth)" above).
 
 ```haskell
 ,kmap f k T          -- in the launcher's mapM_ list
@@ -358,23 +406,26 @@ instruments: LOOP TRACK MODE PARALLEL, SYNC SWITCH ON.
 
 ### The pedal's drum kit (`dkit`)
 
-The RC-10R's drum kit plays from Tidal through an MPC track, so it can be recorded
-there and played from the MPC's pads. A `dkit` block is written with the shared drum
+The RC-10R's drum kit plays from Tidal straight through the X3, and from the MPC's pads
+through an MPC track. A `dkit` block is written with the shared drum
 names (`Devices.JV1010`, notes 0–15) and finished by `x3rc10`, which turns each hit into
 a control change on channel 10, CC 33–48: CC 33 + pad, value = the hit's final
 velocity (`amp` × 127; SuperDirt's 0.4 when unset).
 
 ```
-Tidal  ch 10 CC 33-48 -> X3 (consumed) -> USB port 2 "Drums": note 19-34, ch 10
-  -> MPC MIDI track "dkit" (pads on notes 19-34; records, plays)
-  -> USB port 3 "Looper", ch 2 -> X3 (pad -> kit note) -> Out C -> RC-10R
+Tidal     ch 10 CC 33-48 -> X3 (consumed; pad -> kit note, ch 2) -> Out C -> RC-10R
+MPC pads  track "dkit": notes 19-34 -> USB port 3 "Looper", ch 2 -> X3 (pad -> kit note) -> Out C
 ```
 
-The MPC track: a MIDI track with MIDI input X3 Drums, any channel, and output X3 Looper,
-channel 2; its pads are Pad Perform Chromatic C-2 transposed +19 (A01 = G-1 = 19), and
-MIDI Monitor is Merge so Tidal's hits pass through when the track isn't armed. Notes
-19–34 are the free run between the ch 10 kit (0–15, `count` from 8) and the MPC sub
-(35–48), so an All Ports ch 10 track never plays the lane. The kit selected with `rcKit` is the one that plays. The 16
+Tidal's lane never crosses USB. The round trip through the MPC intermittently held
+every message in flight by 20–36 ms, which was audible as a slipped hit. The MPC's channel 10 pad-mute
+(controller mode, note 9) and the X3's button hold silence the lane at the X3; the
+MPC no longer sees it.
+
+The MPC track: a MIDI track with output X3 Looper, channel 2; its pads A01–A16 send
+notes 19–34 in order (A01 = G-1), with track Transpose 0. Notes 19–34 are the free run
+between the ch 10 kit (0–15, `count` from 8) and the MPC sub (35–48), so an All Ports
+ch 10 track never plays them. The kit selected with `rcKit` is the one that plays. The 16
 pads (pad 1 bottom-left; RC-10R note in brackets) extend the rig's 8-voice drum map
 upward by family:
 
@@ -594,6 +645,11 @@ is what it runs, and it is worth reading — it is the only place several rig fa
 recorded. It boots the server (44100 Hz, no input channels, enlarged buffers), starts
 `SuperDirt(2, s)` on **port 57120**, loads Dirt-Samples, then:
 
+- **Picks the audio device by priority** on macOS — `iConnectAUDIO4+`, then the built-in
+  speakers — and sets it for both input and output. Left to the system defaults, SC pairs
+  the MacBook microphone with whatever the default output is, and when those are two
+  devices scsynth exits during start (the console shows `exited with exit code 0` right
+  after the driver line) and SuperDirt never comes up.
 - **Binds MIDI by priority.** It walks a list — `U2MIDI Pro`, `iConnectAUDIO4+ DIN`,
   `P-6 MIDI IN`, `S-1 MIDI IN`, `IAC Driver Bus 1` — and takes the first one the system
   actually offers, registering it as SuperDirt's `\thru` sound. Change this list, not the

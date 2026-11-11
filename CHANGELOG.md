@@ -2,6 +2,43 @@
 
 __________________________________________________________________________________
 
+## Version 3.3.0 (2026)
+
+The orchestra plays on more than one module. Every instrument function reads
+its channel from a `Rig` (its range stays its own), and the boot file declares which one —
+`rig = jv1010` at home, `rig = nanoSynth` in the studio — so a performance
+file names instruments and never channels, and the same `strg f k $ d 0.8`
+block sounds on either. The Roland JV-1010 keeps its library-fixed map;
+the Alesis NanoSynth joins it with the 2021 concert layout (one section per
+channel, pizzicato shared on 7, the other articulation tags identity, channel
+10 left to the MPC service lane with `nanoKit` as the full-module switch) and a
+cold configuration — bank and program on every channel, then level, pan,
+depth, modulation and expression — sent once by `setupRig` or walked block
+by block in `live/docs/NANOSYNTH_CATALOGUE.tidal`. The module's program
+list and operating facts are in `documents/NANOSYNTH.md`.
+
+Score mode writes note for note in the same blocks as the generated material.
+`inKey D "major"` is a one-bar progression (tonic triad on T, the key's
+pentatonic on S, the mode on M) that goes where any progression goes; every
+orchestral instrument gains a literal form — `flute' M 1 "p" k degrees` beside
+`flute T (0,1) k vl flow Soprano` — that reads written degrees against a layer
+of the chord current at each onset, with the same range, channel, articulation
+tags and bass anchor, so a transcription, a fixed bass line or a hook follows
+a generated or recalled progression as readily as a key. `bars b1 b2 $ pat`
+places a block on score bar numbers (each on its own clock), `score pre` and
+`preroll pre` run the piece and the form behind a pre-roll, the form's nodes
+are the dynamic arc, `dyn` the mark table and `ramp` a bar-length line. The
+2021 concert files port onto it line for line (`live/examples/04-SCORE.tidal`).
+
+Kinetics bands are half-open: a line's `(lo, hi)` plays from `lo` up to but not
+including `hi` (a band reaching 1 includes 1), so bands that meet hand over at
+the shared value and a voice written in both never sounds twice. The MiDiNiNjA
+X3 firmware the home rig runs now lives in `firmware/x3/`, and the display
+protocol (CC 113–118 on channel 10) stays inside SuperCollider: it drives the
+LEDs and never reaches the wire.
+
+__________________________________________________________________________________
+
 ## Version 3.2.0 (2026)
 
 Progressions outlive the session. `save "verse" s` prints a generated or

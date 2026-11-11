@@ -2,7 +2,8 @@ SafeMIDIOut {
     var <>midiOut;
     var <>noteOnCounts;
     // Optional hooks for downstream observers (e.g. LED coordinator).
-    // Fired after the actual MIDI message is emitted to the device.
+    // onNoteOn / onNoteOff fire after the message is emitted to the device;
+    // onControl fires before, and returning true keeps the control off the wire.
     // The internal precautionary noteOff inside noteOn does NOT fire onNoteOff,
     // and a noteOff suppressed by reference-counting does NOT fire onNoteOff
     // either — hooks reflect Tidal-level intent, not every wire-level emit.
@@ -57,9 +58,12 @@ SafeMIDIOut {
                 };
             };
         };
-        midiOut.control(chan, ctlNum, val);
-        // Notify observers (LED coordinator cares about CC 64 / 121 / 123)
-        onControl !? { |fn| fn.value(chan, ctlNum, val) };
+        // Observers see every control first (the LED coordinator reads CC 64 /
+        // 121 / 123 and the display protocol). One that returns true has
+        // consumed the message, and it does not reach the wire.
+        if((onControl !? { |fn| fn.value(chan, ctlNum, val) }) != true) {
+            midiOut.control(chan, ctlNum, val);
+        };
     }
 
     // Forward all other MIDIOut methods transparently

@@ -49,6 +49,8 @@ module Harmonic.Interface.Tidal.Bridge
 
     -- * Chord Lookup
   , lookupChordAt
+  , degreeLookup
+  , closedPosition
   , lookupChord
   , lookupProgression
 
@@ -68,7 +70,7 @@ import Harmonic.Rules.Types.ProgressionContext (Layer(..))
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as Pitch
 import qualified Harmonic.Interface.Tidal.Arranger as A
-import Harmonic.Interface.Tidal.Form (Kinetics(..), IK)
+import Harmonic.Interface.Tidal.Form (Kinetics(..), IK, inBand)
 import Harmonic.Interface.Tidal.Utils (mono')
 
 import Data.Foldable (toList)
@@ -181,7 +183,7 @@ layerForVoicing lyr ctx =
 -- "Harmonic.Interface.Tidal.Orchestra" is a thin wrapper around it.
 --
 -- @d1 $ arrange (0,1) k (-9,9) T flow id [\"0 1 2 3\"]@
-arrange :: (Double, Double)                     -- ^ Kinetics gate: events pass only while 'kSignal' sits inside @(lo, hi)@ — the same predicate as 'Harmonic.Interface.Tidal.Form.ki', applied here so every instrument line carries its own activation band
+arrange :: (Double, Double)                     -- ^ Kinetics gate: events pass only while 'kSignal' is in the band — 'Harmonic.Interface.Tidal.Form.inBand', the predicate behind 'Harmonic.Interface.Tidal.Form.ki', applied here so every instrument line carries its own activation band
         -> IK                                    -- ^ Performance context (kinetics + chord selection)
         -> (Int, Int)                            -- ^ Degree-index trim for the input patterns (scale degrees, not MIDI; instrument-range clipping happens later via clip)
         -> Layer                                 -- ^ Progression layer to voice — single (T | S | M) or synthesized combination (TS | TM | SM | TSM | PT)
@@ -218,7 +220,7 @@ arrange (lo, hi) (kin, chordPat) register lyr voiceFunc modifier pats =
         Just hit -> hit
         Nothing  -> voicingsOf ctx
   in cacheForced `seq` (|* pF "amp" (kDynamic kin)) $
-     mask (fmap (\x -> x >= lo && x <= hi) (kSignal kin)) $
+     mask (fmap (inBand (lo, hi)) (kSignal kin)) $
        innerJoin $ fmap (\ctx ->
          arrangeLookup (lookupCache ctx) chordPat ranged
        ) progPat
@@ -228,13 +230,24 @@ arrangeLookup :: ([[Note]], Int)
               -> Pattern Int        -- ^ Chord selection pattern (1-indexed)
               -> Pattern Int        -- ^ Pre-computed range-filtered note pattern
               -> Pattern ValueMap
-arrangeLookup (scales, nChords) chordPat ranged
+arrangeLookup cached chordPat ranged = note (degreeLookup cached chordPat ranged)
+
+-- |The onset join itself, shared with score mode: each degree event reads
+-- the chord selected at its onset (1-indexed, modulo the bar count) and
+-- indexes that bar's pitch list, wrapping by octave (@n \`mod\` len@ picks
+-- the tone, @n \`div\` len@ the octave). A bar with no pitch content (a
+-- typo'd empty chord in a hand-written prog) emits nothing rather than
+-- indexing [] on the audio thread.
+degreeLookup :: ([[Note]], Int)
+             -> Pattern Int        -- ^ Chord selection pattern (1-indexed)
+             -> Pattern Int        -- ^ Degree pattern
+             -> Pattern Note
+degreeLookup (scales, nChords) chordPat degs
   | nChords == 0 = silence
   | otherwise =
       let chordIdx = fmap (\i -> (i - 1) `mod` nChords) chordPat
-
-          mapped = Pattern (\st ->
-            let noteEvs = query ranged st
+      in Pattern (\st ->
+            let noteEvs = query degs st
             in concatMap (\nEv -> case whole nEv of
               Nothing -> []
               Just wArc ->
@@ -245,15 +258,24 @@ arrangeLookup (scales, nChords) chordPat ranged
                     scLen   = length sc
                     octv    = noteVal `div` max 1 scLen
                     idx     = noteVal `mod` max 1 scLen
-                -- A bar with no pitch content (e.g. a typo'd empty chord
-                -- in a hand-written prog) emits nothing rather than
-                -- indexing [] on the audio thread.
                 in [ nEv { value = (sc !! idx) + fromIntegral (octv * 12) }
                    | scLen > 0 ]
               ) noteEvs
             ) Nothing Nothing
 
-      in note mapped
+-- |A bar in closed position from its stored root: the root placed in
+-- [-12,-1] (the anchor the voicing lattice gives bar 0) and the other tones
+-- stacked compactly above it, ascending. Score-mode lines index this list,
+-- so degree 0 is the bar's root at the lattice's bass register whatever the
+-- layer, and @flute T@ and @flute' T@ agree on where 0 sits.
+closedPosition :: H.CadenceState -> [Int]
+closedPosition cs =
+  let r     = Pitch.unPitchClass (Pitch.pitchClass (H.stateCadenceRoot cs))
+      bass  = r - 12
+      above p = let x = (p - bass) `mod` 12 in if x == 0 then bass + 12 else bass + x
+      others = [ (r + Pitch.unPitchClass iv) `mod` 12 | iv <- H.cadenceIntervals (H.stateCadence cs)
+               , Pitch.unPitchClass iv /= 0 ]
+  in bass : sort (map above others)
 
 -------------------------------------------------------------------------------
 -- Natural harmonics: harmonics (one string)
@@ -352,7 +374,7 @@ seriesPlay keep monoString (lo, hi) (kin, chordPat) lyr pats =
         Nothing  -> viableSeries lyr ctx
       voicing = if monoString then mono' else id
   in cacheForced `seq` (|* pF "amp" (kDynamic kin)) $
-     mask (fmap (\x -> x >= lo && x <= hi) (kSignal kin)) $
+     mask (fmap (inBand (lo, hi)) (kSignal kin)) $
        innerJoin $ fmap (\ctx ->
          midinote (fmap fromIntegral (voicing (seriesLookup (lookupCache ctx) keep chordPat contour)))
        ) progPat
@@ -457,7 +479,7 @@ arrange' (lo, hi) (kin, chordPat) register lyr voiceFunc modifier pats =
         Just hit -> hit
         Nothing  -> voicingsOf ctx
   in cacheForced `seq` (|* pF "amp" (kDynamic kin)) $
-     mask (fmap (\x -> x >= lo && x <= hi) (kSignal kin)) $
+     mask (fmap (inBand (lo, hi)) (kSignal kin)) $
        innerJoin $ fmap (\ctx ->
          arrangeLookup' (lookupCache ctx) chordPat ranged
        ) progPat

@@ -145,12 +145,24 @@ spec = do
           evs = queryArc result (Arc 0 1)
       length evs `shouldBe` 0
 
-    it "inclusive at boundaries" $ do
-      let kin = Kinetics (pure 0.5) (pure 1.0) (pure testProgA) [testProgA] 0 0 (const True)
-          ik = (kin, parseBP_E "1" :: Pattern Int) :: IK
-          result = ki (0.5, 0.5) ik (note "0")
-          evs = queryArc result (Arc 0 1)
-      length evs `shouldSatisfy` (> 0)
+    let ikAt x = (Kinetics (pure x) (pure 1.0) (pure testProgA) [testProgA] 0 0 (const True), parseBP_E "1" :: Pattern Int) :: IK
+        sounds band x = not (null (queryArc (ki band (ikAt x) (note "0")) (Arc 0 1)))
+
+    it "includes its lower bound" $
+      sounds (0.5, 0.7) 0.5 `shouldBe` True
+
+    it "excludes its upper bound below 1" $
+      sounds (0.3, 0.5) 0.5 `shouldBe` False
+
+    it "a band reaching 1 includes 1" $
+      sounds (0.7, 1) 1.0 `shouldBe` True
+
+    it "bands that meet never both pass: the value belongs to the upper band" $
+      [ (sounds (0, x) x, sounds (x, 1) x) | x <- [0.2, 0.35, 0.5, 0.7] ]
+        `shouldBe` replicate 4 (False, True)
+
+    it "inBand agrees with ki" $
+      [ inBand (0.35, 0.7) x | x <- [0.34, 0.35, 0.69, 0.7] ] `shouldBe` [False, True, True, False]
 
   describe "slate" $ do
     it "activates patterns when in range" $ do

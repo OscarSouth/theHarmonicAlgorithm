@@ -33,8 +33,33 @@
 -- by a Program Change; quote Orchestral-card numbers straight off Roland\'s
 -- 001-255 listing via \'orch\', and reach the internal sets with \'presetA\'
 -- and \'presetB\'.
+--
+-- The orchestra is a Performance stored on the module, one patch per channel.
+-- Winds 1-4, brass 5-6, harp 7, timpani 8, bass drum 9, tam-tam 11; the
+-- strings are laid out by technique, every section sharing a channel per
+-- articulation: pizz 12, spicc 13, marc 14, legg 15, arco 16 (the string
+-- default). Ranges are the instruments\' own and live with them in
+-- "Harmonic.Interface.Tidal.Orchestra".
+--
+-- +------------+---------+
+-- | Instrument | Channel |
+-- +============+=========+
+-- | flute      | 1       |
+-- | oboe       | 2       |
+-- | clarinet   | 3       |
+-- | bassoon    | 4       |
+-- | horn       | 5       |
+-- | trombone   | 6       |
+-- | basstrom   | 6       |
+-- | harp       | 7       |
+-- | timpani    | 8       |
+-- | strings    | 16      |
+-- +------------+---------+
 module Harmonic.Interface.Tidal.Devices.JV1010
-  ( -- * Drum kit (channel 10)
+  ( -- * Orchestral rig
+    jv1010,
+
+    -- * Drum kit (channel 10)
     kick, kick', kick'', kick2, kick2', snap, hhcl, hhcl', hhop, hhop',
     ride, ride', crash, click, click', snare, snare', cowbell, fm, fm',
     rimshot, rimshot', hh, hh',
@@ -49,6 +74,37 @@ module Harmonic.Interface.Tidal.Devices.JV1010
 
 import Sound.Tidal.Context
 import Harmonic.Interface.Tidal.Instruments (ch, vel)
+import Harmonic.Interface.Tidal.Orchestra (Rig(..))
+
+-- | The JV-1010 orchestra: a channel per instrument, articulation channels,
+-- continuo on 7. Patches are set on the module, so no setup is sent.
+jv1010 :: Rig
+jv1010 = Rig
+  { rigName       = "JV-1010"
+  , rigFlute      = 1
+  , rigOboe       = 2
+  , rigClarinet   = 3
+  , rigBassoon    = 4
+  , rigHorn       = 5
+  , rigTrombone   = 6
+  , rigBasstrom   = 6
+  , rigHarp       = 7
+  , rigTimpani    = 8
+  , rigViolin1    = 16
+  , rigViolin2    = 16
+  , rigViola      = 16
+  , rigCello      = 16
+  , rigContrabass = 16
+  , rigBassdrum   = Just (36, 9)
+  , rigTamtam     = Just (31, 11)
+  , rigPizz       = ch 12
+  , rigSpicc      = ch 13
+  , rigMarc       = ch 14
+  , rigLegg       = ch 15
+  , rigArco       = ch 16
+  , rigContinuo   = 7
+  , rigSetup      = []
+  }
 
 -- | The kit answers on MIDI channel 10.
 kitChan :: Pattern ValueMap
