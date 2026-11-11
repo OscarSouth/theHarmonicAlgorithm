@@ -863,6 +863,7 @@ None is more correct than another; each trades immediacy against how much is dec
 | Groove & lines | `subk` · `walk` |
 | Motifs | `motif` |
 | Orchestra* | `orchsec` · `tutti` · `instr` |
+| Score | `score` · `line` |
 | Hardware* | `k909` · `kmpc` · `m32` · `mdf` · `rc10` · `dkit` |
 | Studio rig* | `grnd` · `mini` · `jura` · `hmnx` · `omap` · `slce` · `kgrv` · `s101` · `smpl` · `auto` · `gnlr` |
 
@@ -876,7 +877,43 @@ The `state` snippet is the standard prepared opening: tempo, context, a generate
 
 ___
 
-## 23. Going further
+## 23. Score mode (literal / linear)
+
+Write note for note on a bar timeline, in the same blocks as the generated material.
+
+Source: [`src/Harmonic/Interface/Tidal/Score.hs`](src/Harmonic/Interface/Tidal/Score.hs), example [`live/examples/04-SCORE.tidal`](live/examples/04-SCORE.tidal).
+
+Everything so far voices a progression: the instruments read their notes from the chords and the form decides what plays. Score mode is the other way of writing, for a transcription, a fixed bass line or a hook under a generated texture, and it uses the same clock (one cycle a beat, four a bar), the same form and the same progression slot.
+
+- `inKey D "major"` is a one-bar progression: the tonic triad on T, the key's pentatonic on S, the mode on M. It goes where any progression goes (`iK tempo form (rep key 1)`); names are `major`/`minor`, the church modes, `melodic minor`, `harmonic minor`, `harmonic major`, `chromatic` (a degree is a semitone), and an unknown name is an error at declaration.
+- `degrees M 1 k "…"` reads scale degrees against a layer of the chord current at each onset, the way `arrange` selects chords. Degree 0 is the bar's root at the bass anchor (the root in [-12,-1], where `arrange` puts bar 0's bass); `7` is the octave above, negatives descend; the octave argument lifts the line (`1` the melodic register, `"[1,2]"` two octaves at once).
+- `bars b1 b2 $ pat` is a block on score bar numbers (1-indexed, end inclusive). Each block runs on its own clock: a `"…/4"` pattern is one bar from the block's first beat wherever it sits, so the same mininotation reads the same at bar 1 and bar 17.
+- `score pre blocks` sequences the blocks behind `pre` bars of pre-roll; `preroll pre k` delays the form to match, so `display k` counts score bars. The tempo is the first block (`bars 1 8 $ bpm tempo`, then any change as another block): the stream owns the clock, the launcher never calls `setbpm`, and `hush` clears a stale one.
+- `dyn "p"` is the dynamic mark table (`ffff` 1.0 … `p` 0.40 … `pppp` 0.25), sampled at each onset under `#`; `ramp lo hi` is a 64-step line across one cycle. The form's dynamic nodes are the arc.
+
+```haskell
+key = inKey D "major"                                  -- one bar: D F# A | D E F# A B | D major
+
+do
+  let k = iK tempo [rh 1 1 0.8 key] (rep key 1)
+  mapM_ id [hush, resetCycles
+    ,p "score" $ score 0
+      [bars 1 8 $ bpm tempo                                                                  -- the tempo, first
+      ,bars 1 4 $ note (degrees M 0 k "[0 2 4 7]/4") # ch 1 # vel (dyn "p")                 -- a bass line, degrees in D at the bass anchor
+      ,bars 3 4 $ note (degrees M 1 k "[7 9 11 . 12@3 ~]/2") # ch 1 # vel (dyn "p mf")      -- the tune an octave up, marks per onset
+      ,bars 5 8 $ arrange (0,1) k (-9,9) T flow (overlapF 0) ["~", "[0,1,2]/4"] # ch 1 # vel 0.6   -- the chords, same sequence
+      ]]
+```
+
+Swap the key for §17's progression, `k = iK tempo [rh 1 1 0.8 s] (rep s 1)`, and the same lines follow its bars: T reads each chord, S its pentatonic, M its key area.
+
+The orchestra has a literal form of every instrument, `flute' M 1 "p" k degrees` beside `flute T (0,1) k vl flow Soprano`, with the same range, channel and articulation tags (`# pizz`), and a piece is one statement: tempo blocks first, every stack under its bar range, a recurring block `let`-bound inside; see [`ALGORITHMIC_ORCHESTRATION.md`](documents/ALGORITHMIC_ORCHESTRATION.md) and the example file, which ports the opening of a 2021 concert piece line for line.
+
+**Try it.** Change the tune's marks to `"pp f"`; then move the chords to `bars 1 8` and hear the generated voicing under the written line; then swap `key` for `s`.
+
+___
+
+## 24. Going further
 
 **Instrument catalogue**
 - [`live/docs/ORCHESTRAL_CATALOGUE.tidal`](live/docs/ORCHESTRAL_CATALOGUE.tidal): range tests per instrument
@@ -948,6 +985,8 @@ arrange' (lo,hi) k (-9,9) LAYER voicing modifier [patterns] # ch N   -- squeeze 
 **Manipulation**: `rotate`, `excerpt`, `transposeP`, `reverse`, `fuse`, `fuse2`, `interleave`, `expandP`, `insert`, `switch`, `clone`, `extract`, `progOverlap`, `progOverlapF`, `progOverlapB`.
 
 **Explicit**: `fromChords [[0,4,7], …]`; `prog (notesToPCs <$> [[C,E,G], …])`; `fromCadenceStates [initCadenceState mov "Root" [ints], …]`; `save "name" s` prints a context as a `name = recall …` chart to paste back.
+
+**Score mode**: `key = inKey D "major"` (a one-bar progression); `degrees M 1 k "…"`; `bars b1 b2 $ pat`; `score pre blocks` with `preroll pre k`; `dyn "p"`; `ramp lo hi`; `flute' M 1 "p" k degrees` (§23).
 
 **Snippets (Pulsar)**: the full index is in §22.
 

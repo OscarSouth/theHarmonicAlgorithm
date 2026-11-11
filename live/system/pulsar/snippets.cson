@@ -245,6 +245,41 @@
     '''
 
 
+  # ── Score ─────────────────────────────────────────────────
+
+  'score (one statement: tempo blocks, stacks on bar numbers)':
+    'prefix': 'score'
+    'body': '''
+      tempo = $1
+      pre   = 1
+      key   = inKey $2 "$3"
+      form  = [rh 1 1 0.8 key]
+
+      piece f k d = p "score" $ f $ score pre
+        [bars 1 8 $ bpm tempo
+        ,bars 1 4 $ stack [silence
+           ,$4' M 1 "p" k "$5"
+           ,$6' M 0 "p" k "$7" # pizz
+           ]
+        ] |* vel d
+
+      do
+        let f = id
+            d = (* 1)
+            k = preroll pre $ iK tempo form (rep key 1)
+        mapM_ id [hush, resetCycles, display k
+          ,piece f k $ d 0.8
+          ]
+    '''
+
+
+  'score line (one primed instrument)':
+    'prefix': 'line'
+    'body': '''
+      ,$1' M ${2:1} "$3" k "$4"
+    '''
+
+
   # ── Motifs ────────────────────────────────────────────────
 
 

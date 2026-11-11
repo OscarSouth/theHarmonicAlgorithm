@@ -153,6 +153,14 @@ These are the weighted combinations of learned transition probabilities:
 > <a href="https://youtu.be/pAGnlrfvTIQ"><img src="https://img.youtube.com/vi/pAGnlrfvTIQ/maxresdefault.jpg" alt="Form and Kinetics" width="540"></a>
 >
 > Code: [`live/examples/03-FORM_AND_KINETICS.tidal`](live/examples/03-FORM_AND_KINETICS.tidal)
+
+> ### Score mode
+> The literal way of writing beside the generated one: blocks on bar numbers,
+> scale degrees in a key, dynamics as marks, the same instruments and
+> articulations as the kinetics workflow, so a transcription or a fixed line
+> sits in one sequence with a generated texture.
+>
+> Code: [`live/examples/04-SCORE.tidal`](live/examples/04-SCORE.tidal)
 ___
 
 ## Installation
@@ -281,8 +289,8 @@ genJ: the composite-minor key lattice, the mode and pentatonic layer
 derivation, and the walking-bass unification.
 
 **[Algorithmic Orchestration](documents/ALGORITHMIC_ORCHESTRATION.md)** — scoring for
-a virtual orchestra on the JV-1010: instrument catalogue, voice lines, divisi,
-sections, blends, form and kinetics.
+a virtual orchestra on the JV-1010 or the Alesis NanoSynth: instrument catalogue,
+voice lines, divisi, sections, blends, form and kinetics.
 
 **[The Live Environment](documents/LIVE_ENVIRONMENT.md)** — the editor, boot
 and SuperCollider rig the project is performed on, and the instruments behind it:

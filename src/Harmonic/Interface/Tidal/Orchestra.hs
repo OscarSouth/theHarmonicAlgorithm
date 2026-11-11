@@ -6,37 +6,58 @@
 -- with built-in MIDI range clipping and octave handling.
 -- Each instrument is a thin 'arrange' wrapper — clip and octave shift
 -- are internal; the composer sees only voice assignment and kinetics range.
+--
+-- Range belongs to the instrument and lives here; channel belongs to the
+-- module the orchestra plays on, so every instrument takes a 'Rig' first. The
+-- boot file declares one rig and binds the plain names to it
+-- (@flute = O.flute rig@ …), which is why a performance file never names a
+-- channel: @violin1 T (0,1) k vl flow Soprano # pizz@ sounds on whatever module
+-- the session declared. The Roland JV-1010 map lives in
+-- "Harmonic.Interface.Tidal.Devices.JV1010" as @jv1010@.
 
 module Harmonic.Interface.Tidal.Orchestra (
     -- * Voice lines
     Voice(..), VoiceLines(..), voiceLines, vlGet, voiceOct,
 
+    -- * Rig
+    Rig(..), noArt,
+
     -- * Pitched instruments
     -- | Every pitched instrument shares the 'Instrument' shape and carries its
-    -- own MIDI range and channel. Ranges are given in Tidal note space
-    -- (MIDI &#8722; 60); the physical range follows in parentheses.
+    -- own MIDI range, reading only its channel from the 'Rig'. Ranges are
+    -- given in Tidal note space (MIDI &#8722; 60); the physical range follows
+    -- in parentheses.
     --
-    -- +------------+---------+-----------------+
-    -- | Instrument | Channel | Range           |
-    -- +============+=========+=================+
-    -- | flute      | 1       | C3-D6           |
-    -- | oboe       | 2       | Bb3-A6          |
-    -- | clarinet   | 3       | D2-Bb6          |
-    -- | bassoon    | 4       | Bb1-Eb5         |
-    -- | horn       | 5       | B1-F5           |
-    -- | trombone   | 6       | Bb1-F5          |
-    -- | basstrom   | 6       | A0-G3           |
-    -- | harp       | 7       | B1-F#7          |
-    -- | timpani    | 8       | D2-C4           |
-    -- | violin1\/2 | 16      | G3-A7           |
-    -- | viola      | 16      | C3-E6           |
-    -- | cello      | 16      | C2-C6           |
-    -- | contrabass | 16      | C1-C4           |
-    -- +------------+---------+-----------------+
+    -- +------------+-----------------+
+    -- | Instrument | Range           |
+    -- +============+=================+
+    -- | flute      | C3-D6           |
+    -- | oboe       | Bb3-A6          |
+    -- | clarinet   | D2-Bb6          |
+    -- | bassoon    | Bb1-Eb5         |
+    -- | horn       | B1-F5           |
+    -- | trombone   | Bb1-F5          |
+    -- | basstrom   | A0-G3           |
+    -- | harp       | B1-F#7          |
+    -- | timpani    | D2-C4           |
+    -- | violin1\/2 | G3-A7           |
+    -- | viola      | C3-E6           |
+    -- | cello      | C2-C6           |
+    -- | contrabass | C1-C4           |
+    -- +------------+-----------------+
     flute, oboe, clarinet, bassoon,
     horn, trombone, basstrom,
     harp, timpani,
     violin1, violin2, viola, cello, contrabass,
+
+    -- * Score mode
+    -- | The same instruments reading written degrees against a layer of the
+    -- progression in the 'IK': @flute' M 1 "p" k "[0 2 4]/4"@. See
+    -- "Harmonic.Interface.Tidal.Score".
+    flute', oboe', clarinet', bassoon',
+    horn', trombone', basstrom',
+    harp', timpani',
+    violin1', violin2', viola', cello', contrabass',
 
     -- * Unpitched percussion
     bassdrum, tamtam,
@@ -56,6 +77,8 @@ import qualified Data.Map.Strict as Map
 import Harmonic.Interface.Tidal.Bridge (VoiceFunction, arrange, overlapF)
 import Harmonic.Interface.Tidal.Form (IK)
 import Harmonic.Interface.Tidal.Instruments (ch, vel)
+import Harmonic.Interface.Tidal.Score (dyn, degrees)
+import Harmonic.Interface.Tidal.Form (Kinetics(..))
 import Harmonic.Interface.Tidal.Utils (oct)
 import Harmonic.Rules.Types.ProgressionContext (Layer(..))
 
@@ -196,98 +219,171 @@ clip (lo, hi) = filterValues (\vm ->
         _ -> True)
 
 -------------------------------------------------------------------------------
+-- Rig
+-------------------------------------------------------------------------------
+
+-- | One module's orchestral map: the MIDI channel each instrument answers on.
+-- The instrument functions read their channel from here, so a single
+-- declaration in the boot file selects the whole orchestra and the composer's
+-- surface stays channel-free. Ranges are not the rig's: an instrument's range
+-- is its own, whatever module plays it.
+data Rig = Rig
+  { rigName     :: String
+  , rigFlute, rigOboe, rigClarinet, rigBassoon :: Int
+  , rigHorn, rigTrombone, rigBasstrom          :: Int
+  , rigHarp, rigTimpani                        :: Int
+  , rigViolin1, rigViolin2, rigViola, rigCello, rigContrabass :: Int
+  , rigBassdrum, rigTamtam :: Maybe (Int, Int)
+    -- ^ @(MIDI note, channel)@; 'Nothing' when the module has no such voice,
+    --   so the line loads and stays silent
+  , rigPizz, rigSpicc, rigMarc, rigLegg, rigArco :: ControlPattern
+    -- ^ postfix articulation tags; 'noArt' where the module keeps one channel
+    --   per section and the technique has no separate destination
+  , rigContinuo :: Int
+    -- ^ the channel the continuo voice is retuned on
+  , rigSetup    :: [ControlPattern]
+    -- ^ one-shots that configure the module from cold, in receive order;
+    --   empty when the patches live on the device
+  }
+
+-- | Identity under '#': contributes no fields, so the pattern keeps its own
+-- channel. The articulation tag for a technique the rig does not route.
+noArt :: ControlPattern
+noArt = pure Map.empty
+
+-------------------------------------------------------------------------------
 -- instrument (internal helper)
 -------------------------------------------------------------------------------
 
 -- Pipeline: arrange -> # ch -> |+ oct -> clip (outermost, filters AFTER octave shift)
-instrument :: (Int, Int) -> Int -> Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
+instrument :: (Int, Int) -> Int -> Instrument
 instrument bounds chan lyr ki k vl vf v =
     clip bounds $ arrange ki k (-9,9) lyr vf (overlapF 0) [vlGet v vl] # ch chan |+ oct (fromIntegral (voiceOct v))
+
+-- | The literal entry to the same instrument: a layer, an octave, a dynamic
+-- mark and a degree pattern read against the progression in the 'IK' (see
+-- 'Harmonic.Interface.Tidal.Score.degrees'). Rhythm comes from the degrees;
+-- the dynamic is sampled at each onset, so one mark holds for the line and a
+-- pattern of marks shapes a phrase; the form's dynamic arc scales the result
+-- as it does in 'arrange'. The octave lands before the clip, as the voice's
+-- octave does above.
+instrument' :: (Int, Int) -> Int -> Layer -> Pattern Int -> Pattern String -> IK -> Pattern Int -> ControlPattern
+instrument' bounds chan lyr octv dy k degs =
+    clip bounds $ note (degrees lyr octv k degs) # ch chan # vel (dyn dy) |* vel (kDynamic (fst k))
 
 -------------------------------------------------------------------------------
 -- Pitched instruments (partial application of instrument)
 -------------------------------------------------------------------------------
 
--- | Winds, channels 1&#8211;4.
---
--- Every pitched instrument takes a prepended 'Layer' argument — 'T' to voice
--- the triad layer (default harmonic behaviour), 'S' for the strata layer,
--- 'M' for the diatonic-mode layer, or a combination selector ('TS'\/'TM'\/
--- 'SM' pairs, 'TSM' the full union, 'PT' the shared pivot tones — on a
--- polytonal genE context these are the 4-note structures, the pentad and
--- the pivot-tone line; on a gen\/genJ context 'S' is the bar's chordscale
--- pentatonic, 'M' its mode, and 'PT' the chord tones the pentatonic
--- keeps):
+-- | Every pitched instrument takes the 'Rig' it sounds on, then a 'Layer'
+-- argument — 'T' to voice the triad layer (default harmonic behaviour), 'S'
+-- for the strata layer, 'M' for the diatonic-mode layer, or a combination
+-- selector ('TS'\/'TM'\/'SM' pairs, 'TSM' the full union, 'PT' the shared
+-- pivot tones — on a polytonal genE context these are the 4-note structures,
+-- the pentad and the pivot-tone line; on a gen\/genJ context 'S' is the bar's
+-- chordscale pentatonic, 'M' its mode, and 'PT' the chord tones the
+-- pentatonic keeps). The boot file binds the rig, so in a session:
 --
 -- @d1 $ flute T (0,1) k voiceLines flow Soprano@
 -- @d1 $ flute TS (0,1) k voiceLines flow Soprano   -- genE pair@
--- RANGE-REVIEW NOTE (2026-08-25): the numeric bounds are tuned to the
--- range limits of the actual JV1010 sampler patches and are authoritative;
--- the note-name comments drift from them in four places (bassoon, horn,
--- trombone, harp — names sit 2-4 semitones above the coded MIDI floor).
--- Do not "correct" the numbers to the names: a practical per-instrument
--- review against the JV1010 will set both precisely. Details in
--- documents/ALGORITHMIC_ORCHESTRATION.md ("Range review").
-flute, oboe, clarinet, bassoon :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
-flute      = instrument (-12, 26) 1   -- C3–D6  (MIDI 48–86)
-oboe       = instrument ( -2, 33) 2   -- Bb3–A6 (MIDI 58–93)
-clarinet   = instrument (-22, 34) 3   -- D2–Bb6 (MIDI 38–94)
-bassoon    = instrument (-28, 15) 4   -- Bb1–Eb5 (MIDI 32–75) [see range-review note]
+--
+-- The numeric bounds are the range limits of the orchestral sampler patches
+-- and are authoritative; the note-name comments sit 2-4 semitones above the
+-- coded floor for bassoon, horn, trombone and harp. A practical review at the
+-- instrument sets both — never the numbers to the names.
+flute, oboe, clarinet, bassoon, horn, trombone, basstrom, harp, timpani,
+  violin1, violin2, viola, cello, contrabass :: Rig -> Instrument
+flute      = instrument  fluteRange . rigFlute
+oboe       = instrument  oboeRange . rigOboe
+clarinet   = instrument  clarinetRange . rigClarinet
+bassoon    = instrument  bassoonRange . rigBassoon
+horn       = instrument  hornRange . rigHorn
+trombone   = instrument  tromboneRange . rigTrombone
+basstrom   = instrument  basstromRange . rigBasstrom
+harp       = instrument  harpRange . rigHarp
+timpani    = instrument  timpaniRange . rigTimpani
+violin1    = instrument  violin1Range . rigViolin1
+violin2    = instrument  violin2Range . rigViolin2
+viola      = instrument  violaRange . rigViola
+cello      = instrument  celloRange . rigCello
+contrabass = instrument  contrabassRange . rigContrabass
 
--- | Brass, channels 5&#8211;6. @basstrom@ shares channel 6 with @trombone@ at a
--- lower range.
-horn, trombone, basstrom :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
-horn       = instrument (-29, 17) 5   -- B1–F5  (MIDI 31–77) [see range-review note]
-trombone   = instrument (-28, 17) 6   -- Bb1–F5 (MIDI 32–77) [see range-review note]
-basstrom   = instrument (-39, -5) 6   -- A0–G3  (MIDI 21–55)
+-- | The score-mode form of each instrument: a layer, an octave (a pattern:
+-- @1@ the melodic register, @"[1,2]"@ two octaves), a dynamic mark, the 'IK'
+-- and a degree pattern, sharing the plain form's range and channel; the
+-- articulation tags apply as usual:
+--
+-- @, cello' M 0 "p" k "[-4 . 2@3 ~ . -6 . 0@3 ~]/4" # pizz@
+flute', oboe', clarinet', bassoon', horn', trombone', basstrom', harp', timpani',
+  violin1', violin2', viola', cello', contrabass'
+  :: Rig -> Layer -> Pattern Int -> Pattern String -> IK -> Pattern Int -> ControlPattern
+flute'     = instrument' fluteRange . rigFlute
+oboe'      = instrument' oboeRange . rigOboe
+clarinet'  = instrument' clarinetRange . rigClarinet
+bassoon'   = instrument' bassoonRange . rigBassoon
+horn'      = instrument' hornRange . rigHorn
+trombone'  = instrument' tromboneRange . rigTrombone
+basstrom'  = instrument' basstromRange . rigBasstrom
+harp'      = instrument' harpRange . rigHarp
+timpani'   = instrument' timpaniRange . rigTimpani
+violin1'   = instrument' violin1Range . rigViolin1
+violin2'   = instrument' violin2Range . rigViolin2
+viola'     = instrument' violaRange . rigViola
+cello'     = instrument' celloRange . rigCello
+contrabass' = instrument' contrabassRange . rigContrabass
 
--- | Harp, channel 7. The widest range in the orchestra.
-harp :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
-harp       = instrument (-29, 42) 7   -- B1–F#7 (MIDI 31–102) [see range-review note]
-
--- | Timpani, channel 8. Pitched percussion; the narrowest range.
-timpani :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
-timpani    = instrument (-22,  0) 8   -- D2–C4  (MIDI 38–60)
-
--- | Strings. All default to channel 16 (@arco@); prefix an articulation
--- ('pizz', 'spicc', 'marc', 'legg') to route elsewhere.
-violin1, violin2, viola, cello, contrabass :: Layer -> (Double, Double) -> IK -> VoiceLines -> VoiceFunction -> Voice -> ControlPattern
-violin1    = instrument ( -5, 45) 16  -- G3–A7  (MIDI 55–105)
-violin2    = instrument ( -5, 45) 16  -- G3–A7  (MIDI 55–105)
-viola      = instrument (-12, 28) 16  -- C3–E6  (MIDI 48–88)
-cello      = instrument (-24, 24) 16  -- C2–C6  (MIDI 36–84)
-contrabass = instrument (-36,  0) 16  -- C1–C4  (MIDI 24–60)
+-- Range limits of the orchestral sampler patches, shared by both forms.
+fluteRange, oboeRange, clarinetRange, bassoonRange, hornRange, tromboneRange, basstromRange, harpRange, timpaniRange, violin1Range, violin2Range, violaRange, celloRange, contrabassRange :: (Int, Int)
+fluteRange       = (-12,  26)   -- C3–D6  (MIDI 48–86)
+oboeRange        = ( -2,  33)   -- Bb3–A6 (MIDI 58–93)
+clarinetRange    = (-22,  34)   -- D2–Bb6 (MIDI 38–94)
+bassoonRange     = (-28,  15)   -- Bb1–Eb5 (MIDI 32–75)
+hornRange        = (-29,  17)   -- B1–F5  (MIDI 31–77)
+tromboneRange    = (-28,  17)   -- Bb1–F5 (MIDI 32–77)
+basstromRange    = (-39,  -5)   -- A0–G3  (MIDI 21–55)
+harpRange        = (-29,  42)   -- B1–F#7 (MIDI 31–102)
+timpaniRange     = (-22,   0)   -- D2–C4  (MIDI 38–60)
+violin1Range     = ( -5,  45)   -- G3–A7  (MIDI 55–105)
+violin2Range     = ( -5,  45)   -- G3–A7  (MIDI 55–105)
+violaRange       = (-12,  28)   -- C3–E6  (MIDI 48–88)
+celloRange       = (-24,  24)   -- C2–C6  (MIDI 36–84)
+contrabassRange  = (-36,   0)   -- C1–C4  (MIDI 24–60)
 
 -------------------------------------------------------------------------------
 -- Unpitched percussion (struct-based)
 -------------------------------------------------------------------------------
 
--- | Bass drum, channel 9. Struct-based: takes a boolean pattern rather than a
--- voice, since it is unpitched.
+-- | A struck voice: one MIDI note on one channel, a boolean rhythm, and a
+-- fixed sustain. A rig without the voice yields silence.
+hit :: Double -> Maybe (Int, Int) -> Pattern Bool -> ControlPattern
+hit _ Nothing _ = silence
+hit secs (Just (nt, c)) pat = struct pat $ midinote (fromIntegral nt) # ch c # sustain (pure secs)
+
+-- | Bass drum and tam-tam, unpitched: a boolean pattern rather than a voice.
+-- The tam-tam carries a long sustain.
 --
 -- @d1 $ bassdrum \"t ~ ~ t\"@
-bassdrum :: Pattern Bool -> ControlPattern
-bassdrum pat = struct pat $ midinote 36 # ch 9 # sustain 0.05
-
--- | Tam-tam, channel 11. Struct-based, with a long sustain.
-tamtam :: Pattern Bool -> ControlPattern
-tamtam pat = struct pat $ midinote 31 # ch 11 # sustain 0.5
+bassdrum, tamtam :: Rig -> Pattern Bool -> ControlPattern
+bassdrum r = hit 0.05 (rigBassdrum r)
+tamtam   r = hit 0.5  (rigTamtam r)
 
 -------------------------------------------------------------------------------
--- String articulations (channel aliases)
+-- String articulations (postfix tags)
 -------------------------------------------------------------------------------
 
--- | String articulations, applied as a postfix channel override:
+-- | String articulations, applied as a postfix tag:
 --
 -- @, violin1 T (0,1) k vl flow Soprano # pizz@
 --
--- @pizz@ 12, @spicc@ 13, @marc@ 14, @legg@ 15, @arco@ 16 (the string default).
-pizz, spicc, marc, legg, arco :: ControlPattern
-pizz  = ch 12    -- pizzicato
-spicc = ch 13    -- spiccato
-marc  = ch 14    -- marcato
-legg  = ch 15    -- legato
-arco  = ch 16    -- arco (same as default)
+-- On a module that keeps one channel per technique the tag re-routes the
+-- line; where a technique has no destination the tag is 'noArt' and the line
+-- sounds as written.
+pizz, spicc, marc, legg, arco :: Rig -> ControlPattern
+pizz  = rigPizz
+spicc = rigSpicc
+marc  = rigMarc
+legg  = rigLegg
+arco  = rigArco
 
 -------------------------------------------------------------------------------
 -- Divisi

@@ -1247,8 +1247,9 @@ hush
 -- voices (Soprano', Bass8vb') pick desks by hand. The full system
 -- (16 instruments, 14 pitched and 2 unpitched, with articulations,
 -- section blocks and timbral blends) is in
--- documents/ALGORITHMIC_ORCHESTRATION.md; it depends on a specific
--- MIDI rig, so this guide stops at the principle.
+-- documents/ALGORITHMIC_ORCHESTRATION.md; it plays on whichever
+-- orchestral module the boot file declares as `rig`, so this guide
+-- stops at the principle.
 
 -- ── THE LAYER ARGUMENT IS WHERE THE FAMILIES COME IN ──
 -- On a genP context the S layer is that bar's five-note strata
@@ -1658,6 +1659,7 @@ hush
 --   groove/lines subk · walk
 --   motifs       motif
 --   orchestra*   orchsec · tutti · instr
+--   score        score · line
 --   hardware*    k909 · kmpc · m32 · mdf · rc10 · dkit
 --   studio rig*  grnd · mini · jura · hmnx · omap · slce · kgrv · s101 · smpl · auto · gnlr
 --   (* rig-specific; see KNOWN EXCEPTIONS)
@@ -1677,7 +1679,83 @@ hush
 
 
 -- ══════════════════════════════════════════════════════════
--- SECTION 23 — Going further
+-- SECTION 23 — Score mode (literal / linear)
+-- ══════════════════════════════════════════════════════════
+-- src/Harmonic/Interface/Tidal/Score.hs
+-- live/examples/04-SCORE.tidal              (a 2021 concert opening, ported)
+--
+-- GOAL: Write note for note on a bar timeline, in the same
+-- blocks as the generated material.
+-- Uses: tempo (Section 0), s (Section 17).
+--
+-- Everything so far voices a progression. Score mode is the
+-- other way of writing — a transcription, a fixed bass line, a
+-- hook under a generated texture — on the same clock (one cycle
+-- a beat, four a bar), the same form and the same progression
+-- slot.
+--
+--   inKey D "major"      a one-bar progression: tonic triad on T,
+--                        the key's pentatonic on S, the mode on M;
+--                        goes where any progression goes
+--   degrees M 1 k "…"    degrees against a layer of the chord
+--                        current at each onset; 0 = the bar's root
+--                        at the bass anchor (as arrange), 7 the
+--                        octave; the octave argument lifts the line
+--   bars b1 b2 $ pat     a block on score bar numbers (1-indexed,
+--                        end inclusive); each block runs on its own
+--                        clock, so "…/4" is one bar from the entry
+--   score pre blocks     seqP behind `pre` bars; `preroll pre k`
+--                        delays the form to match; the tempo is the
+--                        first block (bars 1 8 $ bpm tempo) — the
+--                        stream owns the clock, never setbpm
+--   dyn "p"              the mark table, ffff 1.0 … p 0.40 … pppp 0.25
+--   ramp lo hi           a 64-step line across one cycle
+
+key = inKey D "major"
+
+do
+  let k = iK tempo [rh 1 1 0.8 key] (rep key 1)
+  mapM_ id [hush, resetCycles
+    ,p "score" $ score 0
+      [bars 1 8 $ bpm tempo                                                                  -- the tempo, first
+      ,bars 1 4 $ note (degrees M 0 k "[0 2 4 7]/4") # ch 1 # vel (dyn "p")                 -- a bass line, degrees in D at the bass anchor
+      ,bars 3 4 $ note (degrees M 1 k "[7 9 11 . 12@3 ~]/2") # ch 1 # vel (dyn "p mf")      -- the tune an octave up, marks per onset
+      ,bars 5 8 $ arrange (0,1) k (-9,9) T flow (overlapF 0) ["~", "[0,1,2]/4"] # ch 1 # vel 0.6   -- the chords, same sequence
+      ]]
+
+hush
+
+-- Swap the key for Section 17's progression and the same lines
+-- follow its bars — T reads each chord, S its pentatonic, M its
+-- key area:
+
+do
+  let k = iK tempo [rh 1 1 0.8 s] (rep s 1)
+  mapM_ id [hush, resetCycles
+    ,p "score" $ score 0
+      [bars 1 4 $ bpm tempo
+      ,bars 1 4 $ note (degrees T 0 k "[0 1 2 1]/4") # ch 1 # vel (dyn "p")
+      ,bars 1 4 $ note (degrees M 1 k "[0 2 4 . 3 2 1 0]/4") # ch 1 # vel (dyn "mp")
+      ]]
+
+hush
+
+-- The orchestra has a literal form of every instrument —
+-- `flute' M 1 "p" k degrees` beside `flute T (0,1) k vl flow
+-- Soprano` — with the same range, channel and articulation tags
+-- (# pizz); a piece is one statement: tempo blocks first, every
+-- stack under its bar range, a recurring block let-bound inside. See
+-- documents/ALGORITHMIC_ORCHESTRATION.md and the example file,
+-- which ports the opening of a 2021 concert piece line for line.
+
+-- ── TRY THIS ──
+-- Change the tune's marks to "pp f"; then move the chords to
+-- `bars 1 8` and hear the generated voicing under the written
+-- line; then swap `key` for `s`.
+
+
+-- ══════════════════════════════════════════════════════════
+-- SECTION 24 — Going further
 -- ══════════════════════════════════════════════════════════
 --
 -- INSTRUMENT CATALOGUE
@@ -1754,6 +1832,10 @@ hush
 -- Manipulation: rotate, excerpt, transposeP, reverse, fuse, fuse2,
 --               interleave, expandP, insert, switch, clone, extract,
 --               progOverlap, progOverlapF, progOverlapB
+--
+-- Score mode: key = inKey D "major" (a one-bar progression) · degrees M 1 k "…"
+--             bars b1 b2 $ pat · score pre blocks · preroll pre k
+--             dyn "p" · ramp lo hi · flute' M 1 "p" k degrees
 --
 -- Explicit: fromChords [[0,4,7], ...] · prog (notesToPCs <$> [[C,E,G]])
 --           fromCadenceStates [initCadenceState mov "Root" [ints], ...]

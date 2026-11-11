@@ -49,6 +49,8 @@ module Harmonic.Interface.Tidal.Bridge
 
     -- * Chord Lookup
   , lookupChordAt
+  , degreeLookup
+  , closedPosition
   , lookupChord
   , lookupProgression
 
@@ -228,13 +230,24 @@ arrangeLookup :: ([[Note]], Int)
               -> Pattern Int        -- ^ Chord selection pattern (1-indexed)
               -> Pattern Int        -- ^ Pre-computed range-filtered note pattern
               -> Pattern ValueMap
-arrangeLookup (scales, nChords) chordPat ranged
+arrangeLookup cached chordPat ranged = note (degreeLookup cached chordPat ranged)
+
+-- |The onset join itself, shared with score mode: each degree event reads
+-- the chord selected at its onset (1-indexed, modulo the bar count) and
+-- indexes that bar's pitch list, wrapping by octave (@n \`mod\` len@ picks
+-- the tone, @n \`div\` len@ the octave). A bar with no pitch content (a
+-- typo'd empty chord in a hand-written prog) emits nothing rather than
+-- indexing [] on the audio thread.
+degreeLookup :: ([[Note]], Int)
+             -> Pattern Int        -- ^ Chord selection pattern (1-indexed)
+             -> Pattern Int        -- ^ Degree pattern
+             -> Pattern Note
+degreeLookup (scales, nChords) chordPat degs
   | nChords == 0 = silence
   | otherwise =
       let chordIdx = fmap (\i -> (i - 1) `mod` nChords) chordPat
-
-          mapped = Pattern (\st ->
-            let noteEvs = query ranged st
+      in Pattern (\st ->
+            let noteEvs = query degs st
             in concatMap (\nEv -> case whole nEv of
               Nothing -> []
               Just wArc ->
@@ -245,15 +258,24 @@ arrangeLookup (scales, nChords) chordPat ranged
                     scLen   = length sc
                     octv    = noteVal `div` max 1 scLen
                     idx     = noteVal `mod` max 1 scLen
-                -- A bar with no pitch content (e.g. a typo'd empty chord
-                -- in a hand-written prog) emits nothing rather than
-                -- indexing [] on the audio thread.
                 in [ nEv { value = (sc !! idx) + fromIntegral (octv * 12) }
                    | scLen > 0 ]
               ) noteEvs
             ) Nothing Nothing
 
-      in note mapped
+-- |A bar in closed position from its stored root: the root placed in
+-- [-12,-1] (the anchor the voicing lattice gives bar 0) and the other tones
+-- stacked compactly above it, ascending. Score-mode lines index this list,
+-- so degree 0 is the bar's root at the lattice's bass register whatever the
+-- layer, and @flute T@ and @flute' T@ agree on where 0 sits.
+closedPosition :: H.CadenceState -> [Int]
+closedPosition cs =
+  let r     = Pitch.unPitchClass (Pitch.pitchClass (H.stateCadenceRoot cs))
+      bass  = r - 12
+      above p = let x = (p - bass) `mod` 12 in if x == 0 then bass + 12 else bass + x
+      others = [ (r + Pitch.unPitchClass iv) `mod` 12 | iv <- H.cadenceIntervals (H.stateCadence cs)
+               , Pitch.unPitchClass iv /= 0 ]
+  in bass : sort (map above others)
 
 -------------------------------------------------------------------------------
 -- Natural harmonics: harmonics (one string)
