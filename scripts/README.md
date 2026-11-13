@@ -1,6 +1,7 @@
 # scripts
 
-This folder holds data-prep helpers used before the Haskell ingestion pipeline runs.
+Helpers that sit beside the library: corpus preparation for the Haskell ingestion
+pipeline, a transcription aid, machine setup, and the CI checks.
 
 ## export_ycacl.R
 
@@ -51,21 +52,21 @@ be offline for a dump, so the script stops the container and restarts it via a t
 
 ## midi2score.py
 
-Harvests a Standard MIDI File (a LilyPond or MuseScore render of an edition) into score-mode
-text: one `harp' M 1 "p" k (staff beats [...])` line per monophonic voice of each track, one
-string per bar, for `bars` blocks in a piece. Pure Python; run it with `-I` on a downloaded
-file. Degrees are chromatic on C at octave 1 (`inKey C "chromatic"`), ties over bar lines are
-one step, a note another track already sounds at the same instant is dropped (hidden-head
-doubles in LilyPond editions), the 2/4 bar is two beats of its block; the report on stderr
-lists the bar count, the time signatures, the range, every dropped note and every cross-bar
-tie (a block boundary must not cut one).
+A transcription aid for score-mode pieces. When the notation already exists as a Standard
+MIDI File (a LilyPond or MuseScore render of an edition), it writes the notes out as
+score-mode text so they do not have to be typed.
 
 ```bash
 python3 -I scripts/midi2score.py piece.mid --blocks 1-16,17-46 --mark pp
 ```
 
-The method and its rules are in `documents/ALGORITHMIC_ORCHESTRATION.md` ("Harvesting from
-MIDI").
+Output is one instrument line per voice for each block, one string per bar, ready to paste
+under `bars` and check against the print. The report on stderr lists the bar count, time
+signatures, tempos, range, every dropped note and every tie across a bar line (a block
+boundary must not cut one). Dynamics and tempo are not written: read them from the print.
+
+Pure Python, no dependencies. The conversion rules are in the script's docstring
+(`--help` prints them).
 
 ---
 

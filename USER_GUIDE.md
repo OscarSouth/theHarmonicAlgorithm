@@ -892,7 +892,6 @@ Everything so far voices a progression: the instruments read their notes from th
 - `bars b1 b2 $ pat` is a block on score bar numbers (1-indexed, end inclusive). Each block runs on its own clock: a `"…/4"` pattern is one bar from the block's first beat wherever it sits, so the same mininotation reads the same at bar 1 and bar 17.
 - `score pre blocks` sequences the blocks behind `pre` bars of pre-roll; `preroll pre k` delays the form to match, so `display k` counts score bars. The tempo is the first block (`bars 1 8 $ bpm tempo`, then any change as another block): the stream owns the clock, the launcher never calls `setbpm`, and `hush` clears a stale one.
 - `dyn "p"` is the dynamic mark table (`ffff` 1.0 … `p` 0.40 … `pppp` 0.25), sampled at each onset under `#`; `ramp lo hi` is a 64-step line across one cycle. The form's dynamic nodes are the arc.
-- `staff beats ["…", "…"]` joins one string per bar into a weighted sequence over a block's beats, so a long transcription stays bar by bar beside the score; `scripts/midi2score.py` writes such lines from a MIDI render of an edition, voice by voice.
 
 ```haskell
 key = inKey D "major"                                  -- one bar: D F# A | D E F# A B | D major
