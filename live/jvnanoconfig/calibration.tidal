@@ -1,0 +1,194 @@
+-- ============================================================================
+-- LEVEL CALIBRATION — one slot per instrument and dynamic, both rigs
+-- ============================================================================
+--
+-- Plays every orchestral voice the two rigs share at three dynamics, one bar
+-- each, so an audio capture of this file on the NanoSynth and one on the
+-- JV-1010 can be measured slot by slot and the JV's levels brought to the
+-- nano's. The guide is README.md beside this file; the slot map with seconds,
+-- notes, velocities and both rigs' channels is timeline.csv (generated from a
+-- render of this file by tools/render_timeline.py, not written by hand).
+--
+-- The same code path as the pieces: `instrument'` with a mark, `|* vel d`,
+-- `score`/`bars`, so what is captured is what the pieces send. One cycle is
+-- one beat; at crotchet = 60 a bar is four seconds. A slot is a note held
+-- three seconds then one second of silence. The key is chromatic, so a degree
+-- is a semitone: at octave 1, degree n is MIDI 60 + n on either rig.
+--
+-- Velocity is the one shared formula (no rig shapes it):
+--   velocity = floor(127 × mark × kDynamic × d)   kDynamic = 1 here, d = 1 × 0.99
+--   pppp 0.25 → 31     p 0.40 → 50     f 0.65 → 81
+-- d = 1 is the unboosted reference: the marks alone. (The pieces' launchers
+-- have carried boosts of 1.5 and more because the orchestra sat low; that is
+-- a separate question, settled after the two rigs agree.) `f` is the top rung
+-- so the same three slots stay unclipped under any boost up to 1.5.
+--
+-- Layout (bar numbers; seconds from the marker = (bar − 1) × 4):
+--   1        marker: a woodblock hit, the alignment onset
+--   2        silence — the noise floor
+--   3–44     fourteen pitched instruments × pppp / p / f, instrument-major
+--   45–53    pizzicato: violin 1, cello, contrabass × three
+--   54–68    bass drum, tambourine, woodblock, triangle, tam-tam × three
+--            (tam-tam has no voice on the nano: its three slots stay silent there)
+--   69       string section chord at p (vn1 vn2 vla vc cb)
+--   70–72    tutti chord of all fourteen at pppp / p / f
+--
+-- Before running: on the nano `setupRig` once after power-up (patches, CC7,
+-- pan, depth, CC11); on the JV nothing (the Performance is on the module).
+-- The launcher opens CC11 on every channel first, because the pieces leave
+-- expression where they ended. Record from the module's output, no
+-- normalisation, the same interface gain for every capture on a machine; then
+-- `python3 tools/measure.py capture.wav timeline.csv --rig nano|jv`.
+
+tempo = 60               -- crotchet = 60: a cycle is a second, a bar four
+pre   = 1                -- one silent bar before the marker
+key   = inKey C "chromatic"
+form  = [rh 1 1 1 key]   -- flat: kDynamic = 1, the marks alone set the level
+
+-- ── THE SLOTS ───────────────────────────────────────────
+
+calibration f k d = p "score" $ f $ score pre
+  [bars 0 72 $ bpm tempo
+  ,bars 1 1 $ woodblock "[t ~ ~ ~]/4" |* vel 0.65   -- MARKER: the alignment onset; bar 2 is silence (noise floor)
+   -- ── PITCHED, each at its home note: pppp / p / f ──
+  ,bars 3 3 $ flute'       M 1 "pppp" k "[21@3 ~]/4"     -- flute A5 MIDI 81
+  ,bars 4 4 $ flute'       M 1 "p"    k "[21@3 ~]/4"     -- flute A5 MIDI 81
+  ,bars 5 5 $ flute'       M 1 "f"    k "[21@3 ~]/4"     -- flute A5 MIDI 81
+  ,bars 6 6 $ oboe'        M 1 "pppp" k "[9@3 ~]/4"      -- oboe A4 MIDI 69
+  ,bars 7 7 $ oboe'        M 1 "p"    k "[9@3 ~]/4"      -- oboe A4 MIDI 69
+  ,bars 8 8 $ oboe'        M 1 "f"    k "[9@3 ~]/4"      -- oboe A4 MIDI 69
+  ,bars 9 9 $ clarinet'    M 1 "pppp" k "[7@3 ~]/4"      -- clarinet G4 MIDI 67
+  ,bars 10 10 $ clarinet'    M 1 "p"    k "[7@3 ~]/4"      -- clarinet G4 MIDI 67
+  ,bars 11 11 $ clarinet'    M 1 "f"    k "[7@3 ~]/4"      -- clarinet G4 MIDI 67
+  ,bars 12 12 $ bassoon'     M 1 "pppp" k "[-10@3 ~]/4"    -- bassoon D3 MIDI 50
+  ,bars 13 13 $ bassoon'     M 1 "p"    k "[-10@3 ~]/4"    -- bassoon D3 MIDI 50
+  ,bars 14 14 $ bassoon'     M 1 "f"    k "[-10@3 ~]/4"    -- bassoon D3 MIDI 50
+  ,bars 15 15 $ horn'        M 1 "pppp" k "[-5@3 ~]/4"     -- horn G3 MIDI 55
+  ,bars 16 16 $ horn'        M 1 "p"    k "[-5@3 ~]/4"     -- horn G3 MIDI 55
+  ,bars 17 17 $ horn'        M 1 "f"    k "[-5@3 ~]/4"     -- horn G3 MIDI 55
+  ,bars 18 18 $ trombone'    M 1 "pppp" k "[-2@3 ~]/4"     -- trombone Bb3 MIDI 58
+  ,bars 19 19 $ trombone'    M 1 "p"    k "[-2@3 ~]/4"     -- trombone Bb3 MIDI 58
+  ,bars 20 20 $ trombone'    M 1 "f"    k "[-2@3 ~]/4"     -- trombone Bb3 MIDI 58
+  ,bars 21 21 $ basstrom'    M 1 "pppp" k "[-19@3 ~]/4"    -- basstrom F2 MIDI 41
+  ,bars 22 22 $ basstrom'    M 1 "p"    k "[-19@3 ~]/4"    -- basstrom F2 MIDI 41
+  ,bars 23 23 $ basstrom'    M 1 "f"    k "[-19@3 ~]/4"    -- basstrom F2 MIDI 41
+  ,bars 24 24 $ harp'        M 1 "pppp" k "[0@3 ~]/4"      -- harp C4 MIDI 60
+  ,bars 25 25 $ harp'        M 1 "p"    k "[0@3 ~]/4"      -- harp C4 MIDI 60
+  ,bars 26 26 $ harp'        M 1 "f"    k "[0@3 ~]/4"      -- harp C4 MIDI 60
+  ,bars 27 27 $ timpani'     M 1 "pppp" k "[-17@3 ~]/4"    -- timpani G2 MIDI 43
+  ,bars 28 28 $ timpani'     M 1 "p"    k "[-17@3 ~]/4"    -- timpani G2 MIDI 43
+  ,bars 29 29 $ timpani'     M 1 "f"    k "[-17@3 ~]/4"    -- timpani G2 MIDI 43
+  ,bars 30 30 $ violin1'     M 1 "pppp" k "[9@3 ~]/4"      -- violin1 A4 MIDI 69
+  ,bars 31 31 $ violin1'     M 1 "p"    k "[9@3 ~]/4"      -- violin1 A4 MIDI 69
+  ,bars 32 32 $ violin1'     M 1 "f"    k "[9@3 ~]/4"      -- violin1 A4 MIDI 69
+  ,bars 33 33 $ violin2'     M 1 "pppp" k "[2@3 ~]/4"      -- violin2 D4 MIDI 62
+  ,bars 34 34 $ violin2'     M 1 "p"    k "[2@3 ~]/4"      -- violin2 D4 MIDI 62
+  ,bars 35 35 $ violin2'     M 1 "f"    k "[2@3 ~]/4"      -- violin2 D4 MIDI 62
+  ,bars 36 36 $ viola'       M 1 "pppp" k "[-5@3 ~]/4"     -- viola G3 MIDI 55
+  ,bars 37 37 $ viola'       M 1 "p"    k "[-5@3 ~]/4"     -- viola G3 MIDI 55
+  ,bars 38 38 $ viola'       M 1 "f"    k "[-5@3 ~]/4"     -- viola G3 MIDI 55
+  ,bars 39 39 $ cello'       M 1 "pppp" k "[-10@3 ~]/4"    -- cello D3 MIDI 50
+  ,bars 40 40 $ cello'       M 1 "p"    k "[-10@3 ~]/4"    -- cello D3 MIDI 50
+  ,bars 41 41 $ cello'       M 1 "f"    k "[-10@3 ~]/4"    -- cello D3 MIDI 50
+  ,bars 42 42 $ contrabass'  M 1 "pppp" k "[-27@3 ~]/4"    -- contrabass A1 MIDI 33
+  ,bars 43 43 $ contrabass'  M 1 "p"    k "[-27@3 ~]/4"    -- contrabass A1 MIDI 33
+  ,bars 44 44 $ contrabass'  M 1 "f"    k "[-27@3 ~]/4"    -- contrabass A1 MIDI 33
+   -- ── PIZZICATO (ch 12 on both rigs) ──
+  ,bars 45 45 $ violin1'     M 1 "pppp" k "[9@3 ~]/4"    # pizz   -- violin1 pizz A4 MIDI 69
+  ,bars 46 46 $ violin1'     M 1 "p"    k "[9@3 ~]/4"    # pizz   -- violin1 pizz A4 MIDI 69
+  ,bars 47 47 $ violin1'     M 1 "f"    k "[9@3 ~]/4"    # pizz   -- violin1 pizz A4 MIDI 69
+  ,bars 48 48 $ cello'       M 1 "pppp" k "[-10@3 ~]/4"  # pizz   -- cello pizz D3 MIDI 50
+  ,bars 49 49 $ cello'       M 1 "p"    k "[-10@3 ~]/4"  # pizz   -- cello pizz D3 MIDI 50
+  ,bars 50 50 $ cello'       M 1 "f"    k "[-10@3 ~]/4"  # pizz   -- cello pizz D3 MIDI 50
+  ,bars 51 51 $ contrabass'  M 1 "pppp" k "[-27@3 ~]/4"  # pizz   -- contrabass pizz A1 MIDI 33
+  ,bars 52 52 $ contrabass'  M 1 "p"    k "[-27@3 ~]/4"  # pizz   -- contrabass pizz A1 MIDI 33
+  ,bars 53 53 $ contrabass'  M 1 "f"    k "[-27@3 ~]/4"  # pizz   -- contrabass pizz A1 MIDI 33
+   -- ── UNPITCHED: the hit path carries no mark, so the three levels are the marks' amplitudes ──
+  ,bars 54 54 $ bassdrum   "[t ~ ~ ~]/4" |* vel 0.25   -- as pppp
+  ,bars 55 55 $ bassdrum   "[t ~ ~ ~]/4" |* vel 0.4   -- as p
+  ,bars 56 56 $ bassdrum   "[t ~ ~ ~]/4" |* vel 0.65   -- as f
+  ,bars 57 57 $ tambourine "[t ~ ~ ~]/4" |* vel 0.25   -- as pppp
+  ,bars 58 58 $ tambourine "[t ~ ~ ~]/4" |* vel 0.4   -- as p
+  ,bars 59 59 $ tambourine "[t ~ ~ ~]/4" |* vel 0.65   -- as f
+  ,bars 60 60 $ woodblock  "[t ~ ~ ~]/4" |* vel 0.25   -- as pppp
+  ,bars 61 61 $ woodblock  "[t ~ ~ ~]/4" |* vel 0.4   -- as p
+  ,bars 62 62 $ woodblock  "[t ~ ~ ~]/4" |* vel 0.65   -- as f
+  ,bars 63 63 $ triangle   "[t ~ ~ ~]/4" |* vel 0.25   -- as pppp
+  ,bars 64 64 $ triangle   "[t ~ ~ ~]/4" |* vel 0.4   -- as p
+  ,bars 65 65 $ triangle   "[t ~ ~ ~]/4" |* vel 0.65   -- as f
+  ,bars 66 66 $ tamtam     "[t ~ ~ ~]/4" |* vel 0.25   -- silent on the NanoSynth (no voice)
+  ,bars 67 67 $ tamtam     "[t ~ ~ ~]/4" |* vel 0.4   -- silent on the NanoSynth (no voice)
+  ,bars 68 68 $ tamtam     "[t ~ ~ ~]/4" |* vel 0.65   -- silent on the NanoSynth (no voice)
+   -- ── STRING SECTION, one chord at p: four patches on the nano, one channel on the JV ──
+  ,bars 69 69 $ stack [silence
+     ,violin1' M 1 "p" k "[9@3 ~]/4"
+     ,violin2' M 1 "p" k "[2@3 ~]/4"
+     ,viola' M 1 "p" k "[-5@3 ~]/4"
+     ,cello' M 1 "p" k "[-10@3 ~]/4"
+     ,contrabass' M 1 "p" k "[-27@3 ~]/4"
+     ]
+   -- ── TUTTI, every pitched instrument at its home note: pppp / p / f ──
+  ,bars 70 70 $ stack [silence
+     ,flute' M 1 "pppp" k "[21@3 ~]/4"
+     ,oboe' M 1 "pppp" k "[9@3 ~]/4"
+     ,clarinet' M 1 "pppp" k "[7@3 ~]/4"
+     ,bassoon' M 1 "pppp" k "[-10@3 ~]/4"
+     ,horn' M 1 "pppp" k "[-5@3 ~]/4"
+     ,trombone' M 1 "pppp" k "[-2@3 ~]/4"
+     ,basstrom' M 1 "pppp" k "[-19@3 ~]/4"
+     ,harp' M 1 "pppp" k "[0@3 ~]/4"
+     ,timpani' M 1 "pppp" k "[-17@3 ~]/4"
+     ,violin1' M 1 "pppp" k "[9@3 ~]/4"
+     ,violin2' M 1 "pppp" k "[2@3 ~]/4"
+     ,viola' M 1 "pppp" k "[-5@3 ~]/4"
+     ,cello' M 1 "pppp" k "[-10@3 ~]/4"
+     ,contrabass' M 1 "pppp" k "[-27@3 ~]/4"
+     ]
+  ,bars 71 71 $ stack [silence
+     ,flute' M 1 "p" k "[21@3 ~]/4"
+     ,oboe' M 1 "p" k "[9@3 ~]/4"
+     ,clarinet' M 1 "p" k "[7@3 ~]/4"
+     ,bassoon' M 1 "p" k "[-10@3 ~]/4"
+     ,horn' M 1 "p" k "[-5@3 ~]/4"
+     ,trombone' M 1 "p" k "[-2@3 ~]/4"
+     ,basstrom' M 1 "p" k "[-19@3 ~]/4"
+     ,harp' M 1 "p" k "[0@3 ~]/4"
+     ,timpani' M 1 "p" k "[-17@3 ~]/4"
+     ,violin1' M 1 "p" k "[9@3 ~]/4"
+     ,violin2' M 1 "p" k "[2@3 ~]/4"
+     ,viola' M 1 "p" k "[-5@3 ~]/4"
+     ,cello' M 1 "p" k "[-10@3 ~]/4"
+     ,contrabass' M 1 "p" k "[-27@3 ~]/4"
+     ]
+  ,bars 72 72 $ stack [silence
+     ,flute' M 1 "f" k "[21@3 ~]/4"
+     ,oboe' M 1 "f" k "[9@3 ~]/4"
+     ,clarinet' M 1 "f" k "[7@3 ~]/4"
+     ,bassoon' M 1 "f" k "[-10@3 ~]/4"
+     ,horn' M 1 "f" k "[-5@3 ~]/4"
+     ,trombone' M 1 "f" k "[-2@3 ~]/4"
+     ,basstrom' M 1 "f" k "[-19@3 ~]/4"
+     ,harp' M 1 "f" k "[0@3 ~]/4"
+     ,timpani' M 1 "f" k "[-17@3 ~]/4"
+     ,violin1' M 1 "f" k "[9@3 ~]/4"
+     ,violin2' M 1 "f" k "[2@3 ~]/4"
+     ,viola' M 1 "f" k "[-5@3 ~]/4"
+     ,cello' M 1 "f" k "[-10@3 ~]/4"
+     ,contrabass' M 1 "f" k "[-27@3 ~]/4"
+     ]
+  ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let f = id
+      d = (* 1)          -- no boost: the marks alone; the pieces' boosts are a separate question
+      k = preroll pre $ iK tempo form (rep key 1)
+  putStrLn ("CALIBRATION on " ++ rigName rig)
+  mapM_ id [hush, resetCycles
+    ,once $ nanoTable 11 [ (c, if c == 6 && rigName rig == "NanoSynth" then 0 else 1) | c <- [1..16] ]   -- expression open everywhere (the Mother-32's channel stays closed on the nano)
+    ,display k
+    ,calibration f k $ d 0.99
+    ]
+
+hush

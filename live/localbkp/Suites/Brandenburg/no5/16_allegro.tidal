@@ -1,0 +1,82 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 5 IN D MAJOR, BWV 1050 — III. ALLEGRO
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- Super-structure position: GOLDEN RATIO region (TERTIARY) — the
+-- cadenza's energy released.
+--
+-- The finale returns to D major with a gigue-like fugue. All forces
+-- return — ripieno, three soloists, continuo. The harpsichord is now
+-- permanently elevated: it functions as both continuo AND soloist,
+-- weaving between accompaniment and virtuosic episodes. The fugue
+-- subject is bright, dance-like, passed between all voices with
+-- brilliant energy. The concerto ends with festive affirmation.
+-- ============================================================================
+
+tempo = 120
+
+start <- lead "D maj"
+
+let ctx = hcKey "2#"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.3 $ attempt 2 6 $ gen
+
+-- Form: ~290s loop (280s music + 10s silence)
+-- Arc: gigue-fugue subject -> second voice -> full exposition -> episode ->
+--      stretto -> festive peak -> concluding
+form =
+  [ rh    1    0.0   0.0   s
+  , rh    3    0.5   0.5   s     -- gigue-fugue: subject enters
+  , rh   19    0.55  0.55  s     -- second voice
+  , rh   33    0.6   0.6   s     -- third voice: full exposition
+  , rh   51    0.45  0.45  s     -- episode
+  , rh   71    0.65  0.65  s     -- stretto
+  , rh   93    0.5   0.5   s     -- episode
+  , rh  113    0.7   0.7   s     -- peak: all voices, festive
+  , rh  133    0.55  0.55  s     -- concluding
+  , rh  141    0.0   0.0   s
+  , rh  146    0.0   0.0   s     -- gap
+  ]
+
+-- ── MOTIFS ───────────────────────────────────────────────
+-- The gigue-fugue subject. Compound lilt, three voices entering in turn —
+-- and the harpsichord, permanently elevated after the first movement's
+-- cadenza, is one of them rather than mere accompaniment.
+(rhythm, contour, motif) =
+  ( "[1 0 1 1 0 1 1 0]/4"
+  , "[3 1 2 0 3 2 1 0]/4"
+  , rhythm >:< contour
+  ) :: (Pattern Bool, Pattern Int, Pattern Int)
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+harpsichord f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~", soprano = motif}
+  f $ stack [silence, harp T (0, 1) k vl flow Soprano] |* vel d
+
+soloFlute f k d = p "flute" $ do
+  let vl = voiceLines {_vl = "~", soprano = motif}
+  f $ stack [silence, flute T (0.15, 1) k vl flow Alto] |* vel d
+
+soloViolin f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~", soprano = mirror 2 contour}
+  f $ stack [silence, violin1 T (0.2, 1) k vl flow Soprano # spicc] |* vel d
+
+ripieno f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 2 1 0]/4", tenor = "2", bass = "0"}
+  f $ stack [silence, violin2 T (0.45, 1) k vl flow Alto # spicc, viola T (0.45, 1) k vl flow Tenor # spicc
+        , cello T (0, 1) k vl grid Bass # marc, contrabass T (0, 1) k vl grid Bass8vb # marc] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id; d = (* 1); k = iK tempo form (rep s 1)
+  putStrLn "BRANDENBURG NO. 5 — III. Allegro"
+  mapM_ id [hush, setbpm tempo
+    ,setContinuo harpsichordV
+    ,harpsichord f k $ d 0.85, soloFlute f k $ d 0.7, soloViolin f k $ d 0.75, ripieno f k $ d 0.6]
+
+hush''

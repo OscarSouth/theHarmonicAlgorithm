@@ -14,21 +14,28 @@
 -- +====+=========================+================+============+
 -- | 1  | flute                   | 74 \/ 3         | SingleFlut |
 -- | 2  | oboe                    | 68 \/ 3         | Ebony Oboe |
--- | 3  | bassoon                 | 70 \/ 2         | SoloBasoon |
--- | 4  | horn                    | 60 \/ 1         | FlugelSolo |
--- | 5  | trombone, bass trombone | 57 \/ 1         | Bone Tone  |
--- | 6  | timpani (with tuba)     | 60 \/ 4         | Documentar |
--- | 7  | strings pizzicato       | 45 \/ 3         | Pizz Pluck |
--- | 8  | orch hit, bass drum     | 55 \/ 3         | Danz Hitz  |
--- | 9  | harp (continuo)         | 46 \/ 3         | Harpitz    |
--- | 10 | service channel (MPC)   | 127 \/ 1        | blank      |
--- | 11 | clarinet                | 71 \/ 2         | 1stClarnet |
--- | 12 | silent                  | 127 \/ 1        | blank      |
+-- | 3  | clarinet                | 71 \/ 2         | 1stClarnet |
+-- | 4  | bassoon                 | 70 \/ 2         | SoloBasoon |
+-- | 5  | horn                    | 60 \/ 1         | FlugelSolo |
+-- | 6  | the Mother-32 (blank)   | 127 \/ 1        | blank      |
+-- | 7  | harp (continuo)         | 46 \/ 3         | Harpitz    |
+-- | 8  | timpani (with tuba)     | 60 \/ 4         | Documentar |
+-- | 9  | orch hit, bass drum     | 55 \/ 3         | Danz Hitz  |
+-- | 10 | kit, shared with MPC    | 118 \/ 3        | 15ips Kit  |
+-- | 11 | trombone, bass trombone | 57 \/ 1         | Bone Tone  |
+-- | 12 | strings pizzicato       | 45 \/ 3         | Pizz Pluck |
 -- | 13 | violin 1                | 49 \/ 0         | Slo String |
 -- | 14 | violin 2                | 49 \/ 0         | Slo String |
 -- | 15 | cello                   | 43 \/ 3         | Celli      |
 -- | 16 | double bass, viola      | 41 \/ 1         | BiViola    |
 -- +----+-------------------------+----------------+------------+
+--
+-- The order is the JV-1010's wherever the module can follow it: winds 1–5,
+-- harp 7, timpani 8, bass drum 9, the MPC lane 10, pizzicato 12 and the
+-- strings 13–16, so @# pizz@ is channel 12 on both rigs and the continuo is 7
+-- on both. Channel 6 belongs to the Moog Mother-32, which shares this chain
+-- through the MPC's CV out, so the module is blank there and the trombone
+-- takes 11 (the JV's tam-tam channel, a voice the module lacks).
 --
 -- A program is reached by Bank Select on CC0 alone — 0 General MIDI, 1 User,
 -- 2 to 4 the Preset banks; the module ignores CC32 — followed by a Program
@@ -37,17 +44,19 @@
 -- ("Harmonic.Interface.Tidal.Orchestra"); the zones the 2021 patches were
 -- found to sound in are tabled in @documents\/NANOSYNTH.md@.
 --
--- Channel 10 is the MPC's service lane (sub, kit, click, count, display), so
--- the module is blank there and the kit is one message away: @once $ nanoKit@
--- puts 15ips Kit on 10 when the module plays alone. The kit answers to the
--- General MIDI percussion map, so the voices here carry the @gm@ prefix and
--- serve any GM module.
+-- Channel 10 carries the orchestra's percussion (15ips Kit) on the channel the
+-- MPC's service lane also uses; the two share it by note band — the MPC's pads
+-- keep 0–48, the kit voices the rig names ('rigTambourine' 54, 'rigWoodblock'
+-- 76, 'rigTriangle' 81) sit above. @nanoKit@ re-sends the kit after a program
+-- change. The kit answers to the General MIDI percussion map, so the voices
+-- below carry the @gm@ prefix and serve any GM module; the ones in the MPC's
+-- band (kick, snare, hats) are not part of the orchestra.
 module Harmonic.Interface.Tidal.Devices.NanoSynth
   ( -- * Orchestral rig
     nanoSynth
 
     -- * Configuration
-  , nanoPrograms, nanoLevel, nanoPan, nanoDepth, nanoMod, nanoExpr
+  , nanoMix, nanoPrograms, nanoLevel, nanoPan, nanoDepth, nanoMod, nanoExpr
   , nanoProgram, nanoTable, nanoSetup, nanoKit
 
     -- * Continuo
@@ -65,33 +74,36 @@ import Harmonic.Interface.Tidal.Instruments (ch)
 import Harmonic.Interface.Tidal.Orchestra (Rig(..), noArt)
 import Harmonic.Interface.Tidal.Devices.JV1010 (ContinuoVoice)
 
--- | The NanoSynth orchestra: one section per channel, pizzicato shared on 7,
+-- | The NanoSynth orchestra: one section per channel, pizzicato shared on 12,
 -- continuo on the harp channel. The tam-tam has no voice here.
 nanoSynth :: Rig
 nanoSynth = Rig
   { rigName       = "NanoSynth"
   , rigFlute      = 1
   , rigOboe       = 2
-  , rigClarinet   = 11
-  , rigBassoon    = 3
-  , rigHorn       = 4
-  , rigTrombone   = 5
-  , rigBasstrom   = 5
-  , rigHarp       = 9
-  , rigTimpani    = 6
+  , rigClarinet   = 3
+  , rigBassoon    = 4
+  , rigHorn       = 5
+  , rigTrombone   = 11
+  , rigBasstrom   = 11
+  , rigHarp       = 7
+  , rigTimpani    = 8
   , rigViolin1    = 13
   , rigViolin2    = 14
   , rigViola      = 16
   , rigCello      = 15
   , rigContrabass = 16
-  , rigBassdrum   = Just (12, 8)    -- the orchestra hit, four octaves down
+  , rigBassdrum   = Just (12, 9)    -- the orchestra hit, four octaves down
   , rigTamtam     = Nothing
-  , rigPizz       = ch 7
+  , rigTambourine = Just (54, 10)   -- 15ips Kit, General MIDI numbers, all above the MPC's band (0–48)
+  , rigTriangle   = Just (81, 10)
+  , rigWoodblock  = Just (76, 10)
+  , rigPizz       = ch 12
   , rigSpicc      = noArt
   , rigMarc       = noArt
   , rigLegg       = noArt
   , rigArco       = noArt
-  , rigContinuo   = 9
+  , rigContinuo   = 7
   , rigSetup      = nanoSetup
   }
 
@@ -99,48 +111,44 @@ nanoSynth = Rig
 -- Configuration
 -------------------------------------------------------------------------------
 
--- | Channel to @(program, bank)@: the 2021 concert map, one patch per channel.
-nanoPrograms :: [(Int, (Int, Int))]
-nanoPrograms =
-  [ ( 1, ( 74, 3))   -- SingleFlut
-  , ( 2, ( 68, 3))   -- Ebony Oboe
-  , ( 3, ( 70, 2))   -- SoloBasoon
-  , ( 4, ( 60, 1))   -- FlugelSolo
-  , ( 5, ( 57, 1))   -- Bone Tone
-  , ( 6, ( 60, 4))   -- Documentar (timpani with tuba)
-  , ( 7, ( 45, 3))   -- Pizz Pluck
-  , ( 8, ( 55, 3))   -- Danz Hitz (orchestra hit)
-  , ( 9, ( 46, 3))   -- Harpitz
-  , (10, (127, 1))   -- blank: the MPC owns channel 10; 'nanoKit' puts the kit here
-  , (11, ( 71, 2))   -- 1stClarnet
-  , (12, (127, 1))   -- blank: the module's silent program
-  , (13, ( 49, 0))   -- Slo String
-  , (14, ( 49, 0))   -- Slo String
-  , (15, ( 43, 3))   -- Celli
-  , (16, ( 41, 1))   -- BiViola (double bass with viola)
+-- | The mix, one row per channel: @(channel, (program, bank), level, pan,
+-- depth, modulation, expression)@ — level, depth, modulation and expression
+-- 0–1, pan &#8722;1 left to 1 right. The values are the 2021 concert's and
+-- travel with their program; the channel column is the layout. Firsts far
+-- left, seconds far right, the winds and brass spread between; the wheel open
+-- on the orchestra hit alone; the Mother-32's channel closed.
+nanoMix :: [(Int, (Int, Int), Double, Double, Double, Double, Double)]
+nanoMix =
+  [ ( 1, ( 74, 3), 0.36, -0.20, 0.85, 0, 1)   -- SingleFlut: flute
+  , ( 2, ( 68, 3), 0.32,  0.20, 0.90, 0, 1)   -- Ebony Oboe: oboe
+  , ( 3, ( 71, 2), 0.32, -0.25, 0.85, 0, 1)   -- 1stClarnet: clarinet
+  , ( 4, ( 70, 2), 0.40,  0.25, 0.90, 0, 1)   -- SoloBasoon: bassoon
+  , ( 5, ( 60, 1), 0.60, -0.40, 0.95, 0, 1)   -- FlugelSolo: horn
+  , ( 6, (127, 1), 0,     0,    0,    0, 0)   -- blank: the Mother-32's channel
+  , ( 7, ( 46, 3), 0.10, -0.20, 0.95, 0, 1)   -- Harpitz: harp, the continuo
+  , ( 8, ( 60, 4), 0.90, -0.30, 0.85, 0, 1)   -- Documentar: timpani, with tuba
+  , ( 9, ( 55, 3), 1.00,  0.00, 0.90, 1, 1)   -- Danz Hitz: orchestra hit, the bass drum at MIDI 12
+  , (10, (118, 3), 0.70, -0.20, 0.85, 0, 1)   -- 15ips Kit: tambourine 54, woodblock 76, triangle 81; shared with the MPC (its pads keep 0–48)
+  , (11, ( 57, 1), 0.90,  0.10, 0.80, 0, 1)   -- Bone Tone: trombone, bass trombone
+  , (12, ( 45, 3), 0.50,  0.15, 0.90, 0, 1)   -- Pizz Pluck: strings pizzicato
+  , (13, ( 49, 0), 0.40, -0.80, 0.80, 0, 1)   -- Slo String: violin 1
+  , (14, ( 49, 0), 0.30,  0.80, 0.95, 0, 1)   -- Slo String: violin 2
+  , (15, ( 43, 3), 0.50,  0.30, 0.85, 0, 1)   -- Celli: cello
+  , (16, ( 41, 1), 0.20, -0.30, 0.95, 0, 1)   -- BiViola: double bass, with viola
   ]
 
--- | Channel volume (CC7), 0-1: the section balance.
-nanoLevel :: [(Int, Double)]
-nanoLevel = zip [1 ..] [0.36, 0.32, 0.40, 0.60, 0.90, 0.90, 0.50, 1.00, 0.10, 0.70, 0.32, 0, 0.40, 0.30, 0.50, 0.20]
+-- | Channel to @(program, bank)@, from 'nanoMix'.
+nanoPrograms :: [(Int, (Int, Int))]
+nanoPrograms = [ (c, pb) | (c, pb, _, _, _, _, _) <- nanoMix ]
 
--- | Pan (CC10), &#8722;1 left to 1 right: firsts far left, seconds far right,
--- the winds and brass spread between.
-nanoPan :: [(Int, Double)]
-nanoPan = zip [1 ..] [-0.2, 0.2, 0.25, -0.4, 0.1, -0.3, 0.15, 0, -0.2, -0.2, -0.25, 0, -0.8, 0.8, 0.3, -0.3]
-
--- | Reverb send (CC91), 0-1: the hall depth per section.
-nanoDepth :: [(Int, Double)]
-nanoDepth = zip [1 ..] [0.85, 0.90, 0.90, 0.95, 0.80, 0.85, 0.90, 0.90, 0.95, 0.85, 0.85, 0, 0.80, 0.95, 0.85, 0.95]
-
--- | Modulation (CC1): off everywhere except the orchestra hit, which the
--- wheel opens.
-nanoMod :: [(Int, Double)]
-nanoMod = [ (c, if c == 8 then 1 else 0) | c <- [1 .. 16] ]
-
--- | Expression (CC11): full on every sounding channel, closed on the silent one.
-nanoExpr :: [(Int, Double)]
-nanoExpr = [ (c, if c == 12 then 0 else 1) | c <- [1 .. 16] ]
+-- | Channel volume (CC7), pan (CC10, &#8722;1 to 1), reverb send (CC91),
+-- modulation (CC1) and expression (CC11), each a column of 'nanoMix'.
+nanoLevel, nanoPan, nanoDepth, nanoMod, nanoExpr :: [(Int, Double)]
+nanoLevel = [ (c, v) | (c, _, v, _, _, _, _) <- nanoMix ]
+nanoPan   = [ (c, v) | (c, _, _, v, _, _, _) <- nanoMix ]
+nanoDepth = [ (c, v) | (c, _, _, _, v, _, _) <- nanoMix ]
+nanoMod   = [ (c, v) | (c, _, _, _, _, v, _) <- nanoMix ]
+nanoExpr  = [ (c, v) | (c, _, _, _, _, _, v) <- nanoMix ]
 
 -- A control change by number, level 0-1 scaled to 0-127.
 ctl :: Int -> Double -> ControlPattern
@@ -160,9 +168,9 @@ nanoProgram c (prog, bk) = stack
 nanoTable :: Int -> [(Int, Double)] -> ControlPattern
 nanoTable num rows = stack [ (fromIntegral i / 16) ~> (ctl num v # ch c) | (i, (c, v)) <- zip [0 :: Int ..] rows ]
 
--- | The module's own kit on channel 10 — 15ips Kit, 118 \/ Preset 3 — for when
--- it plays alone and the MPC is off the chain. Fire with @once@; the level,
--- pan and depth rows for 10 are already set by 'nanoSetup'.
+-- | The kit on channel 10 — 15ips Kit, 118 \/ Preset 3 — re-sent on its own
+-- after a program change there. Fire with @once@; the level, pan and depth
+-- rows for 10 are already set by 'nanoSetup'.
 nanoKit :: ControlPattern
 nanoKit = nanoProgram 10 (118, 3)
 

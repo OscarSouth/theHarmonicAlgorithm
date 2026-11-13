@@ -9,9 +9,13 @@ its channel from a `Rig` (its range stays its own), and the boot file declares w
 `rig = jv1010` at home, `rig = nanoSynth` in the studio — so a performance
 file names instruments and never channels, and the same `strg f k $ d 0.8`
 block sounds on either. The Roland JV-1010 keeps its library-fixed map;
-the Alesis NanoSynth joins it with the 2021 concert layout (one section per
-channel, pizzicato shared on 7, the other articulation tags identity, channel
-10 left to the MPC service lane with `nanoKit` as the full-module switch) and a
+the Alesis NanoSynth joins it with the 2021 concert voices in the JV-1010's
+channel order (one section per channel, pizzicato on 12 and the continuo on 7
+as on the JV, channel 6 left blank for the Moog Mother-32, the other
+articulation tags identity, channel
+10 shared with the MPC service lane by note band, the kit's tambourine, woodblock and
+triangle above the pads — `tambourine`, `woodblock`, `triangle` join `bassdrum` and
+`tamtam` as rig-named percussion) and a
 cold configuration — bank and program on every channel, then level, pan,
 depth, modulation and expression — sent once by `setupRig` or walked block
 by block in `live/docs/NANOSYNTH_CATALOGUE.tidal`. The module's program

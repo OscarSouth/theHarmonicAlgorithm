@@ -1,0 +1,127 @@
+-- ============================================================================
+-- I. ANDANTE
+-- Suite No. 1 for small orchestra — Igor Stravinsky (1917–25), Chester 1926
+-- ============================================================================
+--
+-- Score-mode port of the 2021 transcription (udagan-sensoria-concert/perform/
+-- Stravinsky_suite1.tidal), corrected against the full score. Every change to a
+-- 2021 note carries a `score b.N` comment; the bar-by-bar table is
+-- ANDANTE_RECONCILIATION.md beside this file.
+--
+-- Scoring in this movement: 2 Fl, 2 Cl in A, 2 Fg, Vn I, Vn II, Vla, Vc, Cb.
+-- D major, 4/4, ♩ = 86–92; 23 bars; [1] at bar 3, [2] at 10, [3] at 17; fermata
+-- on 23. The clarinets are written in F major, a minor third above sounding:
+-- every degree here is the SOUNDING pitch (the 2021 file added `transpose 3`
+-- on top of sounding degrees, which put the ostinato a minor third high).
+--
+-- The key is a one-bar progression (`inKey D "major"`: D F# A | D E F# A B |
+-- D major) and the lines read their degrees against its M layer: degree 0 is
+-- D at the bass anchor, the octave argument lifts it (1 = the melodic register
+-- the 2021 file wrote in, 0 = the bass, 2 = the flutes' top, "[1,2]" both
+-- flutes). Swap `key` for a generated progression and the same lines follow
+-- its chords. One cycle is a beat, four a bar: a three-bar ostinato is "…/12",
+-- a seven-bar phrase "…/28". Blocks run on their own clock, so each begins on
+-- its first bar wherever it is placed.
+--
+-- The piece is one statement: tempo blocks first (the stream owns the clock —
+-- no `setbpm` in the launcher), then every stack under its bar range; the two
+-- blocks that recur (the clarinet ostinato, the string ground) are `let`-bound
+-- inside it. The form carries the dynamic arc in score bars; block balances
+-- are the `|* vel` factors in the list (starting values — tune at the desk).
+-- Ties are durations (`5@22` = B held for 22 eighths); the fermata bar is held
+-- `hold` beats longer.
+--
+-- Open (kept as 2021): Vn I bars 7 and 14, beats 3–4 — the page shows a
+-- quarter E5 then a C♯5–E5 pair engraved with two beams, which only sums if the
+-- quarter is dotted and no dot is legible; bar 16 has the figure as quarter +
+-- eighths, so that is used in all three places.
+-- ============================================================================
+
+tempo = 88        -- score ♩ = 86–92; the 2021 tempi are the commented blocks below
+pre   = 3         -- bars of pre-roll before bar 1
+hold  = 2         -- extra beats on the fermata bar
+key   = inKey D "major"
+
+-- Form: the dynamic arc in score bars (the melody grows across [1], [2] builds,
+-- [3] settles, the fermata fades).
+form = [rh 1 1 0.5 key, rh 3 1 0.6 key, rh 9 1 0.78 key, rh 10 1 0.7 key
+       ,rh 16 1 0.9 key, rh 17 1 0.85 key, rh 20 1 0.7 key, rh 23 1 0.5 key]
+
+-- ── THE PIECE ───────────────────────────────────────────
+
+andante f k d = p "score" $ do
+  let
+    -- The ostinato: clarinets in canon (three bars, two passes at [3]).
+    ostinato = stack [silence
+      ,clarinet' M 1 "p"  k "[[-2 1 -1 2 -2 1 -1 ~] [~ [-2 1 -1 2]] [[-2 1 -1 ~] ~]]/12"         -- Cl I  (2021: transpose 3 dropped)
+      ,clarinet' M 1 "p"  k "[[<~ -2!2> ~!5 -1 2] [-2 1 -1 2 -2 ~!3] [~!2 -1 2 -2 1 -1 2]]/12"  -- Cl II
+      ] |* vel 0.9
+    -- The ground under it: viola and bass pizzicato, the cello pizz at [1] and arco at [3].
+    ground art = stack [silence
+      ,viola'      M 1 "mp" k "[~ -5 ~ -7]/4" # pizz
+      ,cello'      M 0 "p"  k "[-4 . 2@3 ~ . -6 . 0@3 ~]/4" # art   -- score b.1 "p pizz.", b.17 "arco p" (2021 used the arco patch throughout)
+      ,contrabass' M 0 "p"  k "[-4 ~ -6 ~]/4" # pizz                -- score b.1 G2 E2, doubling the cello (2021 "-3 ~ -5 ~" - 24 = A1 F♯1)
+      ]
+  f $ score pre
+    [bars 1 23 $ bpm tempo
+    -- ,bars 1 13 $ bpm 74, bars 14 16 $ bpm 75, bars 17 23 $ bpm 76     -- the 2021 tempi
+    -- [1]
+    ,bars 1 9  $ ostinato
+    ,bars 1 9  $ ground pizz
+    -- The tune from [1]: flutes in octaves with Vn II, Vn I a third above.
+    ,bars 3 9  $ stack [silence
+       ,flute'   M "[1,2]" "p"  k "[5 [2 4 . 5] [4 3 2 4 . 5] [4 5] ~!3]/28"   -- score b.3–6: B5/B4 entry — every 2021 degree + 3
+       ,violin1' M 1       "mp" k "[12 [9 11 . 12] [11 10 9 11 . 12] [11 12] [11 10 9 11 . 8 [6 8]] [9 9 . 11 10 9 11] [8 [11 8] . 9]]/28"   -- score b.3–9: + 3 (2021 a fourth low)
+       ,violin2' M 1       "mp" k "[5 [2 4 . 5] [4 3 2 4 . 5] [4 5] ~!3]/28"   -- score b.3–6: + 3
+       ]
+    -- [2]: clarinets in wide leaps, then bassoons in tenths with the cello pizzicato.
+    ,bars 10 16 $ stack [silence
+       ,clarinet' M 1 "pp" k "[[1 -5 -8 -5 2 ~!3] [3 -3 -8 -3 4 ~!3] [3 -3 -8 -3 2 ~!3] [1 -5 -8 -5 0 ~!3] ~!3]/28"   -- (2021: transpose 3 dropped)
+       ,clarinet' M 1 "pp" k "[[1 ~!3 2 -4 -7 -4] [3 ~!3 4 -2 -7 -2] [3 ~!3 2 -4 -7 -4] [1 ~!3 0 -6 -7 -6] ~!3]/28"
+       ,bassoon'  M 1 "pp" k ("[~!4 [-2 -1 0 1] [2 3 2 1] [0 -1 -2 -3]]/28" |- "[0,9]")   -- score b.14–16: B3/G2 … in tenths (2021 two degrees low in both voices)
+       ,cello'    M 0 "mp" k "[~!4 [~ 1 ~ 0 ~ 3 ~ 2] [~ 6 ~ 5 ~ 6 ~ 2] [~ 4 ~ 0 ~ 1 ~ -2]]/28" # pizz   -- score b.14: E3 D3 G3 F♯3 (2021 one degree high); b.14 "pizz. mf"
+       ] |* vel 0.9
+    -- [2]: flutes in two parts, then the solo violin (Vno Solo, b.14–16) joined by Vn II.
+    ,bars 10 16 $ stack [silence
+       ,flute'   M 1 "p" k "[[6 8 . 5@7 ~] [[5 7] 8 . 5@7 ~] [6 [8@7 ~] . [7 6] 5] [[6 7] [8@7 ~] . 5] ~ [] []]/28"   -- score b.12: eighths D5 C♯5 then quarter B4 (2021: quarter then eighths)
+       ,flute'   M 1 "[p!5 mp!2]/28" k "[[1 . 2@7 ~] [2 . 4@7 ~] [3 2] [1 0] ~ [~ . 4 3 [2@7 ~] 4] [1 [-1 1] [2@7 ~] 2]]/28"
+       ,violin1' M 2 "p" k "[~!4 [4 3 2 4 . [1@7 ~] [-1 . 1@7 ~]] [2 2 . 4 3 2 4] [[1@7 ~] [-1 [1@7 ~]] . 2 2]]/28"
+       ,violin2' M 2 "p" k "[~!5 [~ . 4 3 2 4] [[1@7 ~] [-1 [1@7 ~]] . 2 2]]/28"
+       ]
+    -- [3]
+    ,bars 17 22 $ ostinato
+    ,bars 17 21 $ ground arco                                     -- score b.17 "arco p"
+    -- Bars 17–19: B held in two octaves, the tune's tail beneath.
+    ,bars 17 19 $ stack [silence
+       ,flute'   M 2 "ppp" k "[-2 5]/4"                              -- Fl I: B4 half, B5 half
+       ,0.5 ~> flute' M 2 "pp" k "[[~ -2@7]!2 ~]/12"                 -- Fl II: B4 from beat 2 of bars 17 and 18, tied an eighth over the bar line
+       ,violin1' M 2 "mf" k "[[5 . 2 4] [5 . 4 3 2 4] [5 4]]/12"
+       ,violin2' M 1 "mp" k "[[5 . 2 4] [5 . 4 3 2 4] [5 4]]/12"
+       ]
+    -- Bars 20–23 and the fermata: the held notes as durations over the whole coda
+    -- (18 beats = bars 20–23 + hold, counted in eighths), and the one bar the
+    -- ostinato changes (score b.22).
+    ,bars 20 (23 + hold/4) $ stack [silence
+       ,flute'      M 2 "pp" k "[5@7 ~ 5@4 ~@2 5@22]/18"                 -- Fl I b.20: B5 dotted-half tied to an eighth, rest; b.21: half, rest, quarter slurred into the whole notes of 22–23
+       ,flute'      M 2 "pp" k "[~@8 -2@10]/18"                         -- Fl II b.22–23: B4 tied through the fermata
+       ,clarinet'   M 1 "pp" k "[~@23 3@13]/18"                         -- Cl I b.22 beat 4½: G4 pp (written B♭4), tied through 23 (never sounded in 2021)
+       ,violin1'    M 2 "mf" k "[-2@9 ~@27]/18"                         -- Vn I b.20: B4 whole tied to an eighth of 21
+       ,violin2'    M 1 "mp" k "[5@17 ~@19]/18"                         -- Vn II b.20–21: B4 whole, whole, tied to an eighth of 22
+       ,viola'      M 1 "mp" k "[~@8 [~ -5 ~ ~]@4 ~@6]/18" # pizz        -- score b.22: F♯3 only, no D3 on beat 4
+       ,cello'      M 1 "p"  k "[~@8 -13 [-7@3 ~] -15 -9@7]/18"          -- score b.22: E2 D3 C♯2 B2, B2 held through 23 (2021: the G2 F♯3 E2 D3 bar)
+       ,contrabass' M 1 "p"  k "[~@8 [-13 ~ -15 -9]@4 ~@6]/18" # pizz    -- score b.22: E2, rest, C♯2, B2
+       ]
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let f = id
+      d = (* 1.5)
+      k = preroll pre $ iK tempo form (rep key 1)
+  putStrLn "STRAVINSKY — Suite No. 1, I. Andante"
+  mapM_ id [hush, resetCycles, display k
+    ,andante f k $ d 0.99
+    ]
+
+hush

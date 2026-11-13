@@ -1,0 +1,139 @@
+-- ============================================================================
+-- V. PAS DES FURIES
+-- ============================================================================
+--
+-- Super-structure position: 0.42 (Development) — the Furies bar the way;
+-- the set's most violent music.
+--
+-- From the myth: Orpheus enters the underworld and is immediately set upon
+-- by the Furies (Erinyes) -- chthonic deities of vengeance who guard the
+-- boundary between living and dead. They swarm, punish, and attempt to
+-- destroy the intruder.
+--
+-- Stravinsky's treatment is paradoxically restrained even here. He stated:
+-- "The music for the Furies is soft, and constantly remains on the soft level."
+-- Even the threatening Furies are "spectral and restrained," depicted with
+-- "agitated exclamations from the strings" rather than orchestral bombast.
+-- Yet the music is undeniably violent in its rhythmic aggression -- explosive,
+-- jagged, asymmetrical. Frantic ostinatos and polytonal clashes create a
+-- hostile sonic landscape.
+--
+-- As the movement progresses, Orpheus begins to resist musically: the harp
+-- (lyre) tries to pierce through the cacophony with isolated chords but is
+-- drowned by orchestral tuttis. The Furies' energy fragments, their ostinatos
+-- break down, and they are gradually subdued by the impending power of
+-- Orpheus's song.
+--
+-- This is the first Dionysian eruption in the ballet -- chaos against the
+-- Apollonian restraint that has dominated. Its eventual subsidence is a
+-- victory of art (Apollo's gift) over primal fury.
+--
+-- Reimagination: Eb diminished starting point -- maximally unstable. No key
+-- constraint, dissonance drift. High entropy for unpredictable, jagged
+-- harmony. Stravinsky/Bartok blend for rhythmic aggression. All strings
+-- in grid voicing (raw, angular), with horns and timpani.
+-- ============================================================================
+
+tempo = 92
+
+start <- lead "Eb dim"
+
+let ctx = dissonant
+        $ hcKey "*"
+        $ hContext
+
+s <- seek "stravinsky:70 bartok:30" $ cue start $ tonal ctx $ len 8 $ entropy 0.7 $ attempt 2 6 $ gen
+
+-- Form: ~184s loop (174s music + 10s silence)
+-- Arc: explosive -> sustained fury -> heavy -> lyre resistance -> fragmentation -> subdued
+form =
+  [ at'   0    0.0   0.0   s     -- silence before the storm (snap: explosive Furies attack)
+  , at    3    0.8   0.8   s     -- explosive entry: the Furies attack
+  , at   27    0.9   0.9   s     -- sustained fury, swarming
+  , at   57    0.8   0.8   s     -- heavy rhythmic block, underworld mechanism
+  , at   87    0.7   0.7   s     -- lyre attempts to break through
+  , at  117    0.5   0.5   s     -- energy fragments, ostinatos break down
+  , at  147    0.2   0.2   s     -- subdued: grumbling low strings
+  , at  174    0.0   0.0   s     -- stillness
+  , at  184    0.0   0.0   s     -- silence gap
+  ]
+
+-- ── MOTIFS ───────────────────────────────────────────────
+-- "The music for the Furies is soft, and constantly remains on the soft
+-- level" (Stravinsky). Their menace is in the rhythm, not the volume: a dry,
+-- spectral figure, spiccato, obsessively rotated. The lyre answers with a
+-- descending plea — the same shape inverted.
+(rhythm, contour, motif) =
+  ( "[1 1 0 1 1 0 1 0]/4"      -- spectral, uneven — displaced accents
+  , "[0 1 2 3 2 1 0 1]/4"      -- the Furies' circling figure
+  , rhythm >:< contour
+  ) :: (Pattern Bool, Pattern Int, Pattern Int)
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- The Furies (strings): spiccato and dry, never loud. Desks enter in
+-- succession rather than as a block, so the swarm accumulates.
+strg f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = motif
+        , alto    = 0.5 ~> contour              -- canon at the half-beat.
+                                                -- Rotate the bar-scoped contour,
+                                                -- not a per-beat figure: shifting
+                                                -- `[..]*4` by a 1/4 multiple lands
+                                                -- back on itself and does nothing.
+        , tenor   = mirror 1 contour
+        , bass    = "[0 3 0 -1]*2"
+        }
+  f
+    $ stack [silence
+        , violin1    T (0, 1)    k vl grid Soprano   # spicc
+        , violin2    T (0.2, 1)  k vl grid Alto      # spicc
+        , viola      T (0.35, 1) k vl grid Tenor     # spicc
+        , cello      T (0.15, 1) k vl grid Bass      # spicc
+        , contrabass T (0.5, 1)  k vl grid Bass8vb   # pizz
+    ] |* vel d
+
+-- The Furies (brass): a single horn snarl, marcato, held back until the
+-- swarm is established and gone again before the close.
+brss f k d = p "brss" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = motif
+        }
+  f
+    $ stack [silence
+        , horn T (0.45, 0.9) k vl flow Soprano   # marc
+    ] |* vel d
+
+-- Timpani pulse, and Orpheus's lyre resisting through it. The harp is the
+-- one sustained voice in the movement — his plea, present from the start and
+-- surviving past the Furies' peak, in inversion against their figure.
+perc f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = mirror 2 contour
+        , bass    = "[0 3 0 -1]*2"
+        }
+  f
+    $ stack [silence
+        -- timpani reads Bass loco: its range is D2-C4 already, and Bass8vb
+        -- drops below D2 where `clip` removes every event (silent).
+        , timpani T (0.3, 1) k vl grid Bass
+        , harp    T (0, 1)   k vl flow Soprano8va  |* vel 0.7
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (warp "[1 2 3 4 3 2 1 4]/4")
+  putStrLn "ORPHEUS — V. Pas des furies"
+  -- Soft throughout: no block above 0.7. The Furies never shout.
+  mapM_ id [hush, setbpm tempo
+    ,setContinuo harpV
+    ,strg f k  $ d 0.65
+    ,brss f k  $ d 0.6
+    ,perc f k  $ d 0.7
+    ]
+
+hush''

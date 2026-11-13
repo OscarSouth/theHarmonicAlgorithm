@@ -260,6 +260,12 @@ spec = do
       hit (bassdrum jv1010 "t") `shouldBe` [(Just (-24), Just 8)]
       hit (tamtam jv1010 "t")   `shouldBe` [(Just (-29), Just 10)]
 
+    it "tambourine 54, triangle 81 and woodblock 76 on the rhythm set, channel 9" $ do
+      let hit p = [ (extractNote (value ev), Map.lookup "midichan" (value ev) >>= num) | ev <- queryArc p (Arc 0 1) ]
+      hit (tambourine jv1010 "t") `shouldBe` [(Just (-6), Just 8)]
+      hit (triangle jv1010 "t")   `shouldBe` [(Just 21, Just 8)]
+      hit (woodblock jv1010 "t")  `shouldBe` [(Just 16, Just 8)]
+
     it "the record holds the map the instruments read" $ do
       map ($ jv1010) [rigFlute, rigOboe, rigClarinet, rigBassoon, rigHorn, rigTrombone, rigBasstrom, rigHarp, rigTimpani]
         `shouldBe` [1, 2, 3, 4, 5, 6, 6, 7, 8]

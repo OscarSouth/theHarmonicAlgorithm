@@ -1,0 +1,106 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 3 IN G MAJOR, BWV 1048 — I. [ALLEGRO]
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- Super-structure position: 3/6 (Development) — strings alone; the
+-- corporate texture.
+--
+-- The pure string concerto. No winds at all — nine string instruments in
+-- three matched groups (3 violins, 3 violas, 3 cellos) plus continuo.
+-- The concertino/ripieno distinction is deliberately blurred: the groups
+-- function simultaneously as soloists and ensemble, racing in call-and-
+-- response patterns with a galloping rhythmic vitality.
+--
+-- Bach uses the three groups to create a triptych of sound: first group
+-- states a figure, second answers, third completes — then all combine.
+-- The contrapuntal density is extraordinary yet the texture remains
+-- luminous because each group occupies a distinct register.
+--
+-- Adaptation: Three string groups mapped to our available voices.
+-- Group 1: violin1 T (Soprano). Group 2: violin2 T (Alto), viola T (Tenor).
+-- Group 3: cello T (Bass), contrabass T (Bass8vb). Harp as continuo.
+-- No winds, no brass, no percussion. Pure string writing.
+-- ============================================================================
+
+tempo = 116
+
+start <- lead "G maj"
+
+let ctx = hcKey "1#"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.2 $ attempt 2 6 $ gen
+
+-- Form: ~370s loop (360s music + 10s silence)
+-- Arc: all three groups -> group 1 -> return -> group 2 -> fuller ->
+--      group 3 -> peak -> all groups racing -> concluding ritornello
+form =
+  [ rh    1    0.0   0.0   s
+  , rh    3    0.5   0.5   s     -- ritornello: all three groups
+  , rh   25    0.35  0.35  s     -- episode: group 1 leads
+  , rh   42    0.5   0.5   s     -- ritornello return
+  , rh   59    0.35  0.35  s     -- episode: group 2 leads
+  , rh   78    0.55  0.55  s     -- ritornello: fuller
+  , rh   98    0.4   0.4   s     -- episode: group 3 leads
+  , rh  117    0.6   0.6   s     -- ritornello: peak
+  , rh  136    0.4   0.4   s     -- episode: all groups racing
+  , rh  156    0.55  0.55  s     -- concluding ritornello
+  , rh  175    0.0   0.0   s
+  , rh  180    0.0   0.0   s     -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- No. 3 is an orchestral concerto: no fixed concertino, but three matched
+-- choirs of THREE — 3 violins, 3 violas, 3 cellos — trading the material
+-- between them. `divisi 3` is used literally here: the score really does
+-- divide each family three ways, which is the whole identity of the piece.
+-- Each desk reads its own tier (base / ' / '') so the three parts are real
+-- lines, not a doubled unison.
+
+choir1 f k d = p "choir1" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano   = "[3 2 1 0 1 2 3 0]/4"
+        , soprano'  = "[1 0 3 2 3 0 1 2]/4"
+        , soprano'' = "[2 3 0 1 0 3 2 1]/4"
+        }
+  -- the violin choir leads the ritornellos; tacet in the lower episodes
+  f $ stack [silence, divisi 3 violin1 T (0.4, 1) k vl flow Soprano # spicc] |* vel d
+
+choir2 f k d = p "choir2" $ do
+  let vl = voiceLines {_vl = "~"
+        , alto   = "[1 2 3 1 0 1 2 0]/4"
+        , alto'  = "[2 1 0 2 1 0 2 1]/4"
+        , alto'' = "[0 3 1 2 3 1 0 2]/4"
+        }
+  -- violas hold the middle through most of the movement
+  f $ stack [silence, divisi 3 viola T (0.2, 1) k vl flow Alto # spicc] |* vel d
+
+choir3 f k d = p "choir3" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass   = "[0 1 0 2]/4"
+        , bass'  = "[2 0 1 0]/4"
+        , bass'' = "[1 2 0 1]/4"
+        }
+  -- cello choir + violone: the bass never leaves (continuo practice)
+  f $ stack [silence
+      , divisi 3 cello T (0, 1) k vl grid Bass # marc
+      , contrabass     T (0, 1) k vl grid Bass8vb # marc
+      ] |* vel d
+
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 0 2 1]/4"}
+  f $ stack [silence, harp T (0, 1) k vl flow Alto] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id; d = (* 1); k = iK tempo form (rep s 1)
+  putStrLn "BRANDENBURG NO. 3 — I. [Allegro]"
+  mapM_ id [hush, setbpm tempo
+    ,setContinuo harpsichordV
+    ,choir1 f k $ d 0.8, choir2 f k $ d 0.75, choir3 f k $ d 0.7, continuo f k $ d 0.55]
+
+hush''

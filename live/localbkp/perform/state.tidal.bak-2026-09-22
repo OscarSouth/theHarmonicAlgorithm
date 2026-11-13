@@ -1,0 +1,72 @@
+tempo = 112
+
+ -- TRANSPORT
+mapM_ id [p "transport"
+ $ seqP
+   $ sync 999999 ++ [runSeq]
+ ,resetCycles,hush,allNotesOff
+ ,setcps (tempo/60)
+ ]
+
+ctx = invSkip 1
+  -- $ consonant
+  -- $ hcRoots "3b rise<3,4>"
+  -- $ hcRoots "E B"
+  -- $ hcRoots "E B rise<1,3>"
+  $ hcRoots "1# 2#"
+  -- $ hcKey "3b"
+  $ hcKey "1# 2#"
+  -- $ hcPedal "B"
+  $ hcOvertones "A E G B"
+  $ hContext
+
+s <- lead "B min"
+  >>= \start ->
+  seek "*"
+  $ len 4
+  $ cue start
+  $ tonal ctx
+  $ entropy 0.3
+  -- $ attempt 2 6
+  $ gen
+
+do
+  let
+    s' = transposeP 5 s
+    s'' = transposeP 7 s
+    r = warp "[1 2 3 4]/16"
+    -- r = warp "[1 1 2 <4 3>]/2"
+    f = swing16 0.56
+    d = (*0.99)
+    k = iK tempo form r
+    -- k = iK tempo [at 0 1 1 s] r
+    -- k = iK tempo [at 0 1 1 s
+    --   -- ,at 2 0.4 0.4 s
+    --   -- ,at 120 0.7 0.9 s
+    --   -- ,at 240 0.2 0.2 s
+    --   ] r
+    -- k = lK q1 q1 s r
+    -- k = lK exP exP s r
+  putStrLn $ "LAUNCH ¬¬"
+  print s
+  mapM_ id [launch, setbpm tempo
+    ,display' k
+    -- ,metronome 4 $d 0.2
+    -- ,count k $d 0.1
+    -- ,wind f k $d 0.6
+    -- ,strg f k $d 0.8
+    -- ,brss f k $d 0.9
+    -- ,perc f k $d 1
+    -- ,p02  f k $d 0.8
+    -- ,m32  f k $d 0.8
+    -- ,p07  f k $d 0.99
+    -- ,walk f k $d 0.99
+    -- ,subk f k $d 0.9
+    -- ,k909 f k $d 0.99
+    -- ,kmpc f k $d 0.3
+    -- ,kgrv f k $d 0.99
+    -- ,m32 f k $d 0.9
+    -- ,mdf f k $d 0.9
+   ]
+
+hush''

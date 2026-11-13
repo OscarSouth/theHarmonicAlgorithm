@@ -1,0 +1,136 @@
+-- ============================================================================
+-- WINTER — II. LARGO
+-- The Four Seasons, Op. 8 No. 4, RV 297 — Antonio Vivaldi (1725)
+-- ============================================================================
+--
+-- Super-structure position: 0.92
+--
+-- "To spend quiet and happy times by the fire,
+--  While outside the rain soaks everyone."
+--
+-- The most sophisticated texture in the Four Seasons. Four independent
+-- layers coexist simultaneously:
+--
+-- 1. FOREGROUND: Solo violin plays a warm, legato melody — contentment by
+--    the fireside, the opposite of Winter I's angular cold.
+-- 2. MIDDLE GROUND: Violins play pizzicato — rain pattering against the
+--    window. Vivaldi marks this "forte," creating a striking textural
+--    contrast with the quiet solo.
+-- 3. BACKGROUND: Violas sustain quiet, long notes — the room itself,
+--    warm and still.
+-- 4. FOUNDATION: Cello gently energises the pulse with light octaves.
+--
+-- Inside vs outside. Comfort vs hostility. Vivaldi depicts both
+-- simultaneously — the rain's persistent tap-tap against the window is
+-- heard alongside the fire's warmth. The movement is a study in
+-- coexisting realities rendered through orchestral layering.
+--
+-- Adaptation: Violin1 for fireside warmth (legato melody). Harp for rain
+-- (staccato arpeggiation — replacing pizzicato violins). Viola for warm
+-- sustained background. Ultra-quiet, peak 0.25. The gentlest movement
+-- in the Winter concerto.
+-- ============================================================================
+
+tempo = 48
+
+start <- lead "Ab maj"
+
+let ctx = consonant
+        $ hcKey "4b"
+        $ hContext
+
+s <- seek "debussy" $ cue start $ tonal ctx $ len 8 $ entropy 0.1 $ attempt 2 6 $ gen
+
+-- Form: ~180s (170s + 10s gap)
+-- Fireside warmth: intimate, layered, sustained peace
+form =
+  [ rh    1    0.0   0.0   s     -- silence
+  , rh    2    0.15  0.15  s     -- fire kindled: solo violin enters
+  , rh    8    0.25  0.25  s     -- rain begins: harp pattering joins
+  , rh   15    0.25  0.25  s     -- full texture: warmth + rain + room
+  , rh   23    0.2   0.2   s     -- contentment deepens
+  , rh   30    0.15  0.15  s     -- fading toward sleep
+  , rh   35    0.0   0.0   s     -- silence
+  , rh   37    0.0   0.0   s     -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+-- ── MOTIFS ───────────────────────────────────────────────
+-- Vivaldi layers this movement in three strata, and names each in the score:
+-- the solo violin sings by the fire (legato); the accompanying violins are
+-- marked pizzicato AND forte — they are "the rain", drops against the glass;
+-- the violas hold quiet long notes underneath. Three articulations, three
+-- registers, one of the clearest textures in the Baroque.
+(rhythm, contour, motif) =
+  ( "[1 0 0 1 0 1 0 0]/4"      -- the singing line: unhurried, uneven
+  , "[3 2 3 1 2 1 2 0]/4"      -- contentment by the fire
+  , rhythm >:< contour
+  ) :: (Pattern Bool, Pattern Int, Pattern Int)
+
+-- Layer 1 — the fireside: solo violin, sustained and legato, alone on top.
+fireside f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = motif
+        }
+  f
+    $ stack [silence
+        , violin1 T (0, 1) k vl flow Soprano   # legg
+    ] |* vel d
+
+-- Layer 2 — the rain: pizzicato violins, even and insistent, marked forte in
+-- the score against the solo's quiet. Real pizzicato, not a harp standing in.
+rain f k d = p "rain" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[0 1 0 2 0 1 0 3]/4"
+        }
+  f
+    $ stack [silence
+        , violin2 T (0.15, 1) k vl flow Soprano   # pizz
+    ] |* vel d
+
+-- Layer 3 — the warm room: violas on sustained long notes, cello beneath.
+-- The bottom of the texture barely moves; that is the point.
+warmth f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , alto = "1"
+        , bass = "0"
+        }
+  f
+    $ stack [silence
+        -- kept at loco: viola clips at C3, and an Alto voicing dropped an
+        -- octave can fall out of range entirely. The sustained character
+        -- comes from `legg`, not from the register.
+        , viola T (0, 1) k vl flow Alto      # legg
+        , cello T (0, 1) k vl grid Bass      # legg
+    ] |* vel d
+
+-- Continuo: harpsichord under the whole scene.
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~"
+        , alto = "[1 0 2 1]/4"
+        }
+  f
+    $ stack [silence
+        , harp T (0, 1) k vl flow Alto
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (warp "[1 2 3 4]/8")
+  putStrLn "THE FOUR SEASONS — Winter II. Largo"
+  mapM_ id [hush, setbpm tempo
+    ,setContinuo harpsichordV
+    -- The rain is marked FORTE against the solo's quiet — Vivaldi's own
+    -- dynamic inversion. It sits above the fireside line, not under it.
+    ,fireside f k  $ d 0.6
+    ,rain     f k  $ d 0.75
+    ,warmth   f k  $ d 0.35
+    ,continuo f k  $ d 0.4
+    ]
+
+hush''

@@ -1,0 +1,3 @@
+captures/*
+!captures/.gitkeep
+compare_*.md

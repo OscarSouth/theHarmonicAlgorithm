@@ -1,0 +1,268 @@
+-- nano orchestra test — surface: live/local/surfaces/07.11.2026-nanotest.tidal
+-- The 23.10 jaw-harp track re-scored for the Alesis NanoSynth: same harmony, same
+-- 108-bar form, the thickness arc of two Suite scenes laid along the kinetics —
+-- Schubert's Andante con moto (the minimal winds unfolding over the walking bass),
+-- through Jupiter's horns, into THE BIG TUNE. A test bed, not a composition — every
+-- section below carries a TEST line: run it, listen, tick it.
+--
+-- Requires `rig = nanoSynth` in live/BootTidal.hs. The U6 feeds the nano everything
+-- but ch 10 straight from the iCA4+ DIN and merges the MPC's out into it; ch 10 stays
+-- the MPC's service lane (sub, kit, click, count, display).
+--
+-- TEST 1 · boot banner reads  "theHarmonicAlgorithm V3 boot complete. rig: NanoSynth"
+--          (it says JV-1010: flip the boot line, reboot).
+--
+-- TEST 2 · cold configuration — 21 messages over ~2 s. Evaluate the line below once
+--          after power-up, then (optional) walk live/local/perform/NANOSYNTH_CATALOGUE.tidal
+--          block by block to hear each channel's patch and range.
+setupRig
+
+tempo = 92
+
+ -- TRANSPORT
+mapM_ id [p "transport"
+ $ seqP
+   $ sync 999999 ++ [runSeq]
+ ,resetCycles,hush,allNotesOff
+ ,setcps (tempo/60)
+ ]
+
+ -- ── HARMONY — the three harps of the jaw-harp track ─────────────────────────
+ -- Each harp is bound twice: the saved `recall` block (active, deterministic, no
+ -- database) and the generator that produced it (commented; uncomment to
+ -- regenerate — needs Neo4j: docker compose up -d neo4j).
+ --
+ -- TEST 3 · `print sA` / `print sC` / `print sD` each show four bars.
+
+ -- A — the high, melodic harp (intro + first drop)
+ctxA = invSkip 1
+  -- $ consonant
+  -- $ hcRoots "3# rise<1,2,3>"
+  $ hcRoots "0# fall<2,3>"
+  $ hcPedal "A"
+  $ hcOvertones "A E G C"
+  $ hContext
+
+-- sA <- lead "A min"
+--   >>= \start ->
+--   seek "*"
+--   $ len 4
+--   $ cue start
+--   $ tonal ctxA
+--   $ entropy 0.6
+--   -- $ attempt 2 6
+--   $ gen
+
+-- saved 2026-10-27 · 4 bars · triad
+sA = recall "triad"
+  [ "A C E min (desc 4)     | C D E G A 6add9 (pedal) | A B C D E F G m7add9/11b13 (pedal)"
+  , "F A E maj7no5 (desc 4) | C D E G A 6add9 (pedal) | F G A B C D E 6maj7add9#11 (pedal)"
+  , "C E A maj6no5 (desc 5) | C D E G A 6add9 (pedal) | A B C D E F G m7add9/11b13 (pedal)"
+  , "A C# E maj (desc 3)    | C D E G A 6add9 (pedal) | A B C# D E F# G# 6maj7add9/11 (pedal)"
+  ]
+
+ -- C — the medium harp (break + second drop)
+ctxC = invSkip 0
+  $ consonant
+  -- $ hcRoots "0# -B rise<1,2,3>"
+  $ hcRoots "C E F Eb G Ab A rise<1,2>"
+  -- $ hcPedal "C"
+  -- $ hcOvertones "A E G C"
+  $ hContext
+
+-- sC <- lead "C maj"
+--   >>= \start ->
+--   seek "*"
+--   $ len 4
+--   $ cue start
+--   $ tonal ctxC
+--   $ entropy 0.2
+--   -- $ attempt 2 6
+--   $ gen
+
+-- saved 2026-10-27 · 4 bars · triad (the jaw-harp file saved this harp as "sB")
+sC = recall "triad"
+  [ "C E G maj (desc 4)   | C D E G A 6add9 (pedal)    | C D E F G A B 6maj7add9/11 (pedal)"
+  , "Eb Gb Bb min (asc 3) | Ab Bb C Eb F 6add9 (pedal) | Eb F Gb Ab Bb C D m6maj7add9/11 (pedal)"
+  , "F A C maj (asc 2)    | Ab Bb C Eb F 6add9 (pedal) | F G A Bb C D E 6maj7add9/11 (pedal)"
+  , "Ab C Eb maj (asc 3)  | Ab Bb C Eb F 6add9 (pedal) | Ab Bb C Db Eb F G 6maj7add9/11 (pedal)"
+  ]
+
+ -- D — the guttural harp (outro / deconstruction)
+ctxD = invSkip 0
+  -- $ hcRoots "2# rise<1,2,3>"
+  $ hcRoots "D G"
+  -- $ hcPedal "D"
+  $ hcOvertones "A E G B C"
+  $ hContext
+
+-- sD <- lead "D maj"
+--   >>= \start ->
+--   seek "*"
+--   $ len 4
+--   $ cue start
+--   $ tonal ctxD
+--   $ entropy 0.6
+--   -- $ attempt 2 6
+--   $ gen
+
+-- saved 2026-10-27 · 4 bars · triad
+sD = recall "triad"
+  [ "D F# A maj (asc 4)         | D E F# A B 6add9 (pedal) | D E F# G A B C# 6maj7add9/11 (pedal)"
+  , "D F# G majadd11no5 (pedal) | D E F# A B 6add9 (pedal) | D E F# G A B C# 6maj7add9/11 (pedal)"
+  , "D E F# majadd9no5 (pedal)  | D E F# A B 6add9 (pedal) | D E F# G A B C# 6maj7add9/11 (pedal)"
+  , "D F# C# maj7no5 (pedal)    | D E F# A B 6add9 (pedal) | D E F# G A B C# 6maj7add9/11 (pedal)"
+  ]
+
+ -- ── FORMS — three, pick one in the launcher ─────────────────────────────────
+
+ -- TEST 4 · SOUNDCHECK — the kinetics ladder. k held at one value, d = 1: exactly one
+ --          line live. Launch with `k = iK tempo kTest r`, listen to that band, tune its
+ --          `vel` multipliers and gates in the surface, then move to the next rung.
+ --          The values sit mid-band so no gate edge is in doubt; the comment says what
+ --          is sounding at that level (gates in the surface header). Isolate by id:
+ --            mute "wind"   unmute "wind"   solo "strg"   unsolo "strg"
+ --          ids: lineHarmony strg wind brss perc tutti subKick mpckit click displayClock
+ --          Inside the surface, comment lines in/out to hear one instrument; or add
+ --          `,probe f k $d 0.8` to the launcher and work through its fourteen lines.
+ --
+ --      k         band        what is on
+kTest = [ at 0 1.00 1 sA ]   -- 0.95–1     the hit on the downbeats over THE BIG TUNE; trombones, bass trombone, timpani, harp
+-- kTest = [ at 0 0.90 1 sA ]   -- 0.80–0.95  THE BIG TUNE (tutti: strings, winds, horn in unison over the octave roots); trombones, timpani, harp, flute to 0.9
+-- kTest = [ at 0 0.75 1 sA ]   -- 0.70–0.80  bass trombone joins; jollity spiccato strings; horn tune, oboe/clarinet/bassoon, flute, restatement, roots
+-- kTest = [ at 0 0.67 1 sA ]   -- 0.65–0.70  jollity strings join; trombone + timpani; horn tune; the winds
+-- kTest = [ at 0 0.62 1 sA ]   -- 0.60–0.65  trombone + timpani join; horn tune; flute; oboe/clarinet/bassoon; strings restate
+-- kTest = [ at 0 0.55 1 sA ]   -- 0.50–0.60  THROUGH THE HORNS: the Jupiter tune over the restatement, flute and winds
+-- kTest = [ at 0 0.47 1 sA ]   -- 0.45–0.50  flute brightness joins the restatement
+-- kTest = [ at 0 0.42 1 sA ]   -- 0.40–0.45  strings restate the theme; cello + bass roots; oboe, clarinet, bassoon
+-- kTest = [ at 0 0.37 1 sA ]   -- 0.35–0.40  bassoon joins under oboe + clarinet
+-- kTest = [ at 0 0.32 1 sA ]   -- 0.30–0.35  clarinet answers the oboe
+-- kTest = [ at 0 0.25 1 sA ]   -- 0.20–0.30  THE OBOE THEME over footsteps, viola fill, harp
+-- kTest = [ at 0 0.17 1 sA ]   -- 0.15–0.20  harp warmth joins viola + footsteps
+-- kTest = [ at 0 0.13 1 sA ]   -- 0.12–0.15  violas fill over the footsteps
+-- kTest = [ at 0 0.05 1 sA ]   -- 0–0.12     footsteps alone (walking bass, pizz ch 7); MPC sub drone and click
+
+ -- TEST 5 · SWEEP — 24 bars, the whole arc up and down in about a minute at 92.
+ --          Watch `display k` on the 12-Step count the bars; listen for each entry
+ --          arriving on cue (thresholds in the surface header):
+sweep =
+  --            k     d
+  [ rh   1    0.05  0.1   sA   -- footsteps alone (walking bass, pizz ch 7)
+  , rh   3    0.17  0.3   sA   -- violas fill (ch 16), the harp warms (ch 9)
+  , rh   5    0.25  0.6   sA   -- THE OBOE THEME (ch 2)
+  , rh   7    0.33  0.6   sA   -- the clarinet answers (ch 11); the bassoon underneath (ch 3)
+  , rh   9    0.45  0.7   sC   -- the strings restate the theme (ch 13, 14); flute brightness (ch 1)
+  , rh  11    0.55  0.75  sC   -- THROUGH THE HORNS: the Jupiter tune (ch 4)
+  , rh  13    0.68  0.85  sC   -- trombone and timpani (ch 5, 6); jollity spiccato strings
+  , rh  15    0.75  0.9   sC   -- bass trombone (ch 5); everything short of the tune
+  , rh' 17    1.0   1.0   sD   -- THE BIG TUNE (snap): the unison wall; the hit on the downbeat (ch 8)
+  , rh  19    0.55  0.6   sD   -- fall: back to the horn tune
+  , rh  21    0.1   0.2   sD   -- fading footsteps
+  , rh  25    0.0   0.0   sD   -- silence
+  , rh  29    0.0   0.0   sD   -- 4-bar gap
+  ]
+
+ -- TEST 6 · THE FULL FORM — the jaw-harp spectral narrative, verbatim: 108 bars ≈ 4:42 at 92.
+form = -- halved to 8-bar phrases. Every sample point (3 15 25 57 73 89) dips, swells, crests the bar before the next.
+       -- Crest/pullback pairs sit between the drum gates (0.1 sub · 0.2 kick/tick · 0.4 ride · 0.6 backbeat · 0.8 16ths · 0.95 crash)
+       -- so the kit holds across a drop and the instruments (gates 0.4 / 0.6 / 0.9) do the breathing.
+  --            k     d
+  -- INTRO (16) — texture only, A harp
+  [ rh   1    0.05  0.1   sA   -- B1 haze
+  , rh   3    0.04  0.08  sA   -- SAMPLE 1: slight dip; swell from here (sub enters mid-swell at 0.1)
+  , rh' 14    0.18  0.45  sA   -- crest just under the kick gate: sub + texture teased; hold -> drop
+  , rh  15    0.12  0.3   sA   -- SAMPLE 2: sub stays; swell
+  -- FIRST DROP (32, 4x8) — the groove climbs band by band
+  , rh  17    0.3   0.6   sA   -- B2 MINIMAL GROOVE lands by ramp under the sample
+  , rh' 24    0.52  0.72  sA   -- crest in B3; hold -> drop
+  , rh  25    0.4   0.6   sA   -- SAMPLE 3: kick/tick/ride and the 10ths stay; swell through the drop
+  , rh  33    0.6   0.75  sA   -- B4
+  , rh  41    0.85  0.85  sA   -- ramp toward the break
+  , rh' 47    0.95  0.9   sA   -- crest; SNAP -> break
+  -- BREAK (8) — instant fall, C harp enters
+  , rh' 49    0.1   0.4   sC   -- haze + sub
+  , rh' 55    0.3   0.7   sC   -- riser (k<d); SNAP -> second drop
+  -- SECOND DROP (32, 4x8) — climb to the peak
+  , rh  57    0.55  0.75  sC   -- SAMPLE 4: lands just under the backbeat gate
+  , rh  65    0.8   0.9   sC   -- B5 mid-sample
+  , rh' 72    0.92  0.95  sC   -- crest (no hit yet); hold -> drop
+  , rh  73    0.82  0.9   sC   -- SAMPLE 5 on the PEAK beat; swell
+  , rh' 85    1.0   1.0   sC   -- CACOPHONY held 4 bars; SNAP -> outro
+  -- OUTRO (20) — deconstruction, D harp
+  , rh  89    0.62  0.75  sD   -- SAMPLE 6: gentle swell
+  , rh' 96    0.68  0.78  sD   -- crest; hold -> fall
+  , rh  97    0.4   0.5   sD   -- deep -> minimal
+  , rh  105   0.0   0.0   sD   -- silence
+  , rh  109   0.0   0.0   sD   -- 4-bar gap
+  ]
+
+ -- ── LAUNCHER ────────────────────────────────────────────────────────────────
+ -- Choose the form: exactly one `k = …` line live.
+ --
+ -- TEST 7 · continuo: the harp (ch 9) is the one patch the launcher may change.
+ --          Relaunch with `setContinuo nanoHarpsichordV` — ch 9 turns to harpsichord,
+ --          the pizzicato on ch 7 is untouched. Back to `nanoHarpV` after.
+ -- TEST 8 · `hush` stops every stream; `panic` also sends all-notes-off on 1-16.
+ --          Nothing should ring on after `panic` (the Danz Hitz on 8 decays naturally).
+do
+  let
+    r = warp "[1 2 3 4]/8"
+    f = swing16 0.5
+    d = (*0.99)
+    -- k = iK tempo kTest r
+    -- k = iK tempo sweep r
+    k = iK tempo form r
+  putStrLn $ "NANO LAUNCH ¬¬"
+  print sA
+  print sC
+  print sD
+  mapM_ id [launch, setbpm tempo
+    ,setContinuo nanoHarpV            -- ch 9: Harpitz · TEST 7: nanoHarpsichordV
+    ,display k
+    ,metronome 4 $d 0.5               -- ch 10 service lane (MPC click)
+    -- ,count k $d 0.1
+    ,walk f k $d 0.8                  -- the footsteps, generated (A) — pizz ch 7
+    -- ,walkingBass f k $d 0.8         -- the footsteps, static pizz grid (B); same id, swap the pair
+    ,wind f k $d 0.8                  -- Schubert: oboe, clarinet, bassoon, flute
+    ,strg f k $d 0.8                  -- viola fill, the restatement, the jollity
+    ,brss f k $d 0.8                  -- the horn tune, trombones
+    ,perc f k $d 0.8                  -- harp (continuo), timpani, the hit
+    ,thaxted f k $d 0.85              -- THE BIG TUNE from 0.8 (id "tutti")
+    ,subk f k $d 0.1                  -- ch 10 service lane (MPC sub)
+    ,kmpc f k $d 0.1                  -- ch 10 service lane (MPC kit)
+    -- ,probe f k $d 0.8               -- TEST 4: one instrument at a time (id "tutti": not with thaxted)
+    -- ,nkit f k $d 0.6                -- full module only: `once $ nanoKit` first
+   ]
+
+hush
+
+panic
+
+ -- ── HARDWARE ALTERNATIVES — TEST 9 ──────────────────────────────────────────
+ -- Audition each, note the keeper here, then move it into nanoPrograms and the
+ -- catalogue so the rig and the docs agree.
+
+-- ch 16 as a true contrabass-and-viola split (the "db/vla" label fits this better)
+-- once $ nanoProgram 16 (41, 3)      -- C-Bs&Viola · back: once $ nanoProgram 16 (41, 1)
+
+-- ch 4 as a horn section rather than the flugel solo
+-- once $ nanoProgram 4 (60, 3)       -- HornExpans · back: once $ nanoProgram 4 (60, 1)
+
+-- ch 6: the timpani line reads D2–C4 (the instrument's range, shared with the JV), but the
+-- 2021 probe found Documentar's timpani zone at −34..−15 (D1–A2). Does D2–C4 all sound as
+-- timpani? Is the tuba layered (sustaining on a held note) or split above it?
+-- once $ note "[-22 0]*2" # ch 6               -- the instrument's range
+-- once $ note "[-34 -15]*2" # ch 6             -- the 2021 timpani zone
+-- once $ note "[-6 7]*2" # ch 6 # legato 2     -- mid: does the tuba sustain?
+
+-- ch 10 as the module's own kit (only when the MPC is off the chain)
+-- once $ nanoKit                     -- back: once $ nanoProgram 10 (127, 1)
+
+ -- ── SAVE — TEST 10 ──────────────────────────────────────────────────────────
+ -- Each prints a `recall` block identical to the one bound above (round trip).
+
+save "sA" sA
+
+save "sC" sC
+
+save "sD" sD

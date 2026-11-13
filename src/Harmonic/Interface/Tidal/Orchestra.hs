@@ -60,7 +60,7 @@ module Harmonic.Interface.Tidal.Orchestra (
     violin1', violin2', viola', cello', contrabass',
 
     -- * Unpitched percussion
-    bassdrum, tamtam,
+    bassdrum, tamtam, tambourine, triangle, woodblock,
 
     -- * String articulations
     pizz, spicc, marc, legg, arco,
@@ -233,7 +233,7 @@ data Rig = Rig
   , rigHorn, rigTrombone, rigBasstrom          :: Int
   , rigHarp, rigTimpani                        :: Int
   , rigViolin1, rigViolin2, rigViola, rigCello, rigContrabass :: Int
-  , rigBassdrum, rigTamtam :: Maybe (Int, Int)
+  , rigBassdrum, rigTamtam, rigTambourine, rigTriangle, rigWoodblock :: Maybe (Int, Int)
     -- ^ @(MIDI note, channel)@; 'Nothing' when the module has no such voice,
     --   so the line loads and stays silent
   , rigPizz, rigSpicc, rigMarc, rigLegg, rigArco :: ControlPattern
@@ -359,13 +359,19 @@ hit :: Double -> Maybe (Int, Int) -> Pattern Bool -> ControlPattern
 hit _ Nothing _ = silence
 hit secs (Just (nt, c)) pat = struct pat $ midinote (fromIntegral nt) # ch c # sustain (pure secs)
 
--- | Bass drum and tam-tam, unpitched: a boolean pattern rather than a voice.
--- The tam-tam carries a long sustain.
+-- | The unpitched section: a boolean pattern rather than a voice. The tam-tam
+-- and the triangle ring, the rest are struck short. Where a rig's percussion
+-- is a General MIDI kit on a channel the module shares with other gear, the
+-- voices chosen here (54, 76, 81) sit above the band that gear uses, so a
+-- tambourine never lands on a sub-bass pad.
 --
--- @d1 $ bassdrum \"t ~ ~ t\"@
-bassdrum, tamtam :: Rig -> Pattern Bool -> ControlPattern
-bassdrum r = hit 0.05 (rigBassdrum r)
-tamtam   r = hit 0.5  (rigTamtam r)
+-- @d1 $ bassdrum \"t ~ ~ t\"@   @, tambourine \"[~ t]\"@   @, woodblock \"t*2\"@
+bassdrum, tamtam, tambourine, triangle, woodblock :: Rig -> Pattern Bool -> ControlPattern
+bassdrum   r = hit 0.05 (rigBassdrum r)
+tamtam     r = hit 0.5  (rigTamtam r)
+tambourine r = hit 0.05 (rigTambourine r)
+triangle   r = hit 0.3  (rigTriangle r)
+woodblock  r = hit 0.05 (rigWoodblock r)
 
 -------------------------------------------------------------------------------
 -- String articulations (postfix tags)

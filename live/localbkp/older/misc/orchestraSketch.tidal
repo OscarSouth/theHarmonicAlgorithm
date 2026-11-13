@@ -1,0 +1,99 @@
+-- ══════════════════════════════════════════════════════════
+-- orchestraSketch — configured orchestral sketch
+-- Load BootTidal.hs first. Offline (seek "none", no Neo4j).
+-- Eval top→bottom; the launcher is at the bottom.
+-- ══════════════════════════════════════════════════════════
+
+tempo = 90
+
+start <- lead "C maj"
+
+s <- seek "none" $ cue start $ len 4 $ entropy 0.5 $ gen
+
+form = [ at 0 1 1 s ]
+
+-- ── MOTIFS ────────────────────────────────────────────────
+-- One statement binds rhythm / contour / motif. Primed tiers
+-- (rhythm' / contour'' / …) fall back to BootTidal defaults.
+-- Swap a value and re-execute this block to reprogram the piece.
+(rhythm, contour, motif) =
+  ( son32                 -- rhythm gate  (Pattern Bool)
+  , "[3 2 1 0]/4"         -- contour      (voicing degrees)
+  , rhythm >:< contour    -- combined     (rhythm gates contour)
+  ) :: (Pattern Bool, Pattern Int, Pattern Int)
+
+-- Motivic development — standard tools plus `mirror` / `>:<`:
+--   rev contour          retrograde        mirror 3 contour   inversion (axis 3)
+--   slow 2 motif         augmentation      fast 2 motif       diminution
+--   contour |+ 2         transposition     "<0 1>" <~ rhythm  rotation
+--   struct rhythm $ …    gate a voice      kick rhythm        gate a drum
+
+-- ── SECTIONS ──────────────────────────────────────────────
+
+strg f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = contour              -- the melodic motif
+        , alto    = "[1 2 3 1]/4"
+        , tenor   = "[2 1 0 2]/4"
+        , bass    = "[0 2]/4"
+        }
+  f
+    $ stack [silence
+        , violin1 T (0.3, 1) k vl flow Soprano # marc
+        , violin2 T (0.2, 1) k vl flow Alto    # marc
+        , viola   T (0.1, 1) k vl flow Tenor   # marc
+        , cello   T (0, 1)   k vl grid Bass    # pizz
+    ] |* vel d
+
+wind f k d = p "wind" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = mirror 3 contour     -- inversion of the strg motif
+        , alto    = slow "[2 4]" $ "[1 0 2 1]/4"
+        , bass    = "[0]/4"
+        }
+  f
+    $ stack [silence
+        , oboe T (0.3, 1) k vl flow Soprano8va
+    ] |* vel d
+
+brss f k d = p "brss" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "3/4"
+        , alto    = "1/4"
+        , tenor   = "2/4"
+        , bass    = "0/4"
+        }
+  f
+    $ stack [silence
+        , horn T (0.4, 1) k vl flow Soprano
+        , horn T (0.3, 1) k vl flow Alto
+        , horn T (0.2, 1) k vl flow Tenor
+        , horn T (0.1, 1) k vl flow Bass
+    ] |* vel d
+
+perc f k d = p "perc" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass = "0"
+        }
+  f
+    $ stack [silence
+        -- timpani plays the root on the son clave (rhythm gates the voice)
+        , struct rhythm $ timpani T (0, 1) k vl grid Bass
+    ] |* vel d
+
+-- ── LAUNCHER ──────────────────────────────────────────────
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (rep s 1)
+  mapM_ id [hush, setbpm tempo
+    , display k
+    , strg f k  $ d 0.8
+    , wind f k  $ d 0.6
+    , brss f k  $ d 0.5
+    , perc f k  $ d 0.7
+    -- , kick rhythm |* vel 0.7   -- the son clave straight on the kick
+    ]
+
+hush''

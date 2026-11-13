@@ -1,0 +1,102 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 1 IN F MAJOR, BWV 1046 — II. ADAGIO
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- Super-structure position: 1/6 (Establishing) — the first turn inward.
+--
+-- The slow movement shifts to D minor — the relative minor of F major.
+-- The oboe carries a sustained, ornamented melody over gently moving
+-- strings. The horns are silent. The violino piccolo provides delicate
+-- counterpoint above the oboe's line. The texture is intimate, the
+-- contrapuntal writing luminous.
+--
+-- Adaptation: Oboe as primary melodic voice. Violin1 (piccolo) for
+-- upper counterpoint. Strings and harp provide the harmonic foundation.
+-- No horn, no bassoon — the movement breathes.
+-- ============================================================================
+
+tempo = 56
+
+start <- lead "D min"
+
+let ctx = consonant
+        $ hcKey "1b"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.15 $ attempt 2 6 $ gen
+
+-- Form: ~249s loop (240s music + 10s silence)
+-- Arc: oboe melody -> violino piccolo joins -> gentle peak -> subsiding ->
+--      closing -> fading
+form =
+  [ rh    1    0.0   0.0   s
+  , rh    2    0.25  0.25  s     -- oboe melody enters
+  , rh    10    0.3   0.3   s     -- violino piccolo joins
+  , rh   20    0.35  0.35  s     -- gentle peak
+  , rh   31    0.3   0.3   s     -- subsiding
+  , rh   43    0.25  0.25  s     -- closing
+  , rh   52    0.15  0.15  s     -- fading
+  , rh   57    0.0   0.0   s
+  , rh   59    0.0   0.0   s     -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+oboeAria f k d = p "oboe" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1 2 1 0 1]/4"
+        }
+  f
+    $ stack [silence
+        , oboe T (0, 1) k vl flow Soprano
+    ] |* vel d
+
+piccolo f k d = p "piccolo" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = "[1 2 3 2 1 0 1 2]/4"
+        }
+  f
+    $ stack [silence
+        , violin1 T (0.15, 1) k vl flow Soprano8va # legg
+    ] |* vel d
+
+strg f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~"
+        , alto  = "1"
+        , tenor = "2"
+        , bass  = "0"
+        }
+  f
+    $ stack [silence
+        , violin2 T (0.45, 1) k vl flow Alto # legg
+        , viola   T (0.45, 1) k vl flow Tenor # legg
+        , cello   T (0, 1)    k vl grid Bass
+    ] |* vel d
+
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~"
+        , alto = "[1 0 2 1]/4"
+        }
+  f
+    $ stack [silence
+        , harp T (0, 1) k vl flow Alto
+    ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id
+    d = (* 1)
+    k = iK tempo form (warp "[1 2 3 4]/8")
+  putStrLn "BRANDENBURG NO. 1 — II. Adagio"
+  mapM_ id [hush, setbpm tempo
+    ,setContinuo harpsichordV
+    ,oboeAria f k  $ d 0.8
+    ,piccolo  f k  $ d 0.65
+    ,strg     f k  $ d 0.6
+    ,continuo f k  $ d 0.5
+    ]
+
+hush''

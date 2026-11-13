@@ -221,6 +221,9 @@ cello'      = O.cello' rig
 contrabass' = O.contrabass' rig
 bassdrum   = O.bassdrum rig
 tamtam     = O.tamtam rig
+tambourine = O.tambourine rig
+triangle   = O.triangle rig
+woodblock  = O.woodblock rig
 pizz       = O.pizz rig
 spicc      = O.spicc rig
 marc       = O.marc rig
@@ -240,7 +243,7 @@ setupRig = mapM_ (\pat -> once pat >> threadDelay 100000) (rigSetup rig)
 -- Continuo voice — the plucked/keyboard colour, on the rig's continuo channel
 --
 -- The orchestra is a fixed, deliberate configuration. The one permitted
--- variation is the continuo voice (JV-1010 ch 7), which may be sounded as any
+-- variation is the continuo voice (ch 7 on both rigs), which may be sounded as any
 -- pitched polyphonic plucked / keyboard / mallet / choral colour.
 --
 -- Set ONCE per movement, in the launcher's mapM_ list — never hot-swapped

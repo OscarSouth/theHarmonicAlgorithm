@@ -19,56 +19,81 @@ images. The rig itself is the September 2021 concert configuration
 
 Code → TidalCycles → SuperDirt → iCA4+ DIN → CME U6 → NanoSynth → orchestral music
 
-One port, sixteen channels. The U6 splits the DIN to the MPC (everything) and the
-nano (everything but channel 10, the MPC's service lane) and merges the MPC's out
-into the nano line; the chain and its rules are in
-[LIVE_ENVIRONMENT.md](LIVE_ENVIRONMENT.md). The JV-1010 and the studio synth rig
-are never live with it.
+One port, sixteen channels. The U6 splits the DIN to the MPC and to the nano
+(everything, both) and merges the MPC's out into the nano line; the Moog
+Mother-32 hangs off the MPC's CV out on channel 6, which the module leaves
+blank. The chain and its rules are in
+[LIVE_ENVIRONMENT.md](LIVE_ENVIRONMENT.md). The JV-1010 and the rest of the
+studio synth rig are never live with it.
 
 ## The rig
 
 Definitions: `Harmonic.Interface.Tidal.Devices.NanoSynth` (`nanoSynth`,
-`nanoPrograms`, the five controller tables, `nanoSetup`). Walk-through and
+`nanoMix` — the table below as one row list, from which `nanoPrograms` and
+the five controller tables derive — and `nanoSetup`). Walk-through and
 range tests: `live/docs/NANOSYNTH_CATALOGUE.tidal`.
 
 | ch | instrument | program / bank | patch | CC7 | pan | CC91 | CC1 | CC11 |
 |---:|---|---|---|---:|---:|---:|---:|---:|
 | 1 | flute | 74 / Preset 3 | SingleFlut | 0.36 | −0.20 | 0.85 | 0 | 1 |
 | 2 | oboe | 68 / Preset 3 | Ebony Oboe | 0.32 | 0.20 | 0.90 | 0 | 1 |
-| 3 | bassoon | 70 / Preset 2 | SoloBasoon | 0.40 | 0.25 | 0.90 | 0 | 1 |
-| 4 | horn | 60 / User | FlugelSolo | 0.60 | −0.40 | 0.95 | 0 | 1 |
-| 5 | trombone, bass trombone | 57 / User | Bone Tone | 0.90 | 0.10 | 0.80 | 0 | 1 |
-| 6 | timpani, with tuba | 60 / Preset 4 | Documentar | 0.90 | −0.30 | 0.85 | 0 | 1 |
-| 7 | strings pizzicato | 45 / Preset 3 | Pizz Pluck | 0.50 | 0.15 | 0.90 | 0 | 1 |
-| 8 | orchestra hit, as bass drum | 55 / Preset 3 | Danz Hitz | 1.00 | 0.00 | 0.90 | 1 | 1 |
-| 9 | harp, the continuo | 46 / Preset 3 | Harpitz | 0.10 | −0.20 | 0.95 | 0 | 1 |
-| 10 | service channel (MPC) | 127 / User | the blank program | 0.70 | −0.20 | 0.85 | 0 | 1 |
-| 11 | clarinet | 71 / Preset 2 | 1stClarnet | 0.32 | −0.25 | 0.85 | 0 | 1 |
-| 12 | silent | 127 / User | the blank program | 0 | 0 | 0 | 0 | 0 |
+| 3 | clarinet | 71 / Preset 2 | 1stClarnet | 0.32 | −0.25 | 0.85 | 0 | 1 |
+| 4 | bassoon | 70 / Preset 2 | SoloBasoon | 0.40 | 0.25 | 0.90 | 0 | 1 |
+| 5 | horn | 60 / User | FlugelSolo | 0.60 | −0.40 | 0.95 | 0 | 1 |
+| 6 | the Mother-32's channel: blank | 127 / User | the blank program | 0 | 0 | 0 | 0 | 0 |
+| 7 | harp, the continuo | 46 / Preset 3 | Harpitz | 0.10 | −0.20 | 0.95 | 0 | 1 |
+| 8 | timpani, with tuba | 60 / Preset 4 | Documentar | 0.90 | −0.30 | 0.85 | 0 | 1 |
+| 9 | orchestra hit, as bass drum | 55 / Preset 3 | Danz Hitz | 1.00 | 0.00 | 0.90 | 1 | 1 |
+| 10 | percussion: tambourine 54, woodblock 76, triangle 81 (shared with the MPC) | 118 / Preset 3 | 15ips Kit | 0.70 | −0.20 | 0.85 | 0 | 1 |
+| 11 | trombone, bass trombone | 57 / User | Bone Tone | 0.90 | 0.10 | 0.80 | 0 | 1 |
+| 12 | strings pizzicato | 45 / Preset 3 | Pizz Pluck | 0.50 | 0.15 | 0.90 | 0 | 1 |
 | 13 | violin 1 | 49 / GM | Slo String | 0.40 | −0.80 | 0.80 | 0 | 1 |
 | 14 | violin 2 | 49 / GM | Slo String | 0.30 | 0.80 | 0.95 | 0 | 1 |
 | 15 | cello | 43 / Preset 3 | Celli | 0.50 | 0.30 | 0.85 | 0 | 1 |
 | 16 | double bass, with viola | 41 / User | BiViola | 0.20 | −0.30 | 0.95 | 0 | 1 |
 
-Pan is written −1 (left) to 1 (right) and sent as 0–127. Two channels carry
-one patch for two instruments: 6 (timpani below, tuba sustaining above) and
-16 (double bass and viola). The horn and bass-trombone lines share the
-trombone's channel through their own ranges. The tam-tam has no voice here.
-The continuo is the harp channel, so `setContinuo nanoHarpV` and
-`setContinuo nanoHarpsichordV` (8'4'Harpsi, 6 / User) never touch the
-pizzicato on 7.
+The layout is the JV-1010's wherever the module can follow it — winds 1–5,
+harp 7, timpani 8, bass drum 9, the MPC lane 10, pizzicato 12, strings
+13–16 — so `# pizz` is channel 12 and the continuo channel 7 on both rigs.
+Two channels differ: 6 is the Mother-32's (see below), and the trombone,
+which the JV keeps on 6, takes 11, the JV's tam-tam channel (a voice the
+module lacks). The string block is sections where the JV's is techniques:
+the module has one patch per channel and no technique sub-channels. The
+voices and their mix are the 2021 concert's, unchanged; each row's values
+travel with its program, not its channel.
 
-Channel 10 is blank because the MPC keeps it as the service lane (sub, kit,
-click, count, display); its mix rows are set so that `once $ nanoKit` — 15ips
-Kit, 118 / Preset 3 — makes the module's own kit answer there when it plays
-alone. Channel 12 is silenced deliberately: the Mother-32 lived on channel 12
-of the same chain in 2021. The alternative worth auditioning for channel 16 is
+Pan is written −1 (left) to 1 (right) and sent as 0–127. Two channels carry
+one patch for two instruments: 8 (timpani below, tuba sustaining above) and
+16 (double bass and viola); the bass-trombone line shares the trombone's
+channel through its own range. The tam-tam has no voice here. The continuo
+is the harp channel, so `setContinuo nanoHarpV` and
+`setContinuo nanoHarpsichordV` (8'4'Harpsi, 6 / User) never touch the
+pizzicato on 12.
+
+Channel 10 carries the orchestra's percussion — 15ips Kit, 118 / Preset 3,
+answering General MIDI numbers — on the channel the MPC's service lane also
+uses (sub, kit, click, count, display). The two coexist by note band: the MPC's
+pads take 0–48 and the `kmap` notes 108–119, so the kit's voices are chosen
+above that — tambourine 54, woodblock 76, triangle 81 (`tambourine`,
+`woodblock`, `triangle` in the orchestra) — and a sub-bass note never lands on
+a kit pad; the kit's own kick, snare and hats (35–48) are not part of the
+orchestra, because they sit in the MPC's band. `nanoKit` remains as the
+one-line way to put the kit back after a program change.
+
+Channel 6 is the Moog Mother-32's. It receives on 6 from the MPC's CV out —
+the MPC hears every channel on the U6's Out 1 — and the module, which hears
+the same channel on Out 2, holds the blank program there at level and
+expression 0, so the orchestra's chain carries one analogue voice without
+the module doubling it. The 2021 pieces' synth lines were written for the
+Mother-32 on this chain; they address channel 6. With the trombone on 11
+and the pizzicato on 12, the MPC's `hmnx` and `slce` programs (11, 12) are
+not live while the orchestra plays. The alternative worth auditioning for channel 16 is
 41 / Preset 3, **C-Bs&Viola**, a contrabass-and-viola split; the catalogue has
 it as a one-line swap.
 
 ### Articulations
 
-`pizz` re-routes any string line to channel 7. `spicc`, `marc`, `legg` and
+`pizz` re-routes any string line to channel 12, as on the JV-1010. `spicc`, `marc`, `legg` and
 `arco` are identity here — the line stays on its own channel and sounds as
 written — so a block written for the JV-1010 loads unchanged.
 
@@ -99,11 +124,11 @@ catalogue's TEST 9.
 |---|---|---|---|---|
 | SingleFlut (ch 1) | 0 … 33, piccolo 14 … 48 | | Slo String (ch 13, 14) | −5 … 43 |
 | Ebony Oboe (ch 2) | −2 … 31, cor anglais −8 … 24 | | BiViola, mid (ch 16) | −12 … 33 |
-| SoloBasoon (ch 3) | −26 … 15 | | Celli (ch 15) | −24 … 19 |
-| FlugelSolo (ch 4) | −27 … 17 | | BiViola, low (ch 16) | −36 … −2 |
-| Bone Tone (ch 5) | −8 … 24, bass trombone −26 … 8 | | Documentar timpani (ch 6) | −34 … −15 |
-| 1stClarnet (ch 11) | −10 … 31, bass clarinet −22 … 14 | | Documentar solo tuba (ch 6) | −6 … 7 |
-| trumpet, unbound | −8 … 24 | | Documentar snares (ch 6) | −10, −9, −8 |
+| SoloBasoon (ch 4) | −26 … 15 | | Celli (ch 15) | −24 … 19 |
+| FlugelSolo (ch 5) | −27 … 17 | | BiViola, low (ch 16) | −36 … −2 |
+| Bone Tone (ch 11) | −8 … 24, bass trombone −26 … 8 | | Documentar timpani (ch 8) | −34 … −15 |
+| 1stClarnet (ch 3) | −10 … 31, bass clarinet −22 … 14 | | Documentar solo tuba (ch 8) | −6 … 7 |
+| trumpet, unbound | −8 … 24 | | Documentar snares (ch 8) | −10, −9, −8 |
 
 ### Cold configuration
 

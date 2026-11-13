@@ -1,0 +1,622 @@
+-- ============================================================================
+-- PREMIÈRE ARABESQUE
+-- Deux Arabesques L.66 No.1 — Claude Debussy (1888–91), Durand & Fils 1904
+-- ============================================================================
+--
+-- Score-mode transcription on the continuo channel alone (`harp'`: Harpitz on
+-- the nano, the harp patch on the JV). The notes are harvested from the Mutopia
+-- edition (#1777, Keith OHara's LilyPond setting of the same Durand print) by
+-- scripts/midi2score.py and checked bar by bar against the Durand scan; the
+-- bar numbers, the sections and every marking follow the print. The notes file
+-- ARABESQUE_NOTES.md beside this has the sources, the harvest log and the
+-- spot-check table.
+--
+-- E major, 4/4 (one 2/4 bar, 94), Andantino con moto, 107 bars. The key is
+-- `inKey C "chromatic"`, so a degree is a note: 0 is C4, 12 C5, -12 C3 — a
+-- piano transcription needs every accidental and the printed E / A / C
+-- sections are what the lines carry. Each staff is split into monophonic
+-- voices (a chord is `[a,b]`); a note tied over a bar line is one step, so the
+-- next bar's string holds only its remainder. Three bass notes below the
+-- continuo's floor (F#1 in 31 and 33, E1 in 37) are written an octave up and
+-- marked `(fs1→)` / `(e1→)` where they occur. No pedal: the edition prints
+-- none and the patch sustains.
+--
+-- Interpretation: ♩ = 80 for Andantino con moto (recordings sit between 72 and
+-- 88), the printed words as a tempo map — rit. a bar's ramp down to 0.85,
+-- stringendo three bars up to 1.15, Tempo Rubato "un peu moins vite" 0.9 and
+-- its "a tempo" at 55 the same, mosso back to the base, poco mosso 1.06. The
+-- printed dynamics are the marks on the lines (one per phrase block); the
+-- hairpins, cresc. and dim. are the form's arc, a multiplier on the mark that
+-- ramps between the printed points and snaps back to 1 at each new mark.
+-- After the 2/4 bar every score bar starts half a bar early, so the last block
+-- and the form nodes from 95 on are written at N − 0.5.
+--
+-- The piece is one statement: the tempo blocks first (the stream owns the
+-- clock — no `setbpm` in the launcher), then every phrase under its bar range.
+
+tempo = 80             -- Andantino con moto, crotchet = 80
+pre   = 1              -- one bar of pre-roll before bar 1
+key   = inKey C "chromatic"
+
+ -- The dynamic arc: a multiplier on each phrase's printed mark (1 = as marked).
+ -- Hairpins ramp over their bar, cresc./dim. over their span; a primed node
+ -- snaps to the next printed mark. Bars from 95 on are N − 0.5 (the 2/4 bar).
+form =
+  [rh  1    1 1    key                 -- p
+  ,rh  3    1 1    key, rh 4 1 1.2 key, rh 5 1 1 key, rh 5.5 1 1.15 key   -- < > <>
+  ,rh' 6    1 1    key                 -- pp, a tempo
+  ,rh  10   1 1    key, rh 13 1 1.4 key, rh 16 1 1.9 key   -- poco a poco cresc., sempre cresc. (to f)
+  ,rh' 17   1 1    key                 -- p, a tempo
+  ,rh  19   1 1    key, rh 20 1 1.2 key, rh 21 1 1 key     -- < >
+  ,rh  22.5 1 0.9  key, rh 24 1 0.95 key                   -- p under the rit.s
+  ,rh' 26   1 1    key                 -- p, a tempo
+  ,rh  29   1 1    key, rh 30 1 1.15 key, rh 31 1 1.3 key, rh 33 1 1.1 key   -- poco mosso, the swells
+  ,rh  35   1 1.3  key, rh 36 1 1.45 key
+  ,rh' 37   1 1    key                 -- p
+  ,rh' 39   1 1    key                 -- Tempo Rubato, p
+  ,rh  41.5 1 1.15 key, rh 42 1 1.3 key, rh 42.5 1 1.1 key   -- < sf >
+  ,rh  44.5 1 1.15 key, rh 46 1 1 key
+  ,rh' 47   1 1    key, rh 49 1 1.6 key                    -- mosso, p cresc. to f
+  ,rh' 51   1 1    key, rh 52 1 1.25 key, rh 53 1 1.6 key, rh 54 1 1.6 key   -- p, cresc. to f
+  ,rh' 55   1 1    key                 -- a tempo, p
+  ,rh  57.5 1 1.15 key, rh 58.5 1 1.05 key, rh 62 1 1 key, rh 62.9 1 1.2 key   -- <> and the hairpin into 63
+  ,rh' 63   1 1    key                 -- Risoluto, f
+  ,rh  65.5 1 1.15 key, rh 66 1 1 key, rh 67 1 1 key, rh 70.9 1 0.55 key   -- < >, dim. molto, più dim.
+  ,rh' 71   1 1    key                 -- Tempo 1º, p
+  ,rh  73   1 1    key, rh 74 1 1.2 key, rh 75 1 1 key     -- < >
+  ,rh' 76   1 1    key                 -- pp, a tempo
+  ,rh  80   1 1    key, rh 83 1 1.4 key, rh 86 1 1.9 key   -- poco a poco cresc., sempre cresc.
+  ,rh' 87   1 1    key                 -- p
+  ,rh  89   1 1    key, rh 91 1 1.2 key, rh 92 1 1 key, rh 94 1 1.1 key   -- the hairpins of 89–94
+  ,rh' 94.5 1 1    key, rh 96.5 1 0.875 key, rh 98.4 1 0.75 key   -- dim., più dim. (95, 97)
+  ,rh' 98.5 1 1    key                 -- p (99)
+  ,rh' 100.5 1 0.875 key               -- pp (101)
+  ,rh  103.5 1 0.9 key, rh 104.5 1 1 key, rh 105.5 1 0.875 key   -- < > and the pp close
+  ,rh  106.5 1 0.875 key
+  ]
+
+ -- ── THE PIECE ───────────────────────────────────────────
+
+arabesque f k d = p "score" $ f $ score pre
+  [bars 1 4       $ bpm tempo
+  ,bars 5 5       $ bpm (slow 4 $ ramp tempo (tempo * 0.85))                -- rit.
+  ,bars 6 12      $ bpm tempo                                               -- a tempo
+  ,bars 13 15     $ bpm (slow 12 $ ramp tempo (tempo * 1.15))               -- stringendo
+  ,bars 16 16     $ bpm (slow 4 $ ramp (tempo * 1.15) (tempo * 0.85))       -- rit.
+  ,bars 17 21     $ bpm tempo                                               -- a tempo
+  ,bars 22 22     $ bpm (slow 4 $ ramp tempo (tempo * 0.85))                -- rit.
+  ,bars 23 23     $ bpm tempo                                               -- a tempo
+  ,bars 24 25     $ bpm (slow 8 $ ramp tempo (tempo * 0.85))                -- rit.
+  ,bars 26 28     $ bpm tempo                                               -- a tempo
+  ,bars 29 38     $ bpm (tempo * 1.06)                                      -- poco mosso
+  ,bars 39 46     $ bpm (tempo * 0.9)                                       -- Tempo Rubato (un peu moins vite)
+  ,bars 47 49     $ bpm tempo                                               -- mosso
+  ,bars 50 50     $ bpm (slow 4 $ ramp tempo (tempo * 0.85))                -- rit.
+  ,bars 51 54     $ bpm tempo                                               -- mosso
+  ,bars 55 62     $ bpm (tempo * 0.9)                                       -- a tempo (the Rubato's)
+  ,bars 63 66     $ bpm tempo                                               -- Risoluto
+  ,bars 67 70     $ bpm (slow 16 $ ramp tempo (tempo * 0.85))               -- Rit. (Durand prints it over dim. molto; Mutopia omits it)
+  ,bars 71 74     $ bpm tempo                                               -- Tempo 1º
+  ,bars 75 75     $ bpm (slow 4 $ ramp tempo (tempo * 0.85))                -- rit.
+  ,bars 76 82     $ bpm tempo                                               -- a tempo
+  ,bars 83 85     $ bpm (slow 12 $ ramp tempo (tempo * 1.15))               -- stringendo
+  ,bars 86 86     $ bpm (slow 4 $ ramp (tempo * 1.15) (tempo * 0.85))       -- rit.
+  ,bars 87 106.5  $ bpm tempo
+   -- The opening: the arabesque figure in triplets, hands crossing, p.
+  ,bars 1 5 $ stack [silence
+     ,harp' M 1 "p" k (staff 20   -- upper staff, voice 1
+        ["1 ~@2 13 16 18 20 15 11 ~@2 -1"          -- b.1: cs4 cs5 e5 fs5 gs5 ds5 b4 b3
+        ,"-3 ~@2 9 13 15 16 11 8 ~@2 -4"           -- b.2: a3 a4 cs5 ds5 e5 b4 gs4 gs3
+        ,"~@3 13@3 18@3 13@6"                      -- b.3: cs5 fs5 cs5
+        ,"13@3 18@3 21@6"                          -- b.4: cs5 fs5 a5
+        ,"21@7 20 18"                              -- b.5: a5 gs5 fs5
+        ])
+     ,harp' M 1 "p" k (staff 20   -- upper staff, voice 2
+        ["~@12"                                    -- b.1
+        ,"~@12"                                    -- b.2
+        ,"~@4 6 9@4 ~ 6 9@4"                       -- b.3: fs4 a4 fs4 a4
+        ,"~ 6 9@4 ~ 9 13"                          -- b.4: fs4 a4 a4 cs5
+        ,"~@12"                                    -- b.5
+        ])
+     ,harp' M 1 "p" k (staff 20   -- lower staff, voice 1
+        ["~ 4 9 ~@6 8 3 ~"                         -- b.1: e4 a4 gs4 ds4
+        ,"~ 1 6 ~@6 4 -1 ~"                        -- b.2: cs4 fs4 e4 b3
+        ,"-6@6 -8@6"                               -- b.3: fs3 e3
+        ,"-9@6 -11@6"                              -- b.4: ds3 cs3
+        ,"-13 -6 -3 1 3 6 9 13 15 13 11 9"         -- b.5: b2 fs3 a3 cs4 ds4 fs4 a4 cs5 ds5 cs5 b4 a4
+        ])
+     ,harp' M 1 "p" k (staff 20   -- lower staff, voice 2
+        ["~@12"                                    -- b.1
+        ,"~@12"                                    -- b.2
+        ,"~ -3 1@3 ~@2 -3 1@3 ~"                   -- b.3: a3 cs4 a3 cs4
+        ,"~ -3 1@3 ~@2 -3 4@3 ~"                   -- b.4: a3 cs4 a3 e4
+        ,"~@12"                                    -- b.5
+        ])
+     ]
+   -- a tempo, pp: the theme over the rolling bass; poco a poco cresc. from 10,
+   -- stringendo and sempre cresc. from 13, rit. in 16.
+  ,bars 6 16 $ stack [silence
+     ,harp' M 1 "pp" k (staff 44   -- upper staff, voice 1
+        ["~@6 16@2 18@2 13@2 16@2 11@2 13@2 8@2 11@2 6@2" -- b.6: e5 fs5 cs5 e5 b4 cs5 gs4 b4 fs4
+        ,"8@2 4@2 8@2 3@12 1@6"                    -- b.7: gs4 e4 gs4 ds4 cs4
+        ,"-1@3 ~@3 16@2 18@2 13@2 16@2 11@2 13@2 8@2 11@2 6@2" -- b.8: b3 e5 fs5 cs5 e5 b4 cs5 gs4 b4 fs4
+        ,"8@2 4@2 8@2 3@12 1@6"                    -- b.9: gs4 e4 gs4 ds4 cs4
+        ,"-1@2 -3@2 -1@2 1@9 4@3 3@3 4@3"          -- b.10: b3 a3 b3 cs4 e4 ds4 e4
+        ,"1@6 8@12 4@6"                            -- b.11: cs4 gs4 e4
+        ,"3@2 1@2 3@2 4@9 8@3 6@3 8@3"             -- b.12: ds4 cs4 ds4 e4 gs4 fs4 gs4
+        ,"4@6 13@12 10@2 13@2 10@2"                -- b.13: e4 cs5 as4 cs5 as4
+        ,"8@6 16@12 13@2 16@2 13@2"                -- b.14: gs4 e5 cs5 e5 cs5
+        ,"20@9 18@3 20@9 18@3"                     -- b.15: gs5 fs5 gs5 fs5
+        ,"20@9 18@3 20@3 18@6 20@3"                -- b.16: gs5 fs5 gs5 fs5 gs5
+        ])
+     ,harp' M 1 "pp" k (staff 44   -- lower staff, voice 1
+        ["-20 -13 -8 -4 -1 -4 -8 -13"              -- b.6: e2 b2 e3 gs3 b3 gs3 e3 b2
+        ,"-20 -13 -8 -4 1 -4 -8 -13"               -- b.7: e2 b2 e3 gs3 cs4 gs3 e3 b2
+        ,"-20 -13 -8 -4 -1 -4 -8 -13"              -- b.8: e2 b2 e3 gs3 b3 gs3 e3 b2
+        ,"-20 -13 -8 -4 1 -4 -8 -13"               -- b.9: e2 b2 e3 gs3 cs4 gs3 e3 b2
+        ,"-18 -11 -8 -6 -3 -6 -8 -11"              -- b.10: fs2 cs3 e3 fs3 a3 fs3 e3 cs3
+        ,"-16 -11 -8 -4 -1 -4 -8 -11"              -- b.11: gs2 cs3 e3 gs3 b3 gs3 e3 cs3
+        ,"-15 -8 -6 -3 1 -3 -6 -8"                 -- b.12: a2 e3 fs3 a3 cs4 a3 fs3 e3
+        ,"-14 -8 -4 1 -11 -6 -2 4"                 -- b.13: as2 e3 gs3 cs4 cs3 fs3 as3 e4
+        ,"-8 -2 1 8 -6 1 4 10"                     -- b.14: e3 as3 cs4 gs4 fs3 cs4 e4 as4
+        ,"-2 4 8 13 1 6 10 16"                     -- b.15: as3 e4 gs4 cs5 cs4 fs4 as4 e5
+        ,"-2 4 8 13 1 6 10 16"                     -- b.16: as3 e4 gs4 cs5 cs4 fs4 as4 e5
+        ])
+     ]
+   -- a tempo, p: the rising figure with the melody above; rit. in 22 and 24.
+  ,bars 17 25 $ stack [silence
+     ,harp' M 1 "p" k (staff 36   -- upper staff, voice 1
+        ["21@12 20@12"                             -- b.17: a5 gs5
+        ,"18@12 16@12"                             -- b.18: fs5 e5
+        ,"15@12 16@6 20@3 23@3"                    -- b.19: ds5 e5 gs5 b5
+        ,"15@15 13@3 16@3 20@3"                    -- b.20: ds5 cs5 e5 gs5
+        ,"11@15 9@3 13@3 16@3"                     -- b.21: b4 a4 cs5 e5
+        ,"8@12 ~@2 9@2 13@2 16@2 20@2 18@2"        -- b.22: gs4 a4 cs5 e5 gs5 fs5
+        ,"15@6 8@6 ~@3 6@3 9@3 13@3"               -- b.23: ds5 gs4 fs4 a4 cs5
+        ,"4@12 ~@2 6@2 9@2 13@2 16@2 14@2"         -- b.24: e4 fs4 a4 cs5 e5 d5
+        ,"8@6 6@12 2@6"                            -- b.25: gs4 fs4 d4
+        ])
+     ,harp' M 1 "p" k (staff 36   -- upper staff, voice 2
+        ["~@3 13 16 18 ~ 15 11 ~@3"                -- b.17: cs5 e5 fs5 ds5 b4
+        ,"~@3 9 13 15 ~ 11 8 ~@3"                  -- b.18: a4 cs5 ds5 b4 gs4
+        ,"~@12"                                    -- b.19
+        ,"~@12"                                    -- b.20
+        ,"~@12"                                    -- b.21
+        ,"~@12"                                    -- b.22
+        ,"~@12"                                    -- b.23
+        ,"~@12"                                    -- b.24
+        ,"~@12"                                    -- b.25
+        ])
+     ,harp' M 1 "p" k (staff 36   -- lower staff, voice 1
+        ["1 4 9 ~@6 8 3 -1"                        -- b.17: cs4 e4 a4 gs4 ds4 b3
+        ,"-3 1 6 ~@6 4 -1 -4"                      -- b.18: a3 cs4 fs4 e4 b3 gs3
+        ,"-5 1 3 10 3 1 -4 1 4 11 4 1"             -- b.19: g3 cs4 ds4 as4 ds4 cs4 gs3 cs4 e4 b4 e4 cs4
+        ,"-5 1 3 10 3 1 -8 -3 1 8 1 -3"            -- b.20: g3 cs4 ds4 as4 ds4 cs4 e3 a3 cs4 gs4 cs4 a3
+        ,"-9 -3 -1 6 -1 -3 -11 -6 -3 4 -3 -6"      -- b.21: ds3 a3 b3 fs4 b3 a3 cs3 fs3 a3 e4 a3 fs3
+        ,"-12 -6 -4 3 -4 -6 -11 -6 -3 4 -3 -6"     -- b.22: c3 fs3 gs3 ds4 gs3 fs3 cs3 fs3 a3 e4 a3 fs3
+        ,"-12 -6 -4 3 -4 -6 -13 -6 -3 2 -3 -6"     -- b.23: c3 fs3 gs3 ds4 gs3 fs3 b2 fs3 a3 d4 a3 fs3
+        ,"-13 -8 -4 2 -4 -8 -13 -6 -3 2 -3 -6"     -- b.24: b2 e3 gs3 d4 gs3 e3 b2 fs3 a3 d4 a3 fs3
+        ,"-13 -8 -4 2 -4 -8 -20 -13 -8 -6 -4 -1"   -- b.25: b2 e3 gs3 d4 gs3 e3 e2 b2 e3 fs3 gs3 b3
+        ])
+     ]
+   -- A major, a tempo p; poco mosso from 29 — the swelling chords, the
+   -- descending scale and the long E of 37–38, tied into the Tempo Rubato
+   -- (un peu moins vite) at 39: the chorale in A, p, with its hairpins and sf.
+  ,bars 26 46 $ stack [silence
+     ,harp' M 1 "p" k (staff 84   -- upper staff, voice 1
+        ["1@30"                                    -- b.26: cs4
+        ,"1@6 4@6 1@6"                             -- b.27: cs4 e4 cs4
+        ,"6@30"                                    -- b.28: fs4
+        ,"6@6 9@6 6@6"                             -- b.29: fs4 a4 fs4
+        ,"11@6 8@6 11@6 8@6"                       -- b.30: b4 gs4 b4 gs4
+        ,"[9,13]@30"                               -- b.31: [a4 cs5]
+        ,"[6,9]@6 [8,11]@6 [9,13]@6"               -- b.32: [fs4 a4] [gs4 b4] [a4 cs5]
+        ,"[9,13]@30"                               -- b.33: [a4 cs5]
+        ,"6@2 1@2 ~@2 8@2 3@2 6@2 9@2 4@2 8@2"     -- b.34: fs4 cs4 gs4 ds4 fs4 a4 e4 gs4
+        ,"11@2 6@2 9@2 13@2 8@2 11@2 15@2 9@2 13@2 16@2 11@2 15@2" -- b.35: b4 fs4 a4 cs5 gs4 b4 ds5 a4 cs5 e5 b4 ds5
+        ,"18@2 13@2 16@2 20@2 15@2 18@2 21@2 16@2 20@2 23@2 18@2 21@2" -- b.36: fs5 cs5 e5 gs5 ds5 fs5 a5 e5 gs5 b5 fs5 a5
+        ,"30@12 28@12"                             -- b.37: fs6 e6
+        ,"16@26"                                   -- b.38: e5
+        ,"14@2 16@2 13@9 11@3 11@3 13@3"           -- b.39: d5 e5 cs5 b4 b4 cs5
+        ,"[6,9]@6 6@12 8@6"                        -- b.40: [fs4 a4] fs4 gs4
+        ,"6@3 4@3 18@12 16@6"                      -- b.41: fs4 e4 fs5 e5
+        ,"6@3 4@3 20@9 23@3 21@3 18@3"             -- b.42: fs4 e4 gs5 b5 a5 fs5
+        ,"16@2 14@2 16@2 13@9 11@3 11@3 13@3"      -- b.43: e5 d5 e5 cs5 b4 b4 cs5
+        ,"9@6 6@9 6@3 6@3 8@3"                     -- b.44: a4 fs4 fs4 fs4 gs4
+        ,"6@2 4@2 ~@2 [-3,1]@12 [-3,1,4]@6"        -- b.45: fs4 e4 [a3 cs4] [a3 cs4 e4]
+        ,"-3@6 -4@12 ~@6"                          -- b.46: a3 gs3
+        ])
+     ,harp' M 1 "p" k (staff 84   -- upper staff, voice 2
+        ["~@2 -8 -5 -3 -1 -3 -8 -5 -3 -1 -3"       -- b.26: e3 g3 a3 b3 a3 e3 g3 a3 b3 a3
+        ,"-5@12"                                   -- b.27: g3
+        ,"~@3 -3 -1 1 -1 -3 -1 1 -1 -3"            -- b.28: a3 b3 cs4 b3 a3 b3 cs4 b3 a3
+        ,"1@6 3@12"                                -- b.29: cs4 ds4
+        ,"4@6"                                     -- b.30: e4
+        ,"~@7 4 6 ~ 8 6"                           -- b.31: e4 fs4 gs4 fs4
+        ,"4@6 ~@6"                                 -- b.32: e4
+        ,"~@7 4 6 ~ 8 6"                           -- b.33: e4 fs4 gs4 fs4
+        ,"4@6 11@3 13@3"                           -- b.34: e4 b4 cs5
+        ,"15@3 16@3 18@3 20@3"                     -- b.35: ds5 e5 fs5 gs5
+        ,"21@3 23@3 25@3 27@3"                     -- b.36: a5 b5 cs6 ds6
+        ,"[20,23]@12"                              -- b.37: [gs5 b5]
+        ,"~@12"                                    -- b.38
+        ,"9@9 8@3"                                 -- b.39: a4 gs4
+        ,"~@3 3@9"                                 -- b.40: ds4
+        ,"[-4,2]@3 [11,14]@9"                      -- b.41: [gs3 d4] [b4 d5]
+        ,"[-3,1]@3 [9,13]@9"                       -- b.42: [a3 cs4] [a4 cs5]
+        ,"9@9 8@3"                                 -- b.43: a4 gs4
+        ,"4@6 3@3 1@3"                             -- b.44: e4 ds4 cs4
+        ,"-1@3 ~@9"                                -- b.45: b3
+        ,"[-1,4]@9 ~@3"                            -- b.46: [b3 e4]
+        ])
+     ,harp' M 1 "p" k (staff 84   -- upper staff, voice 3
+        ["~@4"                                     -- b.26
+        ,"~@4"                                     -- b.27
+        ,"~@4"                                     -- b.28
+        ,"~@4"                                     -- b.29
+        ,"~@4"                                     -- b.30
+        ,"~@4"                                     -- b.31
+        ,"~@4"                                     -- b.32
+        ,"~@4"                                     -- b.33
+        ,"~ 9 ~@2"                                 -- b.34: a4
+        ,"~@4"                                     -- b.35
+        ,"~@4"                                     -- b.36
+        ,"~@4"                                     -- b.37
+        ,"~@4"                                     -- b.38
+        ,"~@4"                                     -- b.39
+        ,"~@4"                                     -- b.40
+        ,"~@4"                                     -- b.41
+        ,"~@4"                                     -- b.42
+        ,"~@4"                                     -- b.43
+        ,"~@4"                                     -- b.44
+        ,"~@4"                                     -- b.45
+        ,"~@4"                                     -- b.46
+        ])
+     ,harp' M 1 "p" k (staff 84   -- lower staff, voice 1
+        ["-27@2 -15@46"                            -- b.26: a1 a2
+        ,""                                        -- b.27
+        ,"-22@3 -15@3 -6@18"                       -- b.28: d2 a2 fs3
+        ,"-25@3 -13@3 -6@3 -3@3 -1@6 ~@6"          -- b.29: b1 b2 fs3 a3 b3
+        ,"-28@3 -16@3 -8@3 -4@3 -1@6 ~@6"          -- b.30: gs1 gs2 e3 gs3 b3
+        ,"-18@2 -18@2 -11@2 -8@2 -6@2 -3@2 1@2 ~@10" -- b.31: (fs1→) fs2 fs2 cs3 e3 fs3 a3 cs4
+        ,"~@12 3@6 1@6"                            -- b.32: ds4 cs4
+        ,"-18@2 -18@2 -11@2 -8@2 -6@2 -3@2 1@2 ~@10" -- b.33: (fs1→) fs2 fs2 cs3 e3 fs3 a3 cs4
+        ,"~@12 -6@12"                              -- b.34: fs3
+        ,"-13@6 -6@6 -3@6 -1@6"                    -- b.35: b2 fs3 a3 b3
+        ,"3@6 6@6 9@6 11@6"                        -- b.36: ds4 fs4 a4 b4
+        ,"-20@3 -20@3 -13@3 -8@3 -4@3 -1@3 4@3 8@3" -- b.37: (e1→) e2 e2 b2 e3 gs3 b3 e4 gs4
+        ,"~@12 4@12"                               -- b.38: e4
+        ,"-1@3 1@3 2@12 [-8,2]@6"                  -- b.39: b3 cs4 d4 [e3 d4]
+        ,"[-6,1]@6 [-13,-3]@18"                    -- b.40: [fs3 cs4] [b2 a3]
+        ,"[-20,-13]@6 6@12 4@6"                    -- b.41: [e2 b2] fs4 e4
+        ,"[-15,-8]@6 [-8,-3,1,4]@18"               -- b.42: [a2 e3] [e3 a3 cs4 e4]
+        ,"-1@3 1@3 2@18"                           -- b.43: b3 cs4 d4
+        ,"[-6,1]@6 [-13,-3]@12 [-15,-9]@6"         -- b.44: [fs3 cs4] [b2 a3] [a2 ds3]
+        ,"[-16,-8]@6 [-18,-8]@12 [-25,-13]@6"      -- b.45: [gs2 e3] [fs2 e3] [b1 b2]
+        ,"[-20,-13]@12 -20@6 -8@6"                 -- b.46: [e2 b2] e2 e3
+        ])
+     ,harp' M 1 "p" k (staff 84   -- lower staff, voice 2
+        ["~@4"                                     -- b.26
+        ,"~@4"                                     -- b.27
+        ,"~@4"                                     -- b.28
+        ,"~@4"                                     -- b.29
+        ,"~@4"                                     -- b.30
+        ,"~@4"                                     -- b.31
+        ,"~@4"                                     -- b.32
+        ,"~@4"                                     -- b.33
+        ,"~@4"                                     -- b.34
+        ,"~@4"                                     -- b.35
+        ,"~@4"                                     -- b.36
+        ,"~@4"                                     -- b.37
+        ,"~@4"                                     -- b.38
+        ,"6@3 ~"                                   -- b.39: fs4
+        ,"~@4"                                     -- b.40
+        ,"~ [-4,2]@3"                              -- b.41: [gs3 d4]
+        ,"~@4"                                     -- b.42
+        ,"6@3 5"                                   -- b.43: fs4 f4
+        ,"~@4"                                     -- b.44
+        ,"~@4"                                     -- b.45
+        ,"~@4"                                     -- b.46
+        ])
+     ]
+   -- mosso: two surges, p cresc. to f (49, 53–54), rit. in 50.
+  ,bars 47 54 $ stack [silence
+     ,harp' M 1 "p" k (staff 32   -- upper staff, voice 1
+        ["-10@2 -6@2 -3@2 1@2 -1@2 -3@2 -4@2 -1@2 2@2 6@2 4@2 2@2" -- b.47: d3 fs3 a3 cs4 b3 a3 gs3 b3 d4 fs4 e4 d4
+        ,"1@2 4@2 8@2 11@2 9@2 8@2 6@2 9@2 13@2 16@2 14@2 13@2" -- b.48: cs4 e4 gs4 b4 a4 gs4 fs4 a4 cs5 e5 d5 cs5
+        ,"11@2 14@2 18@2 21@9 20@3 18@3 16@3"      -- b.49: b4 d5 fs5 a5 gs5 fs5 e5
+        ,"18@3 16@3 14@3 ~@3 14@3 13@3 11@3 ~@3"   -- b.50: fs5 e5 d5 d5 cs5 b4
+        ,"-10@2 -6@2 -3@2 1@2 -1@2 -3@2 -4@2 -1@2 2@2 6@2 4@2 2@2" -- b.51: d3 fs3 a3 cs4 b3 a3 gs3 b3 d4 fs4 e4 d4
+        ,"1@2 4@2 8@2 11@2 9@2 8@2 6@2 9@2 13@2 16@2 14@2 13@2" -- b.52: cs4 e4 gs4 b4 a4 gs4 fs4 a4 cs5 e5 d5 cs5
+        ,"11@2 14@2 18@2 21@9 20@3 18@3 20@3"      -- b.53: b4 d5 fs5 a5 gs5 fs5 gs5
+        ,"11@2 14@2 18@2 21@9 20@3 18@3 20@3"      -- b.54: b4 d5 fs5 a5 gs5 fs5 gs5
+        ])
+     ,harp' M 1 "p" k (staff 32   -- upper staff, voice 2
+        ["~@4"                                     -- b.47
+        ,"~@4"                                     -- b.48
+        ,"~@2 [11,14] [8,14]"                      -- b.49: [b4 d5] [gs4 d5]
+        ,"[9,13]@2 9@2"                            -- b.50: [a4 cs5] a4
+        ,"~@4"                                     -- b.51
+        ,"~@4"                                     -- b.52
+        ,"~@2 [11,14]@2"                           -- b.53: [b4 d5]
+        ,"~@2 [11,14]@2"                           -- b.54: [b4 d5]
+        ])
+     ,harp' M 1 "p" k (staff 32   -- lower staff, voice 1
+        ["~@2 -18@4 -20@2"                         -- b.47: fs2 e2
+        ,"~@2 [-27,-15]@4 [-22,-10]@2"             -- b.48: [a1 a2] [d2 d3]
+        ,"~@2 [-25,-13]@2 [-6,-1,2,6]@2 [-20,-8]@2" -- b.49: [b1 b2] [fs3 b3 d4 fs4] [e2 e3]
+        ,"[-27,-15]@2 -8@2 6 4 2 1"                -- b.50: [a1 a2] e3 fs4 e4 d4 cs4
+        ,"~@2 -18@4 -20@2"                         -- b.51: fs2 e2
+        ,"~@2 [-27,-15]@4 [-22,-10]@2"             -- b.52: [a1 a2] [d2 d3]
+        ,"~@2 [-25,-13] ~ [-6,-1,2,6]@4"           -- b.53: [b1 b2] [fs3 b3 d4 fs4]
+        ,"~@2 [-22,-10] ~ [-6,-1,2,6]@4"           -- b.54: [d2 d3] [fs3 b3 d4 fs4]
+        ])
+     ]
+   -- a tempo (the Rubato's), p: the chorale again, closing on the hairpin into 63.
+  ,bars 55 62 $ stack [silence
+     ,harp' M 1 "p" k (staff 32   -- upper staff, voice 1
+        ["16@2 14@2 16@2 13@9 11@3 11@3 13@3"      -- b.55: e5 d5 e5 cs5 b4 b4 cs5
+        ,"9@6 6@12 8@6"                            -- b.56: a4 fs4 gs4
+        ,"6@3 4@3 18@12 16@6"                      -- b.57: fs4 e4 fs5 e5
+        ,"6@3 4@3 20@9 23@3 21@3 18@3"             -- b.58: fs4 e4 gs5 b5 a5 fs5
+        ,"16@2 14@2 16@2 13@9 11@3 11@3 13@3"      -- b.59: e5 d5 e5 cs5 b4 b4 cs5
+        ,"9@6 8@9 6@3 6@3 8@3"                     -- b.60: a4 gs4 fs4 fs4 gs4
+        ,"6@2 4@2 ~@2 [-3,1]@12 [-3,1,4]@6"        -- b.61: fs4 e4 [a3 cs4] [a3 cs4 e4]
+        ,"-3@6 -4@12 ~@6"                          -- b.62: a3 gs3
+        ])
+     ,harp' M 1 "p" k (staff 32   -- upper staff, voice 2
+        ["8@2 6 5"                                 -- b.55: gs4 fs4 f4
+        ,"4@2 3@2"                                 -- b.56: e4 ds4
+        ,"[-4,2] [11,14]@3"                        -- b.57: [gs3 d4] [b4 d5]
+        ,"[-3,1] [9,13]@3"                         -- b.58: [a3 cs4] [a4 cs5]
+        ,"9@3 8"                                   -- b.59: a4 gs4
+        ,"4@2 3 1"                                 -- b.60: e4 ds4 cs4
+        ,"-1 ~@3"                                  -- b.61: b3
+        ,"[-1,4]@3 ~"                              -- b.62: [b3 e4]
+        ])
+     ,harp' M 1 "p" k (staff 32   -- lower staff, voice 1
+        ["-8@4 -6@2 -4@2"                          -- b.55: e3 fs3 gs3
+        ,"[-3,1]@4 [-13,-3]@4"                     -- b.56: [a3 cs4] [b2 a3]
+        ,"[-20,-13]@2 6@4 4@2"                     -- b.57: [e2 b2] fs4 e4
+        ,"[-15,-8]@2 [-8,-3,1,4]@6"                -- b.58: [a2 e3] [e3 a3 cs4 e4]
+        ,"-1 1 2@6"                                -- b.59: b3 cs4 d4
+        ,"[-6,1]@4 [-13,-3]@2 [-15,-9]@2"          -- b.60: [fs3 cs4] [b2 a3] [a2 ds3]
+        ,"[-16,-8]@2 [-18,-8]@4 [-25,-13]@2"       -- b.61: [gs2 e3] [fs2 e3] [b1 b2]
+        ,"[-20,-13]@4 -20@2 -8@2"                  -- b.62: [e2 b2] e2 e3
+        ])
+     ,harp' M 1 "p" k (staff 32   -- lower staff, voice 2
+        ["2@4"                                     -- b.55: d4
+        ,"~@4"                                     -- b.56
+        ,"~ [-4,2]@3"                              -- b.57: [gs3 d4]
+        ,"~@4"                                     -- b.58
+        ,"6@3 5"                                   -- b.59: fs4 f4
+        ,"~@4"                                     -- b.60
+        ,"~@4"                                     -- b.61
+        ,"~@4"                                     -- b.62
+        ])
+     ]
+   -- Risoluto, f, in C: the climax; Rit. and dim. molto from 67, più dim. 70.
+  ,bars 63 70 $ stack [silence
+     ,harp' M 1 "f" k (staff 32   -- upper staff, voice 1
+        ["7@2 5@2 7@2 [-3,0,4]@12 [-7,-1,2]@6"     -- b.63: g4 f4 g4 [a3 c4 e4] [f3 b3 d4]
+        ,"[-8,-3,0]@6 [-10,-7,-5]@12 [-8,-3,0]@6"  -- b.64: [e3 a3 c4] [d3 f3 g3] [e3 a3 c4]
+        ,"[-7,-1,2]@6 [-3,0,5]@6 [-5,0,7]@6 9@3 12@3" -- b.65: [f3 b3 d4] [a3 c4 f4] [g3 c4 g4] a4 c5
+        ,"[11,14]@12 7@12"                         -- b.66: [b4 d5] g4
+        ,"19@2 17@2 19@2 16@12 14@6"               -- b.67: g5 f5 g5 e5 d5
+        ,"16@12 17@12"                             -- b.68: e5 f5
+        ,"19@2 17@2 19@2 16@12 19@6"               -- b.69: g5 f5 g5 e5 g5
+        ,"20@2 18@2 20@2 16@12 20@6"               -- b.70: gs5 fs5 gs5 e5 gs5
+        ])
+     ,harp' M 1 "f" k (staff 32   -- upper staff, voice 2
+        ["[-5,0] ~@3"                              -- b.63: [g3 c4]
+        ,"~@4"                                     -- b.64
+        ,"~@3 [0,5]"                               -- b.65: [c4 f4]
+        ,"5@4"                                     -- b.66: f4
+        ,"12@8"                                    -- b.67: c5
+        ,""                                        -- b.68
+        ,"12@6"                                    -- b.69: c5
+        ,"13@2"                                    -- b.70: cs5
+        ])
+     ,harp' M 1 "f" k (staff 32   -- lower staff, voice 1
+        ["[-20,-12]@2 [-19,-12]@4 -17@2"           -- b.63: [e2 c3] [f2 c3] g2
+        ,"-15@2 -13@4 -15@2"                       -- b.64: a2 b2 a2
+        ,"-17@2 -19@2 -20@2 [-22,-10]@2"           -- b.65: g2 f2 e2 [d2 d3]
+        ,"-25 -17 -10 -7 -5 -1 2 5"                -- b.66: b1 g2 d3 f3 g3 b3 d4 f4
+        ,"[4,7]@4 [5,9]@4"                         -- b.67: [e4 g4] [f4 a4]
+        ,"[7,10]@4 [5,9]@4"                        -- b.68: [g4 as4] [f4 a4]
+        ,"7@8"                                     -- b.69: g4
+        ,"8@8"                                     -- b.70: gs4
+        ])
+     ,harp' M 1 "f" k (staff 32   -- lower staff, voice 2
+        ["~@8"                                     -- b.63
+        ,"~@8"                                     -- b.64
+        ,"~@8"                                     -- b.65
+        ,"~@8"                                     -- b.66
+        ,"~@8"                                     -- b.67
+        ,"~@8"                                     -- b.68
+        ,"4@15"                                    -- b.69: e4
+        ,"3"                                       -- b.70: ds4
+        ])
+     ]
+   -- Tempo 1º, p: the arabesque figure returns in E; rit. in 75.
+  ,bars 71 75 $ stack [silence
+     ,harp' M 1 "p" k (staff 20   -- upper staff, voice 1
+        ["21@6 20@6"                               -- b.71: a5 gs5
+        ,"18@6 16@6"                               -- b.72: fs5 e5
+        ,"~@3 13@3 18@3 13@6"                      -- b.73: cs5 fs5 cs5
+        ,"13@3 18@3 21@6"                          -- b.74: cs5 fs5 a5
+        ,"21@7 20 18"                              -- b.75: a5 gs5 fs5
+        ])
+     ,harp' M 1 "p" k (staff 20   -- upper staff, voice 2
+        ["~@3 13 16 18 ~ 15 11 ~@3"                -- b.71: cs5 e5 fs5 ds5 b4
+        ,"~@3 9 13 15 ~ 11 8 ~@3"                  -- b.72: a4 cs5 ds5 b4 gs4
+        ,"~@4 6 9@4 ~ 6 9@4"                       -- b.73: fs4 a4 fs4 a4
+        ,"~ 6 9@4 ~ 9 13"                          -- b.74: fs4 a4 a4 cs5
+        ,"~@12"                                    -- b.75
+        ])
+     ,harp' M 1 "p" k (staff 20   -- lower staff, voice 1
+        ["1 4 9 ~@6 8 3 -1"                        -- b.71: cs4 e4 a4 gs4 ds4 b3
+        ,"-3 1 6 ~@6 4 -1 -4"                      -- b.72: a3 cs4 fs4 e4 b3 gs3
+        ,"-6@6 -8@6"                               -- b.73: fs3 e3
+        ,"-9@6 -11@6"                              -- b.74: ds3 cs3
+        ,"-13 -6 -3 1 3 6 9 13 15 13 11 9"         -- b.75: b2 fs3 a3 cs4 ds4 fs4 a4 cs5 ds5 cs5 b4 a4
+        ])
+     ,harp' M 1 "p" k (staff 20   -- lower staff, voice 2
+        ["~@12"                                    -- b.71
+        ,"~@12"                                    -- b.72
+        ,"~ -3 1@3 ~@2 -3 1@3 ~"                   -- b.73: a3 cs4 a3 cs4
+        ,"~ -3 1@3 ~@2 -3 4@3 ~"                   -- b.74: a3 cs4 a3 e4
+        ,"~@12"                                    -- b.75
+        ])
+     ]
+   -- a tempo, pp: the theme, poco a poco cresc. from 80, stringendo 83, rit. 86.
+  ,bars 76 86 $ stack [silence
+     ,harp' M 1 "pp" k (staff 44   -- upper staff, voice 1
+        ["~@6 16@2 18@2 13@2 16@2 11@2 13@2 8@2 11@2 6@2" -- b.76: e5 fs5 cs5 e5 b4 cs5 gs4 b4 fs4
+        ,"8@2 4@2 8@2 3@12 1@6"                    -- b.77: gs4 e4 gs4 ds4 cs4
+        ,"-1@3 ~@3 16@2 18@2 13@2 16@2 11@2 13@2 8@2 11@2 6@2" -- b.78: b3 e5 fs5 cs5 e5 b4 cs5 gs4 b4 fs4
+        ,"8@2 4@2 8@2 3@12 1@6"                    -- b.79: gs4 e4 gs4 ds4 cs4
+        ,"-1@2 -3@2 -1@2 1@9 4@3 3@3 4@3"          -- b.80: b3 a3 b3 cs4 e4 ds4 e4
+        ,"1@6 8@12 4@6"                            -- b.81: cs4 gs4 e4
+        ,"3@2 1@2 3@2 4@9 8@3 6@3 8@3"             -- b.82: ds4 cs4 ds4 e4 gs4 fs4 gs4
+        ,"4@6 13@12 10@2 13@2 10@2"                -- b.83: e4 cs5 as4 cs5 as4
+        ,"8@6 16@12 13@2 16@2 13@2"                -- b.84: gs4 e5 cs5 e5 cs5
+        ,"20@9 18@3 20@9 18@3"                     -- b.85: gs5 fs5 gs5 fs5
+        ,"20@9 18@3 20@3 18@6 20@3"                -- b.86: gs5 fs5 gs5 fs5 gs5
+        ])
+     ,harp' M 1 "pp" k (staff 44   -- lower staff, voice 1
+        ["-20 -13 -8 -4 -1 -4 -8 -13"              -- b.76: e2 b2 e3 gs3 b3 gs3 e3 b2
+        ,"-20 -13 -8 -4 1 -4 -8 -13"               -- b.77: e2 b2 e3 gs3 cs4 gs3 e3 b2
+        ,"-20 -13 -8 -4 -1 -4 -8 -13"              -- b.78: e2 b2 e3 gs3 b3 gs3 e3 b2
+        ,"-20 -13 -8 -4 1 -4 -8 -13"               -- b.79: e2 b2 e3 gs3 cs4 gs3 e3 b2
+        ,"-18 -11 -8 -6 -3 -6 -8 -11"              -- b.80: fs2 cs3 e3 fs3 a3 fs3 e3 cs3
+        ,"-16 -11 -8 -4 -1 -4 -8 -11"              -- b.81: gs2 cs3 e3 gs3 b3 gs3 e3 cs3
+        ,"-15 -8 -6 -3 1 -3 -6 -8"                 -- b.82: a2 e3 fs3 a3 cs4 a3 fs3 e3
+        ,"-14 -8 -4 1 -11 -6 -2 4"                 -- b.83: as2 e3 gs3 cs4 cs3 fs3 as3 e4
+        ,"-8 -2 1 8 -6 1 4 10"                     -- b.84: e3 as3 cs4 gs4 fs3 cs4 e4 as4
+        ,"-2 4 8 13 1 6 10 16"                     -- b.85: as3 e4 gs4 cs5 cs4 fs4 as4 e5
+        ,"-2 4 8 13 1 6 10 16"                     -- b.86: as3 e4 gs4 cs5 cs4 fs4 as4 e5
+        ])
+     ]
+   -- p: the figure once more, the descending sequence of 89–94 and the 2/4 bar
+   -- (the block ends half a bar early: bar 94 is two beats).
+  ,bars 87 93.5 $ stack [silence
+     ,harp' M 1 "p" k (staff 30   -- upper staff, voice 1
+        ["21@4 20@4"                               -- b.87: a5 gs5
+        ,"18@4 16@4"                               -- b.88: fs5 e5
+        ,"21@2 23 25 21 20 21 20@3"                -- b.89: a5 b5 cs6 a5 gs5 a5 gs5
+        ,"18@4 16@3"                               -- b.90: fs5 e5
+        ,"14 16 18 14 13 14 13@3"                  -- b.91: d5 e5 fs5 d5 cs5 d5 cs5
+        ,"11@4 9@3"                                -- b.92: b4 a4
+        ,"8 9 8 13 9 6@3"                          -- b.93: gs4 a4 gs4 cs5 a4 fs4
+        ,"4 6 4"                                   -- b.94: e4 fs4 e4
+        ])
+     ,harp' M 1 "p" k (staff 30   -- upper staff, voice 2
+        ["~@3 13 16 18 ~ 15 11 ~@3"                -- b.87: cs5 e5 fs5 ds5 b4
+        ,"~@3 9 13 15 ~ 11 8 ~@3"                  -- b.88: a4 cs5 ds5 b4 gs4
+        ,"~@3 16@3 ~@3 15@3"                       -- b.89: e5 ds5
+        ,"13@6 11@6"                               -- b.90: cs5 b4
+        ,"~@3 9@3 ~@3 8@3"                         -- b.91: a4 gs4
+        ,"6@6 4@6"                                 -- b.92: fs4 e4
+        ,"2@6 1@6"                                 -- b.93: d4 cs4
+        ,"-1@6"                                    -- b.94: b3
+        ])
+     ,harp' M 1 "p" k (staff 30   -- lower staff, voice 1
+        ["1 4 9 ~@6 8 3 -1"                        -- b.87: cs4 e4 a4 gs4 ds4 b3
+        ,"-3 1 6 ~@6 4 -1 -4"                      -- b.88: a3 cs4 fs4 e4 b3 gs3
+        ,"1@6 -1@6"                                -- b.89: cs4 b3
+        ,"-3@6 -4@6"                               -- b.90: a3 gs3
+        ,"-6@6 -8@6"                               -- b.91: fs3 e3
+        ,"-10@6 -11@6"                             -- b.92: d3 cs3
+        ,"-13@6 -15@6"                             -- b.93: b2 a2
+        ,"-16@6"                                   -- b.94: gs2
+        ])
+     ,harp' M 1 "p" k (staff 30   -- lower staff, voice 2
+        ["~@12"                                    -- b.87
+        ,"~@12"                                    -- b.88
+        ,"~ 4 9 13 9 4 ~ 3 8 11 8 3"               -- b.89: e4 a4 cs5 a4 e4 ds4 gs4 b4 gs4 ds4
+        ,"~ 1 6 9 6 1 ~ -1 4 8 4 -1"               -- b.90: cs4 fs4 a4 fs4 cs4 b3 e4 gs4 e4 b3
+        ,"~ -3 2 6 2 -3 ~ -4 1 4 1 -4"             -- b.91: a3 d4 fs4 d4 a3 gs3 cs4 e4 cs4 gs3
+        ,"~ -6 -1 2 -1 -6 ~ -8 -3 1 -3 -8"         -- b.92: fs3 b3 d4 b3 fs3 e3 a3 cs4 a3 e3
+        ,"~ -7 -4 -1 -4 -7 ~ -11 -6 -3 -6 -11"     -- b.93: f3 gs3 b3 gs3 f3 cs3 fs3 a3 fs3 cs3
+        ,"~ -13 -8 -4 -8 -13"                      -- b.94: b2 e3 gs3 e3 b2
+        ])
+     ]
+   -- dim. and più dim. (95, 97), p at 99, pp at 101; the final arpeggios and
+   -- the two chords at the top (8va), pp.
+  ,bars 94.5 106.5 $ stack [silence   -- score bars 95–107: after the 2/4 bar every bar starts half a bar early
+     ,harp' M 1 "p" k (staff 52   -- upper staff, voice 1
+        ["9@24"                                    -- b.95: a4
+        ,""                                        -- b.96
+        ,"8@12"                                    -- b.97: gs4
+        ,"6@12"                                    -- b.98: fs4
+        ,"4@3 28 30 25 28 23 25 20 23 18"          -- b.99: e4 e6 fs6 cs6 e6 b5 cs6 gs5 b5 fs5
+        ,"20 16 20 15@6 13@3"                      -- b.100: gs5 e5 gs5 ds5 cs5
+        ,"11@3 16 18 13 16 11 13 8 11 6"           -- b.101: b4 e5 fs5 cs5 e5 b4 cs5 gs4 b4 fs4
+        ,"8 4 8 3@6 1@3"                           -- b.102: gs4 e4 gs4 ds4 cs4
+        ,"~@7 4 -1 ~ 6 1"                          -- b.103: e4 b3 fs4 cs4
+        ,"~ 11 4 ~ 13 8 ~ 16 11 ~ 18 13"           -- b.104: b4 e4 cs5 gs4 e5 b4 fs5 cs5
+        ,"~ 23 16 ~ 25 20 ~ 28 23 ~ 30 25"         -- b.105: b5 e5 cs6 gs5 e6 b5 fs6 cs6
+        ,"[28,32]@3 [28,32]@6 [28,32]@3"           -- b.106: [e6 gs6] [e6 gs6] [e6 gs6]
+        ,"4@3 ~@9"                                 -- b.107: e4
+        ])
+     ,harp' M 1 "p" k (staff 52   -- upper staff, voice 2
+        ["~@7 4 ~ 11 13 16"                        -- b.95: e4 b4 cs5 e5
+        ,"21 23 25 28 25 23 21 16 13 11 ~ 4"       -- b.96: a5 b5 cs6 e6 cs6 b5 a5 e5 cs5 b4 e4
+        ,"~@5 3 ~ 11 15 20 23 11"                  -- b.97: ds4 b4 ds5 gs5 b5 b4
+        ,"~@5 3 9 11 15 21 23 11"                  -- b.98: ds4 a4 b4 ds5 a5 b5 b4
+        ,"~@12"                                    -- b.99
+        ,"~@12"                                    -- b.100
+        ,"~@12"                                    -- b.101
+        ,"~@12"                                    -- b.102
+        ,"~@12"                                    -- b.103
+        ,"~@12"                                    -- b.104
+        ,"~@12"                                    -- b.105
+        ,"~@12"                                    -- b.106
+        ,"~@12"                                    -- b.107
+        ])
+     ,harp' M 1 "p" k (staff 52   -- lower staff, voice 1
+        ["-18@2 -11@2 -8@2 -6@2 -3@2 -1@2 1@2 ~@10" -- b.95: fs2 cs3 e3 fs3 a3 b3 cs4
+        ,"~@24"                                    -- b.96
+        ,"-25@2 -13@2 -9@2 -4@2 -1@2 ~@14"         -- b.97: b1 b2 ds3 gs3 b3
+        ,"-25@2 -13@2 -9@2 -3@2 -1@2 ~@14"         -- b.98: b1 b2 ds3 a3 b3
+        ,"-20@3 -13@3 -8@3 -4@3 -1@3 -4@3 -8@3 -1@3" -- b.99: e2 b2 e3 gs3 b3 gs3 e3 b3
+        ,"-20@3 -11@3 -8@3 -4@3 1@3 -4@3 -8@3 -11@3" -- b.100: e2 cs3 e3 gs3 cs4 gs3 e3 cs3
+        ,"-20@3 -13@3 -8@3 -4@3 -1@3 -4@3 -8@3 -1@3" -- b.101: e2 b2 e3 gs3 b3 gs3 e3 b3
+        ,"-20@3 -11@3 -8@3 -4@3 1@3 -4@3 -8@3 -11@3" -- b.102: e2 cs3 e3 gs3 cs4 gs3 e3 cs3
+        ,"-20@6 -13@6 -8@6 -4@6"                   -- b.103: e2 b2 e3 gs3
+        ,"-8@6 -1@6 4@6 8@6"                       -- b.104: e3 b3 e4 gs4
+        ,"4@6 11@6 16@6 20@6"                      -- b.105: e4 b4 e5 gs5
+        ,"[16,23]@6 [16,23]@12 [16,23]@6"          -- b.106: [e5 b5] [e5 b5] [e5 b5]
+        ,"[-20,-8]@6 ~@18"                         -- b.107: [e2 e3]
+        ])
+     ,harp' M 1 "p" k (staff 52   -- lower staff, voice 2
+        ["~@12"                                    -- b.95
+        ,"~@12"                                    -- b.96
+        ,"~@12"                                    -- b.97
+        ,"~@12"                                    -- b.98
+        ,"~@12"                                    -- b.99
+        ,"~@12"                                    -- b.100
+        ,"~@12"                                    -- b.101
+        ,"~@12"                                    -- b.102
+        ,"~ -1 -8 ~ 1 -4 ~@6"                      -- b.103: b3 e3 cs4 gs3
+        ,"~@12"                                    -- b.104
+        ,"~@12"                                    -- b.105
+        ,"~@12"                                    -- b.106
+        ,"~@12"                                    -- b.107
+        ])
+     ]
+  ] |* vel d
+
+ -- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let f = id
+      d = (* 1)
+      k = preroll pre $ iK tempo form (rep key 1)
+  putStrLn "ARABESQUE"
+  mapM_ id [hush, resetCycles, display k
+    ,arabesque f k $ d 0.9
+    ]
+
+hush

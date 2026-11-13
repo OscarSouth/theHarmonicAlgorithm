@@ -1,0 +1,91 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 2 IN F MAJOR, BWV 1047 — III. ALLEGRO ASSAI
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- Super-structure position: 2/6 (Inciting event, close) — virtuosity asserted.
+--
+-- The finale is a fugue. The trumpet returns with blazing authority,
+-- presenting the fugue subject which is then taken up by each soloist
+-- in turn — a four-voice fugal exposition in concerto form. The ripieno
+-- provides structural pillars between fugal entries. The movement is a
+-- tour de force of contrapuntal virtuosity, each instrument maintaining
+-- its independent voice while serving the larger fugal architecture.
+-- ============================================================================
+
+tempo = 128
+
+start <- lead "F maj"
+
+let ctx = hcKey "1b"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.3 $ attempt 2 6 $ gen
+
+-- Form: ~219s loop (210s music + 10s silence)
+-- Arc: trumpet subject -> flute answer -> oboe -> violin (full exposition) ->
+--      episode -> stretto (peak density) -> concluding fugue
+form =
+  [ rh    0    0.0   0.0   s
+  , rh    2    0.5   0.5   s     -- fugue subject: trumpet enters
+  , rh   16    0.55  0.55  s     -- answer: flute
+  , rh   29    0.6   0.6   s     -- third entry: oboe
+  , rh   43    0.65  0.65  s     -- fourth entry: violin — full exposition
+  , rh   59    0.5   0.5   s     -- episode
+  , rh   75    0.7   0.7   s     -- stretto: all voices, peak density
+  , rh   93    0.55  0.55  s     -- final episode
+  , rh  107    0.65  0.65  s     -- concluding fugue
+  , rh  112    0.0   0.0   s
+  , rh  117    0.0   0.0   s     -- gap
+  ]
+
+-- ── MOTIFS ───────────────────────────────────────────────
+-- The fugue subject. Four voices state it in turn — clarino, recorder, oboe,
+-- violin — then overlap in stretto. Later entries take it inverted and in
+-- retrograde: the exposition is the theme, the episodes are its transforms.
+(rhythm, contour, motif) =
+  ( "[1 0 1 1 0 1 1 0]/4"
+  , "[3 2 1 0 1 2 3 1]/4"
+  , rhythm >:< contour
+  ) :: (Pattern Bool, Pattern Int, Pattern Int)
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+trumpet f k d = p "clarino" $ do
+  let vl = voiceLines {_vl = "~", soprano = motif}
+  -- clarino: mapped to the top of the oboe by tessitura (see No. 2/I)
+  f $ stack [silence, oboe T (0, 1) k vl flow Soprano] |* vel d
+
+recorder f k d = p "flute" $ do
+  let vl = voiceLines {_vl = "~", soprano = motif}
+  f $ stack [silence, flute T (0.15, 1) k vl flow Alto] |* vel d
+
+oboeVoice f k d = p "oboe" $ do
+  let vl = voiceLines {_vl = "~", soprano = mirror 2 contour}
+  f $ stack [silence, oboe T (0.2, 1) k vl flow Tenor] |* vel d
+
+soloViolin f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~", soprano = retro contour}
+  f $ stack [silence, violin1 T (0.25, 1) k vl flow Soprano # spicc] |* vel d
+
+ripieno f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 2 1 0]/4", tenor = "2", bass = "0"}
+  f $ stack [silence, violin2 T (0.45, 1) k vl flow Alto # spicc, viola T (0.45, 1) k vl flow Tenor # spicc
+        , cello T (0, 1) k vl grid Bass # marc, contrabass T (0, 1) k vl grid Bass8vb # marc] |* vel d
+
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 0 2 1]/4"}
+  f $ stack [silence, harp T (0, 1) k vl flow Alto] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id; d = (* 1); k = iK tempo form (rep s 1)
+  putStrLn "BRANDENBURG NO. 2 — III. Allegro assai"
+  mapM_ id [hush, setbpm tempo
+    ,setContinuo harpsichordV
+    ,trumpet f k $ d 0.85, recorder f k $ d 0.75, oboeVoice f k $ d 0.7
+    ,soloViolin f k $ d 0.8, ripieno f k $ d 0.65, continuo f k $ d 0.55]
+
+hush''

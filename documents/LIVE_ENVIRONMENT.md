@@ -42,9 +42,9 @@ compete for it. They are not performed together:
   aimed at simulated orchestral writing. Library-fixed map in
   [ALGORITHMIC_ORCHESTRATION.md](ALGORITHMIC_ORCHESTRATION.md); `rig = jv1010`, the boot file's default.
 - **The studio orchestra** — the Alesis NanoSynth, one section per channel behind the same
-  instrument functions, reached through a CME U6 that splits the iCA4+ DIN to the MPC
-  (everything) and to the nano (everything but channel 10) and merges the MPC's own out into
-  the nano line. `rig = nanoSynth` in that machine's `live/local/rig.hs`, then `setupRig` once after power-up to
+  instrument functions, reached through a CME U6 that splits the iCA4+ DIN to the MPC and
+  to the nano (everything, both) and merges the MPC's own out into the nano line; the
+  Mother-32 joins it on channel 6 through the MPC's CV out. `rig = nanoSynth` in that machine's `live/local/rig.hs`, then `setupRig` once after power-up to
   send the module its patches and mix ([NANOSYNTH.md](NANOSYNTH.md)). Chain below.
 - **The studio rig** — soft synths, the Moog DFAM and Mother-32, the MPC programs and the
   two AIRA units, aimed at contemporary and jazz material. Map below.
@@ -123,8 +123,10 @@ laptop ─USB─ iCA4+ ─DIN out───────────► U6 MIDI In
 MPC MIDI OUT ─────────────────────────► U6 MIDI In 2
 
 U6 MIDI Out 1 ◄ In 1, everything                   ──► MPC MIDI IN     (service lane + whatever the MPC records)
-U6 MIDI Out 2 ◄ In 1 + In 2, channel 10 filtered   ──► NanoSynth MIDI IN
+U6 MIDI Out 2 ◄ In 1 + In 2, everything            ──► NanoSynth MIDI IN
 U6 MIDI Out 3 ◄ In 2, everything                   ──► iCA4+ DIN IN    (the Q-Link / 12 Step return, CC 100-111 ch 10)
+
+MPC CV OUT ◄ ch 6 (an MPC CV track)                ──► Mother-32        (the nano holds the blank program on 6)
 ```
 
 Unlike the home rig's X3, which passes only the MPC's own channels across USB, the U6 sends
@@ -133,10 +135,22 @@ it record any channel.
 
 The rules the U6 preset (`nano studio`) encodes, and why:
 
-- Out 2 carries no channel-10 traffic from either source, so the display, LED, `kmap`,
-  RC-10R and Q-Link lanes never reach the orchestra; the nano's channel 10 is blank anyway,
-  and `nanoKit` only needs the filter lifted. No CC or program-change filter sits on Out 2:
+- Out 2 carries channel 10 too, because the nano's kit on 10 is the orchestra's percussion
+  (`tambourine` 54, `woodblock` 76, `triangle` 81). The lane is shared by note band: the
+  MPC's pads keep 0–48 (`count` from 8, `dkit` 19–34, the sub 35–48) and `kmap` 108–119, the
+  kit voices sit between. The CCs of the display, RC-10R, `dkit` and the Q-Link return
+  (33–48, 70–84, 100–111, 113–118) reach the module and are ignored — it answers only CC 1,
+  7, 10, 11, 64, 91 and 123. One caveat: the kit's kick, snare and hats share the sub's
+  35–48, so a piece that runs `subKick` also strikes them on the nano; the kit is left out of
+  the orchestra for that reason. No CC or program-change filter sits on Out 2:
   `setupRig`'s bank selects and program changes must arrive intact.
+- Channel 6 is the Mother-32's, as on the studio map below: an MPC CV track on 6 drives it
+  from the stream the MPC already hears, and the nano's 6 is the blank program at level 0,
+  so the module never sounds those notes. The DFAM's oscillator keytrack can follow any
+  orchestral line the same way (a CV track pointed at that channel); its step trigger has no
+  channel of its own under this map. The nano's trombone (11) and pizzicato (12) sit on the
+  `hmnx` and `slce` channels, so those two MPC programs are not live with the orchestra; 10
+  stays shared by note band as above.
 - In 2 never routes to Out 1 (the MPC would hear itself) and In 1 never routes to Out 3
   (Tidal's stream would come back into the laptop). Those are the two loops.
 - The MPC's MIDI thru is off, globally and per track: it receives all sixteen channels and its

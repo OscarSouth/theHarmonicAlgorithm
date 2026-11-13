@@ -1,0 +1,52 @@
+-- ============================================================================
+-- JV-1010 LEVELS — the knob the calibration turns
+-- ============================================================================
+--
+-- The nano's balance is `nanoMix` in the library, sent once by `setupRig`.
+-- The JV's is the Performance stored on the module and nothing in code. This
+-- file is the JV's equivalent while the two are being matched: one channel
+-- volume (CC7) per channel, 0–1, in the JV's channel order, sent in one go
+-- with the generic table sender the nano uses. Evaluate the `once` line after
+-- booting with `rig = jv1010`, before running calibration.tidal or a piece.
+--
+-- CC7 on a Performance part REPLACES the part level stored on the module, so
+-- the first send must be the module's own numbers (Performance → Part → Level,
+-- 0–127, divided by 127) for the first measurement to be the baseline. If
+-- they cannot be read, start every channel at 0.80 and measure that.
+--
+-- Then: run calibration.tidal, capture, `tools/measure.py --rig jv`,
+-- `tools/compare.py levels_nano.csv levels_jv.csv`, move the channels the
+-- report names (suggested column = current × 10^(−offset/40)), send again,
+-- re-run. When every residual is within ±2 dB the table is done and belongs
+-- in Harmonic.Interface.Tidal.Devices.JV1010 as `jvMix` / `rigSetup`, the
+-- way the nano's lives in NanoSynth.hs.
+--
+-- JV channels: 1 flute, 2 oboe, 3 clarinet, 4 bassoon, 5 horn, 6 trombone +
+-- bass trombone, 7 harp (continuo), 8 timpani, 9 rhythm set (bass drum 36,
+-- tambourine 54, woodblock 76, triangle 81), 10 the MPC lane (not the JV),
+-- 11 tam-tam 31, 12 pizz, 13 spicc, 14 marc, 15 legg, 16 arco (all strings).
+
+jvLevel :: [(Int, Double)]
+jvLevel =
+  [ ( 1, 0.80)   -- flute
+  , ( 2, 0.80)   -- oboe
+  , ( 3, 0.80)   -- clarinet
+  , ( 4, 0.80)   -- bassoon
+  , ( 5, 0.80)   -- horn
+  , ( 6, 0.80)   -- trombone, bass trombone
+  , ( 7, 0.80)   -- harp, the continuo
+  , ( 8, 0.80)   -- timpani
+  , ( 9, 0.80)   -- rhythm set: bass drum, tambourine, woodblock, triangle
+  , (11, 0.80)   -- tam-tam
+  , (12, 0.80)   -- strings pizzicato
+  , (13, 0.80)   -- strings spiccato
+  , (14, 0.80)   -- strings marcato
+  , (15, 0.80)   -- strings legato
+  , (16, 0.80)   -- strings arco
+  ]
+
+-- Send the table (CC7), then open expression (CC11) on every channel: the
+-- pieces leave CC11 where their ramps ended.
+once $ nanoTable 7 jvLevel
+
+once $ nanoTable 11 [ (c, 1) | c <- [1..16] ]

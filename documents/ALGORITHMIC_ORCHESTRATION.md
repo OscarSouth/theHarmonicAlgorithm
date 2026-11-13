@@ -57,23 +57,26 @@ Patches are a Performance stored on the module. Definitions: `jv1010` in
 |---------|---------------------|------------------------|
 | 1       | Flute               | 74 / Preset 3  SingleFlut |
 | 2       | Oboe                | 68 / Preset 3  Ebony Oboe |
-| 3       | Bassoon             | 70 / Preset 2  SoloBasoon |
-| 4       | Horn                | 60 / User  FlugelSolo |
-| 5       | Trombone, bass trombone | 57 / User  Bone Tone |
-| 6       | Timpani, with tuba  | 60 / Preset 4  Documentar |
-| 7       | Strings pizzicato   | 45 / Preset 3  Pizz Pluck |
-| 8       | Orchestra hit (bass drum) | 55 / Preset 3  Danz Hitz |
-| 9       | Harp (continuo)     | 46 / Preset 3  Harpitz |
-| 10      | service channel (MPC) | 127 / User; `nanoKit` for the module's kit |
-| 11      | Clarinet            | 71 / Preset 2  1stClarnet |
-| 12      | silent              | 127 / User |
+| 3       | Clarinet            | 71 / Preset 2  1stClarnet |
+| 4       | Bassoon             | 70 / Preset 2  SoloBasoon |
+| 5       | Horn                | 60 / User  FlugelSolo |
+| 6       | the Mother-32 (module blank) | 127 / User |
+| 7       | Harp (continuo)     | 46 / Preset 3  Harpitz |
+| 8       | Timpani, with tuba  | 60 / Preset 4  Documentar |
+| 9       | Orchestra hit (bass drum) | 55 / Preset 3  Danz Hitz |
+| 10      | Kit: tambourine, woodblock, triangle (shared with the MPC) | 118 / Preset 3  15ips Kit |
+| 11      | Trombone, bass trombone | 57 / User  Bone Tone |
+| 12      | Strings pizzicato   | 45 / Preset 3  Pizz Pluck |
 | 13      | Violin 1            | 49 / GM  Slo String |
 | 14      | Violin 2            | 49 / GM  Slo String |
 | 15      | Cello               | 43 / Preset 3  Celli |
 | 16      | Double bass, with viola | 41 / User  BiViola |
 
-One section per channel; `pizz` routes any string to 7 and the other
-articulation tags are identity; the tam-tam has no voice. The module is
+The JV-1010's order wherever the module can follow it (winds 1–5, harp 7,
+timpani 8, bass drum 9, pizzicato 12, strings 13–16); channel 6 is the Moog
+Mother-32's, fed from the MPC's CV out, and the trombone takes 11. One
+section per channel; `pizz` routes any string to 12, as on the JV, and the
+other articulation tags are identity; the tam-tam has no voice. The module is
 configured from code — `setupRig` once after power-up — and the full
 reference (ranges, mix, the 640-program list, how the module is addressed)
 is [NANOSYNTH.md](NANOSYNTH.md). Definitions: `nanoSynth` in
@@ -85,8 +88,8 @@ in `documents/LIVE_ENVIRONMENT.md`. No two of these programs are ever live toget
 ### The continuo voice
 
 The orchestra is a fixed, deliberate configuration — it is not extended.
-The one permitted variation is the continuo channel (`rigContinuo`: JV-1010
-**7**, NanoSynth **9**), which may be voiced as any pitched polyphonic
+The one permitted variation is the continuo channel (`rigContinuo`: **7** on
+both rigs), which may be voiced as any pitched polyphonic
 plucked, keyboard, mallet or choral colour. Set it **once per movement** in
 the launcher; never hot-swap it mid-flow.
 
@@ -194,8 +197,9 @@ is the whole call.
 ### Unpitched (struct-based)
 
 ```haskell
-bassdrum, tamtam :: Rig -> Pattern Bool -> ControlPattern
--- JV-1010: MIDI 36 on ch 9 and MIDI 31 on ch 11; a rig without the voice is silent
+bassdrum, tamtam, tambourine, triangle, woodblock :: Rig -> Pattern Bool -> ControlPattern
+-- JV-1010: bass drum MIDI 36 on ch 9, tam-tam MIDI 31 on ch 11, the three hand voices on the
+-- rhythm set (ch 9, General MIDI numbers); a rig without the voice is silent
 ```
 
 ## Instrument Catalogue
@@ -252,6 +256,9 @@ table (`Orchestra.hs`, this file, `live/docs/ORCHESTRAL_CATALOGUE.tidal`).
 |---|---|---|---|
 | Bass Drum | 9 | 36 (C2) | `bassdrum pat` |
 | Tam-tam | 11 | 31 (G1) | `tamtam pat` |
+| Tambourine | 9 | 54 | `tambourine pat` |
+| Woodblock | 9 | 76 | `woodblock pat` |
+| Triangle | 9 | 81 (open, rings) | `triangle pat` |
 
 The studio rig's MPC instruments — `subKick` (ch 10), `hmnx` (ch 11), `slce` (ch 12) — are
 not JV-1010 voices; they are documented in [LIVE_ENVIRONMENT.md](LIVE_ENVIRONMENT.md).
@@ -264,7 +271,7 @@ other tags leave the line on its section's channel:
 
 | Articulation | Alias | JV-1010 ch | NanoSynth | Usage |
 |---|---|---|---|---|
-| Pizzicato | `pizz` | 12 | ch 7 | `# pizz` or `tutti pizz f k $ d 0.7` |
+| Pizzicato | `pizz` | 12 | ch 12 | `# pizz` or `tutti pizz f k $ d 0.7` |
 | Spiccato | `spicc` | 13 | identity | `# spicc` |
 | Marcato | `marc` | 14 | identity | `# marc` |
 | Legato | `legg` | 15 | identity | `# legg` |
@@ -399,7 +406,7 @@ technique, `noArt` (identity under `#`) where it does not:
 ```haskell
 pizz, spicc, marc, legg, arco :: Rig -> ControlPattern
 -- jv1010:    ch 12, 13, 14, 15, 16
--- nanoSynth: ch 7, then noArt for the rest
+-- nanoSynth: ch 12, then noArt for the rest
 ```
 
 Override with `#`:
@@ -420,7 +427,7 @@ tutti pizz f k $ d 0.7
 | `wind` | flute, oboe, clarinet, bassoon           |
 | `brss` | horn, trombone, basstrom                 |
 | `strg` | violin1, violin2, viola, cello, contrabass |
-| `perc` | timpani, harp, bassdrum, tamtam          |
+| `perc` | timpani, harp, bassdrum, tamtam, tambourine, triangle, woodblock |
 
 ## Blends
 
@@ -511,7 +518,7 @@ The 2021 concert files map onto this line for line:
 | `meter t m s`, mid-piece tempi, `setcps` | `bars a b $ bpm t` blocks at the head of the list (a 6/4 piece: `tempo = 66 * 4 / 6`, four cycles a bar); never `setbpm` in the launcher |
 | `cc 11 … #hn` (expression per instrument) | `cc 11 … # ch (rigHorn rig)` |
 | `ped … #vc` for a tie | a duration |
-| `moog`, `cc 1 … #m32` (studio synths, ch 12) | kept on `# ch 12` under a `studio synth` comment |
+| `moog`, `cc 1 … #m32` (the Mother-32, ch 12 in 2021) | `# ch 6`, the Mother-32's studio channel, under a `studio synth` comment; the `cc 0` bank lines dropped |
 
 The worked port is the author's Stravinsky Suite No. 1 Andante (`live/local/Suites/Stravinsky/`,
 with its bar-by-bar reconciliation against the Chester score); the tracked example is

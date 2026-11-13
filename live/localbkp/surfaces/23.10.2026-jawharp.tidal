@@ -1,0 +1,319 @@
+-- 23.10.2026 — jaw-harp track, studio rig (one interface per channel, documents/LIVE_ENVIRONMENT.md)
+-- Material: the 22.09 studio test, re-tiered onto five kinetic bands. Launcher: perform/stateJawHarp.tidal (110 bpm, 108 bars ≈ 3:56).
+--
+--   B1 (0.0,0.2)  intro/outro texture — complement to the groove when it hits
+--   B2 (0.2,0.4)  MINIMAL groove — sub, kick, tick, piano 10ths, space
+--   B3 (0.4,0.6)  build 1 — M32 8ths, DFAM picking, ride
+  -- B4 (0.6,0.8)  build 2 — backbeat, open hat, pad thickens, hmnx
+--   B5 (0.8,1.0)  everything, full on — crash from 0.95
+--
+-- Harps: A (high, melodic) intro + first drop · C (medium) break + second drop · D (guttural) outro.
+
+ -- 1 — grand piano (present, low/mid 10ths at low dynamics)
+grnd f k d = p "piano" $ do
+  let o = ch 1
+  f
+    $ stack [silence
+       -- -- the 10ths: root + third-an-octave-up, from the minimal groove on
+      ,arrange (0.4,1) k (-9,9) T flow (overlapF 0) ["~"
+        ,"[0,4]/8"
+        -- ,"[0,1,2]/4" |* 2 |- 1
+        -- ,"[0,2]/16"
+      ]# o |* vel 0.2 |- oct 1 |= legato 1
+       -- -- the figure, from build 2
+      ,arrange (0.6,1) k (-9,9) T flow (overlapF 0) ["~"
+       -- ,degradeBy 0.9 $ palindrome $ slow "4" $ stripe 2 $ "[4 3 2 1]" |+ "<5 4 3 4>/4"
+       -- ,slow 2 $ mask "[0 0 1 0]/2" $ struct snareseq "[2,3]/4" |+ 3
+       -- ,(2/4) <~ "[<3 4> 1 2 <~ 1>]/2" |+ "[3 4]/8"
+       -- ,mask "[1 0]/2" "[0,2,4]/2" |- 3
+       -- ,struct snareseq "[~ . 2 ]/4" |+ 6
+      ]# o |* vel 0.1 |+ oct "[0]" |* legato 0.5
+       -- -- the peak pedal
+      ,arrange (0.9,1) k (-9,9) T flow (overlapF 0) ["~"
+        -- ,"[0]/8"
+        -- ,"[1@3 2@3 3@2 . 4@3 5@3 6@2 . 6@3 5@3 4@2 . 3@3 2@3 1@2]/8"
+        -- ,"[6 ~ 5 4 3 ~ 2 1]/4"
+      ]# o |* vel 0.2 |- oct 0 |= legato 1
+       -- --
+      ,arrange (0,1) k (-9,9) T grid (overlapF 0) ["~"
+        -- ,struct kickseq "0"
+        -- , "[0]/16"
+        -- ,"[[0] 4]/16"
+        -- ,"[[0,3]]/16" |- 3
+        -- ,"[0]/32" |- 6
+      ]# o |* vel 0.2 |- oct "[1]" |= legato 1
+       -- --
+      -- ,cc 64 "[1@63 0]/8" #o
+      -- ,cc 64 "0" #o
+       -- --
+    ] |* vel d
+
+ -- 2 — Minimoog pad (evolving depth; haze in B1, thickens from B4)
+mini f k d = p "moog" $ do
+  let o = ch 2
+  f
+    $ stack [silence
+       -- -- the haze, always
+      ,arrange (0.4,1) k (-9,9) T flow (overlapF 0) ["~"
+       -- ,degradeBy 0.9 $ palindrome $ slow "4" $ stripe 2 $ "[4 3 2 1]" |+ "<5 4 3 4>/4"
+       -- ,slow 2 $ mask "[0 0 1 0]/2" $ struct snareseq "[2,3]/4" |+ 3
+       ,"[2,3,4]/8"
+       -- ,(2/4) <~ "[<3 4> 1 2 <~ 1>]/2" |+ "[3 4]/8"
+       -- ,struct snareseq "[~ . 2 ]/4" |+ 6
+      ]# o |* vel 0.1 |+ oct "[0]" |* legato 1
+       -- -- the low thickening, from build 2
+      ,arrange (0.6,1) k (-9,9) T flow (overlapF 0) ["~"
+       -- ,"[0,2,4]/2" |- 3
+      ]# o |* vel 0.1 |- oct 1 |* legato 1
+       -- --
+      ,arrange (0,1) k (-9,9) T grid (overlapF 0) ["~"
+        -- ,struct kickseq "0"
+        -- , "[0]/16"
+        -- ,"[[0] 4]/16"
+        -- ,"[[0,3]]/16" |- 3
+        -- ,"[0]/32" |- 6
+      ]# o |* vel 0.2 |- oct "[1]" |= legato 1
+       -- --
+      -- ,cc 64 "[1@63 0]/8" #o
+      -- ,cc 64 "0" #o
+       -- --
+    ] |* vel d
+
+ -- 3 / 4 / 5 — Moog DFAM (osc1 / osc2 / step trigger): baroque fingerpicking, paraphonic.
+ -- osc1 picks the figure from build 1; osc2 is the thumb (bass / counter-voice) from build 2. Basic on purpose.
+mdf f k d = p "moogDFAM" $ 0.036 <~ do
+  let (osc1,osc2) = (ch 3 |= legato 0.1, ch 4 |= legato 0.1)
+      -- the sub's grids (subk): 3-of-8 rotating <0 2> through the builds, 5-of-16 rotating <0 3> at the peak
+      sub38  = "t(3,8,<0 2>)/4"  :: Pattern Bool
+      gap38  = "t(-3,8,<0 2>)/4" :: Pattern Bool   -- its complement: the 5 steps the sub leaves empty
+      sub516 = "t(5,16,<0 3>)/4" :: Pattern Bool
+  f
+    $ stack [silence
+       -- --
+      ,steptrig $ "[4 3 2 1 5 6 7 8]/2"
+       -- -- the picking: fills the gaps of the sub's rotating 3-of-8 (phases with it over 2 bars)
+      ,arrange (0,0.8) k (-9,9) T flow (overlapF 0) ["~"
+      -- ,arrange (0.4,0.8) k (-9,9) T flow (overlapF 0) ["~"
+        ,struct gap38 "[0 2 1 2 0 2 1 2]/4"
+        -- ,"[0 2 1 2]"
+        -- ,"0/4"
+      ]# osc1 |* vel 1 |+ oct 2
+       -- -- the picking at the peak: doubles the sub's 5-of-16 two octaves up, harpsichord over the bass
+      ,arrange (0.8,1) k (-9,9) T flow (overlapF 0) ["~"
+        ,struct sub516 "[0 2 1 2 3 2 1 2]/4"
+      ]# osc1 |* vel 1 |+ oct 2
+       -- -- the thumb: a held root below the groove, then landing with the sub's 3-of-8 (root root octave)
+      ,arrange (0.0,0.6) k (-9,9) T grid (overlapF 0) ["~"
+        -- ,"[0]/4"
+        ,"[0 ~ 3 ~]"
+      ]# osc2 |* vel 1 |+ oct 1
+      ,arrange (0.6,1) k (-9,9) T grid (overlapF 0) ["~"
+        ,struct sub38 "[0 0 3]/4"
+      ]# osc2 |* vel 1 |+ oct 1
+       -- --
+    ]# legato 0.25 |* vel d
+
+ -- 6 — Moog Mother-32 (thick and low: drone in B1, pulsing 8ths through the builds, held at the peak)
+m32 f k d = p "moogMother32" $ do
+  let o = ch 6
+  f
+    $ stack [silence
+       -- -- the drone
+      ,mono $ arrange (0,0.3) k (-9,9) T grid (overlapF 0) ["~"
+        -- ,"[0]/8"
+      ]# o |- oct "1" |* vel 1 |* legato 1
+       -- -- the pulse
+      ,mono $ arrange (0.35,0.85) k (-9,9) T grid (overlapF 0) ["~"
+        -- ,"[1@3 2@3 3@2 . 4@3 5@3 6@2 . 6@3 5@3 4@2 . 3@3 2@3 1@2]/8"
+        -- ,"[0]*2"
+        ,"[~ 3 3 3]" |- 3
+        -- ,"[<-1 1> 2]/8"
+       -- ,fast 2 $ (2/4) <~ "[<3 4> 1 2 <~ 1>]/2" |+ "[3 4]/8"
+      ]# o |- oct "1" |* vel 1 |* legato 0.2
+       -- -- the wall
+      ,mono $ arrange (0.85,1) k (-9,9) T grid (overlapF 0) ["~"
+        ,"[0]/4"
+        -- ,"[0]*2"
+      ]# o |- oct "1" |* vel 1 |* legato 1
+    ] |* vel d
+
+ -- 7 — Juno poly bells (handpan — the ancient-trance figure; a counter-figure in the cacophony)
+jura f k d = p "juno" $ do
+  let o = ch 7
+  f
+    $ stack [silence
+       -- --
+      ,arrange (0,0.35) k (-9,9) T flow (overlapF 0) ["~"
+        ,"[0 1 2 1]/2" |* 2
+        -- ,"[0,4]/2" |- 6
+        -- ,"[3 2]/16"
+      ]# o |* vel 0.99 |+ oct 0 |= legato 1
+       -- --
+      ,arrange (0.8,1) k (-9,9) T flow (overlapF 0) ["~"
+        -- ,(1/4) <~ "[0 1 2 1]/2" |* 2 |+ 3
+      ]# o |* vel 0.8 |+ oct 0 |= legato 1
+       -- --
+    ] |* vel d
+
+ -- 8 — bass line (not in this track by default; "[1]*2" for 8ths, "[1]/4" sustained)
+walk f k d = p "lineHarmony"
+  $ f
+  -- $ mono
+  $ lineHarmony d k root [ "~"
+      -- ,struct kickseq "[1]"
+      -- ,struct kickseq "[1 <3 3 [3 [4?]?]>]/4"
+      -- ,"[1 ~ 3 4?]/4"
+      -- ,"[1 2 3 4]/4"
+      -- ,struct kickseq "[1]/4"
+      ,"[1]/4"
+      -- ,"[1]*2"
+      -- ,"[1 ~]/4"
+    ]#ch 8 |+ oct 0 #legato 1 |* vel 1
+
+ -- 9 — 909 kit: the footprint of the groove, gates on the five bands (kgrv is the alternative: load a live/drumpats file)
+k909 f k d = p "909kit" $ do
+  let o = ch 9
+  id
+    -- $ f
+    $ stack [silence
+       -- --
+      -- MINIMAL DEEP TECH — a TRAJECTORY through three grooves (techno/minimal · house/deep · house/tech).
+      -- As energy climbs the kit MORPHS genre: MINIMAL (B2/B3: kick + offbeat tick) → DEEP (B4: skip + open "tss" + clap,
+      -- = deep combined [1 0 2 1]) → TECH (B5: 16th roll + rim + crash, = tech combined [1 1 2 1]). B1 strips to nothing.
+      -- Gate thresholds sit ON the band edges (0.2 · 0.6 · 0.8 · 0.95).
+      -- kick — four-on-floor + house-pump accent; the WARM FOUNDATION from the minimal groove on; out in B1
+      ,slate (0.2, 1) k [silence
+        ,kick "[[1 0 0 0] [1 0 0 0] [1 0 0 0] [1 0 0 0]]/4" |* vel "[1 0.95 0.97 0.95]/4"
+        ]
+      -- MINIMAL — offbeat "&" closed tick (techno/minimal): the hypnotic pulse of B2/B3; hands over to DEEP at B4
+      ,slate (0.2, 0.6) k [silence
+        ,hh "[[0 0 1 0] [0 0 1 0] [0 0 1 0] [0 0 1 0]]/4" |* vel 0.7
+        ]
+      -- MINIMAL — off-grid glitch perc (techno/minimal): keeps the BREAK alive under the tick [opt-in]
+      ,slate (0.1, 0.6) k [silence
+        -- ,click "[[0 0 0 1] [0 1 0 0] [0 0 1 0] [0 0 0 1]]/4" |* vel 0.4
+        ]
+      -- DEEP — clap on 2 & 4 (house/deep): the backbeat enters at B4
+      ,slate (0.6, 1) k [silence
+        ,snap "[[0 0 0 0] [1 0 0 0] [0 0 0 0] [1 0 0 0]]/4" |* vel 0.85
+        ]
+      -- DEEP/TECH — offbeat OPEN "tss" (house/deep · house/tech): the shared thread through B4 and B5
+      ,slate (0.6, 1) k [silence
+        ,hh "[[0 0 2 0] [0 0 2 0] [0 0 2 0] [0 0 2 0]]/4" |* vel 0.8
+        ]
+      -- DEEP — closed skip, beat+'a' (house/deep): B4 only; with the open = deep combined [1 0 2 1]. LFO pump
+      ,slate (0.6, 0.8) k [silence
+        ,hh "[[1 0 0 1] [1 0 0 1] [1 0 0 1] [1 0 0 1]]/4" |* vel (lfo saw 0.5 0.8)
+        ]
+      -- TECH — rolling 16th closed, gap on the "&" (house/tech): B5; with the open = tech combined [1 1 2 1]. LFO pump
+      ,slate (0.8, 1) k [silence
+        ,hh "[[1 1 0 1] [1 1 0 1] [1 1 0 1] [1 1 0 1]]/4" |* vel (lfo saw 0.35 0.85)
+        ]
+      -- TECH — syncopated rim (house/tech): SPARSE drive, B5 only, for impact
+      ,slate (0.8, 1) k [silence
+        ,click "[[0 0 0 1] [0 1 0 0] [0 0 0 1] [0 1 0 0]]/4" |* vel "{1 0.7 0.85}%4" |* vel 0.8
+        ]
+      -- ride on beat 1 of every 8-bar phrase (form outline) — enable to taste
+      ,slate (0.85, 1) k [silence
+        -- ,ride "1/32" |* vel 0.3
+        ]
+      -- peak punctuation — crash on each 8-bar downbeat, top energy only (outlines the form)
+      ,slate (0.95, 1) k [silence
+        ,crash "1/32" |* vel 0.8
+        ]
+       -- --
+    ]# o # legato 0.01 |* vel d
+
+ -- 10 — MPC sub / kick (the foundation; sub from 0.1, kick from 0.2)
+subk f k d = p "subKick"
+  -- $ f
+    $ subKick' d k root   -- each list walks the k range on its own grid (kinPick windows)
+      ( [ 1/2, 1/4, 1/8 ]                     -- max length (bars): held drone -> 2 beats -> 1 beat
+      , [ "[1]/2"                           -- intro/outro: one tone per 2 bars, held
+        , "[1(3,8)]/2"                      -- minimal groove: 3 over 8, across 2 bars
+        , "[1(3,8,<0 2>)]"                  -- build: 3-of-8 per bar, rotating -> phases over 2 bars
+        , "[1(5,16,<0 3>)]"                 -- peak: 5-of-16, rotating -> phases over 2 bars
+        ]
+      , [ "[~]"                             -- offs: none below k 0.5
+        , "[~ ~ ~ 1]/2"                     -- a breath on beat 4 every 2nd bar above
+        ]
+      , [ "1*4"                             -- the footprint
+        , "[1 1 1 [1 1?]]"                  -- a maybe-pickup into the downbeat
+        , "[1*4, 1(3,8,<0 2>)]"             -- interlocks with the sub's rotating 3-of-8
+        ]
+      )
+
+ -- 10 — MPC kit (quiet, supportive, textural: click through B1–B3, ride from B3, hats from B4)
+kmpc f k d = p "mpckit" $ do
+  let o = ch 10
+  f
+    $ stack [silence
+       -- --
+      ,slate (0.6,1) k [silence
+        ,hh "0 2?" |* vel 0.2
+        ]
+      ,slate (0.4,1) k [silence
+        ,ride "0 . 1 1" |* vel 0.2
+        ]
+      ,slate (0.05,0.6) k [silence
+        ,degradeBy 0.8 $ stut 2 (1/2) (1/4) $ click "[0 1]/2" |* vel 0.1
+        ]
+       -- --
+    ]# o # legato 0.01 |* vel d
+
+ -- 11 — MPC natural harmonics (ECBC strings; C = lever): the post-rock tremolo —
+ -- sparse texture with harp and handpan in B1, the climb from B4, double rate at the top
+hmnx f k d = p "hmnx" $ do
+  let o    = ch 11
+      -- pat  = "<0 1 0 0 >/4" -| "[0@3 1@3 2@2]/2"
+      -- pat  = "<0 1 2 3>/4" -| "[1 2 3 4]/2"
+      -- pat  = "[0 1 2 3]"
+      pat  = "[2 3 4 5]/16"
+      gate = legato 1
+      v = 1
+  f
+    $ stack [silence
+       -- -- the sparse texture
+      ,composite (0,0.3) k T ["~"
+        ,"[1(3,8)]/8"
+      ]# o |* vel 0.6 #gate
+       -- -- the climb
+      ,composite (0.6,1) k T ["~"
+        ,pat
+      ]# o |* vel v #gate
+       -- -- the crescendo (same ints, double rate)
+      ,composite (0.9,1) k T ["~"
+        ,"[2 3 4 5]/8"
+      ]# o |* vel v #gate
+       -- per string (A E G B C): same ints, only that string's tones sound (isolate / mute / intra-string sustain)
+      -- ,harmonics A (0,1) k T ["~"
+      --   ,pat
+      -- ]# o |* vel v #gate
+      -- ,harmonics E (0,1) k T ["~"
+      --   ,pat
+      -- ]# o |* vel v #gate
+       -- --
+      -- ,cc 64 "[1@63 0]" #o
+       -- --
+    ]|* vel d
+
+-- overtoneMap sA T [0 -| "[1 2 3 4]/2"]
+
+ -- 12 — the six talking samples, on the halved form (bar 1 = start, as the 12-step shows)
+slce f k d = p "slce" $ do
+  f
+    $ stack [silence
+       -- -- intro (A harp)
+      ,mark 3 k [padbank 1 1 |* vel 0.9]
+       -- -- riser into the groove
+      ,mark 15 k [padbank 2 1 |* vel 0.9]
+       -- -- first drop, second phrase
+      ,mark 25 k [padbank 3 1 |* vel 0.9]
+       -- -- second drop (C harp)
+      ,mark 57 k [padbank 4 1 |* vel 0.9]
+       -- -- the peak
+      ,mark 73 k [padbank 5 1 |* vel 0.9]
+       -- -- outro / deconstruction (D harp)
+      ,mark 89 k [padbank 6 1 |* vel 0.9]
+       -- --
+    ] |* vel d

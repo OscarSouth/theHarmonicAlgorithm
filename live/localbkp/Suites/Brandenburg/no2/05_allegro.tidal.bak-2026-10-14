@@ -1,0 +1,90 @@
+-- ============================================================================
+-- BRANDENBURG CONCERTO NO. 2 IN F MAJOR, BWV 1047 — I. ALLEGRO
+-- J. S. Bach (compiled 1721)
+-- ============================================================================
+--
+-- Super-structure position: 2/6 (Inciting event) — the brightest colour
+-- in the set.
+--
+-- The brilliant concerto. Four soloists — trumpet (our horn), recorder
+-- (our flute), oboe, and violin — form the concertino against a string
+-- ripieno. The trumpet part, written in the extreme clarino register,
+-- is among the most demanding in all repertoire. The four soloists
+-- engage in a spirited conversation where each enters with the ritornello
+-- theme, creating a kind of instrumental roundelay.
+--
+-- Adaptation: Oboe's top register substitutes for the clarino trumpet. Flute
+-- for recorder. The four soloists enter at different kinetics thresholds,
+-- creating the layered dialogue through the form.
+-- ============================================================================
+
+tempo = 112
+
+start <- lead "F maj"
+
+let ctx = hcKey "1b"
+        $ hContext
+
+s <- seek "bach" $ cue start $ tonal ctx $ len 8 $ entropy 0.25 $ attempt 2 6 $ gen
+
+-- Form: ~289s loop (281s music + 10s silence)
+-- Arc: four soloists -> violin solo -> ritornello -> flute + oboe ->
+--      fuller -> clarino -> peak -> concluding ritornello
+form =
+  [ rh    0    0.0   0.0   s
+  , rh    2    0.55  0.55  s     -- ritornello: four soloists + ripieno
+  , rh   19    0.35  0.35  s     -- episode: violin solo
+  , rh   33    0.55  0.55  s     -- ritornello
+  , rh   47    0.4   0.4   s     -- episode: flute + oboe
+  , rh   65    0.6   0.6   s     -- ritornello: fuller
+  , rh   82    0.4   0.4   s     -- episode: clarino
+  , rh   98    0.7   0.7   s     -- ritornello: peak — all four soloists
+  , rh  117    0.5   0.5   s     -- concluding ritornello
+  , rh  131    0.0   0.0   s
+  , rh  135    0.0   0.0   s     -- gap
+  ]
+
+-- ── ORCHESTRAL BLOCKS ───────────────────────────────────
+
+trumpet f k d = p "clarino" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 1 3 0 3 2 3 1]/4"}
+  -- The clarino. Bach's No. 2 has no horn — it has a natural trumpet played
+  -- in its extreme upper register, the brightest thing in the texture. The
+  -- palette has no trumpet, and horn clips at F5, well below a clarino part;
+  -- mapped by tessitura and role onto the top of the oboe instead, sitting
+  -- above the concertino oboe (which reads Tenor).
+  f $ stack [silence, oboe T (0.3, 1) k vl flow Soprano] |* vel d
+
+recorder f k d = p "flute" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 2 1 0 1 2 3 2]/4"}
+  f $ stack [silence, flute T (0, 1) k vl flow Alto] |* vel d
+
+oboeVoice f k d = p "oboe" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[1 2 3 1 0 1 2 0]/4"}
+  f $ stack [silence, oboe T (0, 1) k vl flow Tenor] |* vel d
+
+soloViolin f k d = p "solo" $ do
+  let vl = voiceLines {_vl = "~", soprano = "[3 2 1 0 1 2 3 0]/4"}
+  f $ stack [silence, violin1 T (0, 1) k vl flow Soprano # spicc] |* vel d
+
+ripieno f k d = p "strg" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 2 1 0]/4", tenor = "2", bass = "0"}
+  f $ stack [silence, violin2 T (0.45, 1) k vl flow Alto # spicc, viola T (0.45, 1) k vl flow Tenor # spicc
+        , cello T (0, 1) k vl grid Bass # marc, contrabass T (0, 1) k vl grid Bass8vb # marc] |* vel d
+
+continuo f k d = p "continuo" $ do
+  let vl = voiceLines {_vl = "~", alto = "[1 0 2 1]/4"}
+  f $ stack [silence, harp T (0, 1) k vl flow Alto] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let
+    f = id; d = (* 1); k = iK tempo form (rep s 1)
+  putStrLn "BRANDENBURG NO. 2 — I. Allegro"
+  mapM_ id [hush, setbpm tempo
+    ,setContinuo harpsichordV
+    ,trumpet f k $ d 0.85, recorder f k $ d 0.75, oboeVoice f k $ d 0.7
+    ,soloViolin f k $ d 0.8, ripieno f k $ d 0.65, continuo f k $ d 0.55]
+
+hush''

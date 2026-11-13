@@ -1,0 +1,272 @@
+-- 07.11.2026 — nano orchestra test: the 23.10 jaw-harp track re-scored for the Alesis NanoSynth
+-- (documents/NANOSYNTH.md) on the thickness arc of two Suite scenes — Schubert's Andante con moto
+-- (The Great, II: the minimal winds, the scene-by-scene unfolding) and Holst's Jupiter (the horns,
+-- THE BIG TUNE). Launcher: perform/stateNanoTest.tidal (92 bpm; soundcheck, sweep, or the 108-bar form).
+--
+-- The arc, as kinetic thresholds — the Schubert's unfolding first, then Jupiter:
+--   0.00  the footsteps: the walking bass, always            pizz, ch 7        Schubert scene 1
+--   0.12  violas fill the harmony                             ch 16             scene 2
+--   0.15  harp warmth, the continuo                           ch 9
+--   0.20  THE OBOE THEME                                      ch 2              scene 3
+--   0.30  clarinet answers                                    ch 11             scene 4
+--   0.35  bassoon underneath                                  ch 3
+--   0.40  strings restate the theme                           ch 13, 14         scene 6
+--   0.45  flute brightness (to 0.9)                           ch 1
+--   0.50  THROUGH THE HORNS: Jupiter's syncopated tune        ch 4
+--   0.60  trombone; timpani punctuation                       ch 5; ch 6
+--   0.65  jollity cross-rhythms, spiccato strings (to 0.8)    ch 13, 14, 16
+--   0.70  bass trombone weight                                ch 5
+--   0.80  THE BIG TUNE: Thaxted in unison, every melody voice tutti             the dance winds step back
+--   0.95  the orchestra hit on each 8-bar downbeat            ch 8
+--
+-- Harps: A (high, melodic) intro + first drop · C (medium) break + second drop · D (guttural) outro.
+--
+-- VALIDATION: each line names its channel and what it proves.
+--   pizz → ch 7 for every string · legg/spicc/marc are identity (the line keeps its channel)
+--   viola shares ch 16 with the bass · timpani reads Bass loco (D2–C4; Bass8vb clips to silence)
+--   harp ch 9 is the continuo (setContinuo retunes it) · orchestra hit ch 8 is the bass drum
+--   tam-tam is silent · ch 10 is the MPC service lane · ch 11 is now the clarinet (was hmnx)
+--   ranges are the instruments' own, shared with the JV (Orchestra.hs)
+
+ -- ── MOTIFS — the two scenes' cells ──────────────────────────────────────────
+ -- Schubert: the dotted ascending scale, the symphony's cyclic thread.
+schubertRhythm  = "[1 0 0 1 1 0 0 1]/4" :: Pattern Bool   -- dotted, pressing forward
+schubertContour = "[0 1 2 3 2 3 4 3]/4" :: Pattern Int    -- the ascending scale
+schubertMotif   = schubertRhythm >:< schubertContour
+
+ -- Jupiter: the syncopated theme Holst gives to the horns, off the beat and unforced.
+jupiterRhythm  = "[1 0 1 1 0 1 0 1]/4" :: Pattern Bool    -- syncopated, off the beat
+jupiterContour = "[0 2 3 2 4 3 2 0]/4" :: Pattern Int     -- broad and rising
+jupiterMotif   = jupiterRhythm >:< jupiterContour
+
+ -- Thaxted: the hymn — even, unisonal, every voice on one line.
+thaxtedContour = "[3 2 1 0 1 2 3 2]/4" :: Pattern Int
+
+ -- ── THE ORCHESTRA ───────────────────────────────────────────────────────────
+
+ -- 7 — the footsteps: the walking bass, generated, always on (Schubert scene 1).
+ -- `lineHarmony` walks the active harmony — chord tones on 1 & 3, connectors on 2 & 4 —
+ -- and applies d itself, so no `|* vel d` here.
+walk f k d = p "lineHarmony"
+  $ f
+    $ lineHarmony d k root [ "[1 2 3 4]/4"
+    ] # pizz |+ oct 0 # legato 0.95                                   -- ch 7 · Pizz Pluck is the footsteps (on the JV this tag means ch 12)
+
+ -- 7 — the footsteps, static: pizz cello + contrabass on the harmonic grid (B; same id, swap in the launcher)
+walkingBass f k d = p "lineHarmony" $ do
+  let vl = voiceLines {_vl = "~"
+        , bass = "0"
+        }
+  f
+    $ stack [silence
+      ,cello      T (0, 1) k vl grid Bass    # pizz                    -- ch 7 · the cello leaves ch 15 for the pluck
+      ,contrabass T (0, 1) k vl grid Bass8vb # pizz                    -- ch 7 · the bass leaves ch 16
+    ] |* vel d
+
+ -- 13 / 14 / 15 / 16 — the strings: the viola fill (scene 2), the restatement (scene 6), the jollity
+strg f k d = p "strg" $ do
+  let vlFill = voiceLines {_vl = "~"
+        , tenor = "2"
+        }
+      vlRestate = voiceLines {_vl = "~"
+        , soprano = schubertMotif
+        , alto    = mirror 2 schubertContour
+        }
+      vlJolly = voiceLines {_vl = "~"
+        , soprano = "[3 1 2 0 3 2 1 3]/4"
+        , alto    = "[1 3 0 2 1 0 3 1]/4"
+        , tenor   = "[2 0 1 3 2 1 0 2]/4"
+        , bass    = "[0 1 0 2]/4"
+        }
+  f
+    $ stack [silence
+       -- -- scene 2: violas fill the harmony — the procession, still no melody
+      ,viola      T (0.12, 0.8)  k vlFill flow Tenor             |* vel 0.6   -- ch 16 · BiViola, mid: the viola shares the bass's patch
+       -- -- scene 6: the strings boldly restate the theme
+      ,violin1    T (0.4, 0.8)   k vlRestate flow Soprano        |* vel 0.8   -- ch 13 · Slo String
+      ,violin2    T (0.4, 0.8)   k vlRestate flow Alto8va        |* vel 0.7   -- ch 14 · Alto loco sits under the G3 floor and clips
+       -- -- jollity: cross-rhythms, spiccato — `spicc` is identity here (the JV would send these to 13)
+      ,violin1    T (0.65, 0.8)  k vlJolly flow Soprano  # spicc |* vel 0.7   -- ch 13
+      ,violin2    T (0.65, 0.8)  k vlJolly flow Alto8va  # spicc |* vel 0.6   -- ch 14
+      ,viola      T (0.65, 0.8)  k vlJolly flow Tenor    # spicc |* vel 0.6   -- ch 16
+       -- -- the roots beneath the restatement and the jollity
+      ,cello      T (0.4, 0.8)   k vlJolly grid Bass             |* vel 0.7   -- ch 15 · Celli
+      ,contrabass T (0.4, 0.8)   k vlJolly grid Bass8vb          |* vel 0.7   -- ch 16 · BiViola, low
+    ] |* vel d
+
+ -- 2 / 11 / 3 / 1 — the winds: minimal and beautiful (Schubert scenes 3-5), stepping back for the tune
+wind f k d = p "wind" $ do
+  let vlOboe = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 1 2 1 0 1]/4"    -- the beloved march melody
+        }
+      vlClar = voiceLines {_vl = "~"
+        , alto = "[1 0 1 2 1 2 3 2]/4"       -- the answer
+        }
+      vlBright = voiceLines {_vl = "~"
+        , soprano = "[3 2 3 0]/4"
+        }
+      vlBass = voiceLines {_vl = "~"
+        , bass = "0"
+        }
+  f
+    $ stack [silence
+       -- -- scene 3: THE OBOE THEME
+      ,oboe       T (0.2, 0.8)   k vlOboe flow Soprano           |* vel 0.85  -- ch 2 · Ebony Oboe (Soprano: its Alto would sit under the Bb3 floor)
+       -- -- scene 4: the clarinet answers; scene 5: the two converse
+      ,clarinet   T (0.3, 0.8)   k vlClar flow Alto              |* vel 0.7   -- ch 11 · 1stClarnet (the studio file's hmnx channel)
+       -- -- the bassoon underneath
+      ,bassoon    T (0.35, 0.8)  k vlBass flow Bass8vb # legg    |* vel 0.6   -- ch 3 · SoloBasoon · `legg` is identity: still 3
+       -- -- brightness when the winds expand
+      ,flute      T (0.45, 0.9)  k vlBright flow Soprano # legg  |* vel 0.6   -- ch 1 · SingleFlut
+    ] |* vel d
+
+ -- 4 / 5 — the brass: through the horns into the big tune
+brss f k d = p "brss" $ do
+  let vlTune = voiceLines {_vl = "~"
+        , soprano = jupiterMotif
+        }
+      vlMarch = voiceLines {_vl = "~"
+        , tenor = "[0 1 2 0]/4"
+        , bass  = "0"
+        }
+  f
+    $ stack [silence
+       -- -- THROUGH THE HORNS: Jupiter's syncopated tune, unforced
+      ,horn       T (0.5, 0.8)   k vlTune flow Soprano # marc    |* vel 0.8   -- ch 4 · FlugelSolo (TEST 9: HornExpans) · `marc` is identity
+       -- -- the march weight: trombone and bass trombone on one channel, two ranges
+      ,trombone   T (0.6, 1)     k vlMarch flow Tenor  # marc    |* vel 0.7   -- ch 5 · Bone Tone, Bb1–F5
+      ,basstrom   T (0.7, 1)     k vlMarch grid Bass8vb          |* vel 0.7   -- ch 5 · same patch, A0–G3
+    ] |* vel d
+
+ -- 9 / 6 / 8 — harp, timpani, the hit
+perc f k d = p "perc" $ do
+  let vlHarp = voiceLines {_vl = "~"
+        , alto = "[1 0 2 1]/4"
+        }
+      vlTimp = voiceLines {_vl = "~"
+        , bass = "0"
+        }
+  f
+    $ stack [silence
+       -- -- harmonic warmth: the harp in its continuo role
+      ,harp       T (0.15, 1)    k vlHarp flow Alto              |* vel 0.5   -- ch 9 · Harpitz — the continuo channel; setContinuo retunes THIS
+       -- -- march punctuation. Timpani reads Bass LOCO: its range is D2–C4 already, and Bass8vb
+       -- -- drops below D2 where `clip` removes every event (silent). Same on both rigs.
+      ,timpani    T (0.6, 1)     k vlTimp grid Bass              |* vel 0.7   -- ch 6 · Documentar, low zone (TEST 9: does D2–C4 all sound?)
+       -- -- the hit on each 8-bar downbeat: the orchestra hit, four octaves down
+      ,slate (0.95, 1) k [silence
+        ,bassdrum "1/32" |* vel 0.9                                            -- ch 8 · Danz Hitz at MIDI 12
+        ]
+       -- -- the tam-tam has no voice on the nano: this line loads and stays silent by design
+      ,slate (0.95, 1) k [silence
+        ,tamtam "1/32" |* vel 0.5                                              -- silent on the nano (JV: ch 11)
+        ]
+    ] |* vel d
+
+ -- THE BIG TUNE — Thaxted: every melody voice on one line, the roots an octave apart beneath.
+ -- Power from unity, not volume: the dance winds and the jollity strings have stepped back at 0.8.
+thaxted f k d = p "tutti" $ do
+  let vl = voiceLines {_vl = "~"
+        , soprano = thaxtedContour
+        , bass    = "0"
+        }
+  f
+    $ stack [silence
+       -- -- the unison wall
+      ,violin1    T (0.8, 1) k vl flow Soprano                  |* vel 0.9   -- ch 13
+      ,violin2    T (0.8, 1) k vl flow Soprano                  |* vel 0.9   -- ch 14
+      ,viola      T (0.8, 1) k vl flow Soprano                  |* vel 0.8   -- ch 16 · C3–E6: the top of the line thins out
+      ,flute      T (0.8, 1) k vl flow Soprano # legg           |* vel 0.8   -- ch 1
+      ,oboe       T (0.8, 1) k vl flow Soprano # legg           |* vel 0.8   -- ch 2
+      ,clarinet   T (0.8, 1) k vl flow Soprano # legg           |* vel 0.8   -- ch 11
+      ,horn       T (0.8, 1) k vl flow Soprano # marc           |* vel 0.9   -- ch 4 · the horn doubles the hymn
+       -- -- the octave roots
+      ,bassoon    T (0.8, 1) k vl flow Bass    # legg           |* vel 0.7   -- ch 3
+      ,cello      T (0.8, 1) k vl grid Bass                     |* vel 0.8   -- ch 15
+      ,contrabass T (0.8, 1) k vl grid Bass8vb                  |* vel 0.8   -- ch 16
+    ] |* vel d
+
+ -- 10 — MPC sub / kick (the foundation; sub from 0.1, kick from 0.2) — the service lane, verbatim from 23.10
+subk f k d = p "subKick"
+  -- $ f
+    $ subKick' d k root   -- each list walks the k range on its own grid (kinPick windows)
+      ( [ 1/2, 1/4, 1/8 ]                     -- max length (bars): held drone -> 2 beats -> 1 beat
+      , [ "[1]/2"                           -- intro/outro: one tone per 2 bars, held
+        , "[1(3,8)]/2"                      -- minimal groove: 3 over 8, across 2 bars
+        , "[1(3,8,<0 2>)]"                  -- build: 3-of-8 per bar, rotating -> phases over 2 bars
+        , "[1(5,16,<0 3>)]"                 -- peak: 5-of-16, rotating -> phases over 2 bars
+        ]
+      , [ "[~]"                             -- offs: none below k 0.5
+        , "[~ ~ ~ 1]/2"                     -- a breath on beat 4 every 2nd bar above
+        ]
+      , [ "1*4"                             -- the footprint
+        , "[1 1 1 [1 1?]]"                  -- a maybe-pickup into the downbeat
+        , "[1*4, 1(3,8,<0 2>)]"             -- interlocks with the sub's rotating 3-of-8
+        ]
+      )
+
+ -- 10 — MPC kit (quiet, supportive, textural: click through B1–B3, ride from B3, hats from B4) — verbatim from 23.10
+kmpc f k d = p "mpckit" $ do
+  let o = ch 10
+  f
+    $ stack [silence
+       -- --
+      ,slate (0.6,1) k [silence
+        ,hh "0 2?" |* vel 0.2
+        ]
+      ,slate (0.4,1) k [silence
+        ,ride "0 . 1 1" |* vel 0.2
+        ]
+      ,slate (0.05,0.6) k [silence
+        ,degradeBy 0.8 $ stut 2 (1/2) (1/4) $ click "[0 1]/2" |* vel 0.1
+        ]
+       -- --
+    ]# o # legato 0.01 |* vel d
+
+ -- 10 — the nano's own kit, FULL MODULE ONLY: `once $ nanoKit` first (and the MPC off the chain)
+nkit f k d = p "909kit" $ do
+  f
+    $ stack [silence
+      ,slate (0.2, 1) k [silence
+        ,gmKick "[[1 0 0 0] [1 0 0 0] [1 0 0 0] [1 0 0 0]]/4" |* vel "[1 0.95 0.97 0.95]/4"
+        ]
+      ,slate (0.2, 0.6) k [silence
+        ,gmHatClosed "[[0 0 1 0] [0 0 1 0] [0 0 1 0] [0 0 1 0]]/4" |* vel 0.7
+        ]
+      ,slate (0.6, 1) k [silence
+        ,gmSnare "[[0 0 0 0] [1 0 0 0] [0 0 0 0] [1 0 0 0]]/4" |* vel 0.85
+        ,gmHatOpen "[[0 0 1 0] [0 0 1 0] [0 0 1 0] [0 0 1 0]]/4" |* vel 0.8
+        ]
+      ,slate (0.4, 1) k [silence
+        ,gmRide "0 . 1 1" |* vel 0.3
+        ]
+      ,slate (0.95, 1) k [silence
+        ,gmCrash "1/32" |* vel 0.8
+        ]
+    ] # legato 0.01 |* vel d
+
+ -- ── TEST 4 — the probe: one instrument at a time ────────────────────────────
+ -- Add `,probe f k $d 0.8` to the launcher (k = kTest) and comment every line but one.
+ -- Each line: channel · patch · what you should hear.
+probe f k d = p "tutti" $ do
+  let vl = voiceLines {_vl = "~"}
+  f
+    $ stack [silence
+      ,flute      T (0, 1) k vl flow Soprano            -- ch 1  · SingleFlut
+      ,oboe       T (0, 1) k vl flow Alto8va            -- ch 2  · Ebony Oboe (Alto loco is under its floor)
+      ,bassoon    T (0, 1) k vl flow Bass8vb            -- ch 3  · SoloBasoon
+      ,horn       T (0, 1) k vl flow Tenor              -- ch 4  · FlugelSolo
+      ,trombone   T (0, 1) k vl grid Bass               -- ch 5  · Bone Tone
+      ,basstrom   T (0, 1) k vl grid Bass8vb            -- ch 5  · Bone Tone, low
+      ,timpani    T (0, 1) k vl grid Bass               -- ch 6  · Documentar (Bass loco; 8vb clips to silence)
+      ,violin1    T (0, 1) k vl flow Soprano # pizz     -- ch 7  · Pizz Pluck (any string + pizz lands here)
+      ,bassdrum "1"                                     -- ch 8  · Danz Hitz, MIDI 12
+      ,harp       T (0, 1) k vl flow Soprano            -- ch 9  · Harpitz (continuo)
+      ,clarinet   T (0, 1) k vl flow Tenor              -- ch 11 · 1stClarnet
+      ,violin1    T (0, 1) k vl flow Soprano            -- ch 13 · Slo String
+      ,violin2    T (0, 1) k vl flow Alto8va            -- ch 14 · Slo String (Alto loco is under its G3 floor)
+      ,cello      T (0, 1) k vl flow Tenor8vb           -- ch 15 · Celli
+      ,contrabass T (0, 1) k vl grid Bass8vb            -- ch 16 · BiViola, low
+      ,viola      T (0, 1) k vl flow Alto               -- ch 16 · BiViola, mid — same patch as the bass
+      ,tamtam "1"                                       -- (silent on the nano)
+    ] |* vel d

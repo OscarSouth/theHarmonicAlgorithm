@@ -1,0 +1,248 @@
+-- ============================================================================
+-- OCEAN
+-- UDAGAN — Sensoria concert set (2021)
+-- ============================================================================
+--
+-- D# minor (the 2021 file: F# major shifted two degrees), 4/4 at crotchet =
+-- 77 with a half-tempo pickup bar; 100 bars (the 2021 clock ran to 108). The
+-- harp's intro figure opens and returns at 25 and 81, the instrumental at 17;
+-- bars 81–100 restate 25–52. Count-in: a side-stick on the pickup bar (ch 10,
+-- the nano kit — `once $ nanoKit` on the full module).
+--
+-- Score-mode port of the 2021 performance file, line for line: every `rh a b`
+-- entry is here under `bars a b`, in bar order, with the same mark, pattern,
+-- sustain, legato and envelope. Degrees read against the M layer of the key
+-- (a one-bar progression; swap it for a generated one and the lines follow
+-- its chords); degree 0 is the tonic at the bass anchor and the octave
+-- argument lifts it (1 = the register the 2021 file wrote in, 0 / -1 / -2 its
+-- octaves down, 2 its octave up, "[-1,0]" two octaves of one note). One cycle
+-- is a beat and four a bar, as in 2021, so the mininotation is unchanged.
+-- Blocks run on their own clock, so a `slow 16 $ ramp …` grows from its
+-- block's first bar. The form is a single node (dynamics 1): the 2021 file had
+-- no global arc, its swells are on the lines — add nodes at the desk.
+--
+-- Swing is applied once, in the launcher (`f`), where the 2021 file swung
+-- line by line: the lines it left straight (the Moog, some timpani and held
+-- strings) swing too, by design.
+--
+-- The piece is one statement: tempo blocks first (the stream owns the clock —
+-- no `setbpm` in the launcher), then every stack under its bar range.
+--
+-- Studio synth: the 2021 Moog lines (`moog`, `cc 1 … #m32`, a Mother-32 and a
+-- Minimoog on ch 12) are kept as `synth k oct mark degs` / `cc n v # ch 12` —
+-- silent on the nano (ch 12 is its mute program) until a synth is patched to
+-- 12. The 2021 expression tags (`#vc` = 15, `#db` = 16) were crossed against
+-- the instruments they meant; here they address the rig's cello and bass.
+-- The 2021 `pizzicato` patch is the cello with `# pizz`; `tuba` is the bass
+-- trombone (the nano's ch 6 is timpani). A bassoon at two octaves down (the
+-- 2021 "contrabassoon") falls below the bassoon's floor and is clipped.
+-- ============================================================================
+
+tempo = 77        -- crotchet = 77, 4/4
+pre   = 1
+key   = inKey D' "minor"
+form  = [rh 1 1 1 key]
+
+-- a studio synth line on ch 12 (the 2021 Moog)
+synth k octv mark degs = note (degrees M octv k degs) # ch 12 # vel (dyn mark)
+
+intro        = "[[0,2,4,7] [2,4,6,7] [-1,8,10,7] [[-2,7,9,7] . [-4,6] [-3,4]]]/16"
+instrumental = "[ [[0,7] 2 4 2]*2 . [2,9] 2 4 2 [2,9] 2 [2,10] 2 . [1,8] 3 4 8 9 8 4 3 . [0,7] 3 4 7 6 7 4 7 . [[0,9] 2 4 7]*2 . [2,11] 2 4 7 [2,11] 2 [2,12] 2 . [1,10] 3 4 8 10 8 4 3 . [0,9] 3 4 7 6 7 4 7]/32"
+-- unused in 2021, kept as reference:
+-- verse = "[0 2 4 7 9 7 4 2 . 2 4 6 4 7 4 6 4 . -1 8 10 7 9 8 7 4 . -2 7 9 7 [-4, 6] 7 [-3, 4] 7]/16"
+-- break = "[ [0,7] 2 4 2 . [0,7]@2 2@2 7 6@3 . [-5,7] 2 4 2 . [-5,7]@2 2@2 7 6@3 . [-1,7] 2 4 2 . [-1,7]@2 2@2 7 6@3 . [-2,7] 2 4 2 . [3,6] [4,0] ]/16"
+
+-- ── THE PIECE ───────────────────────────────────────────
+
+ocean f k d = p "score" $ f $ score pre
+  [bars 0 0   $ bpm (tempo / 2)          -- the pickup bar at half tempo
+  ,bars 1 100 $ bpm tempo
+  ,bars 0 0 $ stack [silence
+     ,gmSidestick "t*2" |+ vel "[1 0.4!3]/2"
+     ]
+  ,bars 1 4 $ stack [silence
+     ,cc 0 0.1 # ch 12
+     ,harp' M 0 "ff" k intro
+     ]
+  ,bars 9 16 $ stack [silence
+     ,cc 1 1 # ch 12
+     ,synth k (-1) "mf" "[0 2 -1 [5 ~]]/16" # sustain 0.1
+     ]
+  ,bars 17 24 $ stack [silence
+     ,synth k (-1) "mf" "[0 2 -1 [5 [3 4]]]/16" # legato 0.8
+     ,harp' M 0 "mp" k instrumental
+     ]
+  ,bars 25 28 $ stack [silence
+     ,synth k (-1) "mf" "[0 2 -1 [5 ~]]/16" # sustain 0.01
+     ,horn' M 1 "ppp" k "[0]/16"
+     ,cc 11 (slow 16 $ ramp 0 1) # ch (rigHorn rig)
+     ,harp' M 0 "mp" k intro
+     ]
+  ,bars 28 28 $ stack [silence
+     ,cc 1 "[~@7 0]/4" # ch 12
+     ]
+  ,bars 29 32 $ stack [silence
+     ,flute' M 2 "pp" k "[~ . ~@3 [2,4]]/16"
+     ,oboe' M 2 "ppp" k "[~ . ~@3 [0,2]]/16"
+     ,bassoon' M 0 "pp" k "[0]/16"
+     ,horn' M 1 "pp" k "[0@3 2]/16"
+     ,clarinet' M 1 "pp" k "[~ . ~ [-2,0]]/16"
+     ,cello' M 0 "pp" k "[0 . [-1 -2] ]/16"
+     ,contrabass' M (-1) "p" k "[0 . [-1 -2] ]/16"
+     ,cc 11 (slow 16 $ ramp 0.6 1.2) # ch (rigCello rig)
+     ,cc 11 (slow 16 $ ramp 0.6 1.2) # ch (rigContrabass rig)
+     ,bassoon' M (-2) "pp" k "[0 . [-1 -2] ]/16"   -- 2021 contrabassoon: below the bassoon's floor, clipped
+     ]
+  ,bars 29 36 $ stack [silence
+     ,cc 1 0.1 # ch 12
+     ]
+  ,bars 33 36 $ stack [silence
+     ,violin2' M 1 "pp" k "[5 4 . 3 2 . 3 -1 0 6 . 0 [3 4] ]/16"
+     ,bassoon' M 0 "ppp" k "[3 2 . -1 -2 . -1 -3 -2 2 . -2 [-1 -3] ]/16"
+     ,cello' M 0 "pppp" k "[~ 0@2 0 . ~ 3@2 0 . -1 4 5 4 . 2 [ 3 4] ]/16" # legato 0.9
+     ,contrabass' M (-1) "ppp" k "[3 2 . -1 -2 . -1 -3 -2 2  . -2 [-4 -3] ]/16"
+     ]
+  ,bars 36 36 $ stack [silence
+     ,timpani' M (-1) "p" k "[~@7 [~ 0*2]]/4" |* vel (ramp 0.3 1) |+ humanise 0.1
+     ]
+  ,bars 37 37 $ stack [silence
+     ,cc 1 1 # ch 12
+     ]
+  ,bars 37 44 $ stack [silence
+     ,clarinet' M 1 "mp" k "[4@3 [4 5@3] . 4 . 3@2 4 3 . 2@3 1 ]/16"
+     ,violin1' M 2 "p" k "[4@3 [4 5@3] . 4 . 3@2 4 3 . 2@3 1 ]/16"
+     ,bassoon' M 0 "pp" k "[0 2 -1 [5 [3 4]]]/16"
+     ,cello' M 0 "pppp" k "[0 2 -1 [5 [3 4]]]/16" # legato 0.9
+     ,contrabass' M (-1) "ppp" k "[0 2 -1 [5 [3 4]]]/16" # legato 0.9
+     ,timpani' M (-1) "p" k "[~ . ~@7 [~ -1*2] . ~ . ~@7 <[~ 0*2] ~>]/16" |* vel (fast 2 $ ramp 0.3 1) |+ humanise 0.1
+     ,basstrom' M (-1) "p" k "[0 ~ . -5 ~ . -1 ~ . -2 ~ ]/16"   -- tuba (2021 ch 6)
+     ,synth k (-1) "mf" "[0 2 -1 [5 [3 4]]]/16" # legato 0.8
+     ]
+  ,bars 45 48 $ stack [silence
+     ,cc 1 (rev $ slow 16 $ ramp 0.8 0.3) # ch 12
+     ]
+  ,bars 45 52 $ stack [silence
+     ,flute' M 2 "pp" k "[ ~ . ~@2 0 [0 -1@3] . 0 ~@3 . ~ ]/16" |* vel (rev $ slow 32 $ ramp 1.1 0.7 )
+     ,oboe' M 2 "pppp" k "[ ~ . ~@5 -3@2 -3 . -5 ~@3 . ~ ]/16" |* vel (rev $ slow 32 $ ramp 1.1 0.5 )
+     ,clarinet' M 1 "ppp" k "[ ~ . ~@2 -4 [-4 -3@3] . -3 ~@3 . ~ ]/16" |* vel (rev $ slow 32 $ ramp 1 0.6 )
+     ,trombone' M 1 "pp" k "[ ~@2 0 [0 -1@3] . 0 ~@3 .~@2 0 [0 -1@3] . 0 ~@3 ]/16" |* vel (rev $ slow 32 $ ramp 1 0.5 )
+     ,trombone' M 1 "pppp" k "[ ~@5 -3@2 -3 . -5 ~@3 . ~@5 -3@2 -3 . -4 ~@3 ]/16" |* vel (rev $ slow 32 $ ramp 1.1 0.6 )
+     ,trombone' M 0 "ppp" k "[ ~@2 -4 [-4 -3@3] . -3 ~@3 . ~@2 -4 [-4 -3@3] . -2 ~@3 ]/16" |* vel (rev $ slow 32 $ ramp 1.1 0.6 )
+     ,violin1' M 2 "p" k "[0 ~@7 . ~ . ~ . ~ <[6 4] ~>]/16"
+     ,violin2' M 1 "p" k "[0 ~@7 . ~ . ~ . ~ <[~ 0@2 0] ~>]/16"
+     ,viola' M 1 "pp" k "[0 ~@7 . ~ . ~ . ~ <[-4 -3]>]/16"
+     ,cello' M 0 "ppp" k "[0 ~@7 . ~ . ~ . ~]/16"
+     ,contrabass' M (-1) "pp" k "[0 ~@7 . ~ . ~ . ~]/16"
+     ]
+  ,bars 49 52 $ stack [silence
+     ,horn' M 1 "pp" k "[0@15 [-1 -4]]/16"
+     ,cc 11 (slow 16 $ ramp 0 0.5) # ch (rigHorn rig)
+     ,cc 1 (rev $ slow 16 $ ramp 0.3 0) # ch 12
+     ]
+  ,bars 53 53 $ stack [silence
+     ,cc 1 1 # ch 12
+     ]
+  ,bars 53 60 $ stack [silence
+     ,synth k (-1) "mf" "[0 2 -1 [5 ~]]/16" # sustain 0.25
+     ,slow 4 $ oboe' M 1 "mf" k ("<0 [0, ~!3 0] 0 [0 . 0 0]>" |+| slow 4 ("0 2 1 [0 . -2 -3]" +| "[0 4 <9!12 7!2 9!2> 4]*16" +| "[4 0]!8 [5 0]!4 [4 <2 0>]!4"))   -- 2021 `inKey k 4`: a rhythm pattern restriking a slowed degree line
+     ,violin1' M 3 "f" k "[[0 ~@3] ~ . ~ . ~ . ~ ]/16"
+     ,cello' M 0 "f" k "[[0,2] ~@3 . -4 ~@2 [-5 -6] . -1 ~@3 . -2 ~ -4 -3 ]/16" # legato 0.8
+     ,contrabass' M (-1) "f" k "[0 ~@3 . -4 ~@2 [-5 -6] . -1 ~@3 . -2 ~ -4 -3]/16" # legato 0.8
+     ]
+  ,bars 57 60 $ stack [silence
+     ,horn' M 1 "pppp" k "[ [[-3 ~ -3!2]!3 [-3 ~ -4!2]] [[-1@2 ~ -1]!3 [-1@2 -3@2]] [[0 ~ 0!2]!3 [0 ~ -1!2]]!2 ]/16 " # legato 0.7
+     ]
+  ,bars 61 68 $ stack [silence
+     ,synth k (-1) "mf" "[0 2 -1 [5 . 3 4]]/16"
+     ,slow 4 $ flute' M 1 "pp" k ("<0 [0, ~!3 0] 0 [0 . 0 0]>" |+| slow 4 ("0 2 1 [0 . -2 -3]" +| "14"))
+     ,slow 4 $ oboe' M 1 "mf" k ("<0 [0, ~!3 0] 0 [0 . 0 0]>" |+| slow 4 ("0 2 1 [0 . -2 -3]" +| "[0 4 <9!12 7!2 9!2> 4]*16"))
+     ,horn' M 0 "mp" k "[[0,2] . [5] . [-1,1] .  [-2,0] [[-4 -3],0]]/16 "
+     ,violin1' M 3 "ppp" k "[0 ]/16"
+     ,cello' M 0 "ff" k "[[0,2] ~@3 . -4 ~@2 [-5 -6] . -1 ~@3 . -2 ~ -4 -3 ]/16" # legato 0.8
+     ,contrabass' M (-1) "f" k "[0 ~@3 . -4 ~@2 [-5 -6] . -1 ~@3 . -2 ~ -4 -3]/16" # legato 0.8
+     ]
+  ,bars 65 68 $ stack [silence
+     ,flute' M 3 "f" k "[ 0 ~ 0 0 ]" # legato 0.3
+     ,clarinet' M 2 "mp" k "[ 0 ~ 0 0 ]" # legato 0.3
+     ]
+  ,bars 69 72 $ stack [silence
+     ,cc 1 (slow 16 $ ramp 0.4 0.6) # ch 12
+     ]
+  ,bars 73 73 $ stack [silence
+     ,cc 1 0.7 # ch 12
+     ]
+  ,bars 73 80 $ stack [silence
+     ,harp' M 1 "mf" k "[ [[0,7] 2 4 2]*2 . [2,9] 2 4 2 [2,9] 2 [2,10] 2 . [1,8] 3 4 8 9 8 4 3 . [0,7] 3 4 7 6 7 4 7 . [[0,9] 2 4 7]*2 . [2,11] 2 4 7 [2,11] 2 [2,12] 2 . [1,10] 3 4 8 10 8 4 3 . [0,9] 3 4 7 6 7 4 7]/32" # sustain 4
+     ,violin1' M 3 "pp" k "[ 0 . 2@3 3 . 1 . 0 [ -1 -3] . 2 . 4@3 5 . 3 . 2 [-1 -3] ]/32"
+     ,cc 11 (slow 16 $ ramp 0.6 1) # ch (rigViolin1 rig)
+     ,violin2' M 2 "p" k "[0 . 2@3 ~ . 1 -3 2 -3 . 0 ~ . 2 . 4@3 ~ . 3 1@2 -3 . 2  ~ ]/16"
+     ,cc 11 (slow 16 $ ramp 0.6 1) # ch (rigViolin2 rig)
+     ,viola' M 1 "pp" k "[ -3 . -3 . -4 . [0] ~ . -3 . -3 . -4 . [2] ~ ]/16"
+     ,bassoon' M 0 "pp" k "[0 2 [ <1 3> -4 -3 1 <2 3> 1 -3 -4 ] [5 [3 4]]]/16"
+     ,cello' M 0 "ppp" k "[0 2 -1 [[<0 2> -4 -3 <0 2>] [3 4]]]/16" # legato 0.9
+     ,contrabass' M (-1) "pp" k "[0 2 -1 [5 [3 4]]]/16" # legato 0.9
+     ]
+  ,bars 81 83 $ stack [silence
+     ,cc 1 (rev $ slow 16 $ ramp 0.8 0.4) # ch 12
+     ]
+  ,bars 81 84 $ stack [silence
+     ,synth k (-1) "mf" "[0 2 -1 [5 ~]]/16" # sustain 0.01
+     ,horn' M 1 "ppp" k "[0]/16"
+     ,cc 11 (slow 16 $ ramp 0 1) # ch (rigHorn rig)
+     ,harp' M 0 "ff" k intro
+     ]
+  ,bars 84 84 $ stack [silence
+     ,cc 1 "[~@7 0]/4" # ch 12
+     ]
+  ,bars 85 88 $ stack [silence
+     ,violin2' M 1 "pp" k "[5 4 . 3 2 . 3 -1 0 6 . 0 [3 4] ]/16"
+     ,bassoon' M 0 "ppp" k "[3 2 . -1 -2 . -1 -3 -2 2 . -2 [-1 -3] ]/16"
+     ,cello' M 0 "pppp" k "[~ 0@2 0 . ~ 3@2 0 . -1 4 5 4 . 2 [ 3 4] ]/16" # legato 0.9
+     ,contrabass' M (-1) "ppp" k "[3 2 . -1 -2 . -1 -3 -2 2  . -2 [-4 -3] ]/16"
+     ,cc 1 0 # ch 12
+     ]
+  ,bars 88 88 $ stack [silence
+     ,timpani' M (-1) "p" k "[~@7 [~ 0*2]]/4" |* vel (ramp 0.3 1) |+ humanise 0.1
+     ]
+  ,bars 89 89 $ stack [silence
+     ,cc 1 1 # ch 12
+     ]
+  ,bars 89 96 $ stack [silence
+     ,synth k (-1) "mf" "[0 2 -1 [5 [3 4]]]/16"
+     ,clarinet' M 1 "mp" k "[4@3 [4 5@3] . 4 . 3@2 4 3 . 2@3 1 ]/16"
+     ,violin1' M 2 "p" k "[4@3 [4 5@3] . 4 . 3@2 4 3 . 2@3 1 ]/16"
+     ,bassoon' M 0 "pp" k "[0 2 -1 [5 [3 4]]]/16"
+     ,cello' M 0 "pppp" k "[0 2 -1 [5 [3 4]]]/16" # legato 0.9
+     ,contrabass' M (-1) "ppp" k "[0 2 -1 [5 [3 4]]]/16" # legato 0.9
+     ,timpani' M (-1) "p" k "[~ . ~@7 [~ -1*2] . ~ . ~@7 <[~ 0*2] ~>]/16" |* vel (fast 2 $ ramp 0.3 1) |+ humanise 0.1
+     ,basstrom' M (-1) "p" k "[0 ~ . -5 ~ . -1 ~ . -2 ~ ]/16"   -- tuba (2021 ch 6)
+     ,synth k (-1) "mf" "[0 2 -1 [5 [3 4]]]/16" # legato 0.8
+     ]
+  ,bars 97 100 $ stack [silence
+     ,flute' M 2 "pp" k "[ ~ . ~@2 0 [0 -1@3] . 0 ~@3 . ~ ]/16" |* vel (rev $ slow 32 $ ramp 1 0.4 )
+     , oboe' M 2 "pppp" k "[ ~ . ~@5 -3@2 -3 . -5 ~@3 . ~ ]/16" |* vel (rev $ slow 32 $ ramp 1 0.4 )
+     ,clarinet' M 1 "ppp" k "[ ~ . ~@2 -4 [-4 -3@3] . -3 ~@3 . ~ ]/16" |* vel (rev $ slow 32 $ ramp 1 0.4 )
+     ,trombone' M 1 "pp" k "[ ~@2 0 [0 -1@3] . 0 ~@3 .~@2 0 [0 -1@3] . 0 ~@3 ]/16" |* vel (rev $ slow 32 $ ramp 1 0.4 )
+     ,trombone' M 1 "pppp" k "[ ~@5 -3@2 -3 . -5 ~@3 . ~@5 -3@2 -3 . -4 ~@3 ]/16" |* vel (rev $ slow 32 $ ramp 1.1 0.5 )
+     ,trombone' M 0 "ppp" k "[ ~@2 -4 [-4 -3@3] . -3 ~@3 . ~@2 -4 [-4 -3@3] . -2 ~@3 ]/16" |* vel (rev $ slow 32 $ ramp 1.1 0.5 )
+     ,viola' M 1 "pp" k "[0 ~@7 . ~ . ~ . ~ <[-4 -3]>]/16"
+     ,cello' M 0 "ppp" k "[0 ~@7 . ~ . ~ . ~]/16"
+     ,contrabass' M (-1) "pp" k "[0 ~@7 . ~ . ~ . ~]/16"
+     ,horn' M 1 "pp" k "[0@15 [-1 -4]]/16"
+     ,cc 11 (slow 16 $ segment 64 (range 0 0.5 tri)) # ch (rigHorn rig)
+     ,cc 1 (rev $ slow 16 $ ramp 0.2 0) # ch 12
+     ]
+  ] |* vel d
+
+-- ── LAUNCHER ────────────────────────────────────────────
+
+do
+  let f = swing8 0.52            -- the 2021 per-line swing, applied to the whole piece
+      d = (* 1)
+      k = preroll pre $ iK tempo form (rep key 1)
+  putStrLn "OCEAN"
+  mapM_ id [hush, resetCycles, display k
+    ,ocean f k $ d 0.99
+    ]
+
+hush

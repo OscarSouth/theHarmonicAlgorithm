@@ -1,0 +1,89 @@
+tempo = 80
+
+ -- TRANSPORT
+mapM_ id [p "transport"
+ $ seqP
+   $ sync 999999 ++ [runSeq]
+ ,resetCycles,hush,allNotesOff
+ ,setcps (tempo/60)
+ ]
+
+ctx = invSkip 1
+  -- $ consonant
+  -- $ hcRoots "3b rise<3,4>"
+  -- $ hcRoots "E B"
+  -- $ hcRoots "E B rise<1,3>"
+  -- $ hcRoots "0# 1# 2# fall<2,3>"
+  $ hcRoots "0# fall<2,3>"
+  -- $ hcKey "3b"
+  $ hcKey "0#"
+  -- $ hcPedal "B"
+  -- $ hcOvertones "A E G B"
+  $ hcOvertones "A E G C"
+  $ hContext
+
+s <- lead "E min"
+  >>= \start ->
+  seek "*"
+  $ len 4
+  $ cue start
+  $ tonal ctx
+  $ entropy 0.3
+  $ attempt 2 6
+  $ gen
+
+form = -- symmetric dance form
+  --           k     d
+  -- INTRO (32) — build from silence
+  [ rh   0    0.0   0.0   s
+  , rh  16    0.2   0.3   s   -- elements layer in
+  , rh' 28    0.35  0.55  s   -- riser: sparse but LOUD (k<d); SNAP -> jump into drop
+  -- FIRST DROP (64, 4x16) — perceptible jump into each 16
+  , rh' 32    0.9   0.7   s   -- THE DROP: full band, restrained loudness (k>d)
+  , rh' 48    0.7   0.82  s   -- thinner but louder (k<d)
+  , rh' 64    0.9   0.8   s   -- full again
+  , rh  80    0.85  0.9   s   -- ramp up toward the break
+  , rh' 94    0.9   0.92  s   -- SNAP -> jump into break
+  -- MID BREAK (16) — saw
+  , rh  96    0.15  0.35  s   -- BREAK: minimal, still present
+  , rh' 110   0.35  0.7   s   -- riser: sparse but LOUD (k<d); SNAP -> jump into second drop
+  -- SECOND DROP (64, 4x16) — the change; climb to peak
+  , rh' 112   1.0   0.9   s   -- SECOND DROP: full band
+  , rh' 128   0.9   0.98  s   -- eased instrumentation, near-max loud (golden zone)
+  , rh  144   1.0   1.0   s   -- EVERYTHING MAX — k and d align at the peak
+  , rh' 160   0.6   1.0   s   -- stripped but still BLARING (k<<d); SNAP -> jump
+  -- OUTRO (32) — fall away
+  , rh' 176   0.4   0.65  s   -- OUTRO: instant fall
+  , rh  192   0.2   0.3   s   -- winding down
+  , rh  208   0.0   0.0   s   -- silence
+  , rh  212   0.0   0.0   s   -- 4-bar gap (nice to DJs)
+  ]
+
+
+do
+  let
+    r = warp "[1 2 3 4]/8"
+    f = swing16 0.54
+    d = (*0.99)
+    k = iK tempo form r
+    -- k = iK tempo [at 0 1 1 s] r
+  putStrLn $ "LAUNCH ¬¬"
+  print s
+  mapM_ id [launch, setbpm tempo
+    -- ,display k
+    -- ,metronome 4 $d 0.5
+    -- ,count k $d 0.1
+    -- ,grnd f k $d 0.2
+    ,mini f k $d 0.1
+    -- ,mdf  f k $d 0.9
+    ,m32  f k $d 0.9
+    -- ,jura f k $d 0.1
+    -- ,walk f k $d 0.99
+    ,k909 f k $d 0.2
+    ,kmpc f k $d 0.1
+    ,subk f k $d 0.0
+    -- ,hmnx f k $d 0.99
+    ,slce f k $d 0.3
+   ]
+
+hush

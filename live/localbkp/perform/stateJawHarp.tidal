@@ -1,0 +1,167 @@
+-- jaw-harp track — surface: live/local/surfaces/23.10.2026-jawharp.tidal
+tempo = 92
+
+ -- TRANSPORT
+mapM_ id [p "transport"
+ $ seqP
+   $ sync 999999 ++ [runSeq]
+ ,resetCycles,hush,allNotesOff
+ ,setcps (tempo/60)
+ ]
+
+ -- A — the high, melodic harp (intro + first drop)
+ctxA = invSkip 1
+  -- $ consonant
+  -- $ hcRoots "3# rise<1,2,3>"
+  $ hcRoots "0# fall<2,3>"
+  $ hcPedal "A"
+  $ hcOvertones "A E G C"
+  $ hContext
+
+sA <- lead "A min"
+  >>= \start ->
+  seek "*"
+  $ len 4
+  $ cue start
+  $ tonal ctxA
+  $ entropy 0.6
+  -- $ attempt 2 6
+  $ gen
+
+-- save "sA" sA
+
+ -- C — the medium harp (break + second drop)
+ctxC = invSkip 0
+  $ consonant
+  -- $ hcRoots "0# -B rise<1,2,3>"
+  $ hcRoots "C E F Eb G Ab A rise<1,2>"
+  -- $ hcPedal "C"
+  -- $ hcOvertones "A E G C"
+  $ hContext
+
+sC <- lead "C maj"
+  >>= \start ->
+  seek "*"
+  $ len 4
+  $ cue start
+  $ tonal ctxC
+  $ entropy 0.2
+  -- $ attempt 2 6
+  $ gen
+
+-- save "sC" sC
+
+ -- D — the guttural harp (outro / deconstruction): the 22.09 demo's own context
+ctxD = invSkip 0
+  -- $ hcRoots "2# rise<1,2,3>"
+  $ hcRoots "D G"
+  -- $ hcPedal "D"
+  $ hcOvertones "A E G B C"
+  $ hContext
+
+sD <- lead "D maj"
+  >>= \start ->
+  seek "*"
+  $ len 4
+  $ cue start
+  $ tonal ctxD
+  $ entropy 0.6
+  -- $ attempt 2 6
+  $ gen
+
+-- save "sD" sD
+
+form = -- the spectral narrative, halved to 8-bar phrases: 108 bars ≈ 3:56 at 110.
+       -- Every sample (3 15 25 57 73 89) dips, swells through its ~14 bars, crests the bar before the next.
+       -- Crest/pullback pairs sit between the drum gates (0.1 sub · 0.2 kick/tick · 0.4 ride · 0.6 backbeat · 0.8 16ths · 0.95 crash)
+       -- so the kit holds across a drop and the instruments (gates 0.4 / 0.6 / 0.9) do the breathing.
+  --            k     d
+  -- INTRO (16) — texture only, A harp
+  [ rh   1    0.05  0.1   sA   -- B1 haze
+  , rh   3    0.04  0.08  sA   -- SAMPLE 1: slight dip; swell from here (sub enters mid-swell at 0.1)
+  , rh' 14    0.18  0.45  sA   -- crest just under the kick gate: sub + texture teased; hold -> drop
+  , rh  15    0.12  0.3   sA   -- SAMPLE 2: sub stays; swell
+  -- FIRST DROP (32, 4x8) — the groove climbs band by band
+  , rh  17    0.3   0.6   sA   -- B2 MINIMAL GROOVE lands by ramp under the sample
+  , rh' 24    0.52  0.72  sA   -- crest in B3; hold -> drop
+  , rh  25    0.4   0.6   sA   -- SAMPLE 3: kick/tick/ride and the 10ths stay, jura returns; swell through the drop
+  , rh  33    0.6   0.75  sA   -- B4
+  , rh  41    0.85  0.85  sA   -- ramp toward the break
+  , rh' 47    0.95  0.9   sA   -- crest; SNAP -> break
+  -- BREAK (8) — instant fall, C harp enters
+  , rh' 49    0.1   0.4   sC   -- haze + sub
+  , rh' 55    0.3   0.7   sC   -- riser (k<d); SNAP -> second drop
+  -- SECOND DROP (32, 4x8) — climb to the peak
+  , rh  57    0.55  0.75  sC   -- SAMPLE 4: lands just under the backbeat gate; clap/open arrive in the swell
+  , rh  65    0.8   0.9   sC   -- B5 mid-sample
+  , rh' 72    0.92  0.95  sC   -- crest (no crash yet); hold -> drop
+  , rh  73    0.82  0.9   sC   -- SAMPLE 5 on the PEAK beat: tech kit stays, the 0.9 crescendo layers lift; swell
+  , rh' 85    1.0   1.0   sC   -- CACOPHONY held 4 bars; SNAP -> outro
+  -- OUTRO (20) — deconstruction, D harp
+  , rh  89    0.62  0.75  sD   -- SAMPLE 6: tech -> deep (crash/16ths/rim off, backbeat stays); gentle swell
+  , rh' 96    0.68  0.78  sD   -- crest; hold -> fall
+  , rh  97    0.4   0.5   sD   -- deep -> minimal (tick + ride under the texture)
+  , rh  105   0.0   0.0   sD   -- silence
+  , rh  109   0.0   0.0   sD   -- 4-bar gap
+  ]
+
+do
+  let
+    r = warp "[1 2 3 4]/8"
+    f = swing16 0.5
+    d = (*0.99)
+    k = iK tempo form r
+    -- k = iK tempo [at 0 0.52 0.72 sA] r
+  -- , rh' 24    0.52  0.72  sA   -- crest in B3; hold -> drop
+  putStrLn $ "LAUNCH ¬¬"
+  print sA
+  print sC
+  print sD
+  mapM_ id [launch, setbpm tempo
+    ,display k
+    ,metronome 4 $d 0.99
+    -- ,count k $d 0.1
+    ,grnd f k $d 0.1
+    ,mini f k $d 0.1
+    ,mdf  f k $d 0.9
+    ,m32  f k $d 0.9
+    ,jura f k $d 0.4
+    -- ,walk f k $d 0.99
+    -- ,k909 f k $d 0.2
+    -- ,kmpc f k $d 0.1
+    ,subk f k $d 0.1
+    ,hmnx f k $d 0.1
+    ,slce f k $d 0.9
+   ]
+
+hush
+
+save "sA" sA
+
+-- saved 2026-10-27 · 4 bars · triad
+sA = recall "triad"
+  [ "A C E min (desc 4)     | C D E G A 6add9 (pedal) | A B C D E F G m7add9/11b13 (pedal)"
+  , "F A E maj7no5 (desc 4) | C D E G A 6add9 (pedal) | F G A B C D E 6maj7add9#11 (pedal)"
+  , "C E A maj6no5 (desc 5) | C D E G A 6add9 (pedal) | A B C D E F G m7add9/11b13 (pedal)"
+  , "A C# E maj (desc 3)    | C D E G A 6add9 (pedal) | A B C# D E F# G# 6maj7add9/11 (pedal)"
+  ]
+
+save "sB" sC
+
+-- saved 2026-10-27 · 4 bars · triad
+sB = recall "triad"
+  [ "C E G maj (desc 4)   | C D E G A 6add9 (pedal)    | C D E F G A B 6maj7add9/11 (pedal)"
+  , "Eb Gb Bb min (asc 3) | Ab Bb C Eb F 6add9 (pedal) | Eb F Gb Ab Bb C D m6maj7add9/11 (pedal)"
+  , "F A C maj (asc 2)    | Ab Bb C Eb F 6add9 (pedal) | F G A Bb C D E 6maj7add9/11 (pedal)"
+  , "Ab C Eb maj (asc 3)  | Ab Bb C Eb F 6add9 (pedal) | Ab Bb C Db Eb F G 6maj7add9/11 (pedal)"
+  ]
+
+save "sD" sD
+
+-- saved 2026-10-27 · 4 bars · triad
+sD = recall "triad"
+  [ "D F# A maj (asc 4)         | D E F# A B 6add9 (pedal) | D E F# G A B C# 6maj7add9/11 (pedal)"
+  , "D F# G majadd11no5 (pedal) | D E F# A B 6add9 (pedal) | D E F# G A B C# 6maj7add9/11 (pedal)"
+  , "D E F# majadd9no5 (pedal)  | D E F# A B 6add9 (pedal) | D E F# G A B C# 6maj7add9/11 (pedal)"
+  , "D F# C# maj7no5 (pedal)    | D E F# A B 6add9 (pedal) | D E F# G A B C# 6maj7add9/11 (pedal)"
+  ]
