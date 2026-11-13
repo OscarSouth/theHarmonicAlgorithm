@@ -148,6 +148,17 @@ spec = do
       vals (snd k') (Arc 12 13) `shouldBe` vals (snd k) (Arc 0 1)
       vals (kDynamic (fst k')) (Arc 12 13) /= vals (kDynamic (fst k')) (Arc 16 17) `shouldBe` True
 
+  describe "staff" $ do
+    it "joins one string per bar into a weighted sequence over the given beats" $ do
+      -- two bars: a minim and two crotchets, then a semibreve held from a tie
+      let pat = staff 8 ["4@2 7 9", "12@4"] :: Pattern Int
+      onsets pat (Arc 0 8) `shouldBe` [(0, 4), (2, 7), (3, 9), (4, 12)]
+
+    it "a note held across a bar line is one step: the next string carries only the rest of its bar" $ do
+      let pat = staff 8 ["~@3 4@3", "7@2"] :: Pattern Int
+      onsets pat (Arc 0 8) `shouldBe` [(3, 4), (6, 7)]
+      map (\e -> (start (part e), stop (part e))) (queryArc pat (Arc 0 8)) `shouldBe` [(3, 6), (6, 8)]
+
   describe "dyn" $ do
     it "is the 2021 ladder, p = 0.40" $ do
       map snd (onsets (dyn "ffff fff ff f mf mp p pp ppp pppp") (Arc 0 1))

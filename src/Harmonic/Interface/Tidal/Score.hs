@@ -32,7 +32,7 @@
 -- @\"<~ x x>\"@ alternation counts its passes from the entry.
 module Harmonic.Interface.Tidal.Score (
     -- * Blocks
-    bars, score,
+    bars, score, staff,
     -- * Pitch
     inKey, degrees,
     -- * Dynamics
@@ -65,6 +65,15 @@ bars b1 b2 p = ((b1 - 1) * 4, b2 * 4, p)
 -- the form, so the two clocks agree.
 score :: Int -> [(Time, Time, Pattern a)] -> Pattern a
 score pre = rotR (fromIntegral pre * 4) . seqP
+
+-- | A phrase written one bar per string, as a single sequence of @beats@ beats:
+-- the strings are joined and played as one pattern, so a weighted step may run
+-- across a bar line (a note held over the bar is one step, not two). Written
+-- by hand or by @scripts/midi2score.py@ from a MIDI render of an edition.
+--
+-- @harp' M 1 "p" k (staff 8 ["4@3 ~ 7 9@2 11@2", "12@8"])@
+staff :: Int -> [String] -> Pattern Int
+staff beats strs = parseBP_E ("[" ++ unwords strs ++ "]/" ++ show beats)
 
 -- | A one-bar progression context for a key: the tonic triad on T (the
 -- mode's degrees 1 3 5, so a minor key gives a minor triad and Lydian a
