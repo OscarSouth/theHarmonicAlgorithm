@@ -46,8 +46,9 @@
 --
 -- Channel 10 carries the orchestra's percussion (15ips Kit) on the channel the
 -- MPC's service lane also uses; the two share it by note band — the MPC's pads
--- keep 0–48, the kit voices the rig names ('rigTambourine' 54, 'rigWoodblock'
--- 76, 'rigTriangle' 81) sit above. @nanoKit@ re-sends the kit after a program
+-- keep 0–48, the kit voices the rig names ('rigCrashcymbal' 49, 'rigRidecymbal'
+-- 51, 'rigTambourine' 54, 'rigWoodblock' 76, 'rigTriangle' 81, 'rigChimes' 84)
+-- sit above; the kit's snares lie inside that band, so 'rigSnaredrum' is empty. @nanoKit@ re-sends the kit after a program
 -- change. The kit answers to the General MIDI percussion map, so the voices
 -- below carry the @gm@ prefix and serve any GM module; the ones in the MPC's
 -- band (kick, snare, hats) are not part of the orchestra.
@@ -98,6 +99,10 @@ nanoSynth = Rig
   , rigTambourine = Just (54, 10)   -- 15ips Kit, General MIDI numbers, all above the MPC's band (0–48)
   , rigTriangle   = Just (81, 10)
   , rigWoodblock  = Just (76, 10)
+  , rigCrashcymbal = Just (49, 10)
+  , rigRidecymbal  = Just (51, 10)
+  , rigChimes      = Just (84, 10)
+  , rigSnaredrum   = Nothing        -- the kit's snares (37, 38, 40) lie inside the MPC's band
   , rigPizz       = ch 12
   , rigSpicc      = noArt
   , rigMarc       = noArt

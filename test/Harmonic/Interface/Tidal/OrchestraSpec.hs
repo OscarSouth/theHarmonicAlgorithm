@@ -10,12 +10,12 @@ import qualified Harmonic.Rules.Types.Progression as P
 import qualified Harmonic.Rules.Types.Harmony as H
 import qualified Harmonic.Rules.Types.Pitch as Pitch
 import Harmonic.Interface.Tidal.Orchestra
-import Harmonic.Interface.Tidal.Devices.JV1010 (jv1010)
+import Harmonic.Interface.Tidal.Devices.JV1010 (jv1010, orch, userPatch, harpV, harpsichordV, marimbaV)
 import Harmonic.Interface.Tidal.Form (Kinetics(..), lK)
 import Harmonic.Interface.Tidal.Score (inKey)
 import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import qualified Harmonic.Interface.Tidal.Arranger as A
-import Data.List (nub)
+import Data.List (nub, sort)
 import Harmonic.Rules.Types.ProgressionContext (Layer(..))
 import qualified Data.Map.Strict as Map
 import qualified Data.Sequence as Seq
@@ -230,6 +230,7 @@ spec = do
         play instr v = instr jv1010 T (0,1) k voiceLines A.flow v
         -- (instrument, voice that lands inside its range, channel, bounds)
         pins = [ ("flute",      play flute      Soprano,  0, (-12, 26))
+               , ("piccolo",    play piccolo    Soprano15va, 0, ( 14, 48))
                , ("oboe",       play oboe       Soprano,  1, ( -2, 33))
                , ("clarinet",   play clarinet   Alto,     2, (-22, 34))
                , ("bassoon",    play bassoon    Bass8vb,  3, (-28, 15))
@@ -266,6 +267,30 @@ spec = do
       hit (triangle jv1010 "t")   `shouldBe` [(Just 21, Just 8)]
       hit (woodblock jv1010 "t")  `shouldBe` [(Just 16, Just 8)]
 
+    it "crash 57, ride 59 and wind chimes 84 on the rhythm set, channel 9" $ do
+      let hit p = [ (extractNote (value ev), Map.lookup "midichan" (value ev) >>= num) | ev <- queryArc p (Arc 0 1) ]
+      hit (crashcymbal jv1010 "t") `shouldBe` [(Just (-3), Just 8)]
+      hit (ridecymbal jv1010 "t")  `shouldBe` [(Just (-1), Just 8)]
+      hit (chimes jv1010 "t")      `shouldBe` [(Just 24, Just 8)]
+
+    it "snaredrum reads one grid: x stroke 60, X loud 61, a accent 62, k side stick 64, all on channel 9" $ do
+      let hits p = [ (wholeStart ev, extractNote (value ev), Map.lookup "midichan" (value ev) >>= num)
+                   | ev <- queryArc p (Arc 0 1) ]
+          wholeStart = fmap start . whole
+      sort (hits (snaredrum jv1010 "x X a k"))
+        `shouldBe` [ (Just t, Just n, Just 8) | (t, n) <- [(0, 0), (1/4, 1), (1/2, 2), (3/4, 4)] ]
+      hits (snaredrum jv1010 "~ q") `shouldBe` []
+
+    it "a snaredrum roll is note 63 held for the length of its step" $ do
+      let rolls = [ (fmap (\w -> (start w, stop w)) (whole ev), extractNote (value ev), Map.lookup "legato" (value ev) >>= num)
+                  | ev <- queryArc (snaredrum jv1010 "x r@2 x") (Arc 0 1), extractNote (value ev) == Just 3 ]
+      rolls `shouldBe` [(Just (1/4, 3/4), Just 3, Just 1)]
+
+    it "continuo voices: the Orchestral board at bank 84/2-3, the calibrated voices as user patches at 80/0" $ do
+      map orch [1, 100, 128, 129, 196, 255] `shouldBe` [(84, 2, 0), (84, 2, 99), (84, 2, 127), (84, 3, 0), (84, 3, 67), (84, 3, 126)]
+      [harpV, harpsichordV, marimbaV] `shouldBe` [userPatch 7, userPatch 10, userPatch 17]
+      userPatch 17 `shouldBe` (80, 0, 16)
+
     it "the record holds the map the instruments read" $ do
       map ($ jv1010) [rigFlute, rigOboe, rigClarinet, rigBassoon, rigHorn, rigTrombone, rigBasstrom, rigHarp, rigTimpani]
         `shouldBe` [1, 2, 3, 4, 5, 6, 6, 7, 8]
@@ -300,6 +325,10 @@ spec = do
       evs (flute' jv1010 M 0 "p" keyC "0") `shouldSatisfy` ((== 1) . length)     -- C3 is the flute's floor
       evs (flute' jv1010 M (-1) "p" keyC "0") `shouldBe` []                      -- C2 is below it
       evs (contrabass' jv1010 M 1 "p" keyC "1") `shouldBe` []                     -- D4 is above the bass's ceiling
+
+    it "piccolo is the flautist doubling: the flute's channel, D5 to C8" $ do
+      evs (piccolo' jv1010 M 2 "p" keyC "0 1") `shouldBe` [(Just 14, Just 0.40, Just 0)]   -- C5 is below its floor, D5 is the floor
+      evs (piccolo' jv1010 M 5 "p" keyC "0 1") `shouldBe` [(Just 48, Just 0.40, Just 0)]   -- C8 is the ceiling, D8 is above it
 
     it "answers to the articulation tags" $
       map (\(_, _, c) -> c) (evs (cello' jv1010 T 0 "p" keyC "0" # pizz jv1010)) `shouldBe` [Just 11]

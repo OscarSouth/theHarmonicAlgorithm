@@ -30,15 +30,21 @@
 -- A continuo voice is a full bank address — @(bank msb, bank lsb, program)@ —
 -- so any card or internal set is reachable, not just the Orchestral board.
 -- The JV-1010 selects a patch with Bank Select (CC0 msb \/ CC32 lsb) followed
--- by a Program Change; quote Orchestral-card numbers straight off Roland\'s
+-- by a Program Change, and in the stored Performance only the continuo part
+-- (channel 7) answers one. The calibrated voices are user patches
+-- (\'userPatch\'); quote Orchestral-card numbers straight off Roland\'s
 -- 001-255 listing via \'orch\', and reach the internal sets with \'presetA\'
 -- and \'presetB\'.
 --
 -- The orchestra is a Performance stored on the module, one patch per channel.
--- Winds 1-4, brass 5-6, harp 7, timpani 8, bass drum 9, tam-tam 11; the
+-- Winds 1-4, brass 5-6, harp 7, timpani 8, percussion 9, tam-tam 11; the
 -- strings are laid out by technique, every section sharing a channel per
 -- articulation: pizz 12, spicc 13, marc 14, legg 15, arco 16 (the string
--- default). Ranges are the instruments\' own and live with them in
+-- default). Channel 9 is split by key: up to B2 the concert bass drum patch
+-- (MIDI 36), from C3 the Performance's rhythm part, whose user rhythm set
+-- holds the auxiliary percussion a key apiece — tambourine 54, crash 57,
+-- ride 59, the snare drum 60-64 (stroke, loud stroke, accent, roll, side
+-- stick), woodblock 76, triangle 81, wind chimes 84. Ranges are the instruments\' own and live with them in
 -- "Harmonic.Interface.Tidal.Orchestra".
 --
 -- +------------+---------+
@@ -67,8 +73,8 @@ module Harmonic.Interface.Tidal.Devices.JV1010
 
     -- * Continuo bank addressing
   , ContinuoVoice
-  , orch, presetA, presetB, orchMSB, orchLSB
-  , harpV, harpPluckedV, harpsichordV, pianoV, celestaV, glockenV
+  , orch, userPatch, presetA, presetB, orchMSB, orchLSB
+  , harpV, harpsichordV, marimbaV, harpPluckedV, pianoV, celestaV, glockenV
   , tubularV, choirV, guitarV, organV
   ) where
 
@@ -97,9 +103,13 @@ jv1010 = Rig
   , rigContrabass = 16
   , rigBassdrum   = Just (36, 9)
   , rigTamtam     = Just (31, 11)
-  , rigTambourine = Just (54, 9)    -- the rhythm set on 9 in its General MIDI layout (audition)
+  , rigTambourine = Just (54, 9)    -- from C3 up, channel 9 is the rhythm part: a key per instrument
   , rigTriangle   = Just (81, 9)
   , rigWoodblock  = Just (76, 9)
+  , rigCrashcymbal = Just (57, 9)
+  , rigRidecymbal  = Just (59, 9)
+  , rigChimes      = Just (84, 9)
+  , rigSnaredrum   = Just ((60, 61, 62, 63, 64), 9)
   , rigPizz       = ch 12
   , rigSpicc      = ch 13
   , rigMarc       = ch 14
@@ -161,40 +171,46 @@ hh' pat = stack [
   struct (fmap (`elem` ["o","2"]) pat) $ midinote 63 # kitChan # sustain 0.05 # vel 0.5
   ]
 
--- Bank addressing. JV-1010 preset banks are msb 81 / lsb 0-1; expansion
--- cards continue the lsb series.
 -- | A full bank address: @(bank msb, bank lsb, program 0-127)@.
 type ContinuoVoice = (Int, Int, Int)
 
--- | JV-1010 preset banks are msb 81 \/ lsb 0-1; expansion cards continue the
--- lsb series.
---
--- TODO confirm orchLSB on the device; adjust if the voice lands wrong.
+-- | The Orchestral board (SR-JV80-02) answers at bank msb 84, lsb 2 for
+-- patches 1-128 and lsb 3 for 129-255; lsb 0-1 of the same msb is the built-in
+-- Session set.
 orchMSB, orchLSB :: Int
-orchMSB = 81
-orchLSB = 32
+orchMSB = 84
+orchLSB = 2
 
 -- | Orchestral-card patch @n@, quoted straight off Roland's 001-255 listing.
 -- The card spans two 128-patch sub-banks, so the arithmetic is done here.
+-- The patch arrives as Roland stored it: its own level, dynamics and keying.
 orch :: Int -> ContinuoVoice
 orch patch = (orchMSB, orchLSB + ((patch - 1) `div` 128), (patch - 1) `mod` 128)
+
+-- | User patch @n@ (1-128): bank msb 80, lsb 0. The calibrated continuo voices
+-- are user patches, levelled to the harp inside the patch so the part's level
+-- holds for all of them.
+userPatch :: Int -> ContinuoVoice
+userPatch patch = (80, 0, patch - 1)
 
 -- | The internal preset banks, patch @n@ numbered 1-128 as printed.
 presetA, presetB :: Int -> ContinuoVoice
 presetA patch = (81, 0, patch - 1)
 presetB patch = (81, 1, patch - 1)
 
--- | Named continuo voices, from the SR-JV80-02 Orchestral card unless
--- noted otherwise.
-harpV, harpPluckedV, harpsichordV, pianoV, celestaV, glockenV, tubularV, choirV, guitarV, organV :: ContinuoVoice
-harpV        = orch 186   -- Harp 1        (default: Orpheus's lyre)
+-- | Named continuo voices. The first three are the calibrated user patches:
+-- at the harp's level and dynamics, at concert pitch, each within its
+-- instrument's range. The rest are Orchestral-card patches as Roland stored
+-- them. The continuo part follows a Program Change; no other part does.
+harpV, harpsichordV, marimbaV, harpPluckedV, pianoV, celestaV, glockenV, tubularV, choirV, guitarV, organV :: ContinuoVoice
+harpV        = userPatch 7    -- Harp 1        (default: Orpheus's lyre)
+harpsichordV = userPatch 10   -- Harpsichord1  (Baroque continuo), F1-F6
+marimbaV     = userPatch 17   -- Marimba, C2-C7
 harpPluckedV = orch 188   -- Plucked Harp
-harpsichordV = orch 196   -- Harpsichord1  (Baroque continuo)
 pianoV       = orch 192   -- ClasclPiano1
 celestaV     = orch 200   -- Celesta 1
 glockenV     = orch 211   -- Glocken 1
 tubularV     = orch 216   -- TubulaBells1
 choirV       = orch 227   -- Choir 1
 guitarV      = orch 185   -- Classical Gt
-organV       = presetA 18 -- church/pipe organ from the internal set
-                          -- TODO confirm patch number on the device
+organV       = presetA 61 -- Church Pipes, from the internal set (A060 is Cathedral)

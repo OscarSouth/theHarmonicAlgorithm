@@ -32,6 +32,7 @@ module Harmonic.Interface.Tidal.Orchestra (
     -- | Instrument | Range           |
     -- +============+=================+
     -- | flute      | C3-D6           |
+    -- | piccolo    | D5-C8           |
     -- | oboe       | Bb3-A6          |
     -- | clarinet   | D2-Bb6          |
     -- | bassoon    | Bb1-Eb5         |
@@ -45,7 +46,7 @@ module Harmonic.Interface.Tidal.Orchestra (
     -- | cello      | C2-C6           |
     -- | contrabass | C1-C4           |
     -- +------------+-----------------+
-    flute, oboe, clarinet, bassoon,
+    flute, piccolo, oboe, clarinet, bassoon,
     horn, trombone, basstrom,
     harp, timpani,
     violin1, violin2, viola, cello, contrabass,
@@ -54,13 +55,14 @@ module Harmonic.Interface.Tidal.Orchestra (
     -- | The same instruments reading written degrees against a layer of the
     -- progression in the 'IK': @flute' M 1 "p" k "[0 2 4]/4"@. See
     -- "Harmonic.Interface.Tidal.Score".
-    flute', oboe', clarinet', bassoon',
+    flute', piccolo', oboe', clarinet', bassoon',
     horn', trombone', basstrom',
     harp', timpani',
     violin1', violin2', viola', cello', contrabass',
 
     -- * Unpitched percussion
     bassdrum, tamtam, tambourine, triangle, woodblock,
+    crashcymbal, ridecymbal, chimes, snaredrum,
 
     -- * String articulations
     pizz, spicc, marc, legg, arco,
@@ -236,6 +238,10 @@ data Rig = Rig
   , rigBassdrum, rigTamtam, rigTambourine, rigTriangle, rigWoodblock :: Maybe (Int, Int)
     -- ^ @(MIDI note, channel)@; 'Nothing' when the module has no such voice,
     --   so the line loads and stays silent
+  , rigCrashcymbal, rigRidecymbal, rigChimes :: Maybe (Int, Int)
+  , rigSnaredrum :: Maybe ((Int, Int, Int, Int, Int), Int)
+    -- ^ the snare drum's notes — stroke, loud stroke, accent, roll, side
+    --   stick — and their channel
   , rigPizz, rigSpicc, rigMarc, rigLegg, rigArco :: ControlPattern
     -- ^ postfix articulation tags; 'noArt' where the module keeps one channel
     --   per section and the technique has no separate destination
@@ -291,9 +297,10 @@ instrument' bounds chan lyr octv dy k degs =
 -- and are authoritative; the note-name comments sit 2-4 semitones above the
 -- coded floor for bassoon, horn, trombone and harp. A practical review at the
 -- instrument sets both — never the numbers to the names.
-flute, oboe, clarinet, bassoon, horn, trombone, basstrom, harp, timpani,
+flute, piccolo, oboe, clarinet, bassoon, horn, trombone, basstrom, harp, timpani,
   violin1, violin2, viola, cello, contrabass :: Rig -> Instrument
 flute      = instrument  fluteRange . rigFlute
+piccolo    = instrument  piccoloRange . rigFlute   -- the flautist doubling: the flute's channel, the piccolo's range
 oboe       = instrument  oboeRange . rigOboe
 clarinet   = instrument  clarinetRange . rigClarinet
 bassoon    = instrument  bassoonRange . rigBassoon
@@ -314,10 +321,11 @@ contrabass = instrument  contrabassRange . rigContrabass
 -- articulation tags apply as usual:
 --
 -- @, cello' M 0 "p" k "[-4 . 2@3 ~ . -6 . 0@3 ~]/4" # pizz@
-flute', oboe', clarinet', bassoon', horn', trombone', basstrom', harp', timpani',
+flute', piccolo', oboe', clarinet', bassoon', horn', trombone', basstrom', harp', timpani',
   violin1', violin2', viola', cello', contrabass'
   :: Rig -> Layer -> Pattern Int -> Pattern String -> IK -> Pattern Int -> ControlPattern
 flute'     = instrument' fluteRange . rigFlute
+piccolo'   = instrument' piccoloRange . rigFlute
 oboe'      = instrument' oboeRange . rigOboe
 clarinet'  = instrument' clarinetRange . rigClarinet
 bassoon'   = instrument' bassoonRange . rigBassoon
@@ -333,8 +341,10 @@ cello'     = instrument' celloRange . rigCello
 contrabass' = instrument' contrabassRange . rigContrabass
 
 -- Range limits of the orchestral sampler patches, shared by both forms.
-fluteRange, oboeRange, clarinetRange, bassoonRange, hornRange, tromboneRange, basstromRange, harpRange, timpaniRange, violin1Range, violin2Range, violaRange, celloRange, contrabassRange :: (Int, Int)
+fluteRange, piccoloRange, oboeRange, clarinetRange, bassoonRange, hornRange, tromboneRange, basstromRange, harpRange, timpaniRange, violin1Range, violin2Range, violaRange, celloRange, contrabassRange :: (Int, Int)
 fluteRange       = (-12,  26)   -- C3–D6  (MIDI 48–86)
+piccoloRange     = ( 14,  48)   -- D5–C8  (MIDI 74–108): the piccolo as it sounds. It plays on the flute's patch, which on
+                                --   the JV-1010 hands over from the flute sample to the piccolo sample above D7
 oboeRange        = ( -2,  33)   -- Bb3–A6 (MIDI 58–93)
 clarinetRange    = (-22,  34)   -- D2–Bb6 (MIDI 38–94)
 bassoonRange     = (-28,  15)   -- Bb1–Eb5 (MIDI 32–75)
@@ -366,12 +376,30 @@ hit secs (Just (nt, c)) pat = struct pat $ midinote (fromIntegral nt) # ch c # s
 -- tambourine never lands on a sub-bass pad.
 --
 -- @d1 $ bassdrum \"t ~ ~ t\"@   @, tambourine \"[~ t]\"@   @, woodblock \"t*2\"@
-bassdrum, tamtam, tambourine, triangle, woodblock :: Rig -> Pattern Bool -> ControlPattern
-bassdrum   r = hit 0.05 (rigBassdrum r)
-tamtam     r = hit 0.5  (rigTamtam r)
-tambourine r = hit 0.05 (rigTambourine r)
-triangle   r = hit 0.3  (rigTriangle r)
-woodblock  r = hit 0.05 (rigWoodblock r)
+bassdrum, tamtam, tambourine, triangle, woodblock, crashcymbal, ridecymbal, chimes
+  :: Rig -> Pattern Bool -> ControlPattern
+bassdrum    r = hit 0.05 (rigBassdrum r)
+tamtam      r = hit 0.5  (rigTamtam r)
+tambourine  r = hit 0.05 (rigTambourine r)
+triangle    r = hit 0.3  (rigTriangle r)
+woodblock   r = hit 0.05 (rigWoodblock r)
+crashcymbal r = hit 0.3  (rigCrashcymbal r)
+ridecymbal  r = hit 0.3  (rigRidecymbal r)
+chimes      r = hit 0.3  (rigChimes r)
+
+-- | The snare drum from one grid, a symbol per technique: @x@ a stroke, @X@
+-- the loud stroke, @a@ an accent, @k@ the side stick, and @r@ a roll that
+-- lasts its step, so @r\@3@ rolls for three.
+--
+-- @d1 $ snaredrum \"x ~ x a r\@2 ~ k\"@
+snaredrum :: Rig -> Pattern String -> ControlPattern
+snaredrum r pat = case rigSnaredrum r of
+  Nothing -> silence
+  Just ((stroke, loud, accent, roll, stick), c) ->
+    stack ((played "r" roll # legato 1)
+           : [ played sym nt # sustain 0.05 | (sym, nt) <- [("x", stroke), ("X", loud), ("a", accent), ("k", stick)] ])
+      # ch c
+  where played sym nt = struct ((== sym) <$> pat) $ midinote (fromIntegral nt)
 
 -------------------------------------------------------------------------------
 -- String articulations (postfix tags)

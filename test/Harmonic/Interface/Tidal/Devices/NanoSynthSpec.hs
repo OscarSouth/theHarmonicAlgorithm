@@ -97,6 +97,11 @@ spec = describe "NanoSynth rig (the JV-1010 order, the Mother-32 on 6, pizzicato
     [ onsets (v nanoSynth "1") | v <- [tambourine, triangle, woodblock] ]
       `shouldBe` [ [(Just (fromIntegral n - 60), Just 9)] | n <- [54, 81, 76 :: Int] ]
 
+  it "crash 49, ride 51 and wind chimes 84 are the kit's; the snare drum has no voice here" $ do
+    [ onsets (v nanoSynth "1") | v <- [crashcymbal, ridecymbal, chimes] ]
+      `shouldBe` [ [(Just (fromIntegral n - 60), Just 9)] | n <- [49, 51, 84 :: Int] ]
+    queryArc (snaredrum nanoSynth "x r a k") (Arc 0 1) `shouldSatisfy` null
+
   it "the GM kit answers on channel 10 with General MIDI note numbers" $
     [ onsets (v "1") | v <- [gmKick, gmKick2, gmSnare, gmHatClosed, gmRide, gmCrash, gmTamb, gmChimes] ]
       `shouldBe` [ [(Just (fromIntegral n - 60), Just 9)] | n <- [36, 35, 40, 42, 51, 49, 54, 84 :: Int] ]

@@ -191,6 +191,7 @@ rig = jv1010
 
 :{
 flute      = O.flute rig
+piccolo    = O.piccolo rig
 oboe       = O.oboe rig
 clarinet   = O.clarinet rig
 bassoon    = O.bassoon rig
@@ -206,6 +207,7 @@ cello      = O.cello rig
 contrabass = O.contrabass rig
 -- score mode: the same instruments as `flute' "p" pitches` (Harmonic.Interface.Tidal.Score)
 flute'      = O.flute' rig
+piccolo'    = O.piccolo' rig
 oboe'       = O.oboe' rig
 clarinet'   = O.clarinet' rig
 bassoon'    = O.bassoon' rig
@@ -224,6 +226,10 @@ tamtam     = O.tamtam rig
 tambourine = O.tambourine rig
 triangle   = O.triangle rig
 woodblock  = O.woodblock rig
+crashcymbal = O.crashcymbal rig
+ridecymbal  = O.ridecymbal rig
+chimes      = O.chimes rig
+snaredrum   = O.snaredrum rig
 pizz       = O.pizz rig
 spicc      = O.spicc rig
 marc       = O.marc rig

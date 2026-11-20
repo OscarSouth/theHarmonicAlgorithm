@@ -55,12 +55,19 @@ once $ nanoProgram 9 (55, 3)
 
 -- PERCUSSION (Ch 10) — Preset 3 / 118  15ips Kit, shared with the MPC's service
 -- lane by note band: the pads keep 0–48, the orchestra's voices sit above
--- (tambourine 54, woodblock 76, triangle 81). `nanoKit` is the same message.
+-- (crash 49, ride 51, tambourine 54, woodblock 76, triangle 81, wind chimes
+-- 84). `nanoKit` is the same message.
 once $ nanoProgram 10 (118, 3)
 
 once $ tambourine "t"
 
 once $ woodblock "t"
+
+once $ crashcymbal "t"
+
+once $ ridecymbal "t"
+
+once $ chimes "t"
 
 once $ triangle "t"
 

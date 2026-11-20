@@ -17,6 +17,10 @@
 -- FLUTE (Ch 1) — C3 to D6 (MIDI 48-86)
 once $ note "[-12 26]*2" # ch 1 # legato 0.8
 
+-- PICCOLO (Ch 1, the flautist doubling) — D5 to C8 (MIDI 74-108); the patch
+-- hands over from the flute sample to the piccolo sample above D7
+once $ note "[14 48]*2" # ch 1 # legato 0.8
+
 -- OBOE (Ch 2) — Bb3 to A6 (MIDI 58-93)
 once $ note "[-2 33]*2" # ch 2 # legato 0.8
 
@@ -55,6 +59,25 @@ once $ midinote 36 # ch 9 # sustain 0.05
 
 -- TAM-TAM (Ch 11) — fixed MIDI 31
 once $ midinote 31 # ch 11 # sustain 0.5
+
+-- AUXILIARY PERCUSSION (Ch 9, from C3: the rhythm part, a key each)
+once $ tambourine "t"    -- MIDI 54
+
+once $ woodblock "t"     -- MIDI 76
+
+once $ triangle "t"      -- MIDI 81
+
+once $ crashcymbal "t"   -- MIDI 57, rings
+
+once $ ridecymbal "t"    -- MIDI 59
+
+once $ chimes "t"        -- MIDI 84
+
+-- SNARE DRUM (Ch 9, MIDI 60-64) — one grid: x stroke, X loud stroke,
+-- a accent, k side stick, r a roll that lasts its step
+once $ snaredrum "x X a k"
+
+once $ snaredrum "r@3 x"
 
 
 -- ── STRINGS (default arco = Ch 16) ──────────────────────

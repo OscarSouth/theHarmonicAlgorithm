@@ -1,49 +1,41 @@
 -- ============================================================================
--- JV-1010 LEVELS — the knob the calibration turns
+-- JV-1010 PART LEVELS — the calibrated balance, as channel volume
 -- ============================================================================
 --
--- The nano's balance is `nanoMix` in the library, sent once by `setupRig`.
--- The JV's is the Performance stored on the module and nothing in code. This
--- file is the JV's equivalent while the two are being matched: one channel
--- volume (CC7) per channel, 0–1, in the JV's channel order, sent in one go
--- with the generic table sender the nano uses. Evaluate the `once` line after
--- booting with `rig = jv1010`, before running calibration.tidal or a piece.
+-- The JV's balance is the part levels of the Performance stored on the module
+-- (JV_PERFORMANCE_EDITS.md); this table is the same numbers. CC7 on a
+-- Performance part replaces its level until the Performance is selected again,
+-- so evaluating the `once` lines puts the balance back after anything has
+-- moved a channel's volume, without touching the module.
 --
--- CC7 on a Performance part REPLACES the part level stored on the module, so
--- the first send must be the module's own numbers (Performance → Part → Level,
--- 0–127, divided by 127) for the first measurement to be the baseline. If
--- they cannot be read, start every channel at 0.80 and measure that.
---
--- Then: run calibration.tidal, capture, `tools/measure.py --rig jv`,
--- `tools/compare.py levels_nano.csv levels_jv.csv`, move the channels the
--- report names (suggested column = current × 10^(−offset/40)), send again,
--- re-run. When every residual is within ±2 dB the table is done and belongs
--- in Harmonic.Interface.Tidal.Devices.JV1010 as `jvMix` / `rigSetup`, the
--- way the nano's lives in NanoSynth.hs.
+-- It restores levels only. The dynamic response lives in the patches.
 --
 -- JV channels: 1 flute, 2 oboe, 3 clarinet, 4 bassoon, 5 horn, 6 trombone +
--- bass trombone, 7 harp (continuo), 8 timpani, 9 rhythm set (bass drum 36,
--- tambourine 54, woodblock 76, triangle 81), 10 the MPC lane (not the JV),
--- 11 tam-tam 31, 12 pizz, 13 spicc, 14 marc, 15 legg, 16 arco (all strings).
+-- bass trombone, 7 harp (continuo), 8 timpani, 9 percussion, 10 the MPC lane
+-- (not the JV), 11 tam-tam, 12 pizz, 13 spicc, 14 marc, 15 legg, 16 arco.
+--
+-- Channel 9 has no row. Two parts listen on it at different levels — the bass
+-- drum (93) and the rhythm part with the auxiliary percussion (107) — and one
+-- CC7 would set both to the same value. Selecting the Performance again
+-- (or a power cycle) restores them.
 
 jvLevel :: [(Int, Double)]
-jvLevel =
-  [ ( 1, 0.80)   -- flute
-  , ( 2, 0.80)   -- oboe
-  , ( 3, 0.80)   -- clarinet
-  , ( 4, 0.80)   -- bassoon
-  , ( 5, 0.80)   -- horn
-  , ( 6, 0.80)   -- trombone, bass trombone
-  , ( 7, 0.80)   -- harp, the continuo
-  , ( 8, 0.80)   -- timpani
-  , ( 9, 0.80)   -- rhythm set: bass drum, tambourine, woodblock, triangle
-  , (11, 0.80)   -- tam-tam
-  , (12, 0.80)   -- strings pizzicato
-  , (13, 0.80)   -- strings spiccato
-  , (14, 0.80)   -- strings marcato
-  , (15, 0.80)   -- strings legato
-  , (16, 0.80)   -- strings arco
-  ]
+jvLevel = [ (c, (l + 0.25) / 127) | (c, l) <-      -- a quarter step up: the 0-127 value survives truncation and rounding alike
+  [ ( 1,  53)   -- flute
+  , ( 2,  67)   -- oboe
+  , ( 3,  92)   -- clarinet
+  , ( 4,  71)   -- bassoon
+  , ( 5,  88)   -- horn
+  , ( 6, 107)   -- trombone, bass trombone
+  , ( 7,  50)   -- harp, the continuo
+  , ( 8, 127)   -- timpani
+  , (11,  40)   -- tam-tam
+  , (12, 107)   -- strings pizzicato
+  , (13,  89)   -- strings spiccato
+  , (14,  87)   -- strings marcato
+  , (15,  83)   -- strings legato
+  , (16,  56)   -- strings arco
+  ] ]
 
 -- Send the table (CC7), then open expression (CC11) on every channel: the
 -- pieces leave CC11 where their ramps ended.

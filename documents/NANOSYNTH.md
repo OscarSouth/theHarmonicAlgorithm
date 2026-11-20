@@ -44,7 +44,7 @@ range tests: `live/docs/NANOSYNTH_CATALOGUE.tidal`.
 | 7 | harp, the continuo | 46 / Preset 3 | Harpitz | 0.10 | −0.20 | 0.95 | 0 | 1 |
 | 8 | timpani, with tuba | 60 / Preset 4 | Documentar | 0.90 | −0.30 | 0.85 | 0 | 1 |
 | 9 | orchestra hit, as bass drum | 55 / Preset 3 | Danz Hitz | 1.00 | 0.00 | 0.90 | 1 | 1 |
-| 10 | percussion: tambourine 54, woodblock 76, triangle 81 (shared with the MPC) | 118 / Preset 3 | 15ips Kit | 0.70 | −0.20 | 0.85 | 0 | 1 |
+| 10 | percussion: crash 49, ride 51, tambourine 54, woodblock 76, triangle 81, wind chimes 84 (shared with the MPC) | 118 / Preset 3 | 15ips Kit | 0.70 | −0.20 | 0.85 | 0 | 1 |
 | 11 | trombone, bass trombone | 57 / User | Bone Tone | 0.90 | 0.10 | 0.80 | 0 | 1 |
 | 12 | strings pizzicato | 45 / Preset 3 | Pizz Pluck | 0.50 | 0.15 | 0.90 | 0 | 1 |
 | 13 | violin 1 | 49 / GM | Slo String | 0.40 | −0.80 | 0.80 | 0 | 1 |
@@ -74,8 +74,9 @@ Channel 10 carries the orchestra's percussion — 15ips Kit, 118 / Preset 3,
 answering General MIDI numbers — on the channel the MPC's service lane also
 uses (sub, kit, click, count, display). The two coexist by note band: the MPC's
 pads take 0–48 and the `kmap` notes 108–119, so the kit's voices are chosen
-above that — tambourine 54, woodblock 76, triangle 81 (`tambourine`,
-`woodblock`, `triangle` in the orchestra) — and a sub-bass note never lands on
+above that — crash 49, ride 51, tambourine 54, woodblock 76, triangle 81, wind
+chimes 84 (`crashcymbal`, `ridecymbal`, `tambourine`, `woodblock`, `triangle`,
+`chimes` in the orchestra) — and a sub-bass note never lands on
 a kit pad; the kit's own kick, snare and hats (35–48) are not part of the
 orchestra, because they sit in the MPC's band. `nanoKit` remains as the
 one-line way to put the kit back after a program change.

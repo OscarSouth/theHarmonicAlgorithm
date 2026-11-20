@@ -1,0 +1,256 @@
+number,name
+1,Warm Violins
+2,Slow Vlns 1
+3,Vlns+Vlas 1
+4,Vl Sect mono
+5,Arco Violins
+6,Marcato Vls1
+7,Vlns+Vlas 2
+8,Agitato Vls1
+9,Rosin Pad 1
+10,Dry Mid-High
+11,Natural Vlns
+12,Sad Vln Sect
+13,Marcato Vas
+14,Arco Violas
+15,Thick Violas
+16,Va Sect f
+17,Va Small Sec
+18,Agitato Vas1
+19,Sad Violas
+20,Fast Cellos1
+21,Vcs Legato 1
+22,Marcato Vcs1
+23,Small Vc Sec
+24,Agitato Vcs1
+25,Small Cellos
+26,Sad CelloSec
+27,Cb Sect ff
+28,Wide Basses
+29,mf Basses
+30,Agitato Cbs1
+31,Vcs+Cbs
+32,2 Basses
+33,Euro Strings
+34,Rich Strings
+35,Multi Strs 1
+36,VlsVasVcsCbs
+37,Bright Strs
+38,Classicl Str
+39,Full Strings
+40,Med Str Sec
+41,Small Strngs
+42,Strings Arco
+43,Vivace Strs
+44,Agitato STR1
+45,LowSTR Attak
+46,Bad Guy STR
+47,Ominous
+48,Lo Express
+49,DramaStrings
+50,Solo Vln 1 /
+51,Solo Vln 2
+52,Chorus Vln
+53,Stereo Vln
+54,Agitato Vln1
+55,Solo Vla 1 /
+56,Solo Vla 2
+57,Chorus Viola
+58,Stereo Viola
+59,Agitato Vla
+60,Solo Vc 1  /
+61,Solo Vc 2
+62,Stereo Cello
+63,Chorus Cello
+64,Marcato Vc 1
+65,Solo Cb 1  /
+66,Solo Cb 2
+67,Marcato Cb 1
+68,Chamber Ens1
+69,Chamber Ens2
+70,Vln+Vla Dble
+71,Vln+Vc  Dbl1
+72,Vla+Vc  Dbl2
+73,Vla+Vc  Dble
+74,Pizzicato  1
+75,Mono Pizz
+76,Pizzicato  2
+77,Room Pizz
+78,Hall Pizz
+79,Tight Pizz
+80,Short Pizz
+81,STR Marcato1
+82,Oct Marcato
+83,Lower Marc!!
+84,Big Marc!
+85,STR Spiccato
+86,Fast Attacks
+87,Flute
+88,Flute V-Sw
+89,Piccolo
+90,Piccolo Flt
+91,Recorder
+92,Oboe 1
+93,Oboe 2
+94,Oboe 3
+95,Oboe 4
+96,Oboe 5
+97,English Hrn1
+98,English Hrn2
+99,English Hrn3
+100,Bassoon 1
+101,Bassoon 2
+102,Clarinet 1
+103,Clarinet 2
+104,Bs Clarinet1
+105,Bs Clarinet2
+106,Trumpet 1
+107,Trumpet 2
+108,Trumpet 3
+109,Flugelhorn 1
+110,Flugelhorn 2
+111,Cornet 1
+112,Cornet 2
+113,Solo Tb 1
+114,Solo Tb 2
+115,Solo Tb 3  /
+116,Solo Tb 4  /
+117,Bs Tb 1
+118,Bs Tb 2    /
+119,Harmon Mute1
+120,Harmon Mute2
+121,Tuba 1
+122,Tuba 2
+123,Solo F.Horn1
+124,Solo F.Horn2
+125,Sml F.Hrn sc
+126,Horn Sect 1/
+127,F.Horn sc x4
+128,Fr.Horn sfz
+129,F.Hrn Sect2/
+130,F.Hrn Sect3
+131,F.Hrn Sect4
+132,F.Hrn Sect5/
+133,F.Hrn Sect6
+134,F.Hrn Sect7
+135,F.Hrn Sect8
+136,MuteHrn Sect
+137,Horn+Wood 1
+138,Horn+Wood 2
+139,Horn+Wood 3
+140,Wood Sect 1
+141,Wood Sect 2
+142,Wood Sect 3
+143,Wood Sect 4
+144,2 Oboes
+145,Oboe + Cla
+146,Flt + Piccl
+147,Flute + Cla
+148,Bassoon+EHrn
+149,Hi Woodwinds
+150,WoodwindSplt
+151,Multi Reed
+152,4 Trombones
+153,Tb Sect 1
+154,Tb + Tp
+155,4 Trumpets
+156,3 Trumpets
+157,Brass ff 1
+158,Brass ff 2
+159,Brass ff 3
+160,McArthur Brs
+161,Big Bones
+162,BassBoneSect
+163,Brass Swell1
+164,Full Brs 1
+165,Brass Sect1/
+166,Brass Ens 1
+167,Brass Ens 2
+168,Brass Ens 3
+169,Brass Ens 4
+170,Brass Ens 5
+171,Brass Ens 6
+172,Brass Ens 7
+173,Brass Ens 8
+174,Horn Strings
+175,Full Orch.1
+176,Full Orch.2
+177,Full Orch.3
+178,Full Orch.4
+179,Maj Hit 1
+180,Min Hit 1
+181,Dim Hit 1
+182,Major Stab!
+183,Maj Hit 2
+184,Min Hit 2
+185,Classical Gt
+186,Harp 1
+187,Harp 2
+188,Plucked Harp
+189,Harp StrumMj
+190,Harp StrumMn
+191,Water Harp
+192,ClasclPiano1
+193,ClasclPiano2
+194,ClasclPiano3
+195,ClasclPiano4
+196,Harpsichord1
+197,Harpsichord2
+198,Harpsichord3
+199,Harpsichord4
+200,Celesta 1
+201,Celesta 2
+202,Celesta 3
+203,Glockenleste
+204,Marimba
+205,BassMarimba1
+206,BassMarimba2
+207,Vibe
+208,Xylophone 1
+209,Xylophone 2
+210,Xylophone 3
+211,Glocken 1
+212,Glocken 2
+213,ChurchBells1
+214,ChurchBells2
+215,ChurchBells3
+216,TubulaBells1
+217,TubulaBells2
+218,Big Tubulars
+219,Dawning
+220,MalletStack1
+221,MalletStack2
+222,MalletStack3
+223,MalletStack4
+224,MalletStack5
+225,MalletStack6
+226,MalletStack7
+227,Choir 1
+228,Choir 2
+229,Snare Drum
+230,ConcertSNR1/
+231,ConcertSNR2/
+232,SNR Roll   /
+233,Concert BD1
+234,Concert BD2/
+235,BD  Roll   /
+236,Timpani 1  /
+237,Timpani 2  /
+238,Timpani 3
+239,Timpani 4  /
+240,Tam Tam
+241,Gong
+242,Piatti!!
+243,Sleigh Bells
+244,Slapstick  /
+245,Wind Chimes1
+246,Wind Chimes2
+247,Tambourine /
+248,Castanets  /
+249,Rhythm Set
+250,Perc Hit 1
+251,Perc Hit 2 /
+252,Perc Hit 3
+253,Presenting!
+254,Presto!
+255,Christmas!!!

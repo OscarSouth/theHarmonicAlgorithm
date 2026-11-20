@@ -136,7 +136,7 @@ it record any channel.
 The rules the U6 preset (`nano studio`) encodes, and why:
 
 - Out 2 carries channel 10 too, because the nano's kit on 10 is the orchestra's percussion
-  (`tambourine` 54, `woodblock` 76, `triangle` 81). The lane is shared by note band: the
+  (`crashcymbal` 49, `ridecymbal` 51, `tambourine` 54, `woodblock` 76, `triangle` 81, `chimes` 84). The lane is shared by note band: the
   MPC's pads keep 0–48 (`count` from 8, `dkit` 19–34, the sub 35–48) and `kmap` 108–119, the
   kit voices sit between. The CCs of the display, RC-10R, `dkit` and the Q-Link return
   (33–48, 70–84, 100–111, 113–118) reach the module and are ignored — it answers only CC 1,

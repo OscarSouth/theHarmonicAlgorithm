@@ -37,7 +37,7 @@ where it has one (the NanoSynth); `rigName rig` is printed at boot.
 | 6       | Trombone/Bass  | Brass             |
 | 7       | Harp           | Plucked           |
 | 8       | Timpani        | Pitched perc      |
-| 9       | Bass Drum      | Unpitched perc    |
+| 9       | Bass drum, auxiliary percussion | Unpitched perc |
 | 10      | subKick        | MPC sub/kick      |
 | 11      | Tam-tam        | Unpitched perc    |
 | 12      | Strings pizz   | String artic      |
@@ -48,7 +48,11 @@ where it has one (the NanoSynth); `rigName rig` is printed at boot.
 
 Strings are laid out by technique: every section shares a channel per
 articulation (`pizz` 12, `spicc` 13, `marc` 14, `legg` 15, `arco` 16).
-Patches are a Performance stored on the module. Definitions: `jv1010` in
+Channel 9 is split by key: up to B2 it is the concert bass drum patch (MIDI 36),
+from C3 the Performance's rhythm part, whose user rhythm set holds the auxiliary
+percussion one key apiece. Patches are a Performance stored on the module; its
+balance, dynamic response and stereo placement are calibrated against the
+NanoSynth and recorded in `live/jvnanoconfig/`. Definitions: `jv1010` in
 `Harmonic.Interface.Tidal.Devices.JV1010`.
 
 ### NanoSynth (16 MIDI Channels)
@@ -64,7 +68,7 @@ Patches are a Performance stored on the module. Definitions: `jv1010` in
 | 7       | Harp (continuo)     | 46 / Preset 3  Harpitz |
 | 8       | Timpani, with tuba  | 60 / Preset 4  Documentar |
 | 9       | Orchestra hit (bass drum) | 55 / Preset 3  Danz Hitz |
-| 10      | Kit: tambourine, woodblock, triangle (shared with the MPC) | 118 / Preset 3  15ips Kit |
+| 10      | Kit: crash, ride, tambourine, woodblock, triangle, wind chimes (shared with the MPC) | 118 / Preset 3  15ips Kit |
 | 11      | Trombone, bass trombone | 57 / User  Bone Tone |
 | 12      | Strings pizzicato   | 45 / Preset 3  Pizz Pluck |
 | 13      | Violin 1            | 49 / GM  Slo String |
@@ -100,27 +104,41 @@ mapM_ id [hush, setbpm tempo
   ]
 ```
 
-A continuo voice carries a full bank address `(msb, lsb, program)`, so any card or
-internal set is reachable. Quote SR-JV80-02 Orchestral patches straight off
-Roland's 001–255 listing with `orch` (it spans two 128-patch sub-banks and the
-arithmetic is handled); reach the internal sets with `presetA` / `presetB`.
+A continuo voice carries a full bank address `(msb, lsb, program)`. In the
+stored Performance the continuo part is the only one that follows a Program
+Change, and it keeps its level and pan whichever patch it plays.
+
+The calibrated voices are **user patches** on the module (`userPatch n`, bank
+80/0): each is levelled to the harp inside the patch, shares its dynamic
+response, sounds at concert pitch and is confined to its instrument's range.
+A voice chosen stays until another is chosen or the Performance is selected
+again, so a movement that wants the harp after another voice says so.
+
+| Voice | Patch | Voices per note | Range | Typical use |
+|---|---|---|---|---|
+| `harpV` | user 7, Harp 1 | 1 | B1–F#7 | default — Orpheus's lyre |
+| `harpsichordV` | user 10, Harpsichord1 | 2 (the second is the key-release click) | F1–F6 | Baroque continuo (Bach, Vivaldi) |
+| `marimbaV` | user 17, Marimba | 1 | C2–C7 | mallet continuo |
+
+Any other patch is reachable as Roland stored it, uncalibrated: quote
+SR-JV80-02 Orchestral patches straight off the 001–255 listing with `orch`
+(bank 84/2 for 1–128, 84/3 for 129–255; the arithmetic is handled) and the
+internal sets with `presetA` / `presetB`.
 
 | Voice | Patch | Typical use |
 |---|---|---|
-| `harpV` | Orchestral 186 Harp 1 | default — Orpheus's lyre |
 | `harpPluckedV` | Orchestral 188 Plucked Harp | drier attack |
-| `harpsichordV` | Orchestral 196 Harpsichord1 | Baroque continuo (Bach, Vivaldi) |
 | `pianoV` | Orchestral 192 ClasclPiano1 | — |
 | `celestaV` | Orchestral 200 Celesta 1 | Venus, Neptune |
 | `glockenV` | Orchestral 211 Glocken 1 | bright mallet colour |
 | `tubularV` | Orchestral 216 TubulaBells1 | bell weight |
 | `choirV` | Orchestral 227 Choir 1 | Neptune's wordless chorus |
 | `guitarV` | Orchestral 185 Classical Gt | — |
-| `organV` | internal `presetA 18` | organ weight (Mars) |
+| `organV` | internal `presetA 61` Church Pipes | organ weight (Mars) |
 
-Definitions live in `Harmonic.Interface.Tidal.Devices.JV1010`. Two constants
-need confirming against the device the first time this is used: `orchLSB` (the
-expansion card's bank) and the `organV` patch number.
+Definitions live in `Harmonic.Interface.Tidal.Devices.JV1010`; the user
+patches are built by `live/jvnanoconfig/tools/jv_sysex.py` from the `continuo`
+entries of `jv_edits.json`.
 
 On the NanoSynth a voice is `nanoVoice program bank` (the bank in the msb
 slot; the module reads CC0 only): `nanoHarpV` (Harpitz) and `nanoHarpsichordV`
@@ -188,6 +206,7 @@ the channel it reads from the rig:
 instrument :: (Int, Int) -> Int -> Instrument
 flute, oboe, clarinet, … :: Rig -> Instrument
 flute = instrument (-12, 26) . rigFlute   -- C3–D6 (MIDI 48–86)
+piccolo = instrument (14, 48) . rigFlute  -- D5–C8 (MIDI 74–108): the flute's channel, the piccolo's sounding range
 ```
 
 Pipeline: `arrange` → `# ch` → `|+ oct` → `clip`. The boot file binds the
@@ -197,9 +216,15 @@ is the whole call.
 ### Unpitched (struct-based)
 
 ```haskell
-bassdrum, tamtam, tambourine, triangle, woodblock :: Rig -> Pattern Bool -> ControlPattern
--- JV-1010: bass drum MIDI 36 on ch 9, tam-tam MIDI 31 on ch 11, the three hand voices on the
--- rhythm set (ch 9, General MIDI numbers); a rig without the voice is silent
+bassdrum, tamtam, tambourine, triangle, woodblock, crashcymbal, ridecymbal, chimes
+  :: Rig -> Pattern Bool -> ControlPattern
+-- JV-1010: bass drum MIDI 36 on ch 9, tam-tam MIDI 31 on ch 11, the rest on the rhythm part
+-- (ch 9 from C3, a key each); a rig without the voice is silent
+
+snaredrum :: Rig -> Pattern String -> ControlPattern
+-- one grid, a symbol per technique: x stroke, X loud stroke, a accent, k side stick,
+-- r a roll that lasts its step
+--   d1 $ snaredrum "x ~ x a r@2 ~ k"
 ```
 
 ## Instrument Catalogue
@@ -209,6 +234,7 @@ bassdrum, tamtam, tambourine, triangle, woodblock :: Rig -> Pattern Bool -> Cont
 | Instrument | Ch | Tidal Range | MIDI Range | Pitch Range | Section |
 |---|---|---|---|---|---|
 | Flute | 1 | (-12, 26) | 48–86 | C3–D6 | Wind |
+| Piccolo | 1 | (14, 48) | 74–108 | D5–C8 | Wind (the flautist doubling) |
 | Oboe | 2 | (-2, 33) | 58–93 | Bb3–A6 | Wind |
 | Clarinet | 3 | (-22, 34) | 38–94 | D2–Bb6 | Wind |
 | Bassoon | 4 | (-28, 15) | 32–75 | Bb1–Eb5 | Wind |
@@ -225,40 +251,55 @@ bassdrum, tamtam, tambourine, triangle, woodblock :: Rig -> Pattern Bool -> Cont
 
 Tidal note 0 = MIDI 60 = middle C. Ranges are enforced by `clip` inside each instrument function.
 
-### Range review (pending — a practical pass at the instrument)
+### Range review: what the JV-1010 sounds
 
-The numeric bounds above are tuned to the range limits of the **actual
-JV1010 sampler patches**, not textbook instrument ranges — the numbers are
-authoritative and must not be "corrected" to the note names. The 2026-08-25
-sweep found the two columns disagreeing in four places, where the coded MIDI
-floor sits below the named pitch:
+The numeric bounds above are the notes the library sends and are authoritative;
+they are not corrected to the note names. Both rigs sound the note they are
+sent: every tone of the JV-1010's pitched patches has coarse tune 0, measured
+against the NanoSynth voice by voice, so a line lies at the same pitch on
+either module. Where each JV-1010 patch sounds:
 
-| Instrument | Coded floor | Named floor | Gap |
-|---|---|---|---|
-| Bassoon | MIDI 32 (Ab1) | Bb1 (34) | 2 semitones |
-| Horn | MIDI 31 (G1) | B1 (35) | 4 semitones |
-| Trombone | MIDI 32 (Ab1) | Bb1 (34) | 2 semitones |
-| Harp | MIDI 31 (G1) | B1 (35) | 4 semitones |
+| Instrument | Library sends (MIDI) | Patch sounds for |
+|---|---|---|
+| Flute | 48–86 | 48–98, the flute sample |
+| Piccolo | 74–108 | flute sample to 98 (D7), piccolo sample 99–108 |
+| Oboe | 58–93 | 58–93 |
+| Clarinet | 38–94 | 38–94 |
+| Bassoon | 32–75 | 34–75 |
+| Horn | 31–77 | 35–77 |
+| Trombone | 32–77 | 21–77 |
+| Bass trombone | 21–55 | 21–77 (the trombone's patch) |
+| Harp | 31–102 | 35–102 |
+| Timpani | 38–60 | 38–60 |
+| Strings, arco | 24–105 | violins 55–105, violas 48–88, cellos 36–84, basses 24–60 |
 
-Separately, the flute (low C3, a physical flute's floor is C4) and clarinet
-(low D2, a Bb clarinet sounds to D3) lower bounds sit an octave below the
-acoustic instruments — plausible as deliberate patch headroom, unverified.
-
-The sweep briefly aligned the four numbers to the names before the JV1010
-provenance was clarified; the values were restored untouched. **Action:** a
-practical per-instrument pass on the JV1010, sounding each patch at its
-extremes, then setting number AND name precisely in all three copies of this
-table (`Orchestra.hs`, this file, `live/docs/ORCHESTRAL_CATALOGUE.tidal`).
+- **Silent floors.** A note the library sends below the patch's lowest key is
+  dropped by the module: bassoon 32–33, horn 31–34, harp 31–34.
+- **The Orchestral board's own patches** key the flute and piccolo an octave
+  low and the bassoon, trombone and timpani an octave high (coarse tune ±12).
+  A patch taken from the board for one of these voices needs its coarse tune
+  set to 0.
+- **String techniques** share the sections' ranges only in part: pizzicato
+  24–105, spiccato 36–105 (no contrabass below C2), marcato 24–84 (nothing
+  above C6), legato 48–100 (nothing below C3 or above E7).
 
 ### Unpitched Percussion
 
-| Instrument | Ch | MIDI Note | Usage |
+| Instrument | JV-1010 ch / note | NanoSynth ch / note | Usage |
 |---|---|---|---|
-| Bass Drum | 9 | 36 (C2) | `bassdrum pat` |
-| Tam-tam | 11 | 31 (G1) | `tamtam pat` |
-| Tambourine | 9 | 54 | `tambourine pat` |
-| Woodblock | 9 | 76 | `woodblock pat` |
-| Triangle | 9 | 81 (open, rings) | `triangle pat` |
+| Bass Drum | 9 / 36 (C2) | 9 / 12 (orchestra hit) | `bassdrum pat` |
+| Tam-tam | 11 / 31 (G1) | — | `tamtam pat` |
+| Tambourine | 9 / 54 | 10 / 54 | `tambourine pat` |
+| Woodblock | 9 / 76 | 10 / 76 | `woodblock pat` |
+| Triangle | 9 / 81 (open, rings) | 10 / 81 | `triangle pat` |
+| Crash cymbals | 9 / 57 (rings) | 10 / 49 | `crashcymbal pat` |
+| Ride cymbal | 9 / 59 | 10 / 51 | `ridecymbal pat` |
+| Wind chimes | 9 / 84 | 10 / 84 | `chimes pat` |
+| Snare drum | 9 / 60 stroke, 61 loud stroke, 62 accent, 63 roll, 64 side stick | — | `snaredrum "x X a r k"` |
+
+`snaredrum` takes a symbol grid, not a boolean one. A roll (`r`) sounds for the
+length of its step, so `r@3` rolls for three steps. The NanoSynth's kit keeps
+its snares inside the MPC's note band, so the snare drum is silent there.
 
 The studio rig's MPC instruments — `subKick` (ch 10), `hmnx` (ch 11), `slce` (ch 12) — are
 not JV-1010 voices; they are documented in [LIVE_ENVIRONMENT.md](LIVE_ENVIRONMENT.md).
@@ -288,11 +329,18 @@ other tags leave the line on its section's channel:
 | 5 | Horns | -22 |
 | 6 | Trombones | 18 |
 | 7 | Harp | -25 |
-| 8 | Timpani | -18 |
-| 9 | Bass drum | -6 |
+| 8 | Timpani | -8 |
+| 9 | Bass drum | 12 |
 | 10 | subKick/MPC | 0 |
 | 11 | Tam-tam | 22 |
 | 12–16 | Strings | 0 |
+
+Timpani and bass drum sit a little either side of centre, leaving the centre
+for a kick. The strings' part pan is 0 because the patches place the sections
+themselves: every string patch moves from right (low) to left (high) along
+one curve. The rhythm part's keys carry their own pans: snare drum 22,
+tambourine 13, woodblock 35, crash −10, ride −18, wind chimes −28,
+triangle −40.
 
 ### Target Ensemble
 
