@@ -202,7 +202,11 @@ s.reboot {
       ~midiSafe.onNoteOff = { |c, n, v| ~ledCoordinator.onNoteOff(c, n, v) };
       ~midiSafe.onControl = { |c, ct, v| ~ledCoordinator.onControl(c, ct, v) };
       ~ledCoordinator.watch(7, nil);          // ch 8  = lineHarmony, all notes
-      ~ledCoordinator.watch(9, (36..47));     // ch 10 = subKick range only
+      // ch 10 = the sub's octave only. A machine whose live/local/rig.hs names the
+      // NanoSynth keeps the sub two octaves down (rigLane), below the module's kit.
+      ~thaRigFile = ~thaLiveDir +/+ "local" +/+ "rig.hs";
+      ~thaSubRange = if(File.exists(~thaRigFile) and: { File.readAllString(~thaRigFile).contains("nanoSynth") }) { (12..23) } { (36..47) };
+      ~ledCoordinator.watch(9, ~thaSubRange);
       "====> LED coordinator wired to SafeMIDIOut on ch 8 + ch 10 (subKick range).".postln;
     };
 

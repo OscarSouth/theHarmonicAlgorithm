@@ -46,7 +46,7 @@
 --
 -- Channel 10 carries the orchestra's percussion (15ips Kit) on the channel the
 -- MPC's service lane also uses; the two share it by note band — the MPC's pads
--- keep 0–48, the kit voices the rig names ('rigCrashcymbal' 49, 'rigRidecymbal'
+-- keep 0–32 ('rigLane' moves the sub, kick and count below the kit), the kit voices the rig names ('rigCrashcymbal' 49, 'rigRidecymbal'
 -- 51, 'rigTambourine' 54, 'rigWoodblock' 76, 'rigTriangle' 81, 'rigChimes' 84)
 -- sit above; the kit's snares lie inside that band, so 'rigSnaredrum' is empty. @nanoKit@ re-sends the kit after a program
 -- change. The kit answers to the General MIDI percussion map, so the voices
@@ -96,19 +96,20 @@ nanoSynth = Rig
   , rigContrabass = 16
   , rigBassdrum   = Just (12, 9)    -- the orchestra hit, four octaves down
   , rigTamtam     = Nothing
-  , rigTambourine = Just (54, 10)   -- 15ips Kit, General MIDI numbers, all above the MPC's band (0–48)
+  , rigTambourine = Just (54, 10)   -- 15ips Kit, General MIDI numbers, all above the MPC's band (0–32)
   , rigTriangle   = Just (81, 10)
   , rigWoodblock  = Just (76, 10)
   , rigCrashcymbal = Just (49, 10)
   , rigRidecymbal  = Just (51, 10)
   , rigChimes      = Just (84, 10)
-  , rigSnaredrum   = Nothing        -- the kit's snares (37, 38, 40) lie inside the MPC's band
+  , rigSnaredrum   = Nothing        -- not voiced: the kit's snares (37, 38, 40) are free of the MPC's band but unauditioned
   , rigPizz       = ch 12
   , rigSpicc      = noArt
   , rigMarc       = noArt
   , rigLegg       = noArt
   , rigArco       = noArt
   , rigContinuo   = 7
+  , rigLane       = (-24, 24)       -- sub 12–23, kick 24; count 25–32: all below the kit, which answers from 35
   , rigSetup      = nanoSetup
   }
 
@@ -133,7 +134,7 @@ nanoMix =
   , ( 7, ( 46, 3), 0.10, -0.20, 0.95, 0, 1)   -- Harpitz: harp, the continuo
   , ( 8, ( 60, 4), 0.90, -0.30, 0.85, 0, 1)   -- Documentar: timpani, with tuba
   , ( 9, ( 55, 3), 1.00,  0.00, 0.90, 1, 1)   -- Danz Hitz: orchestra hit, the bass drum at MIDI 12
-  , (10, (118, 3), 0.70, -0.20, 0.85, 0, 1)   -- 15ips Kit: tambourine 54, woodblock 76, triangle 81; shared with the MPC (its pads keep 0–48)
+  , (10, (118, 3), 0.70, -0.20, 0.85, 0, 1)   -- 15ips Kit: crash 49, ride 51, tambourine 54, woodblock 76, triangle 81, chimes 84; shared with the MPC (its pads keep 0–32)
   , (11, ( 57, 1), 0.90,  0.10, 0.80, 0, 1)   -- Bone Tone: trombone, bass trombone
   , (12, ( 45, 3), 0.50,  0.15, 0.90, 0, 1)   -- Pizz Pluck: strings pizzicato
   , (13, ( 49, 0), 0.40, -0.80, 0.80, 0, 1)   -- Slo String: violin 1

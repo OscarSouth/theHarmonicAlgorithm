@@ -137,13 +137,17 @@ The rules the U6 preset (`nano studio`) encodes, and why:
 
 - Out 2 carries channel 10 too, because the nano's kit on 10 is the orchestra's percussion
   (`crashcymbal` 49, `ridecymbal` 51, `tambourine` 54, `woodblock` 76, `triangle` 81, `chimes` 84). The lane is shared by note band: the
-  MPC's pads keep 0–48 (`count` from 8, `dkit` 19–34, the sub 35–48) and `kmap` 108–119, the
-  kit voices sit between. The CCs of the display, RC-10R, `dkit` and the Q-Link return
-  (33–48, 70–84, 100–111, 113–118) reach the module and are ignored — it answers only CC 1,
-  7, 10, 11, 64, 91 and 123. One caveat: the kit's kick, snare and hats share the sub's
-  35–48, so a piece that runs `subKick` also strikes them on the nano; the kit is left out of
-  the orchestra for that reason. No CC or program-change filter sits on Out 2:
-  `setupRig`'s bank selects and program changes must arrive intact.
+  MPC's pads keep 0–32 and `kmap` 108–119, the kit answers from 35 and its voices sit
+  between. On this rig the lane is laid out below the kit (`rigLane`, applied by the boot
+  file's `subKick` and `count`): the kit's eight drum pads 0–7 (the click on 6), the sub a
+  chromatic octave 12–23 with the kick on 24 — two octaves under the home rig's 36–48, the
+  12 Step's `nano` preset sending the same thirteen notes — "no note" on 11, and the eight
+  `count` pads on 25–32. So a sub note never strikes a kit drum, and the U6 needs no note
+  filter (it has none: its filter is by channel and message type, its mapper by input).
+  The CCs of the display, RC-10R and the Q-Link return (33–48, 70–84, 100–111, 113–118)
+  reach the module and are ignored — it answers only CC 1, 7, 10, 11, 64, 91 and 123. No CC
+  or program-change filter sits on Out 2: `setupRig`'s bank selects and program changes
+  must arrive intact.
 - Channel 6 is the Mother-32's, as on the studio map below: an MPC CV track on 6 drives it
   from the stream the MPC already hears, and the nano's 6 is the blank program at level 0,
   so the module never sounds those notes. The DFAM's oscillator keytrack can follow any
@@ -178,7 +182,7 @@ studio rig's own instruments — none of them is a JV-1010 voice.
 | Kick | 48 (fixed) | C3 |
 | Silence (no sample) | 35 | B1 |
 
-Sub pitches are normalised from the progression's harmonic root pitch class: `pitch_class + 36`. This places the sub register below all orchestral instruments, leaving MIDI 48+ free for anything else sharing the channel.
+Sub pitches are normalised from the progression's harmonic root pitch class: `pitch_class + 36`. This places the sub register below all orchestral instruments, leaving MIDI 48+ free for anything else sharing the channel. The table is the home rig's; a rig moves the three rows together by the first number of its `rigLane` (the NanoSynth rig: −24, so 12–23, 24 and 11), and its second number is the note below the first `count` sample.
 
 #### Note durations (no CC64)
 

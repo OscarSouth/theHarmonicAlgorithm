@@ -247,6 +247,10 @@ data Rig = Rig
     --   per section and the technique has no separate destination
   , rigContinuo :: Int
     -- ^ the channel the continuo voice is retuned on
+  , rigLane     :: (Int, Int)
+    -- ^ where the service lane on channel 10 sits beside this module:
+    --   semitones added to the sub and kick (written at MIDI 35–48), and
+    --   the note below the first @count@ sample
   , rigSetup    :: [ControlPattern]
     -- ^ one-shots that configure the module from cold, in receive order;
     --   empty when the patches live on the device
@@ -372,8 +376,8 @@ hit secs (Just (nt, c)) pat = struct pat $ midinote (fromIntegral nt) # ch c # s
 -- | The unpitched section: a boolean pattern rather than a voice. The tam-tam
 -- and the triangle ring, the rest are struck short. Where a rig's percussion
 -- is a General MIDI kit on a channel the module shares with other gear, the
--- voices chosen here (54, 76, 81) sit above the band that gear uses, so a
--- tambourine never lands on a sub-bass pad.
+-- voices chosen here (49, 51, 54, 76, 81, 84) sit above the band that gear
+-- uses, so a tambourine never lands on a sub-bass pad.
 --
 -- @d1 $ bassdrum \"t ~ ~ t\"@   @, tambourine \"[~ t]\"@   @, woodblock \"t*2\"@
 bassdrum, tamtam, tambourine, triangle, woodblock, crashcymbal, ridecymbal, chimes

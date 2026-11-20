@@ -7,6 +7,8 @@ import Test.Hspec
 import Harmonic.Interface.Tidal.Orchestra
 import Harmonic.Interface.Tidal.Devices.NanoSynth
 import Harmonic.Interface.Tidal.Instruments (ch)
+import Harmonic.Interface.Tidal.Devices.JV1010 (jv1010)
+import Harmonic.Interface.Tidal.Groove (transposeLane)
 import qualified Data.Map.Strict as Map
 import Sound.Tidal.Context hiding (clip)
 
@@ -96,6 +98,16 @@ spec = describe "NanoSynth rig (the JV-1010 order, the Mother-32 on 6, pizzicato
     map ($ nanoSynth) [rigTambourine, rigTriangle, rigWoodblock] `shouldBe` [Just (54, 10), Just (81, 10), Just (76, 10)]
     [ onsets (v nanoSynth "1") | v <- [tambourine, triangle, woodblock] ]
       `shouldBe` [ [(Just (fromIntegral n - 60), Just 9)] | n <- [54, 81, 76 :: Int] ]
+
+  it "the service lane sits below the kit: sub and kick two octaves down, count from 25" $ do
+    rigLane nanoSynth `shouldBe` (-24, 24)
+    rigLane jv1010 `shouldBe` (0, 7)
+    let lane = transposeLane (fst (rigLane nanoSynth)) $ stack
+                 [ midinote "35 36 47 48" # s "thru", midicmd "control" # ctlNum 32 # control 1 ]
+        evs  = queryArc lane (Arc 0 1)
+        nts  = [ round (unNote x) + 60 :: Int | e <- evs, Just (VN x) <- [Map.lookup "note" (value e)] ]
+    nts `shouldMatchList` [11, 12, 23, 24]
+    length [ () | e <- evs, Map.notMember "note" (value e) ] `shouldBe` 1
 
   it "crash 49, ride 51 and wind chimes 84 are the kit's; the snare drum has no voice here" $ do
     [ onsets (v nanoSynth "1") | v <- [crashcymbal, ridecymbal, chimes] ]

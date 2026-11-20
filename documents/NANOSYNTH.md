@@ -73,12 +73,13 @@ pizzicato on 12.
 Channel 10 carries the orchestra's percussion — 15ips Kit, 118 / Preset 3,
 answering General MIDI numbers — on the channel the MPC's service lane also
 uses (sub, kit, click, count, display). The two coexist by note band: the MPC's
-pads take 0–48 and the `kmap` notes 108–119, so the kit's voices are chosen
+pads take 0–32 and the `kmap` notes 108–119 (the rig's `rigLane` reads the sub,
+kick and count below the kit: [LIVE_ENVIRONMENT.md](LIVE_ENVIRONMENT.md)), so the kit's voices are chosen
 above that — crash 49, ride 51, tambourine 54, woodblock 76, triangle 81, wind
 chimes 84 (`crashcymbal`, `ridecymbal`, `tambourine`, `woodblock`, `triangle`,
 `chimes` in the orchestra) — and a sub-bass note never lands on
-a kit pad; the kit's own kick, snare and hats (35–48) are not part of the
-orchestra, because they sit in the MPC's band. `nanoKit` remains as the
+a kit pad; the kit's own kick, snare and hats (35–48) are free of the lane
+but not yet part of the orchestra. `nanoKit` remains as the
 one-line way to put the kit back after a program change.
 
 Channel 6 is the Moog Mother-32's. It receives on 6 from the MPC's CV out —

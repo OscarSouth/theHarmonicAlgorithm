@@ -60,10 +60,12 @@ score-mode text so they do not have to be typed.
 python3 -I scripts/midi2score.py piece.mid --blocks 1-16,17-46 --mark pp
 ```
 
-Output is one instrument line per voice for each block, one string per bar, ready to paste
-under `bars` and check against the print. The report on stderr lists the bar count, time
-signatures, tempos, range, every dropped note and every tie across a bar line (a block
-boundary must not cut one). Dynamics and tempo are not written: read them from the print.
+Output is `bars` blocks ready to paste into a piece: each requested range is cut at every
+bar line no note is held across (one bar per block, or the run of bars a tie joins), with one
+single-line pattern literal per voice, so the file reads down the page in time and the
+editor's event highlighting follows it. The report on stderr lists the bar count, time
+signatures, tempos, range, every dropped note and any tie that crosses the end of a requested
+range. Dynamics and tempo are not written: read them from the print.
 
 Pure Python, no dependencies. The conversion rules are in the script's docstring
 (`--help` prints them).

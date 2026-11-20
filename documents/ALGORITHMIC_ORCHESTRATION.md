@@ -52,7 +52,7 @@ Channel 9 is split by key: up to B2 it is the concert bass drum patch (MIDI 36),
 from C3 the Performance's rhythm part, whose user rhythm set holds the auxiliary
 percussion one key apiece. Patches are a Performance stored on the module; its
 balance, dynamic response and stereo placement are calibrated against the
-NanoSynth and recorded in `live/jvnanoconfig/`. Definitions: `jv1010` in
+NanoSynth. Definitions: `jv1010` in
 `Harmonic.Interface.Tidal.Devices.JV1010`.
 
 ### NanoSynth (16 MIDI Channels)
@@ -137,8 +137,7 @@ internal sets with `presetA` / `presetB`.
 | `organV` | internal `presetA 61` Church Pipes | organ weight (Mars) |
 
 Definitions live in `Harmonic.Interface.Tidal.Devices.JV1010`; the user
-patches are built by `live/jvnanoconfig/tools/jv_sysex.py` from the `continuo`
-entries of `jv_edits.json`.
+patches are stored on the module.
 
 On the NanoSynth a voice is `nanoVoice program bank` (the bank in the msb
 slot; the module reads CC0 only): `nanoHarpV` (Harpitz) and `nanoHarpsichordV`
@@ -475,7 +474,7 @@ tutti pizz f k $ d 0.7
 | `wind` | flute, oboe, clarinet, bassoon           |
 | `brss` | horn, trombone, basstrom                 |
 | `strg` | violin1, violin2, viola, cello, contrabass |
-| `perc` | timpani, harp, bassdrum, tamtam, tambourine, triangle, woodblock |
+| `perc` | timpani, harp, bassdrum, tamtam, tambourine, triangle, woodblock, crashcymbal, ridecymbal, chimes, snaredrum |
 
 ## Blends
 

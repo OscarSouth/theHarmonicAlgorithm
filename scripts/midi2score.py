@@ -2,9 +2,9 @@
 """Harvest a Standard MIDI File into score-mode text.
 
 For transcriptions whose notation exists as MIDI (a LilyPond or MuseScore render of
-an edition): every track becomes one or more `harp' M 1 "p" k (staff beats [...])`
-lines, one string per bar, so the piece can be placed with `bars` in a score-mode
-piece and checked bar by bar against the sheet music.
+an edition): every voice becomes `harp' M 1 "p" k "[…]/N"` lines under `bars`, one
+pattern literal per line, in blocks cut at every bar line no note is held across. The
+piece reads down the page in time and the editor's event highlighting follows it.
 
     python3 -I scripts/midi2score.py piece.mid --blocks 1-16,17-46 [--instrument harp'] [--mark pp]
 
@@ -14,10 +14,12 @@ Rules:
 - A track's notes are split into monophonic layers: a note joins the first layer whose
   previous note has ended by the note's onset; notes with the same onset and length
   become a chord `[a,b]`. Each layer is one instrument line.
-- A block (a range of bars) is one weighted sequence per layer, in units of the block's
-  tick GCD, written one bar per string: a note held across a bar line is one step whose
-  weight spans the line, so it is not re-attacked; the following bar's string then
-  holds only that bar's remaining events.
+- A requested range is cut into the smallest blocks no tie crosses: one bar, or the run
+  of bars a held note joins. A block is one weighted sequence per layer, in units of the
+  block's tick GCD; a note held across a bar line is one step, so it is not re-attacked.
+  A tie that crosses the end of a requested range is reported: widen the range.
+- Block ranges are in cycles, so bars after a short bar are written early (after one 2/4
+  bar, bar N is `bars (N - 0.5)`); the block's comment gives the score bar.
 - Time-signature changes are honoured per bar (a 2/4 bar is two beats of the block).
 - A note that another track already sounds at the same onset and pitch is dropped
   (LilyPond editions double a note with hidden noteheads to carry a slur across
@@ -297,23 +299,56 @@ def main():
         print(f"-- track {ti}: {nm!r}", file=sys.stderr)
 
     ind = " " * a.indent
+    held = [(n[0], n[1]) for _, ns in all_notes for n in ns]
+    by_bar = {b[0]: b for b in bars}
+    beats_before = {}
+    acc = 0
+    for b in bars:
+        beats_before[b[0]] = acc
+        acc += b[3]
+
+    def num(x):
+        return str(int(x)) if x == int(x) else str(x)
+
+    def merged(strings):
+        """The bar strings as one sequence, adjacent rests joined."""
+        out = []
+        for tok in " ".join(strings).split():
+            if tok.startswith("~") and out and out[-1].startswith("~"):
+                w = lambda t: int(t[2:]) if "@" in t else 1
+                out[-1] = f"~@{w(out[-1]) + w(tok)}"
+            else:
+                out.append(tok)
+        return " ".join(out)
+
     for rng in a.blocks.split(","):
         b1, b2 = (int(x) for x in rng.split("-"))
-        print(f"{ind},bars {b1} {b2} $ stack [silence")
-        for ti, ns in all_notes:
-            for li, layer in enumerate(layers_of(ns)):
-                enc = encode_block(layer, bars, b1, b2)
-                if enc is None:
-                    continue  # silent layer in this block
-                strings, beats, comments, ties = enc
-                print(f"{ind}   ,{a.instrument} M 1 \"{a.mark}\" k (staff {beats}   -- track {ti} layer {li}")
-                for s, c in zip(strings, comments):
-                    print(f"{ind}      [\"{s}\"" if s is strings[0] else f"{ind}      ,\"{s}\"", end="")
-                    print(f"{' ' * max(1, 40 - len(s))}-- {c}")
-                print(f"{ind}      ])")
-                for n, ps, e in ties:
-                    print(f"-- tie: bar {n} {' '.join(note_name(p) for p in ps)} held into the next bar", file=sys.stderr)
-        print(f"{ind}   ]")
+        starts = [b1] + [n for n in range(b1 + 1, b2 + 1)
+                         if not any(s < by_bar[n][1] < e for s, e in held)]
+        for i, s1 in enumerate(starts):
+            s2 = starts[i + 1] - 1 if i + 1 < len(starts) else b2
+            end = by_bar[s2][1] + by_bar[s2][2]
+            c1 = beats_before[s1] / 4 + 1
+            c2 = (beats_before[s2] + by_bar[s2][3]) / 4
+            tag = "" if (c1, c2) == (s1, s2) else f"   -- {s1}" + (f"–{s2}" if s2 > s1 else "")
+            rows = []
+            for ti, ns in all_notes:
+                for li, layer in enumerate(layers_of(ns)):
+                    enc = encode_block(layer, bars, s1, s2)
+                    if enc is None:
+                        continue  # silent layer in this block
+                    strings, beats, _, ties = enc
+                    rows.append((ti, li, merged(strings), beats))
+                    for n, ps, e in ties:
+                        if e > end:
+                            print(f"-- tie: bar {n} {' '.join(note_name(p) for p in ps)} is held past bar {s2}, the end of the range {rng}", file=sys.stderr)
+            if not rows:
+                continue
+            print(f"{ind},bars {num(c1)} {num(c2)} $ stack [silence{tag}")
+            for ti, li, body, beats in rows:
+                print(f"{ind}    -- track {ti} voice {li + 1}")
+                print(f"{ind}   ,{a.instrument} M 1 \"{a.mark}\" k \"[{body}]/{beats}\"")
+            print(f"{ind}   ]")
 
 
 if __name__ == "__main__":

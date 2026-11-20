@@ -37,7 +37,6 @@ DEFAULT_TARGETS = [
     "live/docs/JAZZ_DIAGNOSTIC.tidal",
     "live/docs/ORCHESTRAL_CATALOGUE.tidal",
     "live/docs/NANOSYNTH_CATALOGUE.tidal",
-    "live/jvnanoconfig/calibration.tidal",
     "live/drumpats/afro-cuban/bolero.tidal",
     "live/drumpats/dub/rockers.tidal",
     "live/examples/00-QUICK_START.tidal",

@@ -34,6 +34,7 @@ import Sound.Tidal.Context hiding (defaultConfig)
 import qualified Sound.Tidal.Config as TidalConfig
 import Harmonic.Lib
 import qualified Harmonic.Interface.Tidal.Orchestra as O
+import qualified Harmonic.Interface.Tidal.Groove as G
 import Control.Concurrent (threadDelay)
 
 import System.IO (hSetEncoding, stdout, utf8)
@@ -240,6 +241,10 @@ arco       = O.arco rig
 -- Cold configuration of the declared module: each one-shot fires, then a
 -- tenth of a second passes before the next so the module never queues. Run
 -- once after power-up. A rig whose patches live on the device sends nothing.
+-- The sub and kick, read where this rig keeps them on channel 10.
+subKick  dyn k vf t = transposeLane (fst (O.rigLane rig)) $ G.subKick  dyn k vf t
+subKick' dyn k vf t = transposeLane (fst (O.rigLane rig)) $ G.subKick' dyn k vf t
+
 :{
 setupRig :: IO ()
 setupRig = mapM_ (\pat -> once pat >> threadDelay 100000) (rigSetup rig)
@@ -437,7 +442,7 @@ kmap f k lyr = p "kmap" $ f $ harmonicState lyr k
 
 metronome ks d = p "click" $ click (slow 4 $ fast ks "1") |= vel "[1 0.2@126]/4" |* vel d
 
-count k d = p "count" $ midinote (fromIntegral . (+7) <$> snd k) # ch 10 # sustain 0.05 |* vel d
+count k d = p "count" $ midinote (fromIntegral . (+ snd (O.rigLane rig)) <$> snd k) # ch 10 # sustain 0.05 |* vel d
 
 -------------------------------------------------------------------------------
 -- Q-Link Controller Bridge (CC 100-110 via qlink-bridge.scd → OSC port 6010)

@@ -116,6 +116,7 @@ jv1010 = Rig
   , rigLegg       = ch 15
   , rigArco       = ch 16
   , rigContinuo   = 7
+  , rigLane       = (0, 7)          -- sub 36–47, kick 48; count 8–15
   , rigSetup      = []
   }
 

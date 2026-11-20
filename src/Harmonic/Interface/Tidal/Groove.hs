@@ -32,6 +32,7 @@ module Harmonic.Interface.Tidal.Groove
   , subKick
   , subKick'
   , holdToNext
+  , transposeLane
   , noteoff
     -- * Clave and cascara grids
   , son32, son23, rumba32, rumba23, bossa32, bossa23, bellpat32, bellpat23
@@ -45,6 +46,7 @@ import qualified Harmonic.Rules.Types.ProgressionContext as PC
 import Harmonic.Interface.Tidal.Form (Kinetics(..), IK, ki, kinPick)
 import Data.List (nub, sortOn)
 import Data.Maybe (catMaybes, mapMaybe)
+import qualified Data.Map.Strict as Map
 import Data.Foldable (toList)
 import Sound.Tidal.Context
 
@@ -103,6 +105,18 @@ noteoff nBeats p = splitQueries $ p { query = f, steps = Nothing, pureValue = No
                 w  = Arc s0 (min nx (s0 + cap))
             in (\pt -> ev { whole = Just w, part = pt }) <$> subArc a w
       in catMaybes (zipWith build ons nexts)
+
+-- | Move the notes of a lane by @n@ semitones, leaving events that carry no
+-- note (the controller messages riding the same stream) as they are. The sub
+-- and kick are written at MIDI 35–48; a rig whose module answers on that band
+-- of the shared channel reads them elsewhere, and the boot file applies the
+-- rig's offset here.
+transposeLane :: Int -> ControlPattern -> ControlPattern
+transposeLane 0 = id
+transposeLane n = fmap (Map.adjust shift "note")
+  where shift (VN x) = VN (x + fromIntegral n)
+        shift (VF x) = VF (x + fromIntegral n)
+        shift v      = v
 
 -- | Normalize pitch classes to C2-B2 range (MIDI 36-47) for MPC sub program.
 -- Empty list returns 35 (B1, where no sample is assigned = silence).

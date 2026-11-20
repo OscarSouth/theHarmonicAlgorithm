@@ -257,7 +257,7 @@ module Harmonic.Lib (
   save, recall,
 
   -- ** Groove interface (drums and sub bass)
-  subKick, subKick', holdToNext, fund, noteoff,
+  subKick, subKick', holdToNext, transposeLane, fund, noteoff,
   son32, son23, rumba32, rumba23, bossa32, bossa23,
   bellpat32, bellpat23,
 
@@ -361,7 +361,7 @@ import Harmonic.Interface.Tidal.Arranger (
     lead, lead', leadJ, parseLeadTokens, LeadToken(..)
   )
 import Harmonic.Interface.Tidal.Groove
-  ( subKick, subKick', holdToNext, fund, noteoff
+  ( subKick, subKick', holdToNext, transposeLane, fund, noteoff
   , son32, son23, rumba32, rumba23, bossa32, bossa23
   , bellpat32, bellpat23 )
 import Harmonic.Interface.Tidal.LineHarmony (lineHarmony)
